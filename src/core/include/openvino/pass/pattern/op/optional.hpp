@@ -24,7 +24,7 @@ public:
     /// in case the following op types do not exist in a pattern to match.
     /// \param patterns The pattern to match a graph.
     Optional(
-        const std::unordered_set<DiscreteTypeInfo>& type_infos,
+        const std::vector<DiscreteTypeInfo>& type_infos,
         const Output<Node>& pattern,
         const pattern::op::ValuePredicate& pred =
             [](const Output<Node>& output) {
@@ -37,29 +37,29 @@ public:
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override;
 
-    std::unordered_set<DiscreteTypeInfo> get_optional_types() const;
+    std::vector<DiscreteTypeInfo> get_optional_types() const;
 
 protected:
-    std::unordered_set<DiscreteTypeInfo> optional_types;
+    std::vector<DiscreteTypeInfo> optional_types;
 };
 }  // namespace op
 
 template <class NodeType>
-void collect_type_info(std::unordered_set<DiscreteTypeInfo>& type_info_vec) {
-    type_info_vec.insert(NodeType::get_type_info_static());
+void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
+    type_info_vec.push_back(NodeType::get_type_info_static());
 }
 
 template <class NodeType,
           class... NodeTypeArgs,
           typename std::enable_if<sizeof...(NodeTypeArgs) != 0, bool>::type = true>
-void collect_type_info(std::unordered_set<DiscreteTypeInfo>& type_info_vec) {
+void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     collect_type_info<NodeType>(type_info_vec);
     collect_type_info<NodeTypeArgs...>(type_info_vec);
 }
 
 template <class... NodeTypes>
 std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred) {
-    std::unordered_set<DiscreteTypeInfo> optional_type_info_vec;
+    std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
     return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
 }

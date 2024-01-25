@@ -451,21 +451,6 @@ TEST(pattern, matcher) {
                                                                        std::make_shared<op::v1::Subtract>(a, b)}),
                         std::make_shared<op::v1::Subtract>(a, b)));
 
-    // Optional
-    {
-        auto c = std::make_shared<op::v1::Add>(a, b);
-        auto d = std::make_shared<op::v1::Add>(a, b);
-
-        ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(c), c));
-        ASSERT_TRUE(
-            n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(std::make_shared<op::v0::Abs>(d)), c));
-        ASSERT_TRUE(
-            n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(std::make_shared<op::v0::Relu>(d)), c));
-        ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(
-                                 std::make_shared<op::v0::Abs>(std::make_shared<op::v0::Relu>(d))),
-                             c));
-    }
-
     // Branch
     {
         auto branch = std::make_shared<pattern::op::Branch>();
@@ -498,6 +483,23 @@ TEST(pattern, matcher) {
         auto label_dynamic_type = make_shared<pattern::op::Label>(element::dynamic, PartialShape{Dimension::dynamic()});
         ASSERT_TRUE(sm.match(label_dynamic_type, vector_param));
     }
+}
+
+TEST(pattern, matching_optional) {
+    Shape shape{};
+    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto b = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto c = std::make_shared<op::v1::Add>(a, b);
+    auto d = std::make_shared<op::v1::Add>(a, b);
+
+    TestMatcher n;
+
+    // Check Optional pattern
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Relu>(c)));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
+    ASSERT_FALSE(
+        n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Result>(c)));
 }
 
 TEST(pattern, mean) {

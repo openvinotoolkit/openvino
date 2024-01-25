@@ -61,9 +61,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
-    auto cast = pattern::wrap_type<ov::op::v0::Convert>({reuseSub1OrNot});
-
-    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(cast);
+    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
@@ -181,8 +179,11 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             nodes_to_copy_info.push_back(pattern_to_output.at(sub2).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.count(cast)) {
-            nodes_to_copy_info.push_back(pattern_to_output.at(cast).get_node_shared_ptr());
+        if (pattern_to_output.count(reuseSub1OrNot)) {
+            auto cast = pattern_to_output.at(reuseSub1OrNot).get_node_shared_ptr();
+            if (ov::is_type<ov::op::v0::Convert>(cast)) {
+                nodes_to_copy_info.push_back(cast);
+            }
         }
 
         if (pattern_to_output.count(div_alt)) {
