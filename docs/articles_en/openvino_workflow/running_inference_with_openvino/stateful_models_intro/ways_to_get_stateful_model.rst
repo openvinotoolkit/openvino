@@ -31,7 +31,7 @@ layers as it is shown in the picture below.
 
 Example of applying LowLatency2 transformation:
 
-.. image:: _static/images/applying_low_latency_2.png
+.. image:: _static/images/applying_low_latency_2.svg
 
 After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. 
 These inputs should set the initial value for initialization of ReadValue operations. 
@@ -81,7 +81,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
          :fragment: [ov:low_latency_2_use_parameters]
 
 
-.. image:: _static/images/llt2_use_const_initializer.png
+.. image:: _static/images/llt2_use_const_initializer.svg
 
 **State naming rule:**  a name of a state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict what the name of the inserted State will be after the transformation is applied. For example:
 
@@ -99,7 +99,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
    The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but models can be non-reshapable, the most common reason is that the value of shapes is hardcoded in a constant somewhere in the model.
 
-.. image:: _static/images/low_latency_limitation_2.png
+.. image:: _static/images/low_latency_limitation_2.svg
 
    **Current solution:** Trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md) `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
    `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.

@@ -12,9 +12,11 @@ Stateful models and State API
 What is Stateful Model?
 #######################
 
-Stateful model is a model which stores the specified data between and during model inferences in internal memory space usually called State or Variable.
-In contrast to usual **stateless** model, which purify all the calculated data after each inference call, **stateful**
-model preserve tensors saved in States.
+Stateful model is a model which implicitly keeps data from one inference call to the next inference call. Data is kept in internal runtime memory space usually called State or Variable.
+In contrast to usual **stateless** model, which return all produced data as model outputs, **stateful**
+model preserve part of the tensors saved in States without exposing them as model outputs.
+
+The purpose of stateful models is to natively address a sequence processing like in text generation tasks when one model inference produce a single output token, and it is required to perform multiple inference calls to generate a complete output sentence. Hidden state data from previous inference should be passed to the next inference as a context. Usually the contextual data is not required to be accessed in the user application and should be just passed through to the next inference call manually using model API. Stateful models simplifies programming of this scenario and unlocks additional performance potential of OpenVINO runtime.
 
 OpenVINO Stateful Model Representation
 ######################################
@@ -38,7 +40,7 @@ These entities work as a coherent mechanism and help to achieve the next goals:
 
 3. Specific scenarios
     Several use cases require processing of data sequences. When length of a sequence is known and small enough,
-    we can process it with RNN like models that contain a cycle inside. But in some cases, like online speech recognition of time series
+    we can process it with RNN like models that contain a cycle inside. But in some cases, like online speech recognition or time series
     forecasting, length of data sequence is unknown. Then data can be divided in small portions and processed step-by-step. But dependency
     between data portions should be addressed. For that, models save some data between inferences - state. When one dependent sequence is over,
     state should be reset to initial value and new sequence can be started.
@@ -53,7 +55,7 @@ Stateful Model Example
 .. image:: _static/images/stateful_model_example.svg
    :align: center
 
-The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations. They have no connection with each other and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
+The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations. There's no direct connection from Result to Parameter and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
 In addition, this may impose additional overhead due to data representation conversion.
 
 Having operations such as ReadValue and Assign allows users to replace the looped Parameter/Result pairs of operations and shift the work of copying data to OpenVINO. After the replacement, the OpenVINO model no longer contains inputs and outputs with such names, all internal work on data copying is hidden from the user, but data from the intermediate inference can always be retrieved using State API methods.
