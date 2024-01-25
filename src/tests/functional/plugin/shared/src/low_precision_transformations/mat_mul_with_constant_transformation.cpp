@@ -15,7 +15,6 @@
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -47,7 +46,7 @@ void MatMulWithConstantTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         testValues.inputShape,
         testValues.fqOnData,

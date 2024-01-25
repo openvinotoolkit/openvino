@@ -6,9 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
-
 #include <algorithm>
 #include <functional>
 #include <initializer_list>
