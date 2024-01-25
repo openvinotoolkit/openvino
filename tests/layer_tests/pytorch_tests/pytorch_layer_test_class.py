@@ -146,7 +146,7 @@ class PytorchLayerTest:
                 if np.array(cur_fw_res).size == 0:
                     continue
                 cur_ov_res = infer_res[compiled.output(i)]
-                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                assert cur_ov_res.shape == cur_fw_res.shape, "Shapes are not equal: {} vs {}".format(cur_ov_res.shape, cur_fw_res.shape)
                 n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
                                                                         atol=fw_eps,
                                                                         rtol=fw_eps, equal_nan=True).sum()
