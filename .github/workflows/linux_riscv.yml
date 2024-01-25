@@ -212,7 +212,8 @@ jobs:
 
       - name: Show sccache log
         continue-on-error: true
-        run: cat ${SCCACHE_ERROR_LOG}
+        run: |
+          cat ${SCCACHE_ERROR_LOG}
 
       - name: Upload sccache log
         if: ${{ always() }}
