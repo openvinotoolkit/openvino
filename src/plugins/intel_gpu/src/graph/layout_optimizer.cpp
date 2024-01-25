@@ -59,7 +59,7 @@ static size_t get_post_ops_count(const program_node& node) {
 static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
 
@@ -1012,7 +1012,7 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 
         if (dep.first->is_type<convolution>()) {
             auto& conv_dep = dep.first->as<convolution>();
-            if (!convolution_byxf_opt(conv_dep.input().get_output_layout(),
+            if (!convolution_byxf_opt(conv_dep.get_input_layout(),
                                       conv_dep.get_output_layout(),
                                       conv_dep.weights().get_output_layout(),
                                       conv_dep)) {
@@ -1030,7 +1030,7 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 }
 
 format layout_optimizer::imad_case(convolution_node const& node) const {
-    auto dims_count = format::dimension(node.input().get_output_layout().format);
+    auto dims_count = format::dimension(node.get_input_layout().format);
 
     bool is_grouped = node.get_groups() > 1;
     bool is_dw = is_depthwise(node);
@@ -1155,7 +1155,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         } else if (output_layout.format == format::bfzyx) {
             expected_format = cldnn::format::bfzyx;
         } else if (_optimization_attributes.bs_fs_yx_bsv16_fsv16_network &&
-                convolution_bs_fs_yx_bsv16_fsv16_opt(node.input().get_output_layout(), output_layout, weights_layout, prim)) {
+                convolution_bs_fs_yx_bsv16_fsv16_opt(node.get_input_layout(), output_layout, weights_layout, prim)) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (_optimization_attributes.fs_b_yx_fsv32_network && !node.get_transposed() &&
                 ((convolution_fs_b_yx_fsv32_opt(input_layout,
@@ -1838,7 +1838,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
         if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
             auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.input().get_output_layout();
+            auto input_layout = fc_node.get_input_layout();
             if (input_layout.format.dimension() > 4) {
                 expected = format::bfyx;
                 node.set_preferred_input_fmt(0, format::bfyx);
@@ -2098,7 +2098,7 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
 }
 
 bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
@@ -2147,7 +2147,7 @@ size_t layout_optimizer::get_optimized_conv_count(const std::pair<format::type, 
 }
 
 bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const format& format) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto prim = node.get_primitive();
 
