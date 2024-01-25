@@ -29,7 +29,7 @@ using namespace ov;
 #if defined(HAVE_AVX2)
 
 #define prefetch_bytes(bytes, sel, advance, src) {  \
-    int8_t *p = reinterpret_cast<int8_t *>(src);    \
+    auto *p = reinterpret_cast<char *>(src);        \
     for (size_t i = 0; i < bytes; i += 64)          \
         _mm_prefetch(p + i + advance, sel);         \
 }
