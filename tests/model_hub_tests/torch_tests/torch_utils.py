@@ -63,13 +63,11 @@ class TestTorchConvertModel(TestConvertModel):
 
     def convert_model_impl(self, model_obj):
         from openvino import PartialShape
-        from openvino.tools import mo
         input_arg = [PartialShape(e.shape) for e in self.example]
         ov_model = mo.convert_model(model_obj,
                                  example_input=self.example,
                                  input=input_arg,
-                                 static_shape=True,
-                                 #verbose=True
+                                 verbose=True
                                  )
         return ov_model
 
