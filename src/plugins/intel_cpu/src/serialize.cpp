@@ -14,18 +14,7 @@ namespace intel_cpu {
 ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
-    auto serializeInfo = [&](std::ostream& stream) {
-        const std::string name = "cnndata";
-        pugi::xml_document xml_doc;
-        pugi::xml_node root = xml_doc.append_child(name.c_str());
-        pugi::xml_node outputs = root.append_child("outputs");
-        for (const auto& out : model->get_results()) {
-            auto out_node = outputs.append_child("out");
-        }
-        xml_doc.save(stream);
-    };
-
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
+    ov::pass::StreamSerialize serializer(_ostream, {});
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
