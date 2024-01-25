@@ -32,7 +32,24 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+    if(APPLE)
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+    else()
+        if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+            # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
+            # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
+            # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
+            set(OV_CPU_AARCH64_USE_MULTI_ISA ON)
+        endif()
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
+            # set v8a even we want fp16 kernels, because
+            # we use multi_isa=1 in ACLConfig.cmake to enable both fp16 and fp32 kernels
+            # actual kernel is selected in runtime based on runtime capabilities
+            set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
+        else()
+            set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+        endif()
+    endif()
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
