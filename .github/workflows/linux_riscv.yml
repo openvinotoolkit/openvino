@@ -56,8 +56,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+#      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+#      CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
