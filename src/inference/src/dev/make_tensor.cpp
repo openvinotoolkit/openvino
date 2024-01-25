@@ -80,7 +80,7 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        OPENVINO_ASSERT(shape_size(new_shape) <= ov::shape_size(m_capacity), "Could set new shape: ", new_shape);
+        OPENVINO_ASSERT(shape_size(new_shape) <= ov::shape_size(m_capacity), "Could set new shape: ", new_shape, m_capacity);
         m_shape = std::move(new_shape);
         m_strides.clear();
         update_strides();
