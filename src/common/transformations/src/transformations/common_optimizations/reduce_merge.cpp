@@ -64,6 +64,24 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         }
     }
 
+
+    // Align reduce axes constants by shape and type
+    for (auto& reduce: {top_reduce, bottom_reduce}) {
+        const auto reduce_axes_output = reduce->input_value(1);
+        const auto reduce_axes_rank = reduce_axes_output.get_partial_shape().rank();
+        if (reduce_axes_rank == Dimension(0)) {
+            const auto unsqueeze_const = ov::op::v0::Constant::create(reduce_axes_output.get_node()->get_element_type(), {}, {0});
+            const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reduce_axes_output, unsqueeze_const);
+            reduce->inputs()[1].replace_source_output(unsqueeze);
+            copy_runtime_info({top_reduce, bottom_reduce}, {unsqueeze_const, unsqueeze});
+        }
+        const auto cast = std::make_shared<ov::op::v0::Convert>(reduce->input_value(1), ov::element::i64);
+        reduce->inputs()[1].replace_source_output(cast);
+        copy_runtime_info({top_reduce, bottom_reduce}, cast);
+    }
+
+    const auto botom_reduce_axes_rank = bottom_reduce->input_value(1).get_partial_shape().rank();
+
     std::shared_ptr<Node> axes =
         std::make_shared<ov::op::v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
                                              int64_t(0));
