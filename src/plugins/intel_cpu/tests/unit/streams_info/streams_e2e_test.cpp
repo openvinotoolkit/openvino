@@ -64,9 +64,9 @@ public:
                                                                    test_data.input_proc_type_table,
                                                                    test_data.input_model_prefer);
 
-        ASSERT_EQ(test_data.output_stream_info_table, config.streamExecutorConfig.get_streams_info_table());
+        ASSERT_EQ(test_data.output_stream_info_table, config.streamsInfoTable);
         ASSERT_EQ(test_data.output_proc_type_table, proc_type_table);
-        ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig.get_cpu_reservation());
+        ASSERT_EQ(test_data.output_cpu_value, config.cpuReservation);
         ASSERT_EQ(test_data.output_ht_value, config.enableHyperThreading);
         ASSERT_EQ(test_data.output_type, config.schedulingCoreType);
         ASSERT_EQ(test_data.output_pm_hint, config.hintPerfMode);
