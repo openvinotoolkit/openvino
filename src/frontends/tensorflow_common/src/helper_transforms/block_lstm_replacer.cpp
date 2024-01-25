@@ -8,7 +8,19 @@
 #include <vector>
 
 #include "helper_ops/block_lstm.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -17,8 +29,8 @@
 
 using namespace std;
 using namespace ov::pass;
+using namespace ov::op;
 using namespace ov::pass::pattern;
-using namespace ov::opset9;
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -44,8 +56,8 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
     // Pattern 1: BlockLSTM with last state cell output (BlockLSTM -> Concat -> GatherND)
     // used in DeepSpeech model
     auto block_lstm_1 = pattern::wrap_type<BlockLSTM>(can_have_outputs({1, 6}));
-    auto states_cell_1 = pattern::wrap_type<Concat>({pattern::any_input(), block_lstm_1});
-    auto pattern1 = pattern::wrap_type<GatherND>({states_cell_1, pattern::any_input()});
+    auto states_cell_1 = pattern::wrap_type<v0::Concat>({pattern::any_input(), block_lstm_1});
+    auto pattern1 = pattern::wrap_type<v8::GatherND>({states_cell_1, pattern::any_input()});
 
     // Pattern 2: BlockLSTM with just one output, concatenated hidden states (BlockLSTM)
     auto pattern2 = pattern::wrap_type<BlockLSTM>(can_have_outputs({6}));
@@ -64,7 +76,7 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
         ov::NodeVector rt_info_from;
         if (is_pattern1) {
             block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(block_lstm_1));
-            auto concat_node = std::dynamic_pointer_cast<Concat>(pattern_map.at(states_cell_1));
+            auto concat_node = std::dynamic_pointer_cast<v0::Concat>(pattern_map.at(states_cell_1));
             if (!concat_node || concat_node->get_axis() != 0) {
                 // timestep is the first dimension
                 return false;
@@ -107,95 +119,95 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
         auto bias = block_lstm_node->input_value(8);
 
         // retrieve input_size
-        auto x_shape = rg.make<ShapeOf>(x, element::i64);
-        auto ss_start = rg.make<Constant>(element::i64, Shape{1}, 2);
-        auto ss_stop = rg.make<Constant>(element::i64, Shape{1}, 3);
-        auto ss_step = rg.make<Constant>(element::i64, Shape{1}, 1);
-        auto input_size = rg.make<StridedSlice>(x_shape,
-                                                ss_start,
-                                                ss_stop,
-                                                ss_step,
-                                                std::vector<int64_t>{0},
-                                                std::vector<int64_t>{0});
+        auto x_shape = rg.make<v3::ShapeOf>(x, element::i64);
+        auto ss_start = rg.make<v0::Constant>(element::i64, Shape{1}, 2);
+        auto ss_stop = rg.make<v0::Constant>(element::i64, Shape{1}, 3);
+        auto ss_step = rg.make<v0::Constant>(element::i64, Shape{1}, 1);
+        auto input_size = rg.make<v1::StridedSlice>(x_shape,
+                                                    ss_start,
+                                                    ss_stop,
+                                                    ss_step,
+                                                    std::vector<int64_t>{0},
+                                                    std::vector<int64_t>{0});
 
         // retrieve the batch size
         // now x is in a format [time_len, batch_size, input_size]
-        auto ss_start2 = rg.make<Constant>(element::i64, Shape{1}, 1);
-        auto ss_stop2 = rg.make<Constant>(element::i64, Shape{1}, 2);
-        auto batch_size = rg.make<StridedSlice>(x_shape,
-                                                ss_start2,
-                                                ss_stop2,
-                                                ss_step,
-                                                std::vector<int64_t>{0},
-                                                std::vector<int64_t>{0});
+        auto ss_start2 = rg.make<v0::Constant>(element::i64, Shape{1}, 1);
+        auto ss_stop2 = rg.make<v0::Constant>(element::i64, Shape{1}, 2);
+        auto batch_size = rg.make<v1::StridedSlice>(x_shape,
+                                                    ss_start2,
+                                                    ss_stop2,
+                                                    ss_step,
+                                                    std::vector<int64_t>{0},
+                                                    std::vector<int64_t>{0});
 
         auto hidden_size_const =
-            rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{hidden_size.get_length()});
+            rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{hidden_size.get_length()});
 
         // adjust weights and bias
         // 1. reshape weights and bias to highlight channel dimension
-        auto new_weight_shape = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 4, -1});
-        auto weight_reshape = rg.make<Reshape>(weights, new_weight_shape, true);
-        auto new_bias_shape = rg.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{4, -1});
-        auto bias_reshape = rg.make<Reshape>(bias, new_bias_shape, true);
+        auto new_weight_shape = rg.make<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 4, -1});
+        auto weight_reshape = rg.make<v1::Reshape>(weights, new_weight_shape, true);
+        auto new_bias_shape = rg.make<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{4, -1});
+        auto bias_reshape = rg.make<v1::Reshape>(bias, new_bias_shape, true);
         // 2. reorder gates icfo --> fico for both weights and biases
-        auto reorder_const = rg.make<Constant>(element::i64, Shape{4}, std::vector<int64_t>{2, 0, 1, 3});
-        auto weights_axis = rg.make<Constant>(element::i64, Shape{}, 1);
-        auto weights_reorder = rg.make<Gather>(weight_reshape, reorder_const, weights_axis);
-        auto bias_axis = rg.make<Constant>(element::i64, Shape{}, 0);
-        auto bias_reorder = rg.make<Gather>(bias_reshape, reorder_const, bias_axis);
+        auto reorder_const = rg.make<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{2, 0, 1, 3});
+        auto weights_axis = rg.make<v0::Constant>(element::i64, Shape{}, 1);
+        auto weights_reorder = rg.make<v8::Gather>(weight_reshape, reorder_const, weights_axis);
+        auto bias_axis = rg.make<v0::Constant>(element::i64, Shape{}, 0);
+        auto bias_reorder = rg.make<v8::Gather>(bias_reshape, reorder_const, bias_axis);
         // 3. shift_const.value should be added to the first 1 / 4th part of the biases(f - gate : 0)
-        auto shift_const = rg.make<Constant>(element::f32, Shape{}, block_lstm_node->get_forget_bias());
-        auto bias_split_lens = rg.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 3});
-        auto bias_split = rg.make<VariadicSplit>(bias_reorder, bias_axis, bias_split_lens);
-        auto bias_first_shift = rg.make<Add>(bias_split->output(0), shift_const);
-        auto bias_shift = rg.make<Concat>(OutputVector{bias_first_shift, bias_split->output(1)}, 0);
+        auto shift_const = rg.make<v0::Constant>(element::f32, Shape{}, block_lstm_node->get_forget_bias());
+        auto bias_split_lens = rg.make<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 3});
+        auto bias_split = rg.make<v1::VariadicSplit>(bias_reorder, bias_axis, bias_split_lens);
+        auto bias_first_shift = rg.make<v1::Add>(bias_split->output(0), shift_const);
+        auto bias_shift = rg.make<v0::Concat>(OutputVector{bias_first_shift, bias_split->output(1)}, 0);
         // 4. return to the original shapes
-        auto new_weight_shape2 = rg.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
-        auto weight_reshape2 = rg.make<Reshape>(weights_reorder, new_weight_shape2, true);
+        auto new_weight_shape2 = rg.make<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
+        auto weight_reshape2 = rg.make<v1::Reshape>(weights_reorder, new_weight_shape2, true);
         // 5. normalize weights and bias
-        auto transpose_order = rg.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
-        auto new_bias_shape2 = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
-        auto weights_normalize = rg.make<Transpose>(weight_reshape2, transpose_order);
-        auto bias_normalized = rg.make<Reshape>(bias_shift, new_bias_shape2, true);
+        auto transpose_order = rg.make<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+        auto new_bias_shape2 = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto weights_normalize = rg.make<v1::Transpose>(weight_reshape2, transpose_order);
+        auto bias_normalized = rg.make<v1::Reshape>(bias_shift, new_bias_shape2, true);
         // 6. split weights into W and R inputs
-        auto WR_split_axis = rg.make<Constant>(element::i64, Shape{}, 1);
-        auto WR_split_lens = rg.make<Concat>(OutputVector{input_size, hidden_size_const}, 0);
-        auto WR_split = rg.make<VariadicSplit>(weights_normalize, WR_split_axis, WR_split_lens);
+        auto WR_split_axis = rg.make<v0::Constant>(element::i64, Shape{}, 1);
+        auto WR_split_lens = rg.make<v0::Concat>(OutputVector{input_size, hidden_size_const}, 0);
+        auto WR_split = rg.make<v1::VariadicSplit>(weights_normalize, WR_split_axis, WR_split_lens);
         // 7. unsqueeze weights and bias to have a dimension for a number of directions
-        auto num_direct_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-        auto W = rg.make<Unsqueeze>(WR_split->output(0), num_direct_axis);
-        auto R = rg.make<Unsqueeze>(WR_split->output(1), num_direct_axis);
-        auto B = rg.make<Unsqueeze>(bias_normalized, num_direct_axis);
+        auto num_direct_axis = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+        auto W = rg.make<v0::Unsqueeze>(WR_split->output(0), num_direct_axis);
+        auto R = rg.make<v0::Unsqueeze>(WR_split->output(1), num_direct_axis);
+        auto B = rg.make<v0::Unsqueeze>(bias_normalized, num_direct_axis);
 
         // normalize initial hidden and cell states
-        auto unsqueeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-        auto init_hidden_state = rg.make<Unsqueeze>(h_prev, unsqueeze_axis);
-        auto init_cell_state = rg.make<Unsqueeze>(cs_prev, unsqueeze_axis);
+        auto unsqueeze_axis = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        auto init_hidden_state = rg.make<v0::Unsqueeze>(h_prev, unsqueeze_axis);
+        auto init_cell_state = rg.make<v0::Unsqueeze>(cs_prev, unsqueeze_axis);
 
         // prepare sequence length input for LSTMSequence
-        auto seq_len_max_adjusted = rg.make<Broadcast>(seq_len_max, batch_size);
+        auto seq_len_max_adjusted = rg.make<v3::Broadcast>(seq_len_max, batch_size);
 
         // prepare input data since LSTMSequence accept it in a format [batch_size, time_len, input_size]
-        auto x_order = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
-        auto x_adjusted = rg.make<Transpose>(x, x_order);
+        auto x_order = rg.make<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+        auto x_adjusted = rg.make<v1::Transpose>(x, x_order);
 
         // create LSTMSequence node and reconnect inputs and normalized weights and bias
-        auto lstm_sequence = rg.make<LSTMSequence>(x_adjusted,
-                                                   init_hidden_state,
-                                                   init_cell_state,
-                                                   seq_len_max_adjusted,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size.get_length(),
-                                                   LSTMSequence::direction::FORWARD);
+        auto lstm_sequence = rg.make<v5::LSTMSequence>(x_adjusted,
+                                                       init_hidden_state,
+                                                       init_cell_state,
+                                                       seq_len_max_adjusted,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size.get_length(),
+                                                       v5::LSTMSequence::direction::FORWARD);
 
         if (block_lstm_node->output(1).get_target_inputs().size() > 0) {
             // adjust output with the last state cell and connect to the main graph
             // squeeze extra dimension - num_directions
-            auto squeeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-            auto squeeze_last_state_cell = rg.make<Squeeze>(lstm_sequence->output(2), squeeze_axis);
+            auto squeeze_axis = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+            auto squeeze_last_state_cell = rg.make<v0::Squeeze>(lstm_sequence->output(2), squeeze_axis);
 
             // preserve names of the node and the output tensor
             squeeze_last_state_cell->set_friendly_name(last_state_c_node->get_friendly_name());
@@ -207,11 +219,13 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
             // adjust output of concatenated of hidden states from LSTMSequence
             // to have it in a format [time_len, batch_size, hidden_size]
             // 1. squeeze extra dimension - num_directions
-            auto squeeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-            auto squeeze_output_hidden_states = rg.make<Squeeze>(lstm_sequence->output(0), squeeze_axis);
+            auto squeeze_axis = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+            auto squeeze_output_hidden_states = rg.make<v0::Squeeze>(lstm_sequence->output(0), squeeze_axis);
             // 2. transpose the output to rotate batch and time dimensions
-            auto output_hidden_states_order = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
-            auto output_hidden_states = rg.make<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
+            auto output_hidden_states_order =
+                rg.make<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+            auto output_hidden_states =
+                rg.make<v1::Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
 
             // preserve names of the node and the output tensor
             output_hidden_states->set_friendly_name(block_lstm_node->get_friendly_name() + ":6");
