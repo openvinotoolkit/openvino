@@ -1,6 +1,7 @@
 name: Documentation
 on:
   pull_request:
+  merge_group:
 
 env:
   DOXY_VER: '1.9.6'
