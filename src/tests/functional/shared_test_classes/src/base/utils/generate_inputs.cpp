@@ -358,24 +358,15 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling>& node,
     const auto &inputShape = node->get_input_shape(0);
     if (port == 1) {
         auto tensor = ov::Tensor(elemType, targetShape);
-#define CASE(X) case X: ::ov::test::utils::fill_psroi(tensor,                         \
-                                                      inputShape[0],                  \
-                                                      inputShape[2],                  \
-                                                      inputShape[3],                  \
-                                                      node->get_group_size(),         \
-                                                      node->get_spatial_scale(),      \
-                                                      node->get_spatial_bins_x(),     \
-                                                      node->get_spatial_bins_y(),     \
-                                                      node->get_mode()); break;       \
-
-    switch (elemType) {
-        CASE(ov::element::Type_t::f64)
-        CASE(ov::element::Type_t::f32)
-        CASE(ov::element::Type_t::f16)
-        CASE(ov::element::Type_t::bf16)
-        default: OPENVINO_THROW("Unsupported element type: ", elemType);
-    }
-#undef CASE
+        ov::test::utils::fill_psroi(tensor,
+                                    inputShape[0],
+                                    inputShape[2],
+                                    inputShape[3],
+                                    node->get_group_size(),
+                                    node->get_spatial_scale(),
+                                    node->get_spatial_bins_x(),
+                                    node->get_spatial_bins_y(),
+                                    node->get_mode());
         return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -410,6 +401,9 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node,
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
+        CASE(ov::element::Type_t::u1)
+        CASE(ov::element::Type_t::i4)
+        CASE(ov::element::Type_t::u4)
         default: OPENVINO_THROW("Unsupported element type: ", elemType);
     }
 #undef CASE
