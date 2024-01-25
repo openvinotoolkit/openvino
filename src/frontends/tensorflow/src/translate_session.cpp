@@ -563,14 +563,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     }
                     auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
                     if (multi_subgraph) {
-                        bool has_sinks = false;
                         for (const auto& body_model : multi_subgraph->get_functions()) {
                             if (body_model->get_sinks().size()) {
-                                has_sinks = true;
+                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                                break;
                             }
-                        }
-                        if (has_sinks) {
-                            sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
                         }
                     }
                 }
