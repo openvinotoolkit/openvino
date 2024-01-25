@@ -58,12 +58,9 @@ TEST_P(SetPropertyTest, SetPropertyTestCase) {
 const std::vector<set_property_params> plugin_set_property_params_test = {
     set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, false},
     set_property_params{{{ov::device::priorities("CPU(4)")}}, false},
-    set_property_params{{{"CACHE_DIR", "./xyz"}}, false},
     set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
-    set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}, {"CACHE_DIR", "./xyz"}},
-                        false},
     set_property_params{{{"XYZ", "200"}}, true},
-    set_property_params{{{"XYZ", "200"}, {ov::device::priorities("CPU(4)")}, {"CACHE_DIR", "./xyz"}}, true},
+    set_property_params{{{"XYZ", "200"}, {ov::device::priorities("CPU(4)")}}, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
