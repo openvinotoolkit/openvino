@@ -20,7 +20,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector constant_of_shape(const onnx_import::Node& node) {
-    Output<ov::Node> constant_value;
+    ov::Output<ov::Node> constant_value;
     if (node.has_attribute("value")) {
         auto value_tensor = node.get_attribute_value<Tensor>("value");
         constant_value = value_tensor.get_ov_constant();

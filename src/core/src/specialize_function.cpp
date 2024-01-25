@@ -14,8 +14,8 @@ NGRAPH_SUPPRESS_DEPRECATED_START;
 using ov::op::v0::Constant;
 
 std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> f,
-                                                      const std::vector<element::Type>& parameter_element_types,
-                                                      const std::vector<PartialShape>& parameter_shapes,
+                                                      const std::vector<ov::element::Type>& parameter_element_types,
+                                                      const std::vector<ov::PartialShape>& parameter_shapes,
                                                       const std::vector<void*>& parameter_values)
 
 {

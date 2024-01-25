@@ -21,7 +21,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector global_lp_pool(const Node& node) {
-    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
+    const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const std::size_t channel_axis{1};
 
     const auto data_shape = data.get_partial_shape();

@@ -87,10 +87,10 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
 
 OpInputMap::OpInputMap(container_type&& map) : m_map(std::move(map)) {}
 
-Output<ov::Node>& OpInputMap::at(const OpInput& key) {
+ov::Output<ov::Node>& OpInputMap::at(const OpInput& key) {
     return m_map.at(key);
 }
-const Output<ov::Node>& OpInputMap::at(const OpInput& key) const {
+const ov::Output<ov::Node>& OpInputMap::at(const OpInput& key) const {
     return m_map.at(key);
 }
 

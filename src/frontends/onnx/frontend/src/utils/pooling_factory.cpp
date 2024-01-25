@@ -20,7 +20,7 @@ namespace onnx_import {
 namespace pooling {
 
 namespace {
-std::shared_ptr<v0::Constant> transposition_axis_order(const Rank& input_rank) {
+std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_rank) {
     FRONT_END_GENERAL_CHECK(input_rank.is_static(),
                             "Generating column-major MaxPool results is supported only for inputs with static rank.");
 

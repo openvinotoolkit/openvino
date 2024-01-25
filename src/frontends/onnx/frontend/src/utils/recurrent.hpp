@@ -39,7 +39,7 @@ enum class OpInput {
 /// \brief      This structure aggregates operator's inptus in a key-value map.
 ///
 struct OpInputMap {
-    using container_type = std::map<OpInput, Output<ov::Node>>;
+    using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
@@ -47,8 +47,8 @@ struct OpInputMap {
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
-    Output<ov::Node>& at(const OpInput& key);
-    const Output<ov::Node>& at(const OpInput& key) const;
+    ov::Output<ov::Node>& at(const OpInput& key);
+    const ov::Output<ov::Node>& at(const OpInput& key) const;
 
     container_type m_map;
 };

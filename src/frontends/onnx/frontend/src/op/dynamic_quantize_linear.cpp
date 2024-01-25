@@ -60,10 +60,10 @@ std::shared_ptr<ov::Node> find_max_value(const ov::Output<ov::Node>& input) {
     return std::make_shared<v1::Maximum>(zero_node_u8, input_max);
 }
 
-std::shared_ptr<ov::Node> quantize_linear(Output<ov::Node> x,
-                                          Output<ov::Node> x_span,
-                                          Output<ov::Node> quant_range_span,
-                                          Output<ov::Node> y_zero_point) {
+std::shared_ptr<ov::Node> quantize_linear(ov::Output<ov::Node> x,
+                                          ov::Output<ov::Node> x_span,
+                                          ov::Output<ov::Node> quant_range_span,
+                                          ov::Output<ov::Node> y_zero_point) {
     const auto& x_scaled = std::make_shared<v1::Divide>(std::make_shared<v1::Multiply>(x, quant_range_span), x_span);
 
     const auto& x_rounded = std::make_shared<v5::Round>(x_scaled, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);

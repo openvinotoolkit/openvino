@@ -16,8 +16,8 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector expand(const Node& node) {
-    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
-    const Output<ov::Node> shape{node.get_ng_inputs().at(1)};
+    const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
+    const ov::Output<ov::Node> shape{node.get_ng_inputs().at(1)};
 
     if (common::is_failsafe_node(shape.get_node_shared_ptr())) {
         // in case the "shape" input is connected to a failsafe node created in place of an invalid initializer

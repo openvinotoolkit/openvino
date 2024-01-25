@@ -31,8 +31,6 @@
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/node_input.hpp"
-#include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
@@ -90,7 +88,7 @@ using NodeTypeInfo = Node::type_info_t;
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 using ov::RawNodeOutput;
 
-using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
+using RawNodeOutputMap = std::map<RawNodeOutput, ov::Output<Node>>;
 
 using ov::check_new_args_count;
 

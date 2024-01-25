@@ -12,7 +12,7 @@ ov::intel_cpu::RoPENode::RoPENode(const OutputVector& args, const Config& cfg) :
 }
 
 std::shared_ptr<ngraph::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
-    const ngraph::OutputVector& new_args) const {
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(RoPENode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::RoPENode>(new_args, m_config);

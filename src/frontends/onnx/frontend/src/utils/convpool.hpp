@@ -105,7 +105,7 @@ ov::op::PadType get_auto_pad(const Node& node);
 /// \param[in]  groups      Number of groups
 ///
 /// \return     Reshaped filters input.
-Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups);
+ov::Output<ov::Node> get_reshaped_filters(const ov::Output<ov::Node>& filters, int64_t groups);
 }  // namespace convpool
 
 }  // namespace  onnx_import

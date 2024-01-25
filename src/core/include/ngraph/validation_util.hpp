@@ -31,26 +31,28 @@ using ov::op::v0::Constant;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);
+Strides conv_default_strides(const Node* node,
+                             const ov::PartialShape& data_batch_shape,
+                             const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
 CoordinateDiff conv_default_padding(const Node* node,
-                                    const PartialShape& data_batch_shape,
-                                    const PartialShape& filters_shape);
+                                    const ov::PartialShape& data_batch_shape,
+                                    const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-PartialShape infer_windowed_reduction_output_shape(const Node* node,
-                                                   const PartialShape& data_shape,
-                                                   const Strides& data_dilation,
-                                                   const CoordinateDiff& data_padding_below,
-                                                   const CoordinateDiff& data_padding_above,
-                                                   const PartialShape& window_shape,
-                                                   const Strides& window_strides,
-                                                   const Strides& window_dilation,
-                                                   bool is_window_all_in_padding_allowed,
-                                                   bool ceil_mode = false);
+ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
+                                                       const ov::PartialShape& data_shape,
+                                                       const Strides& data_dilation,
+                                                       const CoordinateDiff& data_padding_below,
+                                                       const CoordinateDiff& data_padding_above,
+                                                       const ov::PartialShape& window_shape,
+                                                       const Strides& window_strides,
+                                                       const Strides& window_dilation,
+                                                       bool is_window_all_in_padding_allowed,
+                                                       bool ceil_mode = false);
 
 NGRAPH_API_DEPRECATED
 void validate_conv_params_spatial_dimensions(const Node* node,
@@ -63,59 +65,61 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-PartialShape infer_batched_pooling_forward(const Node* node,
-                                           const PartialShape& data_batch_shape,
-                                           const CoordinateDiff& data_padding_below,
-                                           const CoordinateDiff& data_padding_above,
-                                           const PartialShape& window_shape,
-                                           const Strides& window_strides,
-                                           bool is_window_all_in_padding_allowed,
-                                           bool ceil_mode = false,
-                                           const Strides& window_dilation = Strides{});
+ov::PartialShape infer_batched_pooling_forward(const Node* node,
+                                               const ov::PartialShape& data_batch_shape,
+                                               const CoordinateDiff& data_padding_below,
+                                               const CoordinateDiff& data_padding_above,
+                                               const ov::PartialShape& window_shape,
+                                               const Strides& window_strides,
+                                               bool is_window_all_in_padding_allowed,
+                                               bool ceil_mode = false,
+                                               const Strides& window_dilation = Strides{});
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               element::Type mean_element_type,
-                                                                               element::Type variance_element_type,
-                                                                               const PartialShape& input_shape,
-                                                                               const PartialShape& gamma_shape,
-                                                                               const PartialShape& beta_shape,
-                                                                               const PartialShape& mean_shape,
-                                                                               const PartialShape& variance_shape);
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    element::Type mean_element_type,
+    element::Type variance_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape,
+    const ov::PartialShape& mean_shape,
+    const ov::PartialShape& variance_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
-                                                                               element::Type input_element_type,
-                                                                               element::Type gamma_element_type,
-                                                                               element::Type beta_element_type,
-                                                                               const PartialShape& input_shape,
-                                                                               const PartialShape& gamma_shape,
-                                                                               const PartialShape& beta_shape);
+std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
+    const Node* node,
+    element::Type input_element_type,
+    element::Type gamma_element_type,
+    element::Type beta_element_type,
+    const ov::PartialShape& input_shape,
+    const ov::PartialShape& gamma_shape,
+    const ov::PartialShape& beta_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-PartialShape infer_slice_shape(const Node* node,
-                               const PartialShape& input_shape,
-                               const std::vector<int64_t>& begin,
-                               const std::vector<int64_t>& end,
-                               const std::vector<int64_t>& strides,
-                               const AxisSet& begin_mask,
-                               const AxisSet& end_mask,
-                               const AxisSet& new_axis_mask,
-                               const AxisSet& shrink_axis_mask,
-                               const AxisSet& ellipsis_mask);
+ov::PartialShape infer_slice_shape(const Node* node,
+                                   const ov::PartialShape& input_shape,
+                                   const std::vector<int64_t>& begin,
+                                   const std::vector<int64_t>& end,
+                                   const std::vector<int64_t>& strides,
+                                   const AxisSet& begin_mask,
+                                   const AxisSet& end_mask,
+                                   const AxisSet& new_axis_mask,
+                                   const AxisSet& shrink_axis_mask,
+                                   const AxisSet& ellipsis_mask);
 
 /// \brief Try to compute the maximum value of value
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
+NGRAPH_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API_DEPRECATED

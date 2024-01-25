@@ -18,7 +18,7 @@ namespace set_1 {
 OutputVector swish(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
 
-    Output<ov::Node> beta;
+    ov::Output<ov::Node> beta;
     if (ng_inputs.size() > 1) {
         beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
     } else {

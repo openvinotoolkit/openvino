@@ -64,29 +64,29 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, cons
 }
 
 std::shared_ptr<Node> makeDequantization(
-    const Output<Node>& data,
+    const ov::Output<Node>& data,
     const DequantizationOperations& dequantizationOperations);
 
-std::shared_ptr<Node> makeMultiply(const Output<Node>& data, const DequantizationOperations::Multiply& multiply);
+std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& data, const DequantizationOperations::Multiply& multiply);
 
-std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& reshape);
+std::shared_ptr<Node> makeReshape(const ov::Output<Node>& data, const Reshape& reshape);
 
-std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
+std::shared_ptr<Node> makeTranspose(const ov::Output<Node>& data, const Transpose& reshape);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& output,
+    const ov::Output<Node>& output,
     const ov::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
-std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
+std::shared_ptr<ov::opset1::Convolution> makeConvolution(const ov::Output<Node>& output, const Convolution& convolution);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const Output<ov::Node>& output,
+    const ov::Output<ov::Node>& output,
     const ov::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& input,
+    const ov::Output<Node>& input,
     const ov::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const bool subgraphOnConstantPath = false);

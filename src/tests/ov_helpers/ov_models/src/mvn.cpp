@@ -32,8 +32,8 @@ std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
     return mvnNode;
 }
 
-std::shared_ptr<Node> makeMVN6(const Output<Node>& in,
-                               const Output<Node>& axesNode,
+std::shared_ptr<Node> makeMVN6(const ov::Output<Node>& in,
+                               const ov::Output<Node>& axesNode,
                                bool normalizeVariance,
                                float eps,
                                std::string& epsMode) {
