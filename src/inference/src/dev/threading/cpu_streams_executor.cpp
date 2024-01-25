@@ -71,7 +71,8 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif OV_THREAD == OV_THREAD_OMP
             omp_set_num_threads(_impl->_config.get_threads_per_stream());
-            if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config.get_thread_binding_type())) {
+            if (!check_open_mp_env_vars(false) &&
+                (ThreadBindingType::NONE != _impl->_config.get_thread_binding_type())) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
