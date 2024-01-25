@@ -50,7 +50,31 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     // ptrs initializing
     if (jep.use_runtime_ptrs) {
-        IE_THROW(NotImplemented) << "jit_uni_eltwise_generic<isa>::generate: jep.use_runtime_ptrs is not implemented";
+        for (size_t i = 0; i < jep.inputs_number; i++) {
+            ldr(start_to_offsets, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, src_offsets) + i * sizeof(size_t))));
+            ldr(get_src_reg(i), ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, src_ptr[0]) + i * sizeof(size_t))));
+            XReg offset_reg = get_aux_gpr(0); // X_TMP_0;
+            XReg index_reg = get_aux_gpr(1);  // X_TMP_1;
+            for (int j = 0; j < offset_count; j++) {
+                ldr(offset_reg, ptr(start_to_offsets, static_cast<int32_t>(j * sizeof(size_t))));
+                ldr(index_reg, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
+                madd(get_src_reg(i), offset_reg, index_reg, get_src_reg(i));
+            }
+        }
+
+        ldr(start_to_offsets, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, dst_offsets))));
+        ldr(reg_dst, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, dst_ptr))));
+        XReg offset_reg = get_aux_gpr(0); // X_TMP_0;
+        XReg index_reg = get_aux_gpr(1);  // X_TMP_1;
+        for (int j = 0; j < offset_count; j++) {
+            ldr(offset_reg, ptr(start_to_offsets, static_cast<int32_t>(j * sizeof(size_t))));
+            ldr(index_reg, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
+            madd(reg_dst, offset_reg, index_reg, reg_dst);
+        }
+
+        mov(reg_oc_off, 0);
+
+        ldr(reg_work_amount, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, work_amount))));
     } else {
         auto init_ptrs_with_offsets = [this, offset_count, param2](XReg pointer, const std::vector<size_t>& offsets) {
             for (int j = 0; j < offset_count; j++) {
@@ -70,8 +94,11 @@ void jit_uni_eltwise_generic<isa>::generate() {
             init_ptrs_with_offsets(get_src_reg(i), jep.src_offsets[i]);
         }
 
-        ldr(reg_dst, ptr(param1, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, dst_ptr))));
+        ldr(reg_dst, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, dst_ptr))));
         init_ptrs_with_offsets(reg_dst, jep.dst_offsets);
+
+        mov(reg_oc_off, 0);
+        init_ptrs_with_offsets(reg_oc_off, jep.oc_offsets);
 
         mov(reg_work_amount, jep.work_amount);
     }
@@ -158,7 +185,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
             add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, reg_work_amount, loop_step);
             if (jep_.oc_size > 1 && jep_.oc_size != min_src_size)
-                IE_THROW(NotImplemented) << "jit_uni_eltwise_generic<isa>::generate: reg_oc_off";
+                add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
 
             b(AL, unroll_loop_label);
         }
@@ -197,7 +224,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
             add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, reg_work_amount, loop_step);
             if (jep_.oc_size > 1)
-                IE_THROW(NotImplemented) << "jit_uni_eltwise_generic<isa>::generate: reg_oc_off";
+                add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
 
             b(AL, main_loop_label);
         }
@@ -233,7 +260,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
         add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
         sub(reg_work_amount, reg_work_amount, loop_step);
         if (jep_.oc_size > 1)
-            IE_THROW(NotImplemented) << "jit_uni_eltwise_generic<isa>::generate: reg_oc_off";
+            add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
 
         b(AL, tail_loop_label);
     }
