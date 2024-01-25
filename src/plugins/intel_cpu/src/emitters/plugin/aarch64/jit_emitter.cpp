@@ -15,9 +15,11 @@ namespace aarch64 {
 
 const std::vector<uint32_t> jit_emitter::store_gpr_regs = {
     0, 1, 2, 3, 4, 5, 6, 7,
-    8, 9, 10, 11, 12, 13, 14, 15,
+    8,
+    // r9...r15 Temporary registers
+    9, 10, 11, 12, 13, 14, 15,
     16, 17, 18,
-    // r19…r28 Callee-saved registers
+    // r19...r28 Callee-saved registers
     29, 30
 };
 
@@ -120,7 +122,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 }
 
 void jit_emitter::emitter_postamble() const {
-    for (size_t i = 0; i < preserved_gpr_idxs.size(); ++i) {
+    const int size = static_cast<int>(preserved_gpr_idxs.size());
+    for (int i = (size - 1); i >= 0; --i) {
         h->ldr(Xbyak_aarch64::XReg(preserved_gpr_idxs[i]), post_ptr(h->sp, 16));
     }
     preserved_gpr_idxs.clear();
