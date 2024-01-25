@@ -35,12 +35,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
 
 protected:
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
     void SetUp() override;
-
-private:
-    void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
-    ov::op::v8::MatrixNms::Attributes m_attrs;
 };
 } // namespace test
 } // namespace ov
