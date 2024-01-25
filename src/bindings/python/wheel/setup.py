@@ -41,17 +41,9 @@ elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
-
-print(SCRIPT_DIR)
-
-WORKING_DIR = f"{Path.cwd()}/wheel"
-
-print("XDDDDDD", WORKING_DIR)
-
+WORKING_DIR = Path.cwd()
 BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
-OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[2]
-
-print(OPENVINO_SOURCE_DIR)
+OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
@@ -168,8 +160,7 @@ LIB_INSTALL_CFG = {
 PY_INSTALL_CFG = {
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
-        # "prefix": f"{BUILD_BASE}/site-packages",
-        "prefix": f"./wheel/build_python3.11/site-packages",  # TODO: parametrize it somehow
+        "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
@@ -181,7 +172,7 @@ PY_INSTALL_CFG = {
             ],
         },
         "name": "ovc",
-        "prefix": f"./wheel/build_python3.11/site-packages",  # TODO: parametrize it somehow
+        "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/ovc",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "ovc",
@@ -193,7 +184,7 @@ PY_INSTALL_CFG = {
             ],
         },
         "name": "benchmark_app",
-        "prefix": f"./wheel/build_python3.11/site-packages",  # TODO: parametrize it somehow
+        "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "benchmark_app",
