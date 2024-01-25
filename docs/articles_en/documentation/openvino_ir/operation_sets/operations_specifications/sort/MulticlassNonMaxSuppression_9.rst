@@ -1,5 +1,7 @@
-##  MulticlassNonMaxSuppression<a name="MulticlassNonMaxSuppression"></a> {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_9}
+.. {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_9}
 
+MulticlassNonMaxSuppression
+===========================
 
 .. meta::
   :description: Learn about MulticlassNonMaxSuppression-8 - a sorting and 
