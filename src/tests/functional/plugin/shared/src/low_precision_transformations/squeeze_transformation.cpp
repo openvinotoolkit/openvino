@@ -57,7 +57,7 @@ void SqueezeTransformation::SetUp() {
 
     init_input_shapes(squeezeParam.shape);
 
-    function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
+    function = ov::builder::subgraph::SqueezeFunction::getOriginal(
         netPrecision,
         squeezeParam.shape,
         squeezeParam.fakeQuantize,

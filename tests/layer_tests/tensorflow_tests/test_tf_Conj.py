@@ -39,7 +39,7 @@ class TestComplexConjugate(CommonTFLayerTest):
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
-            conj= tf.raw_ops.Conj(x=complex_input, name = "Operation")
+            conj= tf.raw_ops.Conj(input=complex_input, name = "Operation")
             real = tf.raw_ops.Real(input=conj)
             img = tf.raw_ops.Imag(input=conj)
 
@@ -51,12 +51,12 @@ class TestComplexConjugate(CommonTFLayerTest):
         return tf_net, ref_net
 
 
-    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
+    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                  use_new_frontend):
-        self._test(*self.create_complex_conjugate_net(**params),
+        self._test(*self.create_complex_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
 
@@ -85,7 +85,7 @@ class TestConjugate(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             input = tf.compat.v1.placeholder(np.complex64, input_shape, 'input')
 
-            tf.raw_ops.Conj(x=input, name = "Operation")
+            tf.raw_ops.Conj(input=input, name = "Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -94,11 +94,11 @@ class TestConjugate(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    @pytest.mark.parametrize("params", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
+    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_conjugate(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                  use_new_frontend):
-        self._test(*self.create_conjugate_net(**params),
+        self._test(*self.create_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend) 

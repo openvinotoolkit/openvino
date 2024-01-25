@@ -45,7 +45,7 @@ void MVNTransformation::SetUp() {
 
     init_input_shapes(shape);
 
-    function = ngraph::builder::subgraph::MVNFunction::getOriginal(
+    function = ov::builder::subgraph::MVNFunction::getOriginal(
         precision,
         shape,
         reductionAxes,
