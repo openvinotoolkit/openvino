@@ -301,7 +301,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
     const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                                     !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                                     inputDataType == memory::data_type::f32;
-    avx2DisableBrgconvHeuristic = (((IC == 1 && groupOC * groupNum == 1) || isDepthWise()) && isAvx2FP32);
+    avx2DisableBrgconvHeuristic = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
