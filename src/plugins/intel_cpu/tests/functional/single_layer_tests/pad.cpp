@@ -99,7 +99,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = makeSelectedTypeStr("ref", get_default_imp_precision_type(dataType));
+        selectedType = makeSelectedTypeStr("ref", get_default_imp_precision_type(dataType, configuration));
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
         for (auto& targetShapes : targetStaticShapes) {

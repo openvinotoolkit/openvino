@@ -57,7 +57,7 @@ void SoftMaxLayerCPUTest::SetUp() {
     if (inType == ElementType::bf16) {
         rel_threshold = 2e-2f;
     }
-    selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inType));
+    selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inType, configuration));
     init_input_shapes({config.inputShape});
     ov::ParameterVector params;
     for (auto&& shape : inputDynamicShapes)

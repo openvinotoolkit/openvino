@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -129,6 +130,8 @@ public:
                                const std::vector<std::string>& priority);
     // TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ov::element::Type_t elType);
+    static ov::element::Type get_default_imp_precision_type(const ov::element::Type& type,
+                                                            const ov::AnyMap& configuration);
     void updateSelectedType(const std::string& primitiveType,
                             const ov::element::Type netType,
                             const ov::AnyMap& config);

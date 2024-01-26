@@ -81,7 +81,6 @@ protected:
     virtual std::vector<ov::Tensor> get_plugin_outputs();
 
     friend void core_configuration(SubgraphBaseTest* test);
-    ElementType get_default_imp_precision_type(ElementType type);
 };
 
 inline std::vector<InputShape> static_partial_shapes_to_test_representation(
