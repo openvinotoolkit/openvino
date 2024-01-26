@@ -48,10 +48,8 @@ const std::vector<cldnn::format> b_blocked_5d_formats = {
 // TODO: uncomment in scope of CVS-85940
 const std::vector<cldnn::format> planar_formats = {
     format::bfyx,
-    /*
-    format::bfzyx,
-    format::bfwzyx,
-     */
+    // format::bfzyx,
+    // format::bfwzyx,
 };
 
 
