@@ -99,6 +99,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
+    fullConfig.streams_executor_config =
+        ov::threading::IStreamsExecutor::Config{stream_executor_name, m_cfg.streams, m_cfg.threads_per_stream};
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
     streamsExecutorConfig.set_name(stream_executor_name);
@@ -138,6 +140,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     }
 
     auto fullConfig = Configuration{_properties, m_cfg};
+    fullConfig.streams_executor_config =
+        ov::threading::IStreamsExecutor::Config{stream_executor_name, m_cfg.streams, m_cfg.threads_per_stream};
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;

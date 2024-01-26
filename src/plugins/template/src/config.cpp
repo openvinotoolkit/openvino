@@ -27,6 +27,11 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             auto streams_value = val.as<ov::streams::Num>();
             if (streams_value.num >= 0) {
                 streams = streams_value.num;
+            } else if (streams_value == ov::streams::NUMA) {
+                streams = get_num_numa_nodes();
+            } else if (streams_value == ov::streams::AUTO) {
+                std::vector<std::vector<int>> proc_table = get_proc_type_table();
+                streams = !proc_table.empty() ? proc_table[0][MAIN_CORE_PROC] : 1;
             } else {
                 OPENVINO_THROW("Wrong value for property key ",
                                key,

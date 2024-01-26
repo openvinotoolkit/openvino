@@ -64,20 +64,20 @@ public:
                          // (for large #streams)
         };
     private:
-        std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
+        std::string _name;            //!< Used by `ITT` to name executor threads
+        int _streams = 1;             //!< Number of streams.
         int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
                                                                          //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;      //!< In case of @ref CORES binding offset type thread binded to cores
-                                           //!< starting from offset
-        int _threads = 0;                  //!< Number of threads distributed between streams.
-                                           //!< Reserved. Should not be used.
+        int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
+                                       //!< starting from offset
+        int _threads = 0;              //!< Number of threads distributed between streams.
+                                       //!< Reserved. Should not be used.
         PreferredCoreType _thread_preferred_core_type =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-
+            PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
+                                     //!< Core type priority: physical PCore, ECore, logical PCore
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
@@ -94,8 +94,8 @@ public:
          * @param[in]  threadBindingOffset      @copybrief Config::_threadBindingOffset
          * @param[in]  threads                  @copybrief Config::_threads
          * @param[in]  threadPreferredCoreType  @copybrief Config::_thread_preferred_core_type
-         * @param[in]  streams_info_table       @copybrief Config::_streams_info_table
-         * @param[in]  cpu_reservation          @copybrief Config::_cpu_reservation
+         * @param[in]  streamsInfoTable         @copybrief Config::_streams_info_table
+         * @param[in]  cpuReservation           @copybrief Config::_cpu_reservation
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
