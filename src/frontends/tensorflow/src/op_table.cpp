@@ -67,6 +67,7 @@ TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
 TF_OP_CONVERTER(translate_xla_conv_v2_op);
 TF_OP_CONVERTER(translate_xla_dot_op);
+TF_OP_CONVERTER(translate_write_file);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -384,6 +385,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Exit", CreatorFunction(translate_exit_op)},
         {"LoopCond", CreatorFunction(translate_loop_cond_op)},
         {"NextIteration", CreatorFunction(translate_next_iteration_op)},
+
+        // Unsupported operations, which should be kept in Graph
+        {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
 }  // namespace op
