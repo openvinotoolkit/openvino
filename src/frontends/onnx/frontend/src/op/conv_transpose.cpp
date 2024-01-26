@@ -26,15 +26,15 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace {
-Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
-                                          const Output<ov::Node>& filters,
-                                          const Strides& strides,
-                                          const Strides& dilations,
-                                          const CoordinateDiff& pads_begin,
-                                          const CoordinateDiff& pads_end,
-                                          const ov::op::PadType& auto_pad_type,
-                                          const std::vector<std::int64_t>& output_shape,
-                                          const std::vector<std::int64_t>& output_padding) {
+ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
+                                              const ov::Output<ov::Node>& filters,
+                                              const Strides& strides,
+                                              const Strides& dilations,
+                                              const CoordinateDiff& pads_begin,
+                                              const CoordinateDiff& pads_end,
+                                              const ov::op::PadType& auto_pad_type,
+                                              const std::vector<std::int64_t>& output_shape,
+                                              const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
@@ -57,15 +57,15 @@ Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
     }
 }
 
-Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
-                                    const Output<ov::Node>& filters,
-                                    const Strides& strides,
-                                    const Strides& dilations,
-                                    const CoordinateDiff& pads_begin,
-                                    const CoordinateDiff& pads_end,
-                                    const ov::op::PadType& auto_pad_type,
-                                    const std::vector<std::int64_t>& output_shape,
-                                    const std::vector<std::int64_t>& output_padding) {
+ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
+                                        const ov::Output<ov::Node>& filters,
+                                        const Strides& strides,
+                                        const Strides& dilations,
+                                        const CoordinateDiff& pads_begin,
+                                        const CoordinateDiff& pads_end,
+                                        const ov::op::PadType& auto_pad_type,
+                                        const std::vector<std::int64_t>& output_shape,
+                                        const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
@@ -90,7 +90,7 @@ Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
     }
 }
 
-Output<ov::Node> get_prepared_bias(const Output<ov::Node>& bias, const Output<ov::Node>& conv) {
+ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const ov::Output<ov::Node>& conv) {
     // Prepare bias shape [1, C, 1, 1]
     const auto& conv_pshape = conv.get_partial_shape();
     std::shared_ptr<ov::Node> bias_shape_node;
@@ -176,7 +176,7 @@ OutputVector conv_transpose(const Node& node) {
 
     CHECK_VALID_NODE(node, groups >= 0, "Incorrect value of 'group' attribute: ", groups);
 
-    Output<ov::Node> conv_node;
+    ov::Output<ov::Node> conv_node;
 
     if (groups > 1) {
         filters = convpool::get_reshaped_filters(filters, groups);
