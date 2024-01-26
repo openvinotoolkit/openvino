@@ -50,7 +50,6 @@
 
 #include "ngraph/evaluator.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/rt_info.hpp"
