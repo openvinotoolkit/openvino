@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/auto_batching_tests.hpp"
+#include "behavior/ov_plugin/auto_batching_tests.hpp"
 
-#include "behavior/plugin/configuration_tests.hpp"
-
-using namespace AutoBatchingTests;
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::behavior;
 
 namespace {
 const std::vector<bool> get_vs_set{true, false};
@@ -31,29 +28,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test,
                                             ::testing::ValuesIn(num_requests),
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test,
-                         DefaultConfigurationTest,
-                         ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                              ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(DefaultParameter{CONFIG_KEY(AUTO_BATCH_TIMEOUT),
-                                                                               ov::Any{"1000"}})),
-                         DefaultConfigurationTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_string,
-                         DefaultConfigurationTest,
-                         ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                              ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                                               ov::Any{"1000"}})),
-                         DefaultConfigurationTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_AutoBatching_test_uint,
-    DefaultConfigurationTest,
-    ::testing::Combine(
-        ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_TEMPLATE),
-        ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(), ov::Any{uint32_t(1000)}})),
-    DefaultConfigurationTest::getTestCaseName);
 
 }  // namespace
