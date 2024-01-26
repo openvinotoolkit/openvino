@@ -9,56 +9,74 @@ Stateful models and State API
 
     openvino_docs_OV_UG_ways_to_get_stateful_model
 
-What is Stateful Model?
-#######################
+A stateful model is a model that implicitly retains data from one inference call to the
+next inference call. Data is kept in internal runtime memory space, usually called *state*
+or *variable*. Unlike "stateless" models, which return all produced data as model outputs,
+a "stateful" model preserves some tensors saved in *states* without exposing them as model
+outputs.
 
-Stateful model is a model which implicitly keeps data from one inference call to the next inference call. Data is kept in internal runtime memory space usually called State or Variable.
-In contrast to usual **stateless** model, which return all produced data as model outputs, **stateful**
-model preserve part of the tensors saved in States without exposing them as model outputs.
-
-The purpose of stateful models is to natively address a sequence processing tasks, like in text generation when one model inference produce a single output token,
+The purpose of stateful models is to natively address a sequence of processing tasks.
+A good example is text generation, where one model inference produces a single output token
 and it is required to perform multiple inference calls to generate a complete output sentence.
-Hidden state data from previous inference should be passed to the next inference as a context.
-Usually the contextual data is not required to be accessed in the user application and should be just passed through to the next inference call manually using model API.
-Stateful models simplifies programming of this scenario and unlocks additional performance potential of OpenVINO runtime.
+The hidden state data from one inference is then passed to the next inference as a context.
+Usually, the contextual data is not required to be accessed in the user application and should
+be just passed through to the next inference call manually, using the model API. Stateful
+models simplify programming of this scenario and unlock additional performance potential of
+OpenVINO runtime. Some of the benefits are:
 
 .. _ov_ug_stateful_model_benefits:
 
-OpenVINO Stateful Model Benefits
-#################################
+1. model execution speedup
 
-1. Speed up execution of Model
-    Data in State is stored in the optimized form for OpenVINO plugins, which helps to execute model effectively.
-    **Note:** Often requesting data from State might reduce the expected performance gains and even lead to losses,
-    so, it is expected that State mechanism will be used when data stored in State is not accessed frequently.
+   Data in states is stored in the optimized form for OpenVINO plugins, which helps to execute
+   the model more efficiently.
 
-2. Simplify user code
-    Typical scenarios as providing initializing values for the first inference call or copying data from model's outputs to inputs in user code
-    can be replaced with State. OpenVINO will manage these cases internally.
+   **Note:** requesting data from the state too often may reduce the expected performance gains
+   or even lead to losses. Use the state mechanism only if the state data is not accessed very
+   frequently.
 
-3. Specific scenarios
-    Several use cases require processing of data sequences. When length of a sequence is known and small enough,
-    we can process it with RNN like models that contain a cycle inside. But in some cases, like online speech recognition or time series
-    forecasting, length of data sequence is unknown. Then data can be divided in small portions and processed step-by-step. But dependency
-    between data portions should be addressed. For that, models save some data between inferences - state. When one dependent sequence is over,
-    state should be reset to initial value and new sequence can be started.
+2. user code simplification
+
+   States can replace code-based solutions for such scenarios as giving initializing values for
+   the first inference call or copying data from model outputs to inputs. With states, OpenVINO
+   will manage these cases internally.
+
+3. improvements to specific scenarios
+
+   Some use cases require processing of data sequences. When such a sequence is of known length
+   and short enough, you can process it with RNN-like models that contain a cycle inside.
+
+   When the length is not known, as in the case of online speech recognition or time series
+   forecasting, you can divide the data in small portions and process it step-by-step, which
+   requires addressing the dependency between data portions. States fulfil this purpose well:
+   models save some data between inference runs, when one dependent sequence is over, the state
+   may be reset to the initial value and a new sequence can be started.
+
 
 OpenVINO Stateful Model Representation
 ######################################
 
-OpenVINO contains ReadValue/Assign operations to make a model Stateful.
-Each pair of ReadValue/Assign operates with State, known also as Variable,
-which is an internal memory buffer to store tensor data during and between model inference calls.
-ReadValue reads data tensor from State and returns it as output, Assign accepts data tensor as input and writes data to State
-to save data for the next inference call.
+OpenVINO contains ``ReadValue`` and ``Assign`` operations to make a model Stateful. Each of such
+pairs operates with *state*, known also as *variable* - an internal memory buffer to store tensor
+data during and between model inference calls. ``ReadValue`` reads the data from *state* and
+returns it as output, while ``Assign`` accepts the data as input and saves it in *state* for the
+next inference call.
 
-OpenVINO has a special API to simplify work with Stateful models. State is automatically saved between inferences,
-and there is a way to reset state when needed. You can also read state or set it to some new value between inferences.
+OpenVINO includes a dedicated API to simplify using stateful models. State is automatically saved
+between inference runs and it can be reset when needed. You can also read state or set it to a
+new value between runs.
 
 .. image:: _static/images/stateful_model_example.svg
    :align: center
+   :scale: 70%
 
-The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result operations.
+
+
+
+
+The left side of the picture shows the usual inputs and outputs to the model: Parameter/Result
+operations.
+
 There is no direct connection from Result to Parameter and in order to copy data from output to input users need to put extra effort writing and maintaining additional code.
 In addition, this may impose additional overhead due to data representation conversion.
 
@@ -96,7 +114,7 @@ Stateful Model Inference
 
 The example below demonstrates inference of three independent sequences of data. State should be reset between these sequences.
 
-One infer request and one thread will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but 
+One infer request and one thread will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but
 if the first step is done in one infer request and the second in another, state should be set in new infer request manually (using `ov::VariableState::set_state` method).
 
 .. tab:: C++
@@ -105,7 +123,7 @@ if the first step is done in one infer request and the second in another, state 
          :language: cpp
          :fragment: [ov:state_api_usage]
 
-You can find more powerful examples demonstrating how to work with models with states in speech sample and demo. 
+You can find more powerful examples demonstrating how to work with models with states in speech sample and demo.
 Descriptions can be found in :doc:`Samples Overview<openvino_docs_OV_UG_Samples_Overview>`
 
 .. _ov_ug_state_api:
