@@ -1140,6 +1140,8 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
+OPENVINO_DEPRECATED(
+    "This property is deprecated and will be removed soon. Use ov::hint::enable_cpu_pinning instead of it.")
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
 /**

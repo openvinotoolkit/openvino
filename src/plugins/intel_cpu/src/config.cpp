@@ -74,6 +74,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (key == ov::affinity.name()) {
                 changedCpuPinning = true;
                 try {
@@ -89,6 +90,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                    ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = val.as<ov::hint::PerformanceMode>();
