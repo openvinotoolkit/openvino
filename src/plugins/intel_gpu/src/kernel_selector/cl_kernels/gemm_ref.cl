@@ -77,6 +77,9 @@ KERNEL(gemm_ref)(
 #ifdef INPUT2_TYPE
     const __global INPUT2_TYPE* input2,
 #endif
+#if BEAM_TABLE_TERM
+    const __global BEAM_TABLE_TYPE* beam_table,
+#endif
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -100,8 +103,17 @@ KERNEL(gemm_ref)(
     ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
     for (uint ki = 0; ki < K; ++ki) {
-        uint in0_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki);
-        uint in1_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x);
+        uint b0 = b;
+        uint b1 = b;
+        #if INDIRECT_INPUT0
+            b0 = beam_table[b*BEAM_TABLE_SIZE_X + ki];
+        #endif
+        #if INDIRECT_INPUT1
+            b1 = beam_table[b*BEAM_TABLE_SIZE_X + ki];
+        #endif
+
+        uint in0_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, f, w, z, y, ki);
+        uint in1_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b1, f, w, z, ki, x);
 
         ACCUMULATOR_TYPE val0 = TO_ACCUMULATOR_TYPE(input0[in0_idx]);
         ACCUMULATOR_TYPE val1 = TO_ACCUMULATOR_TYPE(input1[in1_idx]);

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <memory>
 #include <cstddef>
@@ -234,6 +235,9 @@ public:
                     struct quantize_t {
                         uint32_t scale_shift_opt : 1;
                     } quantize;
+                    struct gemm_t {
+                        uint32_t indirect : 1;
+                    } gemm;
                 } dedicated;
             } val;
             uint64_t raw;
@@ -320,7 +324,7 @@ public:
     void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
 
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
-
+    void EnableIndirectGemm() { key.restrict.val.dedicated.gemm.indirect = 1; }
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
     void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
     void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
@@ -398,6 +402,9 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
+        return;
+    }
+    virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
         return;
     }
 protected:
@@ -678,6 +685,22 @@ struct base_params : public Params {
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
+        }
+    }
+
+    void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) override {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            auto& in = inputs[i];
+            OPENVINO_ASSERT(in_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all input tensors have mapping to the offset");
+            size_t offset = in_tensor_to_offset_map.at(i);
+            in.SetDynamicShapeOffset(offset);
+        }
+        OPENVINO_ASSERT(fused_ops.empty(), "[GPU] set_dynamic_shape_offsets with mappings doesn't support fused ops for now");
+        for (size_t i = 0; i < outputs.size(); i++) {
+            auto& out = outputs[i];
+            OPENVINO_ASSERT(out_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all output tensors have mapping to the offset");
+            size_t offset = out_tensor_to_offset_map.at(i);
+            out.SetDynamicShapeOffset(offset);
         }
     }
 

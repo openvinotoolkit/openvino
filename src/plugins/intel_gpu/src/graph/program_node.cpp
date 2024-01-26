@@ -33,6 +33,22 @@
 
 using namespace cldnn;
 
+static size_t get_shape_data_size(const layout& l) {
+    if (l.is_static())
+        return 0;
+
+    size_t size = layout::max_rank(); // all dimenstions are stored
+    const auto& pshape = l.get_partial_shape();
+    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    for (size_t j = 0; j < layout::max_rank(); ++j) {
+        if (dynamic_pad[j] == 1) {
+            size += 2; // lower + upper
+        }
+    }
+
+    return size;
+}
+
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -94,6 +110,62 @@ ov::PartialShape program_node::get_output_pshape(size_t idx) const {
     if (!is_valid_output_layout(idx))
         return calc_output_layouts()[idx].get_partial_shape();
     return get_output_layout(idx).get_partial_shape();
+}
+
+std::vector<layout> program_node::get_shape_info_input_layouts() const {
+    std::vector<layout> res;
+    for (size_t i = 0; i < get_dependencies().size(); i++) {
+        const auto& d = get_dependency_with_port(i);
+        res.push_back(d.first->get_output_layout(false, d.second));
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_input_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_output_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = get_total_shape_info_input_size();
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return res;
+}
+
+size_t program_node::get_total_shape_info_input_size() const {
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_output_size() const {
+    size_t offset = 0;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_size() const {
+    return get_total_shape_info_input_size() + get_total_shape_info_output_size();
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {

@@ -32,6 +32,17 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
         }
     }
 
+protected:
+    kernel_arguments_data get_arguments(const typed_primitive_inst<gemm>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<gemm>();
+
+        if (desc->indirect_a || desc->indirect_b)
+            args.inputs.push_back(instance.dep_memory_ptr(2));
+
+        return args;
+    }
+
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<gemm>();
@@ -51,6 +62,13 @@ public:
         params.input1_order = primitive->input1_order;
         params.output_order = primitive->output_order;
 
+        params.indirect_input0 = primitive->indirect_a;
+        params.indirect_input1 = primitive->indirect_b;
+        if (primitive->indirect_a || primitive->indirect_b) {
+            OPENVINO_ASSERT(impl_param.input_layouts.size() == 3);
+            params.beam_table = convert_data_tensor(impl_param.input_layouts[2]);
+        }
+
         bool is_quantized = true;
         for (auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
@@ -60,6 +78,23 @@ public:
         } else {
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
+
+        if (primitive->beam_table.is_valid()) {
+            const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
+            const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
+            std::map<size_t, size_t> in_tensor_to_offset_map = {
+                {0, in_offsets_map.at(0)},
+                {1, in_offsets_map.at(1)},
+            };
+            std::map<size_t, size_t> out_tensor_to_offset_map = {
+                {0, out_offsets_map.at(0)},
+            };
+            params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
+            params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(2));
+        } else {
+            params.set_dynamic_shape_offsets();
+        }
+
         return {params, optional_params};
     }
 

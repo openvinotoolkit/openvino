@@ -178,6 +178,9 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("TRANSPOSE_INPUT0", params.transpose_input0),
         MakeJitConstant("TRANSPOSE_INPUT1", params.transpose_input1),
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
+        MakeJitConstant("INDIRECT_INPUT0", params.indirect_input0),
+        MakeJitConstant("INDIRECT_INPUT1", params.indirect_input1),
+        MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
 
     auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
@@ -200,6 +203,9 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
                 return "";
         }
     };
+    if (params.indirect_input0 || params.indirect_input1) {
+        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.beam_table));
+    }
 
     jit.AddConstants({
         MakeJitConstant("TRANSPOSE_X_LAST", 0),
@@ -256,6 +262,11 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    auto num_inputs = (uint32_t)prim_params.inputs.size();
+
+    if (prim_params.indirect_input0 || prim_params.indirect_input1)
+        num_inputs++;
+
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
                      dispatchData,
@@ -266,7 +277,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     (uint32_t)prim_params.inputs.size(),
+                     num_inputs,
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.has_dynamic_tensors());
