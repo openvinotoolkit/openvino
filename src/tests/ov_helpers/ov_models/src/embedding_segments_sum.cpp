@@ -13,8 +13,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
-                                               const element::Type& indicesType,
+std::shared_ptr<Node> makeEmbeddingSegmentsSum(const ov::element::Type& dataType,
+                                               const ov::element::Type& indicesType,
                                                const ov::Output<Node>& embTableNode,
                                                const std::vector<size_t>& indices,
                                                const std::vector<size_t>& segment_ids,

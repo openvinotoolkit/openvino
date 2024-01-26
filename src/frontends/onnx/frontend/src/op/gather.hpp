@@ -23,7 +23,7 @@ inline OutputVector gather(const Node& node) {
 
     return {std::make_shared<ov::op::v8::Gather>(data,
                                                  indices,
-                                                 ov::op::v0::Constant::create(element::i64, Shape{}, {axis}))};
+                                                 ov::op::v0::Constant::create(ov::element::i64, Shape{}, {axis}))};
 }
 
 }  // namespace set_1

@@ -49,7 +49,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               bool is_inversed,
                               bool is_onesided) {
     auto processed_signal = signal;
-    const auto axis_const = v0::Constant::create(element::i64, {1}, {axis});
+    const auto axis_const = v0::Constant::create(ov::element::i64, {1}, {axis});
     bool conversion_to_complex_applied = false;
     if (is_inversed || !is_onesided) {  // skip for RDFT case
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
@@ -64,7 +64,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
             result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, length)
                                          : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
-                const auto unsqueeze_axis = v0::Constant::create(element::i64, {}, {-1});
+                const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
                 result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {

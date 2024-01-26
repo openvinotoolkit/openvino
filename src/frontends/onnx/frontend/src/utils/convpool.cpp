@@ -164,9 +164,9 @@ void calculate_auto_pads(const Shape& data_shape,
 }
 
 Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups) {
-    const auto zero_node = v0::Constant::create(element::i64, Shape(), {0});
-    const auto split_lengths = v0::Constant::create(element::i64, Shape{2}, {1, -1});
-    const auto groups_node = v0::Constant::create(element::i64, Shape{1}, {groups});
+    const auto zero_node = v0::Constant::create(ov::element::i64, Shape(), {0});
+    const auto split_lengths = v0::Constant::create(ov::element::i64, Shape{2}, {1, -1});
+    const auto groups_node = v0::Constant::create(ov::element::i64, Shape{1}, {groups});
 
     const auto filters_shape = std::make_shared<v3::ShapeOf>(filters);
     const auto splitted_shape = std::make_shared<v1::VariadicSplit>(filters_shape, zero_node, split_lengths);

@@ -109,15 +109,15 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
-ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
+ov::element::Type details::toLegacyType(const ov::element::Type& ngraph_type, bool input) {
     if (input) {
-        return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
+        return ngraph_type == ov::element::f16 ? ov::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
-            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
-            return ngraph::element::i32;
-        } else if (ngraph_type != ngraph::element::f32) {
-            return ngraph::element::f32;
+        if (ngraph_type == ov::element::i64 || ngraph_type == ov::element::u64 || ngraph_type == ov::element::i32 ||
+            ngraph_type == ov::element::u32) {
+            return ov::element::i32;
+        } else if (ngraph_type != ov::element::f32) {
+            return ov::element::f32;
         }
     }
 

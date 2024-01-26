@@ -16,7 +16,7 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> SplitFunction::getOriginal(
-    const element::Type& precision,
+    const ov::element::Type& precision,
     const ov::PartialShape& inputShape,
     const ov::element::Type precisionBeforeDequantization,
     const ov::builder::subgraph::DequantizationOperations& dequantization,
@@ -27,7 +27,7 @@ std::shared_ptr<ov::Model> SplitFunction::getOriginal(
     auto dequantizationStructure = dequantization;
     dequantizationStructure.multiply.outPrecision = precision;
     const auto dequantizationOp = makeDequantization(input, dequantization);
-    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{ }, splitedAxis);
     const auto split = std::make_shared<ov::opset1::Split>(dequantizationOp, constant, numSplits);
 
     ov::ResultVector results;
@@ -55,7 +55,7 @@ std::shared_ptr<ov::Model> SplitFunction::getOriginal(
             fakeQuantize.outputLowValues,
             fakeQuantize.outputHighValues);
 
-    auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{ }, splitedAxis);
     const std::shared_ptr<ov::opset1::Split> split = std::make_shared<ov::opset1::Split>(fq, constant, numSplit);
 
     ov::ResultVector results;
@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> SplitFunction::getOriginal(
 }
 
 std::shared_ptr<ov::Model> SplitFunction::getReference(
-    const element::Type& precision,
+    const ov::element::Type& precision,
     const ov::PartialShape& inputShape,
     const ov::element::Type inputPrecision,
     const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
@@ -77,7 +77,7 @@ std::shared_ptr<ov::Model> SplitFunction::getReference(
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{ }, splitedAxis);
     const auto split = std::make_shared<ov::opset1::Split>(deqBefore, constant, numSplit);
 
     ov::ResultVector results;

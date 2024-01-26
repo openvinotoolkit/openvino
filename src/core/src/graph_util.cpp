@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/graph_util.hpp"
+#include "openvino/core/graph_util.hpp"
 
 #include <numeric>
 #include <unordered_map>
@@ -609,18 +609,18 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
     dst_input.replace_source_output(new_node->output(0));  // Remove [0] (again), add [8], remove [1], add [9]
 }
 
-std::shared_ptr<ov::Node> make_zero(const element::Type& element_type, const Shape& shape) {
+std::shared_ptr<ov::Node> make_zero(const ov::element::Type& element_type, const Shape& shape) {
     auto zero = ov::op::v0::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0) {
         return std::make_shared<ov::op::v1::Broadcast>(
             zero,
-            ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
+            ov::op::v0::Constant::create(ov::element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }
 
 std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
-                                                    const element::Type& element_type,
+                                                    const ov::element::Type& element_type,
                                                     const Shape& shape) {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
     return std::make_shared<ov::op::v0::Constant>(element_type, shape, cvals);

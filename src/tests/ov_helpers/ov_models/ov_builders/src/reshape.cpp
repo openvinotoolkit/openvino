@@ -29,10 +29,10 @@ std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape) {
         auto value_rank = value.get_shape().size();
         AxisVector axes_vector(value_rank);
         std::iota(axes_vector.begin(), axes_vector.end(), 0);
-        auto axes = ov::op::v0::Constant::create(element::i64, Shape{value_rank}, axes_vector);
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, Shape{value_rank}, axes_vector);
         return std::make_shared<ov::op::v0::Squeeze>(value, axes);
     } else {
-        auto out_pattern = ov::op::v0::Constant::create(element::i64,
+        auto out_pattern = ov::op::v0::Constant::create(ov::element::i64,
                                                         Shape{shape.size()},
                                                         std::vector<int64_t>(shape.begin(), shape.end()));
 
@@ -42,7 +42,7 @@ std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape) {
 
 std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order) {
     const auto axes_order_const =
-        ov::op::v0::Constant::create(element::i64,
+        ov::op::v0::Constant::create(ov::element::i64,
                                      Shape{axes_order.size()},
                                      std::vector<int64_t>(axes_order.begin(), axes_order.end()));
     return std::make_shared<ov::op::v1::Transpose>(value, axes_order_const);
@@ -58,7 +58,7 @@ std::shared_ptr<Node> transpose(const Output<Node>& value) {
     }
 
     const auto input_rank = std::make_shared<ov::op::v0::ShapeOf>(std::make_shared<ov::op::v0::ShapeOf>(value));
-    const auto neg_one = ov::op::v0::Constant::create(element::i64, Shape{}, {-1});
+    const auto neg_one = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {-1});
     const auto start_node = std::make_shared<ov::op::v1::Add>(input_rank, neg_one);
     const auto reverse_axes_order = std::make_shared<ov::op::v0::Range>(reshape(start_node, Shape{}),  // start
                                                                         neg_one,   // stop (exclusive)
@@ -77,7 +77,7 @@ namespace {
 /// \return     The new Constant node representing normalized axis value.
 ///
 std::shared_ptr<Node> get_normalized_axis_node(const std::shared_ptr<Node> node_rank, int64_t axis) {
-    auto axis_node = ov::op::v0::Constant::create(element::i64, Shape{1}, {axis});
+    auto axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {axis});
     // shortcut for already positive value
     if (axis >= 0) {
         return axis_node;
@@ -95,9 +95,9 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
     // [d_{axis}, ..., d_n]
     std::shared_ptr<Node> output_shape;
     if (axis == 0) {
-        output_shape = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, -1});
+        output_shape = ov::op::v0::Constant::create(ov::element::i64, Shape{2}, {1, -1});
     } else if (axis == 1) {
-        output_shape = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, -1});
+        output_shape = ov::op::v0::Constant::create(ov::element::i64, Shape{2}, {0, -1});
     } else {
         const auto value_shape = std::make_shared<ov::op::v0::ShapeOf>(value);
         const auto value_rank = std::make_shared<ov::op::v0::ShapeOf>(value_shape);
@@ -105,16 +105,16 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
 
         const auto first_part_dims =
             std::make_shared<ov::op::v1::StridedSlice>(value_shape,
-                                                       ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                                       ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
                                                        axis_node,
                                                        std::vector<int64_t>{0},
                                                        std::vector<int64_t>{0});
         const auto first_part_dims_length =
             std::make_shared<ov::op::v1::ReduceProd>(first_part_dims,
-                                                     ov::op::v0::Constant::create(element::i64, {}, {0}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}),
                                                      true);
 
-        const auto remaining_part_length = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+        const auto remaining_part_length = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
 
         output_shape =
             std::make_shared<ov::op::v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);

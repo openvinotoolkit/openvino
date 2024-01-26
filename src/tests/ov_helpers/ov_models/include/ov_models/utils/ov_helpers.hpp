@@ -116,8 +116,8 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
                                         const std::vector<ov::element::Type>& inputTypes = {});
 
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
-                                                 const element::Type_t& fromPrecision,
-                                                 const element::Type_t& toPrecision,
+                                                 const ov::element::Type_t& fromPrecision,
+                                                 const ov::element::Type_t& toPrecision,
                                                  const size_t elementsCount);
 
 // todo: remove the following function from the source code after cleaning up VPU repo

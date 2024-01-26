@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
+std::shared_ptr<ov::Node> makeInputLayer(const ov::element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape) {
     std::shared_ptr<ov::Node> input;

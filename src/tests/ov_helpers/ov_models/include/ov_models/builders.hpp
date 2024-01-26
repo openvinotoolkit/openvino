@@ -68,12 +68,12 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
     return weightsNode;
 }
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
+std::shared_ptr<ov::Node> makeInputLayer(const ov::element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape);
 
 std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
-                                          const element::Type& type,
+                                          const ov::element::Type& type,
                                           const std::vector<size_t>& filterSize,
                                           const std::vector<size_t>& strides,
                                           const std::vector<ptrdiff_t>& padsBegin,
@@ -87,7 +87,7 @@ std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
 
 std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in_data,
                                           const ov::Output<Node>& in_weights,
-                                          const element::Type& type,
+                                          const ov::element::Type& type,
                                           const std::vector<size_t>& filterSize,
                                           const std::vector<size_t>& strides,
                                           const std::vector<ptrdiff_t>& padsBegin,
@@ -99,7 +99,7 @@ std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in_data,
                                           const std::vector<float>& biasesWeights = {});
 
 std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
-                                               const element::Type& type,
+                                               const ov::element::Type& type,
                                                const std::vector<size_t>& filterSize,
                                                const std::vector<size_t>& strides,
                                                const std::vector<ptrdiff_t>& padsBegin,
@@ -114,7 +114,7 @@ std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
 
 std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
                                                const ov::Output<Node>& weights,
-                                               const element::Type& type,
+                                               const ov::element::Type& type,
                                                const std::vector<size_t>& strides,
                                                const std::vector<ptrdiff_t>& padsBegin,
                                                const std::vector<ptrdiff_t>& padsEnd,
@@ -124,7 +124,7 @@ std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
                                                const std::vector<float>& biasesWeights = {});
 
 std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                      const element::Type& type,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& filterSize,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
@@ -139,7 +139,7 @@ std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in
 
 std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
                                                       const ov::Output<Node>& weights,
-                                                      const element::Type& type,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
                                                       const std::vector<ptrdiff_t>& padsEnd,
@@ -151,7 +151,7 @@ std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in
 
 std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
                                                       const ov::Output<Node>& outputShape,
-                                                      const element::Type& type,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& filterSize,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
@@ -172,13 +172,13 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inp
                                                      const ov::Output<Node>& sequenceLength,
                                                      int blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision = element::i32);
+                                                     const ov::element::Type& idxPrecision = ov::element::i32);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
                                                      int blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision = element::i32);
+                                                     const ov::element::Type& idxPrecision = ov::element::i32);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
@@ -186,14 +186,14 @@ std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
                                       std::vector<std::vector<int>>& labels,
                                       std::vector<int>& labelsLength,
                                       int blankIndex,
-                                      const element::Type& fType,
-                                      const element::Type& iType,
+                                      const ov::element::Type& fType,
+                                      const ov::element::Type& iType,
                                       const bool preprocessCollapseRepeated,
                                       const bool ctcMergeRepeated,
                                       const bool unique);
 
 std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
-                                                           const element::Type& type,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& filterSize,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
@@ -209,7 +209,7 @@ std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node
 
 std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
                                                            const ov::Output<Node>& weights,
-                                                           const element::Type& type,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
                                                            const std::vector<ptrdiff_t>& padsEnd,
@@ -221,7 +221,7 @@ std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node
 
 std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
                                                            const ov::Output<Node>& outputShape,
-                                                           const element::Type& type,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& filterSize,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
@@ -248,18 +248,18 @@ std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<Node>& in,
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
-                                    const element::Type& type,
+                                    const ov::element::Type& type,
                                     size_t numSplits,
                                     int64_t axis);
 
 std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
                                          std::vector<size_t> inShape = {},
                                          std::vector<float> constantsValue = {});
 
 std::shared_ptr<ov::Node> makeActivation(const ov::ParameterVector& parameters,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType);
 
 std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
@@ -268,14 +268,14 @@ std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
-                                           const element::Type& type,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& cropsBegin,
                                            const std::vector<int64_t>& cropsEnd);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
-                                           const element::Type& type,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& padsBegin,
                                            const std::vector<int64_t>& padsEnd);
@@ -286,7 +286,7 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& end,
                                     const std::vector<int64_t>& stride,
                                     const std::vector<int64_t>& axes,
-                                    const element::Type& type);
+                                    const ov::element::Type& type);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
@@ -319,7 +319,7 @@ std::shared_ptr<ov::Node> makeMVN6(const ov::Output<Node>& in,
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
-                                               const element::Type& type,
+                                               const ov::element::Type& type,
                                                const std::vector<int>& squeeze_indices,
                                                ov::test::utils::SqueezeOpType opType);
 
@@ -332,7 +332,7 @@ OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        const ov::Output<Node>& class_logits,
                                        const std::vector<float>& image_info,
-                                       const element::Type& type,
+                                       const ov::element::Type& type,
                                        size_t base_size,
                                        size_t pre_nms_topn,
                                        size_t post_nms_topn,
@@ -349,7 +349,7 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        std::string framework);
 
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& type,
+                                       const ov::element::Type& type,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const std::vector<float>& inputLowData,
@@ -358,13 +358,13 @@ std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const std::vector<float>& outputHighData);
 
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& type,
+                                       const ov::element::Type& type,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const int32_t seed = 1);
 
-std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
-                                                     const element::Type& indicesType,
+std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const ov::element::Type& dataType,
+                                                     const ov::element::Type& indicesType,
                                                      const ov::Output<Node>& emb_table_node,
                                                      const std::vector<size_t>& indices,
                                                      const std::vector<size_t>& offsets,
@@ -372,8 +372,8 @@ std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataTy
                                                      bool with_weights,
                                                      bool with_default_index);
 
-std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
-                                                   const element::Type& indicesType,
+std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const ov::element::Type& dataType,
+                                                   const ov::element::Type& indicesType,
                                                    const ov::Output<Node>& emb_table_node,
                                                    const std::vector<size_t>& indices,
                                                    const std::vector<size_t>& segment_ids,
@@ -409,7 +409,7 @@ std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
 std::shared_ptr<ov::Node> makeLogical(const ov::ParameterVector& inputs, ov::test::utils::LogicalTypes logicalType);
 
 std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
-                                             const element::Type& type,
+                                             const ov::element::Type& type,
                                              const size_t outputSize,
                                              bool addBias = true,
                                              const ov::Shape& weightsShape = {},
@@ -464,12 +464,12 @@ std::shared_ptr<ov::Node> makeRNN(
 
 std::shared_ptr<ov::Node> makeGatherND(const ov::Output<Node>& dataNode,
                                        const ov::Shape& indicesShape,
-                                       const element::Type& indicesType,
+                                       const ov::element::Type& indicesType,
                                        const std::size_t batchDims);
 
 std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
                                         const ov::Shape& indicesShape,
-                                        const element::Type& indicesType,
+                                        const ov::element::Type& indicesType,
                                         const std::size_t batchDims);
 
 enum class NmsVersion { NmsVersion5, NmsVersion9 };
@@ -477,8 +477,8 @@ enum class NmsVersion { NmsVersion5, NmsVersion9 };
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::Output<Node>& scores,
-                                  const element::Type& maxBoxesPrec,
-                                  const element::Type& thrPrec,
+                                  const ov::element::Type& maxBoxesPrec,
+                                  const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,
                                   const float& iouThr,
                                   const float& scoreThr,

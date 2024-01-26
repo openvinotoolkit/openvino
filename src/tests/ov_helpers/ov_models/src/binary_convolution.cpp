@@ -26,11 +26,11 @@ std::shared_ptr<Node> makeBinaryConvolution(const ov::Output<Node>& in,
     auto shape = in.get_shape();
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = std::make_shared<ov::op::v0::Constant>(element::u1, filterWeightsShape);
+    auto filterWeightsNode = std::make_shared<ov::op::v0::Constant>(ov::element::u1, filterWeightsShape);
     const size_t byteNum = (ov::shape_size(filterWeightsShape) + 7) / 8;
     int8_t* buffer = const_cast<int8_t*>(filterWeightsNode->get_data_ptr<int8_t>());
     if (filterWeihgts.size() == 0) {
-        std::vector<int8_t> weihgts = NGraphFunctions::Utils::generateVector<element::Type_t::i8>(byteNum);
+        std::vector<int8_t> weihgts = NGraphFunctions::Utils::generateVector<ov::element::Type_t::i8>(byteNum);
         for (size_t i = 0; i < byteNum; i++)
             buffer[i] = weihgts[i];
     } else {

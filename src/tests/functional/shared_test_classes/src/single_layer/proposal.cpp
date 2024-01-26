@@ -96,9 +96,11 @@ void ProposalLayerTest::Compare(
                     ov::bfloat16(threshold), outputIndex);
             break;
         case InferenceEngine::Precision::FP16:
-            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
-                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size,
-                    ngraph::float16(threshold), outputIndex);
+            Compare(reinterpret_cast<const ov::float16*>(expectedBuffer),
+                    reinterpret_cast<const ov::float16*>(actualBuffer),
+                    size,
+                    ov::float16(threshold),
+                    outputIndex);
             break;
         case InferenceEngine::Precision::FP32:
             Compare<float>(reinterpret_cast<const float *>(expectedBuffer),

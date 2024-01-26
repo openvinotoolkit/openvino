@@ -4,28 +4,22 @@
 
 #pragma once
 
-#include <typeindex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <tuple>
 #include <gtest/gtest.h>
 #include <ie_core.hpp>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-
-#include "functional_test_utils/crash_handler.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/crash_handler.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
-
-#include "ov_models/utils/ov_helpers.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsUtils {
 
