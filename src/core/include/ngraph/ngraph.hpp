@@ -21,7 +21,6 @@
 #include <string>
 
 #include "ngraph/deprecated.hpp"
-#include "ngraph/version.hpp"
 
 #ifdef IN_OV_CORE_LIBRARY
 #    error("ngraph.hpp is for external use only")
@@ -49,7 +48,6 @@
 ///        recipes, for example auto-broadcast.
 
 #include "ngraph/evaluator.hpp"
-#include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/partial_shape.hpp"
