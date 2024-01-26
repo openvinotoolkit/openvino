@@ -28,23 +28,19 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/output.hpp"
-#include "ngraph/descriptor/tensor.hpp"
-#include "ngraph/node_input.hpp"
-#include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/op_annotations.hpp"
-#include "ngraph/op/util/variable.hpp"
-#include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/descriptor/output.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_value.hpp"
 
 namespace ov {
 namespace op {
@@ -57,17 +53,7 @@ namespace ngraph {
 
 using ov::Node;
 
-namespace runtime {
-class HostTensor;
-}
-NGRAPH_SUPPRESS_DEPRECATED_START
-using HostTensor = runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 namespace op {
-
 namespace v0 {
 using ov::op::v0::Result;
 }
@@ -102,7 +88,7 @@ using NodeTypeInfo = Node::type_info_t;
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 using ov::RawNodeOutput;
 
-using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
+using RawNodeOutputMap = std::map<RawNodeOutput, ov::Output<Node>>;
 
 using ov::check_new_args_count;
 

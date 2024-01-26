@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/topk.hpp"
+#include "op/topk.hpp"
 
 #include <cstdint>
 #include <memory>
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
-#include "op/topk.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
-ngraph::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
+ov::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
     FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
                             "ONNX TopK operator: 'K' parameter must contain a single positive value.",
@@ -45,7 +42,7 @@ OutputVector topk(const Node& node) {
                                               axis,
                                               default_opset::TopK::Mode::MAX,
                                               default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+                                              ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -63,7 +60,7 @@ OutputVector topk(const Node& node) {
                                               axis,
                                               default_opset::TopK::Mode::MAX,
                                               default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+                                              ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -87,7 +84,7 @@ OutputVector topk(const Node& node) {
     const auto mode = compute_max ? default_opset::TopK::Mode::MAX : default_opset::TopK::Mode::MIN;
 
     std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, element::i64);
+        std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }

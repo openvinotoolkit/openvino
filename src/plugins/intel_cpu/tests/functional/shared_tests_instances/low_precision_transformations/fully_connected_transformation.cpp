@@ -8,30 +8,28 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-        ngraph::element::f32,
-        // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<MatMulShapes> shapes = {
     {
-        ngraph::PartialShape{ 1, 16 },
-        ngraph::PartialShape{ 16, 8 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 16, 8 },
         false,
         false
     },
     {
-        ngraph::PartialShape{ 1, 16 },
-        ngraph::PartialShape{ 8, 16 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 8, 16 },
         false,
         true
     },
     {
-        ngraph::PartialShape{ 16, 1 },
-        ngraph::PartialShape{ 16, 8 },
+        ov::PartialShape{ 16, 1 },
+        ov::PartialShape{ 16, 8 },
         true,
         false
     },

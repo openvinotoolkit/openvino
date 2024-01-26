@@ -3,13 +3,9 @@
 //
 
 #include "behavior/plugin/hetero_synthetic.hpp"
-#include <ngraph/op/util/op_types.hpp>
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include <random>
-#include "ie_algorithm.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
@@ -17,7 +13,7 @@
 
 namespace HeteroTests {
 
-static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
+static std::vector<std::function<std::shared_ptr<ov::Model>()>> builders = {
     [] {return ov::test::utils::make_split_multi_conv_concat();},
     [] {return ov::test::utils::make_nested_split_conv_concat();},
     [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch();},
@@ -26,7 +22,7 @@ static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders 
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(
-    const std::function<std::shared_ptr<ngraph::Function>()>& builder,
+    const std::function<std::shared_ptr<ov::Model>()>& builder,
     const std::unordered_set<std::string>& majorNodes,
     bool dynamic_batch) {
     auto function = builder();
@@ -36,15 +32,15 @@ std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(
 }
 
 std::vector<FunctionParameter> HeteroSyntheticTest::singleMajorNodeFunctions(
-    const std::vector<std::function<std::shared_ptr<ngraph::Function>()>>& builders,
+    const std::vector<std::function<std::shared_ptr<ov::Model>()>>& builders,
     bool dynamic_batch) {
     std::vector<FunctionParameter> result;
     for (auto&& builder : builders) {
         auto function = builder();
         for (auto&& node : function->get_ordered_ops()) {
-            if (!ngraph::op::is_constant(node) &&
-                    !(ngraph::op::is_parameter(node)) &&
-                    !(ngraph::op::is_output(node))) {
+            if (!ov::op::util::is_constant(node) &&
+                    !(ov::op::util::is_parameter(node)) &&
+                    !(ov::op::util::is_output(node))) {
                 result.push_back(FunctionParameter{{node->get_friendly_name()}, function, dynamic_batch, 0});
             }
         }
@@ -53,7 +49,7 @@ std::vector<FunctionParameter> HeteroSyntheticTest::singleMajorNodeFunctions(
 }
 
 std::vector<FunctionParameter> HeteroSyntheticTest::randomMajorNodeFunctions(
-    const std::vector<std::function<std::shared_ptr<ngraph::Function>()>>& builders,
+    const std::vector<std::function<std::shared_ptr<ov::Model>()>>& builders,
     bool dynamic_batch,
     uint32_t seed) {
     std::vector<FunctionParameter> results;
@@ -69,9 +65,9 @@ std::vector<FunctionParameter> HeteroSyntheticTest::randomMajorNodeFunctions(
             for (std::size_t i = 0; i < ordered_ops.size(); ++i) {
                 std::unordered_set<std::string> majorPluginNodeIds;
                 for (auto&& node : ordered_ops) {
-                    if (!(ngraph::op::is_constant(node)) &&
-                            !(ngraph::op::is_parameter(node)) &&
-                            !(ngraph::op::is_output(node)) && d(e)) {
+                    if (!(ov::op::util::is_constant(node)) &&
+                            !(ov::op::util::is_parameter(node)) &&
+                            !(ov::op::util::is_output(node)) && d(e)) {
                         majorPluginNodeIds.emplace(node->get_friendly_name());
                     }
                 }
@@ -177,9 +173,9 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
                 return pluginParameters.at(1)._name;
             }
         };
-        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
+        if (ov::op::util::is_constant(node) || ov::op::util::is_output(node) || ov::op::util::is_parameter(node)) {
             auto& node_with_affinity_name =
-                ngraph::op::is_output(node)
+                ov::op::util::is_output(node)
                     ? node->input_value(0).get_node()->get_friendly_name()
                     : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
             affinity = get_affinity(node_with_affinity_name);

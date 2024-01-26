@@ -34,8 +34,8 @@ public:
 
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = default;
-    std::shared_ptr<Function> decode();
-    virtual std::shared_ptr<Function> convert();
+    std::shared_ptr<ov::Model> decode();
+    virtual std::shared_ptr<ov::Model> convert();
     OutputVector get_ov_outputs();
     const std::string& get_name() const {
         return m_model->get_graph().name();
@@ -50,7 +50,7 @@ public:
         return m_parameters;
     }
     virtual bool is_ov_node_in_cache(const std::string& name) const;
-    virtual Output<ov::Node> get_ov_node_from_cache(const std::string& name);
+    virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
     OPENVINO_SUPPRESS_DEPRECATED_START
     OutputVector make_ov_nodes(const Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -80,7 +80,7 @@ protected:
     void convert_to_ov_nodes();
     void remove_dangling_parameters();
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
-    std::shared_ptr<Function> create_function();
+    std::shared_ptr<ov::Model> create_model();
 
     ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
@@ -109,9 +109,9 @@ public:
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
-    const std::vector<Output<ov::Node>> get_inputs_from_parent() const;
+    const std::vector<ov::Output<ov::Node>> get_inputs_from_parent() const;
 
-    std::shared_ptr<Function> convert() override;
+    std::shared_ptr<ov::Model> convert() override;
 
     Subgraph() = delete;
 
@@ -122,7 +122,7 @@ public:
     Subgraph& operator=(Subgraph&&) = default;
 
     bool is_ov_node_in_cache(const std::string& name) const override;
-    Output<ov::Node> get_ov_node_from_cache(const std::string& name) override;
+    ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name) override;
     void infer_inputs_from_parent();
 
 private:

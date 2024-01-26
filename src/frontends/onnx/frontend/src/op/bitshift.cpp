@@ -4,9 +4,13 @@
 
 #include "op/bitshift.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,8 +18,8 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector bitshift(const Node& node) {
-    const Output<ngraph::Node> input_x = node.get_ng_inputs().at(0);
-    const Output<ngraph::Node> input_y = node.get_ng_inputs().at(1);
+    const ov::Output<ov::Node> input_x = node.get_ng_inputs().at(0);
+    const ov::Output<ov::Node> input_y = node.get_ng_inputs().at(1);
 
     std::string direction = node.get_attribute_value<std::string>("direction", "");
 
@@ -27,14 +31,12 @@ OutputVector bitshift(const Node& node) {
                      "attribute. Given: ",
                      direction);
 
-    auto shift = std::make_shared<default_opset::Power>(
-        default_opset::Constant::create(input_y.get_element_type(), Shape{1}, {2}),
-        input_y);
+    auto shift = std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), Shape{1}, {2}), input_y);
 
     if (direction == "RIGHT") {
-        return {std::make_shared<default_opset::Divide>(input_x, shift)};
+        return {std::make_shared<v1::Divide>(input_x, shift)};
     } else {
-        return {std::make_shared<default_opset::Multiply>(input_x, shift)};
+        return {std::make_shared<v1::Multiply>(input_x, shift)};
     }
 }
 

@@ -1,13 +1,12 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/single_layer/eye.hpp"
-
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/eye.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,15 +51,15 @@ void EyeLayerTest::SetUp() {
 
     std::shared_ptr<ov::op::v9::Eye> eye_operation;
 
-    auto rows_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, input_shapes[0], &row_num);
+    auto rows_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_shapes[0], &row_num);
     rows_const->set_friendly_name("rows");
-    auto cols_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, input_shapes[1], &col_num);
+    auto cols_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_shapes[1], &col_num);
     cols_const->set_friendly_name("cols");
-    auto diag_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, input_shapes[2], &shift);
+    auto diag_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_shapes[2], &shift);
     diag_const->set_friendly_name("diagInd");
 
     if (!out_batch_shape.empty() && out_batch_shape[0] != 0) {
-        auto batch_shape_par = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32,
+        auto batch_shape_par = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                       ov::Shape{out_batch_shape.size()},
                                                                       out_batch_shape.data());
         batch_shape_par->set_friendly_name("batchShape");
@@ -71,7 +70,7 @@ void EyeLayerTest::SetUp() {
     }
     // Without this call the eye operation will be calculated by CPU and substituted by Constant operator
     ov::pass::disable_constant_folding(eye_operation);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(eye_operation)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "eye");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye_operation)};
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{}, "eye");
 }
 }  // namespace LayerTestsDefinitions

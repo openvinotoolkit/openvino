@@ -4,6 +4,7 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
+#include "ie_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -54,8 +55,8 @@ const std::vector<ov::AnyMap> multi_properties = {
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_TEMPLATE}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_TEMPLATE}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
+    {{ov::device::priorities.name(), ov::test::utils::DEVICE_TEMPLATE}},
+    {{ov::device::priorities.name(), ov::test::utils::DEVICE_TEMPLATE}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

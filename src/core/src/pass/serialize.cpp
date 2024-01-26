@@ -516,20 +516,6 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-        } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                &new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type);
-
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
-            }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
@@ -944,8 +930,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& param : model.get_parameters()) {
             result.emplace_back(param);
         }
+        auto model_sinks = model.get_sinks();
         for (auto&& node : sorted_ops) {
-            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
+            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) &&
+                std::find(model_sinks.begin(), model_sinks.end(), node) == model_sinks.end())
                 result.emplace_back(node);
         }
         for (const auto& sink : model.get_sinks()) {

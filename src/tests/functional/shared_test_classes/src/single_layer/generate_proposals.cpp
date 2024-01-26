@@ -110,7 +110,7 @@ void GenerateProposalsLayerTest::SetUp() {
         "GenerateProposals");
 }
 
-void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void GenerateProposalsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<6>(GetParam());
 
     inputs.clear();

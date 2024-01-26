@@ -7,9 +7,11 @@
 #include <cstdint>
 #include <memory>
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/batch_norm.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -22,8 +24,8 @@ OutputVector batch_norm(const Node& node) {
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
-    Output<ngraph::Node> mean;
-    Output<ngraph::Node> var;
+    ov::Output<ov::Node> mean;
+    ov::Output<ov::Node> var;
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
 
@@ -40,7 +42,7 @@ OutputVector batch_norm(const Node& node) {
     if (inputs.size() >= 5) {
         mean = inputs.at(3);
         var = inputs.at(4);
-        return {std::make_shared<default_opset::BatchNormInference>(x, scale, bias, mean, var, epsilon),
+        return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon),
                 after_bn_mean,
                 after_bn_var,
                 saved_mean,
@@ -67,7 +69,7 @@ OutputVector batch_norm(const Node& node) {
 
     CHECK_VALID_NODE(node, node.get_outputs_size() == 1, "Training mode of BatchNormalization is not supported.");
 
-    return {std::make_shared<default_opset::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
+    return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
 
 }  // namespace set_7
