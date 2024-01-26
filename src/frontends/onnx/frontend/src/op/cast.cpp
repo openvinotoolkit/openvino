@@ -15,7 +15,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector cast(const Node& node) {
+ov::OutputVector cast(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
     element::Type elem_type = common::get_ov_element_type(target_type);

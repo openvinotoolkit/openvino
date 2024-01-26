@@ -31,7 +31,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector topk(const Node& node) {
+ov::OutputVector topk(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
@@ -49,7 +49,7 @@ OutputVector topk(const Node& node) {
 }  // namespace set_1
 
 namespace set_10 {
-OutputVector topk(const Node& node) {
+ov::OutputVector topk(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
@@ -67,7 +67,7 @@ OutputVector topk(const Node& node) {
 }  // namespace set_10
 
 namespace set_11 {
-OutputVector topk(const Node& node) {
+ov::OutputVector topk(const Node& node) {
     // Process inputs
     auto data = node.get_ng_inputs().at(0);
     auto k = get_k(node);

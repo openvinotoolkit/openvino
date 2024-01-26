@@ -283,5 +283,5 @@ std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ov::Tensor> tv
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv);
+std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END

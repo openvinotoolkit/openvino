@@ -22,8 +22,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector qlinear_conv(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector qlinear_conv(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     auto x = inputs.at(0);
     auto x_scale = inputs.at(1);

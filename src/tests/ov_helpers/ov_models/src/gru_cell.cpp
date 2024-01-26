@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeGRU(const OutputVector& in,
+std::shared_ptr<ov::Node> makeGRU(const ov::OutputVector& in,
                                   const std::vector<ov::Shape>& constants,
                                   std::size_t hidden_size,
                                   const std::vector<std::string>& activations,

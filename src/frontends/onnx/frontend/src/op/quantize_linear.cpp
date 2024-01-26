@@ -23,7 +23,7 @@ namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-ov::Output<ov::Node> get_zero_point(const OutputVector& inputs) {
+ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
@@ -138,8 +138,8 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }  // namespace detail
 
 namespace set_1 {
-OutputVector quantize_linear(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector quantize_linear(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
     auto y_zero_point = detail::get_zero_point(inputs);
@@ -154,11 +154,11 @@ OutputVector quantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace {
-OutputVector quantize_linear(ov::Output<ov::Node> x,
-                             ov::Output<ov::Node> y_scale,
-                             ov::Output<ov::Node> y_zero_point,
-                             int64_t axis,
-                             Node node) {
+ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
+                                 ov::Output<ov::Node> y_scale,
+                                 ov::Output<ov::Node> y_zero_point,
+                                 int64_t axis,
+                                 Node node) {
     namespace detail = ngraph::onnx_import::op::detail;
 
     x = detail::validate_data(node, x);
@@ -206,8 +206,8 @@ OutputVector quantize_linear(ov::Output<ov::Node> x,
 }
 }  // namespace
 
-OutputVector quantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector quantize_linear(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The QuantizeLinear op expects 2 required and one optional "

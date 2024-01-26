@@ -33,7 +33,7 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
         if (last_dim.is_static() && last_dim.get_length() == 1) {
             ov::Output<ov::Node> imag_part = v0::Constant::create(signal.get_element_type(), {}, {0});
             imag_part = std::make_shared<v3::Broadcast>(imag_part, std::make_shared<v3::ShapeOf>(signal));
-            signal = std::make_shared<v0::Concat>(OutputVector{signal, imag_part}, last_axis_pos);
+            signal = std::make_shared<v0::Concat>(ov::OutputVector{signal, imag_part}, last_axis_pos);
             return true;
         }
     }

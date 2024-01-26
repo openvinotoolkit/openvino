@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_17 {
-OutputVector stft(const Node& node);
+ov::OutputVector stft(const Node& node);
 
 }  // namespace set_17
 
