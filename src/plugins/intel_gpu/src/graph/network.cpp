@@ -443,7 +443,7 @@ void network::reset_execution(bool wait) {
             get_stream().wait_for_events(events);
         }
     }
-    _kv_cache_mem_deps.clear();
+
     // Move events to temporarily map to deallocate them at the end of network::execute() call for better overlapping with
     // kernels execution, since it may take significant time for high amount of events
     _old_events = std::move(_events);
