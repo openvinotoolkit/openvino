@@ -285,7 +285,7 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     return function;
 }
 
-std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel) {
+std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
     const std::vector<size_t> stride = { 1, 1 };
     const std::vector<size_t> padBegin = { 0, 0 };
     const std::vector<size_t> padEnd = { 0, 0 };

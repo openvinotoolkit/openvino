@@ -60,7 +60,7 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     OPENVINO_THROW("unsupported element type");
 }
 
-std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
+std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
                                                               int64_t start_value,
                                                               int64_t step) {
     if (value.get_partial_shape().rank().is_static()) {
@@ -99,8 +99,8 @@ void validate_scalar_input(const char* input_name,
 
 template <typename T>
 OutputVector handle_opset6_binary_op(const Node& node) {
-    const Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
-    Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
+    const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
+    ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {
@@ -149,11 +149,11 @@ bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
 
 const std::string OPTIMIZED_OUT_NODE = "OPTIMIZED_OUT_NODE";
 
-void mark_as_optimized_out(Output<ov::Node>& node_output) {
+void mark_as_optimized_out(ov::Output<ov::Node>& node_output) {
     node_output.get_rt_info()[OPTIMIZED_OUT_NODE] = true;
 }
 
-bool is_optimized_out(const Output<ov::Node>& node_output) {
+bool is_optimized_out(const ov::Output<ov::Node>& node_output) {
     const auto& rt_info = node_output.get_rt_info();
     return rt_info.find(OPTIMIZED_OUT_NODE) != rt_info.end();
 }

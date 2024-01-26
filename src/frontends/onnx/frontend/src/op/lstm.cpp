@@ -168,10 +168,10 @@ struct LSTMNgInputMap {
         }
     }
 
-    Output<ov::Node>& at(const LSTMInput& key) {
+    ov::Output<ov::Node>& at(const LSTMInput& key) {
         return m_input_map.at(key);
     }
-    std::map<LSTMInput, Output<ov::Node>> m_input_map;
+    std::map<LSTMInput, ov::Output<ov::Node>> m_input_map;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

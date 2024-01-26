@@ -33,7 +33,7 @@ TEST(specialize_function, et_shape_static) {
 
     auto g = specialize_function(f,
                                  {element::f32, element::i32},
-                                 {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                  param_vals);
 
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
@@ -54,7 +54,7 @@ TEST(specialize_function, et_dynamic_shape_static) {
 
     auto g = specialize_function(f,
                                  {element::f32, element::i32},
-                                 {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                  param_vals);
 
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
@@ -63,8 +63,8 @@ TEST(specialize_function, et_dynamic_shape_static) {
 
 // Test specialization of rank-dynamic shapes.
 TEST(specialize_function, et_static_shape_rank_dynamic) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -75,7 +75,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic) {
 
     auto g = specialize_function(f,
                                  {element::f32, element::i32},
-                                 {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                  param_vals);
 
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
@@ -84,8 +84,8 @@ TEST(specialize_function, et_static_shape_rank_dynamic) {
 
 // Test specialization of rank-static dynamic shapes.
 TEST(specialize_function, et_static_shape_rank_static_dynamic) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape::dynamic(3));
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic(3));
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic(3));
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -96,7 +96,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic) {
 
     auto g = specialize_function(f,
                                  {element::f32, element::i32},
-                                 {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                  param_vals);
 
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
@@ -105,8 +105,8 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic) {
 
 // Test specialization of values to a shape-dynamic parameters.
 TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape::dynamic(3));
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic(3));
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic(3));
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -119,7 +119,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val) {
 
     auto g = specialize_function(f,
                                  {element::f32, element::i32},
-                                 {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                  param_vals);
 
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
@@ -141,8 +141,8 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val) {
 //
 // (The input shapes we provide at specialization time are inconsistent.)
 TEST(specialize_function, et_static_shape_rank_dynamic_validation_fails) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -155,7 +155,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic_validation_fails) {
         {
             specialize_function(f,
                                 {element::f32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3, 4}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3, 4}},
                                 param_vals);
         },
         NodeValidationFailure);
@@ -179,7 +179,7 @@ TEST(specialize_function, et_dynamic_shape_static_validation_fails) {
         {
             specialize_function(f,
                                 {element::u32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
         NodeValidationFailure);
@@ -192,8 +192,8 @@ TEST(specialize_function, et_dynamic_shape_static_validation_fails) {
 // specialize_shape's pre-checks, which use OPENVINO_ASSERT, rather than inside validation as we
 // reconstruct the graph.)
 TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape::dynamic(3));
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic(3));
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic(3));
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -206,7 +206,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
         {
             specialize_function(f,
                                 {element::f32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3, 4}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3, 4}},
                                 param_vals);
         },
         CheckFailure);
@@ -219,8 +219,8 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
 // specialize_shape's pre-checks, which use OPENVINO_ASSERT, rather than inside validation as we
 // reconstruct the graph.)
 TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape{1, ov::Dimension::dynamic(), 3});
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape{1, 2, 3});
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape{1, ov::Dimension::dynamic(), 3});
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -233,7 +233,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
         {
             specialize_function(f,
                                 {element::f32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 9, 4}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 9, 4}},
                                 param_vals);
         },
         CheckFailure);
@@ -241,8 +241,8 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
 
 // Test for failure when we supply the wrong number of replacement element types.
 TEST(specialize_function, et_count_wrong) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape{1, 2, 3});
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape{1, 2, 3});
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape{1, 2, 3});
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -255,7 +255,7 @@ TEST(specialize_function, et_count_wrong) {
         {
             specialize_function(f,
                                 {element::f32, element::i32, element::u32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
         CheckFailure);
@@ -263,8 +263,8 @@ TEST(specialize_function, et_count_wrong) {
 
 // Test for failure when we supply the wrong number of replacement shapes.
 TEST(specialize_function, shape_count_wrong) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape{1, 2, 3});
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape{1, 2, 3});
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape{1, 2, 3});
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -277,7 +277,7 @@ TEST(specialize_function, shape_count_wrong) {
         {
             specialize_function(f,
                                 {element::f32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}, PartialShape{4, 5, 6}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}, ov::PartialShape{4, 5, 6}},
                                 param_vals);
         },
         CheckFailure);
@@ -285,8 +285,8 @@ TEST(specialize_function, shape_count_wrong) {
 
 // Test for failure when we supply the wrong number of replacement parameter values.
 TEST(specialize_function, value_count_wrong) {
-    auto p0 = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto p1 = std::make_shared<Parameter>(element::i32, PartialShape{1, 2, 3});
+    auto p0 = std::make_shared<Parameter>(element::f32, ov::PartialShape{1, 2, 3});
+    auto p1 = std::make_shared<Parameter>(element::i32, ov::PartialShape{1, 2, 3});
 
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
@@ -299,7 +299,7 @@ TEST(specialize_function, value_count_wrong) {
         {
             specialize_function(f,
                                 {element::f32, element::i32},
-                                {PartialShape{1, 2, 3}, PartialShape{1, 2, 3}},
+                                {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
         CheckFailure);

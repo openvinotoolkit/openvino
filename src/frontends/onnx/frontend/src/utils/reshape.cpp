@@ -70,7 +70,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     return inferred_dims;
 }
 
-Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
+ov::Output<ov::Node> interpret_as_scalar(const ov::Output<ov::Node>& node) {
     Shape node_shape = node.get_shape();
 
     // If node is already a scalar, return original
@@ -91,8 +91,8 @@ Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
     return ov::op::util::reshape(node, Shape{});
 }
 
-Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
-                                                     const Output<ov::Node>& expected_rank) {
+ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::Node>& node,
+                                                         const ov::Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
     const auto one_const = v0::Constant::create(ov::element::i64, Shape{1}, {1});
     const auto two_const = v0::Constant::create(ov::element::i64, Shape{1}, {2});

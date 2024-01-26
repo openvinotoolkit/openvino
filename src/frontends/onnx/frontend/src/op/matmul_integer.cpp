@@ -33,7 +33,7 @@ OutputVector matmul_integer(const Node& node) {
 
     const auto& A_zero_point_rank = A_zero_point.get_partial_shape().rank();
 
-    Output<ov::Node> shifted_A;
+    ov::Output<ov::Node> shifted_A;
     if (A_zero_point_rank.is_static() && A_zero_point_rank.get_length() == 1) {
         const auto& one_node = v0::Constant::create(ov::element::i32, {1}, {1});
         const auto& reshaped_A_zero_point = std::make_shared<v0::Unsqueeze>(converted_A_zero_point, one_node);

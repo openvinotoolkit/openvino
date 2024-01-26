@@ -14,7 +14,7 @@ using namespace ngraph;
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<ov::element::Type, PartialShape, std::string, AxisSet, bool> MVNTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, AxisSet, bool> MVNTransformationParams;
 
 class MVNTransformation :
     public testing::WithParamInterface<MVNTransformationParams>,
