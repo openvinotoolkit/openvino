@@ -120,7 +120,7 @@ ov::OutputVector loop(const Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
+    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
     body_params.emplace(body_params.begin(),
                         body_inputs[0]);  // current iteration body input
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);

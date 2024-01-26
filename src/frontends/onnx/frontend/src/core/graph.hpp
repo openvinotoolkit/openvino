@@ -46,7 +46,7 @@ public:
     detail::MappedMemoryHandles get_mmap_cache() const {
         return m_mmap_cache;
     }
-    const ParameterVector& get_ng_parameters() const {
+    const ov::ParameterVector& get_ng_parameters() const {
         return m_parameters;
     }
     virtual bool is_ov_node_in_cache(const std::string& name) const;
@@ -82,7 +82,7 @@ protected:
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<ov::Model> create_model();
 
-    ParameterVector m_parameters;
+    ov::ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
     std::unique_ptr<GraphCache> m_cache;
     ov::frontend::ExtensionHolder m_extensions = {};

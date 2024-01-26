@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "openvino/core/graph_util.hpp"
 
@@ -207,7 +206,7 @@ bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-void plot_graph(std::shared_ptr<Function> f,
+void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
                 std::function<void(const Node& node, std::vector<std::string>& attributes)> = nullptr);
 
@@ -227,7 +226,7 @@ std::vector<ov::Output<Node>> get_outputs_to(Node& src, Node& dst);
 /// It returns true if a cycle is found and the first cycle encountered.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool check_for_cycles(const ngraph::Function* func, ov::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
+bool check_for_cycles(const ov::Model* func, ov::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
 }  // namespace ngraph
 
 using ngraph::replace_node;

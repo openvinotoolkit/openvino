@@ -10,7 +10,6 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -23,7 +22,7 @@ namespace op {
 namespace {
 
 ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
-                                         ParameterVector& body_inputs,
+                                         ov::ParameterVector& body_inputs,
                                          ov::OutputVector& body_outputs,
                                          int64_t num_scan_inputs,
                                          const std::vector<int64_t>& scan_input_axes,
