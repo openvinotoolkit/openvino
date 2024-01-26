@@ -107,7 +107,6 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         model = std::make_shared<Model>(NodeVector{abs}, params);
         pass::VisualizeTree(std::string("/home/pwysocki/") + "multi.svg").run_on_model(model);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        pass::VisualizeTree(std::string("/home/pwysocki/") + "pleasework.svg").run_on_model(model);
         //std::cout << "TWO\n";
     }
 

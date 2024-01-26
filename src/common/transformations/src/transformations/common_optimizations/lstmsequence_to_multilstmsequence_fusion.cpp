@@ -59,7 +59,6 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
 
         auto in_X = current->input(0);
         x_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(in_X.get_source_output(), axis_1));
-        //h_outputs_to_redirect[lstm_count] = prev_lstm->output(0);
 
         // TODO: check which inputs/attributes to redirect
         if (auto rnncell = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(current)) {
@@ -124,6 +123,9 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(multi_lstm->output(2), axis_1);
     }
+    first_cell->get_input_node_ptr(0)->output(0).replace(multi_lstm->input(0).get_node()->output(0));
+    last_cell->output(0).get_node_shared_ptr()->input(0).replace_source_output(multi_lstm->output(0));
+
 
     if (!h_outputs_to_redirect.empty()) {
         auto squeeze_Y = cp_to.make<ov::op::v0::Squeeze>(multi_lstm->output(0), axis_1);
@@ -136,7 +138,6 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                 Hi = multi_lstm->output(1);
             }
             auto squeeze = cp_to.make<ov::op::v0::Squeeze>(Hi, axis_1);
-            it.second.replace(squeeze);
             squeeze->set_friendly_name(friendly_name);
         }
     }
@@ -155,19 +156,6 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         std::shared_ptr<op::v5::LSTMSequence> current_lstm = std::dynamic_pointer_cast<op::v5::LSTMSequence>(lstm);
         if (!current_lstm) {
             return false;
-        }
-        // check if LSTMSequence's output doesn't lead to another LSTMSequence
-        // essentially check if it's the last LSTMSequence in the series
-        for (const auto& target : lstm->get_output_target_inputs(0)) {
-            // detect Squeeze inbetween two LSTMSequence nodes
-            auto squeeze = std::dynamic_pointer_cast<op::v0::Squeeze>(target.get_node()->shared_from_this());
-            for (const auto& target_2 : squeeze->get_output_target_inputs(0)) {
-                auto lstm_1 = std::dynamic_pointer_cast<op::v5::LSTMSequence>(target_2.get_node()->shared_from_this());
-                if (squeeze && lstm_1 && is_equal_cells(lstm_1, current_lstm)) {
-                    return false;
-                }
-            }
-            auto lstm_node = squeeze->get_output_target_inputs(0);
         }
 
         int lstm_count;
@@ -191,7 +179,6 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         if (!first_cell) {
             return false;
         }
-        std::cout << "LSTM count: " << lstm_count << "\n";
         // no reasons to create Multi op if a single LSTM has been detected
         // TODO: determine optimal_cnt_of_lstms
         constexpr int optimal_cnt_of_lstms = 2;
