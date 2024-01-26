@@ -16,15 +16,15 @@ Assign
 
 **Detailed description**:
 
-ReadValue, Assign and Variable define a mechanism for reading, writing and storing some memory buffer between inference calls.
-More details can be found on StateAPI documentation page.
+ReadValue, Assign and Variable define a coherent mechanism for reading, writing and storing a memory buffer between inference calls.
+More details can be found on :doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
 
-*Assign* operation sets an input value to the ``variable_id`` variable. This value will be returned by *ReadValue* operation on next infer if variable was not reset.
+*Assign* operation sets an input value to the ``variable_id`` variable. This value will be read by *ReadValue* operation on next inference call if variable was not reset.
 The operation checks that the shape and type specified in ``variable_id`` variable extend (relax)
-the shape and the type inferred from the 1st input and returns an error otherwise, e.g. if the type in variable is specified
+the shape and the type inferred from the 1st input and returns an error otherwise, e.g. if the type in the variable is specified
 as dynamic, it means that any type for 1st input is allowed but if it is specified as f32, only f32 type is allowed.
 
-It is expected only one pair of ReadValue, Assign operations for each Variable in the network.
+It is expected only one pair of ReadValue, Assign operations for each Variable in the model.
 
 **Attributes**:
 

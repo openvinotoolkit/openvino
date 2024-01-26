@@ -6,22 +6,63 @@ Ways to get stateful models in OpenVINO
 State related Transformations
 #################################
 
-If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain
-:doc:`Assign <openvino_docs_ops_infrastructure_Assign_6>`/:doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_6>` layers.
+If the original framework does not have a special API for working with States, after importing the model, OpenVINO representation will not contain State and
+:doc:`Assign <openvino_docs_ops_infrastructure_Assign_6>`/:doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_6>` operations correspondingly, so OpenVINO Model is not Stateful by default in these cases.
+This article describes the ways how to get Stateful model via OpenVINO.
+
 For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain TensorIterator/Loop operations and the values will be obtained only after execution of the whole TensorIterator primitive.
-Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request,
-special LowLatency2 and MakeStateful transformations were introduced.
+Intermediate values from each iteration will not be available. MakeStateful and LowLatency2 transformations can be used to make such models stateful and work with these intermediate values from each iteration and receive them with a low latency after each infer request.
 
-How to get TensorIterator/Loop operations from different frameworks via ModelOptimizer.
-#######################################################################################
+.. _ov_ug_make_stateful:
 
-**ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the GRU/RNN/LSTM Sequence operations.
-*ONNX Loop* layer is converted to the OpenVINO Loop operation.
+MakeStateful
+############
 
-**TensorFlow:** *BlockLSTM* is converted to TensorIterator operation, TensorIterator body contains LSTM Cell operation, Peepholes, InputForget modifications are not supported.
-*While* layer is converted to TensorIterator, TensorIterator body can contain any supported operations, but dynamic cases, when count of iterations cannot be calculated in shape inference (ModelOptimizer conversion) time, are not supported.
+MakeStateful transformation changes the structure of the model by adding the ability to work with the state,
+replacing provided by user Parameter/Results with Assign/ReadValue operations as it is shown at the picture below.
 
-**TensorFlow2:** *While* layer is converted to Loop operation. Loop body can contain any supported operations.
+.. image:: _static/images/make_stateful_simple.svg
+   :align: center
+
+State naming rule: in most cases, a name of a state is a concatenation of Parameter/Result tensor names.
+If there are no tensor names, :doc:`friendly names<openvino_docs_transformations>` are used.
+
+Examples:
+
+Detailed illustration for all examples below:
+
+.. image:: _static/images/make_stateful_detailed.png
+   :align: center
+
+1. C++ API
+
+Using tensor names:
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         :language: cpp
+         :fragment: [ov:make_stateful_tensor_names]
+
+Using Parameter/Result operations:
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         :language: cpp
+         :fragment: [ov:make_stateful_ov_nodes]
+
+2. ModelOptimizer command line
+
+Using tensor names:
+
+```
+--input_model <INPUT_MODEL> --transform "MakeStateful[param_res_names={'tensor_name_1':'tensor_name_4','tensor_name_3':'tensor_name_6'}]"
+```
+
+**Note:**
+Only strict syntax is supported, as in the example above, the transformation call must be in double quotes
+"MakeStateful[...]", the tensor names in single quotes 'tensor_name_1' and without spaces.
 
 .. _ov_ug_low_latency:
 
@@ -40,7 +81,7 @@ Example of applying LowLatency2 transformation:
 After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. 
 These inputs should set the initial value for initialization of ReadValue operations. 
 However, such initialization is not supported in the current State API implementation. 
-Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified 
+Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified
 by the user via :ref:`State API<ov_ug_state_api>`.
 
 **Steps to apply LowLatency2 Transformation**
@@ -49,7 +90,7 @@ by the user via :ref:`State API<ov_ug_state_api>`.
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:get_ov_model]
 
@@ -60,7 +101,7 @@ You can reshape the inputs of the model to set *sequence_dimension* to exactly 1
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:reshape_ov_model]
 
@@ -70,7 +111,7 @@ You can reshape the inputs of the model to set *sequence_dimension* to exactly 1
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:apply_low_latency_2]
 
@@ -80,7 +121,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:low_latency_2_use_parameters]
 
@@ -92,7 +133,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:low_latency_2]
 
@@ -101,7 +142,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
 **Known Limitations**
 
-1. Unable to execute :doc:`Reshape <openvino_docs_OV_UG_ShapeInference>` to change the number iterations of TensorIterator/Loop layers to apply the transformation correctly due to hardcoded values of shapes somewhere in the model.
+Unable to execute :doc:`Reshape <openvino_docs_OV_UG_ShapeInference>` to change the number iterations of TensorIterator/Loop layers to apply the transformation correctly due to hardcoded values of shapes somewhere in the model.
 
 The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but models can be non-reshapable,
 the most common reason is that the value of shapes is hardcoded in a constant somewhere in the model.
@@ -112,72 +153,36 @@ the most common reason is that the value of shapes is hardcoded in a constant so
    :align: center
 
 **Solution:**
-Trim non-reshapable layers via :doc:`ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`.
+Trim non-reshapable layers via :doc:`ModelOptimizer commandline <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` arguments:
+ `--input`, `--output`.
+
 For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
 `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
 
    .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:replace_const]
 
-.. _ov_ug_make_stateful:
 
-MakeStateful
-############
+How to get TensorIterator/Loop operations from different frameworks via ModelOptimizer.
+#######################################################################################
 
-MakeStateful transformation changes the structure of the model by adding the ability to work with the state,
-replacing provided by user Parameter/Results with Assign/ReadValue operations as it is shown in the picture below.
+**ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the GRU/RNN/LSTM Sequence operations.
+*ONNX Loop* layer is converted to the OpenVINO Loop operation.
 
-.. image:: _static/images/make_stateful_simple.png
-   :align: center
-   :scale: 70 %
+**TensorFlow:** *BlockLSTM* is converted to TensorIterator operation, TensorIterator body contains LSTM Cell operation, Peepholes, InputForget modifications are not supported.
+*While* layer is converted to TensorIterator, TensorIterator body can contain any supported operations, but dynamic cases, when count of iterations cannot be calculated in shape inference (ModelOptimizer conversion) time, are not supported.
 
-State naming rule: in most cases, a name of a state is a concatenation of Parameter/Result tensor names. 
-If there are no tensor names, :doc:`friendly names<openvino_docs_transformations>` are used.
+**TensorFlow2:** *While* layer is converted to Loop operation. Loop body can contain any supported operations.
 
-Examples:
-
-Detailed illustration for all examples below:
-
-.. image:: _static/images/make_stateful_detailed.png
-   :align: center
-
-1. C++ API
-
-Using tensor names:
-
-.. tab:: C++
-
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
-         :language: cpp
-         :fragment: [ov:make_stateful_tensor_names]
-
-Using Parameter/Result operations:
-
-.. tab:: C++
-
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
-         :language: cpp
-         :fragment: [ov:make_stateful_ov_nodes]
-
-2. ModelOptimizer command line
-
-Using tensor names:
-```
---input_model <INPUT_MODEL> --transform "MakeStateful[param_res_names={'tensor_name_1':'tensor_name_4','tensor_name_3':'tensor_name_6'}]"
-```
-
-**Note:**
-Only strict syntax is supported, as in the example above, the transformation call must be in double quotes
-"MakeStateful[...]", the tensor names in single quotes 'tensor_name_1' and without spaces.
-
-## How to create a model with state using OpenVINO
+How to create a model with state using OpenVINO
+###############################################
 
 To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer 
 or create an OpenVINO Model (details can be found in :doc:`Build OpenVINO Model section<openvino_docs_OV_UG_Model_Representation>`.
-Let's build the following graph using C++ OpenVINO API:
+Let's build the following model using C++ OpenVINO API:
 
 .. image:: _static/images/stateful_model_example.svg
    :align: center
@@ -187,7 +192,7 @@ Example of Creating Model via OpenVINO API
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:state_model]
 

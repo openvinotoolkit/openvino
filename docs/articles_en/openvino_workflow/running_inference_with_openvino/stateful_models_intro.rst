@@ -76,8 +76,8 @@ You can find more details on these operations in :doc:`ReadValue <openvino_docs_
 How to get OpenVINO Model with States
 #########################################
 
-* :ref:`Optimum-Intel<gen_ai_guide>`
-   This is the most user-friendly way to get `the Benefits<_ov_ug_stateful_model_benefits>`
+* :doc:`Optimum-Intel<gen_ai_guide>`
+   This is the most user-friendly way to get :ref:`the Benefits<_ov_ug_stateful_model_benefits>`
    from using Stateful models in OpenVINO.
    All necessary optimizations will be applied automatically inside Optimum-Intel tool.
 
@@ -101,7 +101,7 @@ if the first step is done in one infer request and the second in another, state 
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
+      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:state_api_usage]
 
