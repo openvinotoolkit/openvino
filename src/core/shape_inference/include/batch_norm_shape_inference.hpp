@@ -13,11 +13,10 @@ namespace ov {
 namespace op {
 namespace batch_norm {
 template <class TShape, class TRShape = result_shape_t<TShape>, class TDimension = typename TShape::value_type>
-std::vector<TRShape> infer_shape(const Node* node,
-                                 const TShape& data_input_shape,
-                                 const std::vector<TShape>& channel_inputs_shapes) {
+std::vector<TRShape> infer_shape(const Node* node, const std::vector<TShape>& inputs_shapes) {
     // Extract channel dimension from input shape.
     TDimension channel_dim;
+    const auto& data_input_shape = inputs_shapes[0];
     const auto data_input_rank = data_input_shape.rank();
     if (data_input_rank.is_static()) {
         NODE_VALIDATION_CHECK(node,
@@ -30,11 +29,11 @@ std::vector<TRShape> infer_shape(const Node* node,
     }
 
     // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size "channel_dim".
-    auto channel_shape = channel_inputs_shapes[0];
+    auto channel_shape = inputs_shapes[1];
     NODE_VALIDATION_CHECK(node,
-                          TShape::merge_into(channel_shape, channel_inputs_shapes[1]) &&
-                              TShape::merge_into(channel_shape, channel_inputs_shapes[2]) &&
-                              TShape::merge_into(channel_shape, channel_inputs_shapes[3]),
+                          TShape::merge_into(channel_shape, inputs_shapes[2]) &&
+                              TShape::merge_into(channel_shape, inputs_shapes[3]) &&
+                              TShape::merge_into(channel_shape, inputs_shapes[4]),
                           "Shapes for gamma/beta/mean/variance do not match.");
 
     NODE_VALIDATION_CHECK(node,
@@ -73,17 +72,9 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const BatchNormInference* op, const std::vector<TShape>& inputs_shapes) {
     NODE_VALIDATION_CHECK(op, inputs_shapes.size() == 5);
 
-    static constexpr size_t INPUT_GAMMA = 0;
-    static constexpr size_t INPUT_BETA = 1;
-    static constexpr size_t INPUT_DATA = 2;
-    static constexpr size_t INPUT_MEAN = 3;
-    static constexpr size_t INPUT_VARIANCE = 4;
-    const auto channel_inputs_shapes = std::vector<TShape>{inputs_shapes[INPUT_GAMMA],
-                                                           inputs_shapes[INPUT_BETA],
-                                                           inputs_shapes[INPUT_MEAN],
-                                                           inputs_shapes[INPUT_VARIANCE]};
-
-    return batch_norm::infer_shape(op, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
+    const auto reorder_inputs_shapes =
+        std::vector<TShape>{inputs_shapes[2], inputs_shapes[1], inputs_shapes[0], inputs_shapes[3], inputs_shapes[4]};
+    return batch_norm::infer_shape(op, reorder_inputs_shapes);
 }
 }  // namespace v0
 
@@ -92,16 +83,7 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const BatchNormInference* op, const std::vector<TShape>& inputs_shapes) {
     NODE_VALIDATION_CHECK(op, inputs_shapes.size() == 5);
 
-    static constexpr size_t INPUT_DATA = 0;
-    static constexpr size_t INPUT_GAMMA = 1;
-    static constexpr size_t INPUT_BETA = 2;
-    static constexpr size_t INPUT_MEAN = 3;
-    static constexpr size_t INPUT_VARIANCE = 4;
-    const auto channel_inputs_shapes = std::vector<TShape>{inputs_shapes[INPUT_GAMMA],
-                                                           inputs_shapes[INPUT_BETA],
-                                                           inputs_shapes[INPUT_MEAN],
-                                                           inputs_shapes[INPUT_VARIANCE]};
-    return batch_norm::infer_shape(op, inputs_shapes[INPUT_DATA], channel_inputs_shapes);
+    return batch_norm::infer_shape(op, inputs_shapes);
 }
 }  // namespace v5
 }  // namespace op
