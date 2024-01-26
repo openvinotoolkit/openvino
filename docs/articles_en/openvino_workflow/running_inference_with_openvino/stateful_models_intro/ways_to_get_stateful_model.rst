@@ -116,7 +116,7 @@ Trim non-reshapable layers via :doc:`ModelOptimizer CLI<openvino_docs_MO_DG_prep
 For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
 `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
 
-.. tab:: C++
+   .. tab:: C++
 
       .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
          :language: cpp
