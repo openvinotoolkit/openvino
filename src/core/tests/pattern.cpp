@@ -500,6 +500,12 @@ TEST(pattern, matching_optional) {
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
     ASSERT_FALSE(
         n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Result>(c)));
+
+    const auto predicate = [](const Output<Node>& output) {
+        return false;
+    };
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d, predicate),
+                         std::make_shared<op::v0::Abs>(c)));
 }
 
 TEST(pattern, mean) {
