@@ -654,7 +654,7 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ${{ env.OPENVINO_REPO }}/.github/actions/setup_python
+        uses: /__w/openvino/openvino/openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
