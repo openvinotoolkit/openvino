@@ -37,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
                                                               ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::Values(DefaultParameter{CONFIG_KEY(AUTO_BATCH_TIMEOUT),
-                                                                               InferenceEngine::Parameter{"1000"}})),
+                                                                               ov::Any{"1000"}})),
                          DefaultConfigurationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_string,
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_string,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
                                                               ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                                               InferenceEngine::Parameter{"1000"}})),
+                                                                               ov::Any{"1000"}})),
                          DefaultConfigurationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(
     DefaultConfigurationTest,
     ::testing::Combine(
         ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_TEMPLATE),
-        ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(), InferenceEngine::Parameter{uint32_t(1000)}})),
+        ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(), ov::Any{uint32_t(1000)}})),
     DefaultConfigurationTest::getTestCaseName);
 
 }  // namespace

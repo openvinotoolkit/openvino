@@ -73,18 +73,18 @@ TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
+        ov::Any param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
         ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        ASSERT_EQ(param, ov::Any(configItem.second));
     }
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device);
-    std::map<std::string, InferenceEngine::Parameter> config;
+    ov::AnyMap config;
     for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.insert({confItem.first, ov::Any(confItem.second)});
     }
     ASSERT_NO_THROW(execNet.SetConfig(config));
 }
@@ -92,25 +92,25 @@ TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetWithIncorrectConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device);
     std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
-    std::map<std::string, InferenceEngine::Parameter> config;
+    ov::AnyMap config;
     for (const auto& confItem : incorrectConfig) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.insert({confItem.first, ov::Any(confItem.second)});
     }
     ASSERT_ANY_THROW(execNet.SetConfig(config));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetAndCheckConfigAndCheck) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device);
-    std::map<std::string, InferenceEngine::Parameter> config;
+    ov::AnyMap config;
     for (const auto& confItem : configuration) {
-        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+        config.insert({confItem.first, ov::Any(confItem.second)});
     }
     execNet.SetConfig(config);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
+        ov::Any param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
         ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        ASSERT_EQ(param, ov::Any(configItem.second));
     }
 }
 

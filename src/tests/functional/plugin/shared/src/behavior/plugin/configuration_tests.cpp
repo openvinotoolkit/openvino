@@ -22,7 +22,7 @@ TEST_P(DefaultConfigurationTest, checkDeviceDefaultConfigurationValue) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     target_device = std::get<DeviceName>(GetParam());
     std::string key;
-    InferenceEngine::Parameter parameter;
+    ov::Any parameter;
     CustomComparator customComparator;
     defaultParameter = std::get<DefaultParamterId>(GetParam());
     if (defaultParameter._comparator) {
@@ -92,7 +92,7 @@ TEST_P(CorrectSingleOptionDefaultValueConfigTests, CheckDefaultValueOfConfig) {
 
 // Setting correct config doesn't throw
 TEST_P(CorrectConfigTests, SetCorrectConfig) {
-    InferenceEngine::Parameter metric;
+    ov::Any metric;
     bool has_unsupported_config = false;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto keys = metric.as<std::vector<std::string>>();
@@ -124,10 +124,10 @@ TEST_P(CorrectConfigTests, CanUseCache) {
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {
     ie->SetConfig(configuration, target_device);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
+        ov::Any param;
         ASSERT_NO_THROW(param = ie->GetConfig(target_device, configItem.first));
         ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        ASSERT_EQ(param, ov::Any(configItem.second));
     }
 }
 
@@ -135,10 +135,10 @@ TEST_P(CorrectConfigCheck, canSetConfigTwiceAndCheckGetConfig) {
     ie->SetConfig({}, target_device);
     ie->SetConfig(configuration, target_device);
     for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
+        ov::Any param;
         ASSERT_NO_THROW(param = ie->GetConfig(target_device, configItem.first));
         ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+        ASSERT_EQ(param, ov::Any(configItem.second));
     }
 }
 
@@ -150,14 +150,14 @@ TEST_P(CorrectSingleOptionCustomValueConfigTests, CheckCustomValueOfConfig) {
 }
 
 TEST_P(CorrectConfigPublicOptionsTests, CanSeePublicOption) {
-    InferenceEngine::Parameter metric;
+    ov::Any metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     const auto& supportedOptions = metric.as<std::vector<std::string>>();
     ASSERT_NE(std::find(supportedOptions.cbegin(), supportedOptions.cend(), key), supportedOptions.cend());
 }
 
 TEST_P(CorrectConfigPrivateOptionsTests, CanNotSeePrivateOption) {
-    InferenceEngine::Parameter metric;
+    ov::Any metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     const auto& supportedOptions = metric.as<std::vector<std::string>>();
     ASSERT_EQ(std::find(supportedOptions.cbegin(), supportedOptions.cend(), key), supportedOptions.cend());
@@ -185,12 +185,12 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
 
 
 TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
-    InferenceEngine::Parameter metric;
+    ov::Any metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto keys = metric.as<std::vector<std::string>>();
 
     for (auto& key : keys) {
-        InferenceEngine::Parameter configValue;
+        ov::Any configValue;
         ASSERT_NO_THROW(configValue = ie->GetConfig(target_device, key));
 
         ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, target_device))
@@ -208,14 +208,14 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
 
     //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
-        InferenceEngine::Parameter exeNetProperty;
+        ov::Any exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
         ASSERT_EQ(property_item.second, exeNetProperty.as<std::string>());
     }
 
     // the value of GetConfig should be the same as SetConfig
     for (const auto& property_item : configuration) {
-        InferenceEngine::Parameter property;
+        ov::Any property;
         ASSERT_NO_THROW(property = ie->GetConfig(target_device, property_item.first));
         ASSERT_EQ(property_item.second, property.as<std::string>());
     }

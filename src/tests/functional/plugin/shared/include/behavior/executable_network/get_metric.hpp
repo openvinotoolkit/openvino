@@ -133,7 +133,7 @@ using IEClassExecutableNetworkUnsupportedConfigTest = IEClassExecutableNetworkGe
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -151,7 +151,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -169,7 +169,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -183,7 +183,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -197,7 +197,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -206,7 +206,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -214,7 +214,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
-        InferenceEngine::Parameter defaultValue;
+        ov::Any defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -222,7 +222,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -231,7 +231,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -240,7 +240,7 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
@@ -260,7 +260,7 @@ TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto devConfigValues = p.as<std::vector<std::string>>();
@@ -274,8 +274,8 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     for (auto && configKey : devConfigValues) {
         ASSERT_NE(execConfigValues.end(), std::find(execConfigValues.begin(), execConfigValues.end(), configKey));
 
-        InferenceEngine::Parameter configValue;
-        ASSERT_NO_THROW(Parameter configValue = exeNetwork.GetConfig(configKey));
+        ov::Any configValue;
+        ASSERT_NO_THROW(ov::Any configValue = exeNetwork.GetConfig(configKey));
     }
     */
 }
@@ -288,7 +288,7 @@ using IEClassExecutableNetworkGetMetricTest = IEClassGetMetricP;
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter pHetero, pDevice;
+    ov::Any pHetero, pDevice;
 
     InferenceEngine::ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
     InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, target_device);
@@ -308,14 +308,14 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
     for (auto &&deviceConf : deviceConfigValues) {
         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
         if (it == heteroConfigValues.end()) {
-            ASSERT_THROW(InferenceEngine::Parameter heteroConfigValue = heteroExeNetwork.GetConfig(deviceConf), InferenceEngine::Exception);
+            ASSERT_THROW(ov::Any heteroConfigValue = heteroExeNetwork.GetConfig(deviceConf), InferenceEngine::Exception);
         }
     }
 }
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter pHetero, pDevice;
+    ov::Any pHetero, pDevice;
 
     InferenceEngine::ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
     InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, target_device);
@@ -335,14 +335,14 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
     for (auto &&deviceMetricName : deviceMetricValues) {
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
         if ((it == heteroMetricValues.end()) && (deviceMetricName != "SUPPORTED_PROPERTIES")) {
-            ASSERT_THROW(InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName), InferenceEngine::Exception);
+            ASSERT_THROW(ov::Any heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName), InferenceEngine::Exception);
         }
     }
 }
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
 

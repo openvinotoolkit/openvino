@@ -10,7 +10,6 @@
 #include <algorithm>
 
 #include <ie_core.hpp>
-#include <ie_parameter.hpp>
 #include <functional_test_utils/skip_tests_config.hpp>
 
 #include "common_test_utils/common_utils.hpp"
@@ -23,11 +22,11 @@
 namespace BehaviorTestsDefinitions {
 
 
-using CustomComparator = std::function<bool(const InferenceEngine::Parameter &, const InferenceEngine::Parameter &)>;
+using CustomComparator = std::function<bool(const ov::Any&, const ov::Any &)>;
 
 struct DefaultParameter {
     std::string _key;
-    InferenceEngine::Parameter _parameter;
+    ov::Any _parameter;
     CustomComparator _comparator;
 };
 
@@ -79,17 +78,17 @@ public:
     }
 };
 
-using BehaviorParamsSingleOptionDefault = std::tuple<
-        std::string,                                       // Device name
-        std::pair<std::string, InferenceEngine::Parameter> // Configuration key and its default value
->;
+using BehaviorParamsSingleOptionDefault =
+    std::tuple<std::string,                     // Device name
+               std::pair<std::string, ov::Any>  // Configuration key and its default value
+               >;
 
 class BehaviorTestsSingleOptionDefault : public testing::WithParamInterface<BehaviorParamsSingleOptionDefault>,
                                          public ConfigBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorParamsSingleOptionDefault> obj) {
         std::string target_device;
-        std::pair<std::string, InferenceEngine::Parameter> configuration;
+        std::pair<std::string, ov::Any> configuration;
         std::tie(target_device, configuration) = obj.param;
         std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
@@ -101,7 +100,7 @@ public:
     }
 
     void SetUp() override {
-        std::pair<std::string, InferenceEngine::Parameter> entry;
+        std::pair<std::string, ov::Any> entry;
         std::tie(target_device, entry) = this->GetParam();
         std::tie(key, value) = entry;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -109,7 +108,7 @@ public:
     }
 
     std::string key;
-    InferenceEngine::Parameter value;
+    ov::Any value;
 };
 
 using CorrectConfigParams = std::tuple<
@@ -151,17 +150,17 @@ public:
     }
 };
 
-using BehaviorParamsSingleOptionCustom = std::tuple<
-        std::string,                                                     // Device name
-        std::tuple<std::string, std::string, InferenceEngine::Parameter> // Configuration key, value and reference
->;
+using BehaviorParamsSingleOptionCustom =
+    std::tuple<std::string,                                   // Device name
+               std::tuple<std::string, std::string, ov::Any>  // Configuration key, value and reference
+               >;
 
 class BehaviorTestsSingleOptionCustom : public testing::WithParamInterface<BehaviorParamsSingleOptionCustom>,
                                         public ConfigBase {
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
+        std::tuple<std::string, std::string, ov::Any> entry;
         std::tie(target_device, entry) = this->GetParam();
         std::tie(key, value, reference) = entry;
         function = ov::test::utils::make_conv_pool_relu();
@@ -170,7 +169,7 @@ public:
 
     std::string key;
     std::string value;
-    InferenceEngine::Parameter reference;
+    ov::Any reference;
 };
 
 using BehaviorParamsSingleOption = std::tuple<

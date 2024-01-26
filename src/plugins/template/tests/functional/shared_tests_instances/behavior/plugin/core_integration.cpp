@@ -83,7 +83,7 @@ class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTe
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
     std::string deviceName = ov::test::utils::DEVICE_TEMPLATE;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));

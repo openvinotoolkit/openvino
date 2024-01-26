@@ -513,7 +513,7 @@ TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
     std::string  target_device = ov::test::utils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)));
@@ -529,7 +529,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
     std::string  target_device = ov::test::utils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -552,7 +552,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)));
     auto t = p.as<std::vector<std::string>>();
@@ -567,7 +567,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto t = p.as<std::vector<std::string>>();
@@ -582,7 +582,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)));
     auto t = p.as<std::vector<std::string>>();
@@ -597,7 +597,7 @@ TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(FULL_DEVICE_NAME)));
     auto t = p.as<std::string>();
@@ -608,7 +608,7 @@ TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
     auto t = p.as<std::vector<std::string>>();
@@ -623,7 +623,7 @@ TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(DEVICE_GOPS)));
     auto t = p.as<std::map<InferenceEngine::Precision, float>>();
@@ -638,7 +638,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(DEVICE_TYPE)));
     auto t = p.as<InferenceEngine::Metrics::DeviceType>();
@@ -650,7 +650,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
     auto t = p.as<unsigned int>();
@@ -662,7 +662,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
     auto t = p.as<unsigned int>();
@@ -674,7 +674,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
     auto t = p.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
@@ -696,7 +696,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(RANGE_FOR_STREAMS)));
     auto t = p.as<std::tuple<unsigned int, unsigned int>>();
@@ -715,20 +715,20 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.GetMetric(target_device, "unsupported_metric"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
-        InferenceEngine::Parameter defaultValue;
+        ov::Any defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -736,7 +736,7 @@ TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(IEClassGetConfigTest, GetConfigHeteroNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     auto configValues = p.as<std::vector<std::string>>();
@@ -748,21 +748,21 @@ TEST_P(IEClassGetConfigTest, GetConfigHeteroNoThrow) {
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.GetConfig(ov::test::utils::DEVICE_HETERO, "unsupported_config"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.GetConfig(target_device, "unsupported_config"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
+    ov::Any p;
 
     std::string deviceID, cleartarget_device;
     auto pos =  target_device.find('.');
@@ -785,7 +785,7 @@ TEST_P(IEClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
-        InferenceEngine::Parameter defaultValue;
+        ov::Any defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -1027,7 +1027,7 @@ TEST_P(IEClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-    InferenceEngine::Parameter ref, src;
+    ov::Any ref, src;
     for (auto& dev_id : deviceIDs) {
         ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO }},
                                      target_device + "." + dev_id));
