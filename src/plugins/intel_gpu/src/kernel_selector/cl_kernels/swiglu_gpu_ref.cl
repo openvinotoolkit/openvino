@@ -36,7 +36,7 @@ KERNEL(swiglu_gpu_ref)(
     ACCUMULATOR_TYPE res = ACCUMULATOR_VAL_ZERO;
 
     res = (ACCUMULATOR_TYPE)input[gate_idx];
-    res /= ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * res));
+    res /= ACCUMULATOR_VAL_ONE + exp(-(ACCUMULATOR_VAL_ONE * res));
     res *= (ACCUMULATOR_TYPE)input[input_idx];
 
     output[output_idx] = TO_OUTPUT_TYPE(res);
