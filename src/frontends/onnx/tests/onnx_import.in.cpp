@@ -4591,6 +4591,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like_double) {
+    const auto model = convert_model("random_uniform_like_double.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<double>(Shape{3}, {1, 2, 3});
+    test_case.add_expected_output<double>(Shape{3}, {0.02587992, 0.97952304, 0.53877076});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
     const auto model = convert_model("random_normal.onnx");
 
