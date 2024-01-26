@@ -8,15 +8,18 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
 #include "validation_util.hpp"
 
 using ov::op::v0::Concat;
+using ov::op::v0::Convert;
 using ov::op::v1::Add;
 using ov::op::v1::Multiply;
 using ov::op::v1::VariadicSplit;
@@ -39,7 +42,9 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
     vsplit->set_output_size(2);
 
     // Negate
-    auto minus_1 = FLOAT_CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
+    auto minus_1_const = FLOAT_CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
+    auto minus_1_convert = pattern::wrap_type<Convert>({minus_1_const});
+    auto minus_1 = std::make_shared<pattern::op::Or>(OutputVector{minus_1_const, minus_1_convert});
     auto neg = pattern::wrap_type<Multiply>({vsplit->output(1), minus_1});
 
     // Concat two splitted parts in the opposite order, first of them is negated
