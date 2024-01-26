@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -19,7 +18,7 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX node representing this operation.
 ///
-/// \return     Ngraph node representing this operation.
+/// \return     OV node representing this operation.
 ///
 OutputVector reshape(const Node& node);
 

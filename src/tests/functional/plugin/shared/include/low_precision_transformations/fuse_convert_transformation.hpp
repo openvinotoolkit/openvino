@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    PartialShape,
+    ov::PartialShape,
     std::string,
     ov::builder::subgraph::DequantizationOperations,
     bool> FuseConvertTransformationParams;
