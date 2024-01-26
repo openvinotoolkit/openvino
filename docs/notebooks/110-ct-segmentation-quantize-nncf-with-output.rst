@@ -24,13 +24,13 @@ This third tutorial in the series shows how to:
 All notebooks in this series:
 
 -  `Data Preparation for 2D Segmentation of 3D Medical
-   Data <data-preparation-ct-scan.ipynb>`__
+   Data <data-preparation-ct-scan-with-output.html>`__
 -  `Train a 2D-UNet Medical Imaging Model with PyTorch
-   Lightning <pytorch-monai-training.ipynb>`__
+   Lightning <pytorch-monai-training-with-output.html>`__
 -  Convert and Quantize a Segmentation Model and Show Live Inference
    (this notebook)
 -  `Live Inference and Benchmark CT-scan
-   data <110-ct-scan-live-inference.ipynb>`__
+   data <110-ct-scan-live-inference-with-output.html>`__
 
 Instructions
 ------------
@@ -39,7 +39,7 @@ This notebook needs a trained UNet model. We provide a pre-trained
 model, trained for 20 epochs with the full
 `Kits-19 <https://github.com/neheller/kits19>`__ frames dataset, which
 has an F1 score on the validation set of 0.9. The training code is
-available in `this notebook <pytorch-monai-training.ipynb>`__.
+available in `this notebook <pytorch-monai-training-with-output.html>`__.
 
 NNCF for PyTorch models requires a C++ compiler. On Windows, install
 `Microsoft Visual Studio
@@ -56,34 +56,34 @@ purposes, use a representative dataset for quantizing the model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Load PyTorch Model <#Load-PyTorch-Model>`__
--  `Download CT-scan Data <#Download-CT-scan-Data>`__
--  `Configuration <#Configuration>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Load PyTorch Model <#load-pytorch-model>`__
+-  `Download CT-scan Data <#download-ct-scan-data>`__
+-  `Configuration <#configuration>`__
 
-   -  `Dataset <#Dataset>`__
-   -  `Metric <#Metric>`__
+   -  `Dataset <#dataset>`__
+   -  `Metric <#metric>`__
 
--  `Quantization <#Quantization>`__
--  `Compare FP32 and INT8 Model <#Compare-FP32-and-INT8-Model>`__
+-  `Quantization <#quantization>`__
+-  `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare Metrics for the original model and the quantized model to
       be sure that there no
-      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
+      degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation->`__
    -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models>`__
+      Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
    -  `Visually Compare Inference
-      Results <#Visually-Compare-Inference-Results>`__
+      Results <#visually-compare-inference-results>`__
 
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Show Live Inference <#show-live-inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Show Inference <#Show-Inference>`__
+      Files <#load-model-and-list-of-image-files>`__
+   -  `Show Inference <#show-inference>`__
 
--  `References <#References>`__
+-  `References <#references>`__
 
 .. code:: ipython3
 
@@ -98,7 +98,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -106,28 +106,28 @@ Imports
     # to find the required C++ tools. This code assumes that Visual Studio is installed in the default
     # directory. If you have a different C++ compiler, please add the correct path to os.environ["PATH"]
     # directly. Note that the C++ Redistributable is not enough to run this notebook.
-    
+
     # Adding the path to os.environ["LIB"] is not always required - it depends on the system's configuration
-    
+
     import sys
-    
+
     if sys.platform == "win32":
         import distutils.command.build_ext
         import os
         from pathlib import Path
-    
+
         if sys.getwindowsversion().build >= 20000:  # Windows 11
             search_path = "**/Hostx64/x64/cl.exe"
         else:
             search_path = "**/Hostx86/x64/cl.exe"
-    
+
         VS_INSTALL_DIR_2019 = r"C:/Program Files (x86)/Microsoft Visual Studio"
         VS_INSTALL_DIR_2022 = r"C:/Program Files/Microsoft Visual Studio"
-    
+
         cl_paths_2019 = sorted(list(Path(VS_INSTALL_DIR_2019).glob(search_path)))
         cl_paths_2022 = sorted(list(Path(VS_INSTALL_DIR_2022).glob(search_path)))
         cl_paths = cl_paths_2019 + cl_paths_2022
-    
+
         if len(cl_paths) == 0:
             raise ValueError(
                 "Cannot find Visual Studio. This notebook requires an x64 C++ compiler. If you installed "
@@ -157,9 +157,9 @@ Imports
     import zipfile
     from pathlib import Path
     from typing import Union
-    
+
     warnings.filterwarnings("ignore", category=UserWarning)
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import monai
@@ -170,12 +170,12 @@ Imports
     from monai.transforms import LoadImage
     from nncf.common.logging.logger import set_log_level
     from torchmetrics import F1Score as F1
-    
+
     set_log_level(logging.ERROR)  # Disables all NNCF info and warning messages
-    
+
     from custom_segmentation import SegmentationModel
     from async_pipeline import show_live_inference
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -200,12 +200,12 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default, this notebook will download one CT scan from the KITS19
 dataset that will be used for quantization. To use the full dataset, set
 ``BASEDIR`` to the path of the dataset, as prepared according to the
-`Data Preparation <data-preparation-ct-scan.ipynb>`__ notebook.
+`Data Preparation <data-preparation-ct-scan-with-output.html>`__ notebook.
 
 .. code:: ipython3
 
@@ -218,7 +218,7 @@ dataset that will be used for quantization. To use the full dataset, set
 Load PyTorch Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download the pre-trained model weights, load the PyTorch model and the
 ``state_dict`` that was saved after training. The model used in this
@@ -226,20 +226,20 @@ notebook is a
 `BasicUNet <https://docs.monai.io/en/stable/networks.html#basicunet>`__
 model from `MONAI <https://monai.io>`__. We provide a pre-trained
 checkpoint. To see how this model performs, check out the `training
-notebook <pytorch-monai-training.ipynb>`__.
+notebook <pytorch-monai-training-with-output.html>`__.
 
 .. code:: ipython3
 
     state_dict_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/unet_kits19_state_dict.pth"
     state_dict_file = download_file(state_dict_url, directory="pretrained_model")
     state_dict = torch.load(state_dict_file, map_location=torch.device("cpu"))
-    
+
     new_state_dict = {}
     for k, v in state_dict.items():
         new_key = k.replace("_model.", "")
         new_state_dict[new_key] = v
     new_state_dict.pop("loss_function.pos_weight")
-    
+
     model = monai.networks.nets.BasicUNet(spatial_dims=2, in_channels=1, out_channels=1).eval()
     model.load_state_dict(new_state_dict)
 
@@ -266,7 +266,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 Download CT-scan Data
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -294,20 +294,20 @@ Download CT-scan Data
 Configuration
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Dataset
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
 version of the Dataset class in the `training
-notebook <pytorch-monai-training.ipynb>`__.
+notebook <pytorch-monai-training-with-output.html>`__.
 
 Images are loaded with MONAI’s
-```LoadImage`` <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
+`LoadImage <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
 to align with the image loading method in the training notebook. This
 method rotates and flips the images. We define a ``rotate_and_flip``
 method to display the images in the expected orientation:
@@ -317,8 +317,8 @@ method to display the images in the expected orientation:
     def rotate_and_flip(image):
         """Rotate `image` by 90 degrees and flip horizontally"""
         return cv2.flip(cv2.rotate(image, rotateCode=cv2.ROTATE_90_CLOCKWISE), flipCode=1)
-    
-    
+
+
     class KitsDataset:
         def __init__(self, basedir: str):
             """
@@ -327,40 +327,40 @@ method to display the images in the expected orientation:
             with each subdirectory containing directories imaging_frames, with jpg images, and
             segmentation_frames with segmentation masks as png files.
             See https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/110-ct-segmentation-quantize/data-preparation-ct-scan.ipynb
-    
+
             :param basedir: Directory that contains the prepared CT scans
             """
             masks = sorted(BASEDIR.glob("case_*/segmentation_frames/*png"))
-    
+
             self.basedir = basedir
             self.dataset = masks
             print(
                 f"Created dataset with {len(self.dataset)} items. "
                 f"Base directory for data: {basedir}"
             )
-    
+
         def __getitem__(self, index):
             """
             Get an item from the dataset at the specified index.
-    
+
             :return: (image, segmentation_mask)
             """
             mask_path = self.dataset[index]
             image_path = str(mask_path.with_suffix(".jpg")).replace(
                 "segmentation_frames", "imaging_frames"
             )
-    
+
             # Load images with MONAI's LoadImage to match data loading in training notebook
             mask = LoadImage(image_only=True, dtype=np.uint8)(str(mask_path)).numpy()
             img = LoadImage(image_only=True, dtype=np.float32)(str(image_path)).numpy()
-    
+
             if img.shape[:2] != (512, 512):
                 img = cv2.resize(img.astype(np.uint8), (512, 512)).astype(np.float32)
                 mask = cv2.resize(mask, (512, 512))
-    
+
             input_image = np.expand_dims(img, axis=0)
             return input_image, mask
-    
+
         def __len__(self):
             return len(self.dataset)
 
@@ -378,10 +378,10 @@ kidney pixels to verify that the annotations look correct:
     image_data, mask = next(item for item in dataset if np.count_nonzero(item[1]) > 5000)
     # Remove extra image dimension and rotate and flip the image for visualization
     image = rotate_and_flip(image_data.squeeze())
-    
+
     # The data loader returns annotations as (index, mask) and mask in shape (H,W)
     mask = rotate_and_flip(mask)
-    
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
     ax[0].imshow(image, cmap="gray")
     ax[1].imshow(mask, cmap="gray");
@@ -399,7 +399,7 @@ kidney pixels to verify that the annotations look correct:
 Metric
 ~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define a metric to determine the performance of the model.
 
@@ -436,7 +436,7 @@ library.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Before quantizing the model, we compute the F1 score on the ``FP32``
 model, for comparison:
@@ -459,7 +459,7 @@ this notebook.
 .. code:: ipython3
 
     fp32_ir_path = MODEL_DIR / Path('unet_kits19_fp32.xml')
-    
+
     fp32_ir_model = ov.convert_model(model, example_input=torch.ones(1, 1, 512, 512, dtype=torch.float32))
     ov.save_model(fp32_ir_model, str(fp32_ir_path))
 
@@ -513,8 +513,8 @@ steps:
         """
         images, _ = data_item
         return images
-    
-    
+
+
     data_loader = torch.utils.data.DataLoader(dataset)
     calibration_dataset = nncf.Dataset(data_loader, transform_fn)
     quantized_model = nncf.quantize(
@@ -539,10 +539,6 @@ steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -560,10 +556,7 @@ steps:
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -600,18 +593,18 @@ repository for more information.
 Compare FP32 and INT8 Model
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     fp32_ir_model_size = fp32_ir_path.with_suffix(".bin").stat().st_size / 1024
     quantized_model_size = int8_ir_path.with_suffix(".bin").stat().st_size / 1024
-    
+
     print(f"FP32 IR model size: {fp32_ir_model_size:.2f} KB")
     print(f"INT8 model size: {quantized_model_size:.2f} KB")
 
@@ -625,15 +618,15 @@ Compare File Size
 Compare Metrics for the original model and the quantized model to be sure that there no degradation.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     int8_compiled_model = core.compile_model(int8_ir_model)
     int8_f1 = compute_f1(int8_compiled_model, dataset)
-    
+
     print(f"FP32 F1: {fp32_f1:.3f}")
     print(f"INT8 F1: {int8_f1:.3f}")
 
@@ -647,7 +640,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 Compare Performance of the FP32 IR Model and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
@@ -685,7 +678,7 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
 
 
@@ -693,8 +686,8 @@ be run in the notebook with ``! benchmark_app`` or
 
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
@@ -759,12 +752,12 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
@@ -812,7 +805,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x.1' with random values 
+    [ INFO ] Fill input 'x.1' with random values
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
 
@@ -839,7 +832,7 @@ be run in the notebook with ``! benchmark_app`` or
 Visually Compare Inference Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visualize the results of the model on four slices of the validation set.
 Compare the results of the ``FP32`` IR model with the results of the
@@ -867,11 +860,11 @@ seed is displayed to enable reproducing specific runs of this cell.
     # to binary segmentation masks
     def sigmoid(x):
         return np.exp(-np.logaddexp(0, -x))
-    
-    
+
+
     num_images = 4
     colormap = "gray"
-    
+
     # Load FP32 and INT8 models
     core = ov.Core()
     fp_model = core.read_model(fp32_ir_path)
@@ -880,18 +873,18 @@ seed is displayed to enable reproducing specific runs of this cell.
     compiled_model_int8 = core.compile_model(int8_model, device_name="CPU")
     output_layer_fp = compiled_model_fp.output(0)
     output_layer_int8 = compiled_model_int8.output(0)
-    
+
     # Create subset of dataset
     background_slices = (item for item in dataset if np.count_nonzero(item[1]) == 0)
     kidney_slices = (item for item in dataset if np.count_nonzero(item[1]) > 50)
     data_subset = random.sample(list(background_slices), 2) + random.sample(list(kidney_slices), 2)
-    
+
     # Set seed to current time. To reproduce specific results, copy the printed seed
     # and manually set `seed` to that value.
     seed = int(time.time())
     random.seed(seed)
     print(f"Visualizing results with seed {seed}")
-    
+
     fig, ax = plt.subplots(nrows=num_images, ncols=4, figsize=(24, num_images * 4))
     for i, (image, mask) in enumerate(data_subset):
         display_image = rotate_and_flip(image.squeeze())
@@ -900,13 +893,13 @@ seed is displayed to enable reproducing specific runs of this cell.
         input_image = np.expand_dims(image, 0)
         res_fp = compiled_model_fp([input_image])
         res_int8 = compiled_model_int8([input_image])
-    
+
         # Process inference outputs and convert to binary segementation masks
         result_mask_fp = sigmoid(res_fp[output_layer_fp]).squeeze().round().astype(np.uint8)
         result_mask_int8 = sigmoid(res_int8[output_layer_int8]).squeeze().round().astype(np.uint8)
         result_mask_fp = rotate_and_flip(result_mask_fp)
         result_mask_int8 = rotate_and_flip(result_mask_int8)
-    
+
         # Display images, annotations, FP32 result and INT8 result
         ax[i, 0].imshow(display_image, cmap=colormap)
         ax[i, 1].imshow(target_mask, cmap=colormap)
@@ -928,7 +921,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 Show Live Inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
@@ -948,7 +941,7 @@ printed.
 Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the `Open Model
@@ -960,7 +953,7 @@ overlay of the segmentation mask on the original image/frame.
 .. code:: ipython3
 
     CASE = 117
-    
+
     segmentation_model = SegmentationModel(
         ie=core, model_path=int8_ir_path, sigmoid=True, rotate_and_flip=True
     )
@@ -977,7 +970,7 @@ overlay of the segmentation mask on the original image/frame.
 Show Inference
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the next cell, we run the ``show_live_inference`` function, which
 loads the ``segmentation_model`` to the specified ``device`` (using
@@ -1008,22 +1001,18 @@ performs inference, and displays the results on the frames loaded in
 References
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-**OpenVINO** - `NNCF
-Repository <https://github.com/openvinotoolkit/nncf/>`__ - `Neural
-Network Compression Framework for fast model
-inference <https://arxiv.org/abs/2002.08679>`__ - `OpenVINO API
-Tutorial <002-openvino-api-with-output.html>`__ - `OpenVINO
-PyPI (pip install
-openvino-dev) <https://pypi.org/project/openvino-dev/>`__
 
-**Kits19 Data** - `Kits19 Challenge
-Homepage <https://kits19.grand-challenge.org/>`__ - `Kits19 GitHub
-Repository <https://github.com/neheller/kits19>`__ - `The KiTS19
-Challenge Data: 300 Kidney Tumor Cases with Clinical Context, CT
-Semantic Segmentations, and Surgical
-Outcomes <https://arxiv.org/abs/1904.00445>`__ - `The state of the art
-in kidney and kidney tumor segmentation in contrast-enhanced CT imaging:
-Results of the KiTS19
-challenge <https://www.sciencedirect.com/science/article/pii/S1361841520301857>`__
+**OpenVINO**
+
+- `NNCF Repository <https://github.com/openvinotoolkit/nncf/>`__
+- `Neural Network Compression Framework for fast model inference <https://arxiv.org/abs/2002.08679>`__
+- `OpenVINO API Tutorial <002-openvino-api-with-output.html>`__
+- `OpenVINO PyPI (pip install openvino-dev) <https://pypi.org/project/openvino-dev/>`__
+
+**Kits19 Data**
+
+- `Kits19 Challenge Homepage <https://kits19.grand-challenge.org/>`__
+- `Kits19 GitHub Repository <https://github.com/neheller/kits19>`__
+- `The KiTS19 Challenge Data: 300 Kidney Tumor Cases with Clinical Context, CT Semantic Segmentations, and Surgical Outcomes <https://arxiv.org/abs/1904.00445>`__
+- `The state of the art in kidney and kidney tumor segmentation in contrast-enhanced CT imaging: Results of the KiTS19 challenge <https://www.sciencedirect.com/science/article/pii/S1361841520301857>`__

@@ -37,39 +37,39 @@ The notebook contains the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Prepare DeciDiffusion models for OpenVINO format
-   conversion <#Prepare-DeciDiffusion-models-for-OpenVINO-format-conversion>`__
+   conversion <#prepare-decidiffusion-models-for-openvino-format-conversion>`__
 
-   -  `About model <#About-model>`__
+   -  `About model <#about-model>`__
    -  `DeciDiffusion integration with Diffusers
-      library <#DeciDiffusion-integration-with-Diffusers-library>`__
+      library <#decidiffusion-integration-with-diffusers-library>`__
 
 -  `Convert models to OpenVINO
-   format <#Convert-models-to-OpenVINO-format>`__
+   format <#convert-models-to-openvino-format>`__
 
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-Net NAS <#U-Net-NAS>`__
-   -  `VAE <#VAE>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net NAS <#u-net-nas>`__
+   -  `VAE <#vae>`__
 
--  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#prepare-inference-pipeline>`__
 
    -  `Guidance scale and negative prompt for controlling generation
-      result. <#Guidance-scale-and-negative-prompt-for-controlling-generation-result.>`__
+      result. <#guidance-scale-and-negative-prompt-for-controlling-generation-result->`__
    -  `Strength for controlling Image-to-Image
-      generation <#Strength-for-controlling-Image-to-Image-generation>`__
-   -  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
+      generation <#strength-for-controlling-image-to-image-generation>`__
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
--  `Text-to-Image generation <#Text-to-Image-generation>`__
+-  `Text-to-Image generation <#text-to-image-generation>`__
 
-   -  `Image-to-Image generation <#Image-to-Image-generation>`__
+   -  `Image-to-Image generation <#image-to-image-generation>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required packages
 
@@ -80,12 +80,12 @@ install required packages
 Prepare DeciDiffusion models for OpenVINO format conversion
 -----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 About model
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 DeciDiffusion 1.0 is an 820 million parameter text-to-image latent
 diffusion model trained on the LAION-v2 dataset and fine-tuned on the
@@ -138,12 +138,12 @@ computational demands are reduced.
 DeciDiffusion integration with Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To work with DeciDiffusion, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library.
 DeciDiffusion the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 with small customization: overriding default parameters and replacing
 U-Net model. The code, defined in
 ``load_orginal_pytorch_pipeline_componets`` function, demonstrates how
@@ -211,7 +211,7 @@ to create diffusers pipeline for DeciDiffusion.
 Convert models to OpenVINO format
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -232,7 +232,7 @@ Let us convert each part:
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -291,7 +291,7 @@ hidden states.
 U-Net NAS
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net NAS model, similar to Stable Diffusion UNet model, has three
 inputs:
@@ -363,7 +363,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -470,7 +470,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow. |sd-pipeline|
@@ -509,7 +509,7 @@ decoded by the decoder part of the variational auto encoder.
 Guidance scale and negative prompt for controlling generation result.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Guidance scale controls how similar the generated image will be to the
 prompt. A higher guidance scale means the model will try to generate an
@@ -539,7 +539,7 @@ least > 1).
 Strength for controlling Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the Image-to-Image mode, the strength parameter plays a crucial role.
 It determines the level of noise that is added to the initial image
@@ -918,7 +918,7 @@ between 0.4 and 0.6.
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1003,7 +1003,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, let’s see model in action
 
@@ -1061,7 +1061,7 @@ Now, let’s see model in action
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1134,7 +1134,7 @@ diffusion models can be used to “enhance” an image.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

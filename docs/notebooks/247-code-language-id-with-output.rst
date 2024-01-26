@@ -17,48 +17,48 @@ navigation.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Introduction <#Introduction>`__
+-  `Introduction <#introduction>`__
 
-   -  `Task <#Task>`__
-   -  `Model <#Model>`__
+   -  `Task <#task>`__
+   -  `Model <#model>`__
 
 -  `Part 1: Inference pipeline with
-   OpenVINO <#Part-1:-Inference-pipeline-with-OpenVINO>`__
+   OpenVINO <#part-1-inference-pipeline-with-openvino>`__
 
-   -  `Install prerequisites <#Install-prerequisites>`__
-   -  `Imports <#Imports>`__
-   -  `Setting up HuggingFace cache <#Setting-up-HuggingFace-cache>`__
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Download resources <#Download-resources>`__
-   -  `Create inference pipeline <#Create-inference-pipeline>`__
-   -  `Inference on new input <#Inference-on-new-input>`__
+   -  `Install prerequisites <#install-prerequisites>`__
+   -  `Imports <#imports>`__
+   -  `Setting up HuggingFace cache <#setting-up-huggingface-cache>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Download resources <#download-resources>`__
+   -  `Create inference pipeline <#create-inference-pipeline>`__
+   -  `Inference on new input <#inference-on-new-input>`__
 
 -  `Part 2: OpenVINO post-training quantization with HuggingFace
-   Optimum <#Part-2:-OpenVINO-post-training-quantization-with-HuggingFace-Optimum>`__
+   Optimum <#part-2-openvino-post-training-quantization-with-huggingface-optimum>`__
 
    -  `Define constants and
-      functions <#Define-constants-and-functions>`__
-   -  `Load resources <#Load-resources>`__
-   -  `Load calibration dataset <#Load-calibration-dataset>`__
-   -  `Quantize model <#Quantize-model>`__
-   -  `Load quantized model <#Load-quantized-model>`__
+      functions <#define-constants-and-functions>`__
+   -  `Load resources <#load-resources>`__
+   -  `Load calibration dataset <#load-calibration-dataset>`__
+   -  `Quantize model <#quantize-model>`__
+   -  `Load quantized model <#load-quantized-model>`__
    -  `Inference on new input using quantized
-      model <#Inference-on-new-input-using-quantized-model>`__
-   -  `Load evaluation set <#Load-evaluation-set>`__
-   -  `Evaluate model <#Evaluate-model>`__
+      model <#inference-on-new-input-using-quantized-model>`__
+   -  `Load evaluation set <#load-evaluation-set>`__
+   -  `Evaluate model <#evaluate-model>`__
 
--  `Additional resources <#Additional-resources>`__
--  `Clean up <#Clean-up>`__
+-  `Additional resources <#additional-resources>`__
+-  `Clean up <#clean-up>`__
 
 Introduction
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Task
 ~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 **Programming language classification** is the task of identifying which
 programming language is used in an arbitrary code snippet. This can be
@@ -86,15 +86,15 @@ used in Golang, but was later introduced in Python 3.8.
 Model
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The classification model that will be used in this notebook is
-```CodeBERTa-language-id`` <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
+`CodeBERTa-language-id <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
 by HuggingFace. This model was fine-tuned from the masked language
 modeling model
-```CodeBERTa-small-v1`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeBERTa-small-v1 <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 trained on the
-```CodeSearchNet`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeSearchNet <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 dataset (Husain, 2019).
 
 It supports 6 programming languages: - Go - Java - JavaScript - PHP -
@@ -103,7 +103,7 @@ Python - Ruby
 Part 1: Inference pipeline with OpenVINO
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For this section, we will use the `HuggingFace
 Optimum <https://huggingface.co/docs/optimum/index>`__ library, which
@@ -115,7 +115,7 @@ will allow to automatically convert models to the OpenVINO™ IR format.
 Install prerequisites
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, complete the `repository installation steps <../../README.md>`__.
 
@@ -158,7 +158,7 @@ OpenVINO support - HuggingFace Evaluate to benchmark results
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The import ``OVModelForSequenceClassification`` from Optimum is
 equivalent to ``AutoModelForSequenceClassification`` from Transformers
@@ -202,7 +202,7 @@ equivalent to ``AutoModelForSequenceClassification`` from Transformers
 Setting up HuggingFace cache
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Resources from HuggingFace will be downloaded in the local folder
 ``./model`` (next to this notebook) instead of the device global cache
@@ -218,7 +218,7 @@ for easy cleanup. Learn more
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -250,7 +250,7 @@ select device from dropdown list for running inference using OpenVINO
 Download resources
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -339,7 +339,7 @@ Download resources
 Create inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -354,7 +354,7 @@ Create inference pipeline
 Inference on new input
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -379,7 +379,7 @@ Inference on new input
 Part 2: OpenVINO post-training quantization with HuggingFace Optimum
 --------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
@@ -394,7 +394,7 @@ more <https://huggingface.co/docs/optimum/main/en/intel/index>`__.
 Define constants and functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -436,7 +436,7 @@ Define constants and functions
 Load resources
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NOTE: the base model is loaded using
 ``AutoModelForSequenceClassification`` from ``Transformers``
@@ -460,7 +460,7 @@ NOTE: the base model is loaded using
 Load calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``get_dataset_sample()`` function will sample up to ``num_samples``,
 with an equal number of examples across the 6 programming languages.
@@ -499,7 +499,7 @@ NOTE: Uncomment the method below to download and use the full dataset
 Quantize model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Calling ``quantizer.quantize(...)`` will iterate through the calibration
 dataset to quantize and save the model
@@ -840,7 +840,7 @@ dataset to quantize and save the model
 Load quantized model
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NOTE: the argument ``export=True`` is not required since the quantized
 model is already in the OpenVINO format.
@@ -864,7 +864,7 @@ model is already in the OpenVINO format.
 Inference on new input using quantized model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -888,7 +888,7 @@ Inference on new input using quantized model
 Load evaluation set
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NOTE: Uncomment the method below to download and use the full dataset
 (5+ Gb).
@@ -911,7 +911,7 @@ NOTE: Uncomment the method below to download and use the full dataset
 Evaluate model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1028,7 +1028,7 @@ displayed.
 Additional resources
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ - `Grammatical Error Correction
+ - `Grammatical Error Correction
 with
 OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
 - `Quantize a Hugging Face Question-Answering Model with
@@ -1037,7 +1037,7 @@ OpenVINO <https://github.com/huggingface/optimum-intel/blob/main/notebooks/openv
 Clean up
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Uncomment and run cell below to delete all resources cached locally in
 ./model

@@ -25,24 +25,24 @@ and datasets. It consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Prepare the Dataset <#Prepare-the-Dataset>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare the Dataset <#prepare-the-dataset>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
--  `Load and Test OpenVINO Model <#Load-and-Test-OpenVINO-Model>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+-  `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Compare F1-score of FP32 and INT8
-   models <#Compare-F1-score-of-FP32-and-INT8-models>`__
+   models <#compare-f1-score-of-fp32-and-int8-models>`__
 -  `Compare Performance of the Original, Converted and Quantized
-   Models <#Compare-Performance-of-the-Original,-Converted-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
 
 .. code:: ipython3
 
-    %pip install -q "nncf>=2.5.0" 
+    %pip install -q "nncf>=2.5.0"
     %pip install -q "transformers" datasets evaluate --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
 
@@ -65,7 +65,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Imports
     from zipfile import ZipFile
     from typing import Iterable
     from typing import Any
-    
+
     import datasets
     import evaluate
     import numpy as np
@@ -84,7 +84,7 @@ Imports
     import openvino as ov
     import torch
     from transformers import BertForSequenceClassification, BertTokenizer
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -114,7 +114,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -124,14 +124,14 @@ Settings
     MODEL_LINK = "https://download.pytorch.org/tutorial/MRPC.zip"
     FILE_NAME = MODEL_LINK.split("/")[-1]
     PRETRAINED_MODEL_DIR = os.path.join(MODEL_DIR, "MRPC")
-    
+
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Perform the following:
 
@@ -169,10 +169,10 @@ PyTorch model formats are supported:
     input_shape = ov.PartialShape([1, -1])
     ir_model_xml = Path(MODEL_DIR) / "bert_mrpc.xml"
     core = ov.Core()
-    
+
     torch_model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL_DIR)
     torch_model.eval
-    
+
     input_info = [("input_ids", input_shape, np.int64),("attention_mask", input_shape, np.int64),("token_type_ids", input_shape, np.int64)]
     default_input = torch.ones(1, MAX_SEQ_LENGTH, dtype=torch.int64)
     inputs = {
@@ -180,7 +180,7 @@ PyTorch model formats are supported:
         "attention_mask": default_input,
         "token_type_ids": default_input,
     }
-    
+
     # Convert the PyTorch model to OpenVINO IR FP32.
     if not ir_model_xml.exists():
         model = ov.convert_model(torch_model, example_input=inputs, input=input_info)
@@ -218,7 +218,7 @@ PyTorch model formats are supported:
 Prepare the Dataset
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We download the `General Language Understanding Evaluation
 (GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
@@ -230,22 +230,22 @@ tokenizer from HuggingFace.
     def create_data_source():
         raw_dataset = datasets.load_dataset('glue', 'mrpc', split='validation')
         tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL_DIR)
-    
+
         def _preprocess_fn(examples):
             texts = (examples['sentence1'], examples['sentence2'])
             result = tokenizer(*texts, padding='max_length', max_length=MAX_SEQ_LENGTH, truncation=True)
             result['labels'] = examples['label']
             return result
         processed_dataset = raw_dataset.map(_preprocess_fn, batched=True, batch_size=1)
-    
+
         return processed_dataset
-    
+
     data_source = create_data_source()
 
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -261,7 +261,7 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     INPUT_NAMES = [key for key in inputs.keys()]
-    
+
     def transform_fn(data_item):
         """
         Extract the model's input from the data item.
@@ -272,7 +272,7 @@ The optimization process contains the following steps:
             name: np.asarray([data_item[name]], dtype=np.int64) for name in INPUT_NAMES
         }
         return inputs
-    
+
     calibration_dataset = nncf.Dataset(data_source, transform_fn)
     # Quantize the model. By specifying model_type, we specify additional transformer patterns in the model.
     quantized_model = nncf.quantize(model, calibration_dataset,
@@ -293,10 +293,6 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -313,11 +309,6 @@ The optimization process contains the following steps:
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -345,10 +336,6 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -366,10 +353,6 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -381,7 +364,7 @@ The optimization process contains the following steps:
 Load and Test OpenVINO Model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To load and test converted model, perform the following:
 
@@ -393,21 +376,21 @@ To load and test converted model, perform the following:
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -435,10 +418,10 @@ changing ``sample_idx`` to another value (from 0 to 407).
     sample_idx = 5
     sample = data_source[sample_idx]
     inputs = {k: torch.unsqueeze(torch.tensor(sample[k]), 0) for k in ['input_ids', 'token_type_ids', 'attention_mask']}
-    
+
     result = compiled_quantized_model(inputs)[output_layer]
     result = np.argmax(result)
-    
+
     print(f"Text 1: {sample['sentence1']}")
     print(f"Text 2: {sample['sentence2']}")
     print(f"The same meaning: {'yes' if result == 1 else 'no'}")
@@ -454,18 +437,18 @@ changing ``sample_idx`` to another value (from 0 to 407).
 Compare F1-score of FP32 and INT8 models
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     def validate(model: ov.Model, dataset: Iterable[Any]) -> float:
         """
-        Evaluate the model on GLUE dataset. 
+        Evaluate the model on GLUE dataset.
         Returns F1 score metric.
         """
         compiled_model = core.compile_model(model, device_name=device.value)
         output_layer = compiled_model.output(0)
-    
+
         metric = evaluate.load('glue', 'mrpc')
         for batch in dataset:
             inputs = [
@@ -476,14 +459,14 @@ Compare F1-score of FP32 and INT8 models
             metric.add_batch(predictions=[predictions], references=[batch['labels']])
         metrics = metric.compute()
         f1_score = metrics['f1']
-    
+
         return f1_score
-    
-    
+
+
     print('Checking the accuracy of the original model:')
     metric = validate(model, data_source)
     print(f'F1 score: {metric:.4f}')
-    
+
     print('Checking the accuracy of the quantized model:')
     metric = validate(quantized_model, data_source)
     print(f'F1 score: {metric:.4f}')
@@ -508,7 +491,7 @@ Compare F1-score of FP32 and INT8 models
 Compare Performance of the Original, Converted and Quantized Models
 -------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is
@@ -525,7 +508,7 @@ Frames Per Second (FPS) for images.
     num_samples = 50
     sample = data_source[0]
     inputs = {k: torch.unsqueeze(torch.tensor(sample[k]), 0) for k in ['input_ids', 'token_type_ids', 'attention_mask']}
-    
+
     with torch.no_grad():
         start = time.perf_counter()
         for _ in range(num_samples):
@@ -536,7 +519,7 @@ Frames Per Second (FPS) for images.
         f"PyTorch model on CPU: {time_torch / num_samples:.3f} seconds per sentence, "
         f"SPS: {num_samples / time_torch:.2f}"
     )
-    
+
     start = time.perf_counter()
     for _ in range(num_samples):
         compiled_model(inputs)
@@ -546,7 +529,7 @@ Frames Per Second (FPS) for images.
         f"IR FP32 model in OpenVINO Runtime/{device.value}: {time_ir / num_samples:.3f} "
         f"seconds per sentence, SPS: {num_samples / time_ir:.2f}"
     )
-    
+
     start = time.perf_counter()
     for _ in range(num_samples):
         compiled_quantized_model(inputs)
@@ -606,23 +589,23 @@ in OpenVINO.
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ ERROR ] Exception from src/inference/src/core.cpp:228:
     Exception from src/inference/src/dev/core_impl.cpp:560:
     Device with "device" name is not registered in the OpenVINO Runtime
-    
+
     Traceback (most recent call last):
       File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
         supported_properties = benchmark.core.get_property(device, properties.supported_properties())
     RuntimeError: Exception from src/inference/src/core.cpp:228:
     Exception from src/inference/src/dev/core_impl.cpp:560:
     Device with "device" name is not registered in the OpenVINO Runtime
-    
-    
+
+
 
 
 .. code:: ipython3
@@ -639,21 +622,21 @@ in OpenVINO.
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ ERROR ] Exception from src/inference/src/core.cpp:228:
     Exception from src/inference/src/dev/core_impl.cpp:560:
     Device with "device" name is not registered in the OpenVINO Runtime
-    
+
     Traceback (most recent call last):
       File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
         supported_properties = benchmark.core.get_property(device, properties.supported_properties())
     RuntimeError: Exception from src/inference/src/core.cpp:228:
     Exception from src/inference/src/dev/core_impl.cpp:560:
     Device with "device" name is not registered in the OpenVINO Runtime
-    
-    
+
+
 

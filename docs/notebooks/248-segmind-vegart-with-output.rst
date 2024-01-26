@@ -210,7 +210,7 @@ For saving time, we will not cover image-to-image generation in this
 notebook. As we already mentioned, Segmind-Vega is compatible with
 Stable Diffusion XL pipeline, the steps required to run Stable Diffusion
 XL inference for image-to-image task were discussed in this
-`notebook <248-stable-dffision-xl.ipynb>`__.
+`notebook <248-stable-dffision-xl-with-output.html>`__.
 
 Select inference device for text-to-image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

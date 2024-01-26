@@ -19,35 +19,35 @@ This notebook works best with small images (up to 800x600 resolution).
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
 -  `Inference on PaddlePaddle
-   Model <#Inference-on-PaddlePaddle-Model>`__
+   Model <#inference-on-paddlepaddle-model>`__
 
-   -  `Investigate PaddleGAN Model <#Investigate-PaddleGAN-Model>`__
-   -  `Do Inference <#Do-Inference>`__
+   -  `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
+   -  `Do Inference <#do-inference>`__
 
 -  `Convert PaddleGAN Model to ONNX and OpenVINO
-   IR <#Convert-PaddleGAN-Model-to-ONNX-and-OpenVINO-IR>`__
+   IR <#convert-paddlegan-model-to-onnx-and-openvino-ir>`__
 
    -  `Convert PaddlePaddle Model to
-      ONNX <#Convert-PaddlePaddle-Model-to-ONNX>`__
+      ONNX <#convert-paddlepaddle-model-to-onnx>`__
    -  `Convert ONNX Model to OpenVINO IR with Model Conversion Python
-      API <#Convert-ONNX-Model-to-OpenVINO-IR-with-Model-Conversion-Python-API>`__
+      API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
 
 -  `Do Inference on OpenVINO IR
-   Model <#Do-Inference-on-OpenVINO-IR-Model>`__
+   Model <#do-inference-on-openvino-ir-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Show an Animated GIF <#Show-an-Animated-GIF>`__
-   -  `Create a Comparison Video <#Create-a-Comparison-Video>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Show an Animated GIF <#show-an-animated-gif>`__
+   -  `Create a Comparison Video <#create-a-comparison-video>`__
 
-      -  `Download the video <#Download-the-video>`__
+      -  `Download the video <#download-the-video>`__
 
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -121,7 +121,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -138,12 +138,12 @@ Settings
 Inference on PaddlePaddle Model
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Investigate PaddleGAN Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `PaddleGAN
 documentation <https://github.com/PaddlePaddle/PaddleGAN>`__ explains
@@ -202,7 +202,7 @@ To get more information about how the model looks like, use the
 Do Inference
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To show inference on the PaddlePaddle model, set ``PADDLEGAN_INFERENCE``
 to ``True`` in the cell below. Keep in mind that performing inference
@@ -263,7 +263,7 @@ may take some time.
 Convert PaddleGAN Model to ONNX and OpenVINO IR
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert the PaddlePaddle model to OpenVINO IR, first convert the
 model to ONNX, and then convert the ONNX model to the OpenVINO IR
@@ -272,7 +272,7 @@ format.
 Convert PaddlePaddle Model to ONNX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -315,7 +315,7 @@ Convert PaddlePaddle Model to ONNX
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -338,7 +338,7 @@ Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://doc
 Do Inference on OpenVINO IR Model
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -351,7 +351,7 @@ Do Inference on OpenVINO IR Model
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -457,7 +457,7 @@ select device from dropdown list for running inference using OpenVINO
 Show an Animated GIF
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To visualize the difference between the bicubic image and the
 superresolution image, create an animated GIF image that switches
@@ -493,7 +493,7 @@ between both versions.
 Create a Comparison Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a video with a “slider”, showing the bicubic image to the right
 and the superresolution image on the left.
@@ -553,7 +553,7 @@ open it directly from the images directory, and play it locally.
 Download the video
 ^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please, click the link below to download the video or just run cell if
 you use the Google Colab

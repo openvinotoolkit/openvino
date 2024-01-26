@@ -2,7 +2,7 @@ Classification with ConvNeXt and OpenVINO
 =========================================
 
 The
-```torchvision.models`` <https://pytorch.org/vision/stable/models.html>`__
+`torchvision.models <https://pytorch.org/vision/stable/models.html>`__
 subpackage contains definitions of models for addressing different
 tasks, including: image classification, pixelwise semantic segmentation,
 object detection, instance segmentation, person keypoint detection,
@@ -25,19 +25,19 @@ Tiny model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Get a test image <#Get-a-test-image>`__
--  `Get a pretrained model <#Get-a-pretrained-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Get a test image <#get-a-test-image>`__
+-  `Get a pretrained model <#get-a-pretrained-model>`__
 -  `Define a preprocessing and prepare an input
-   data <#Define-a-preprocessing-and-prepare-an-input-data>`__
+   data <#define-a-preprocessing-and-prepare-an-input-data>`__
 -  `Use the original model to run an
-   inference <#Use-the-original-model-to-run-an-inference>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
 -  `Convert the model to OpenVINO Intermediate representation
-   format <#Convert-the-model-to-OpenVINO-Intermediate-representation-format>`__
+   format <#convert-the-model-to-openvino-intermediate-representation-format>`__
 -  `Use the OpenVINO IR model to run an
-   inference <#Use-the-OpenVINO-IR-model-to-run-an-inference>`__
+   inference <#use-the-openvino-ir-model-to-run-an-inference>`__
 
-Prerequisites\ `back to top ⬆️ <#Table-of-contents:>`__
+Prerequisites\
 -------------------------------------------------------
 
 .. code:: ipython3
@@ -59,17 +59,17 @@ Prerequisites\ `back to top ⬆️ <#Table-of-contents:>`__
 Get a test image
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ First of all lets get a test
+First of all lets get a test
 image from an open dataset.
 
 .. code:: ipython3
 
     import urllib.request
-    
+
     from torchvision.io import read_image
     import torchvision.transforms as transforms
-    
-    
+
+
     img_path = 'cats_image.jpeg'
     urllib.request.urlretrieve(
         url='https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg',
@@ -86,19 +86,19 @@ image from an open dataset.
 Get a pretrained model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ Torchvision provides a
+Torchvision provides a
 mechanism of `listing and retrieving available
 models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-available-models>`__.
 
 .. code:: ipython3
 
     import torchvision.models as models
-    
+
     # List available models
     all_models = models.list_models()
     # List of models by type. Classification models are in the parent module.
     classification_models = models.list_models(module=models)
-    
+
     print(classification_models)
 
 
@@ -126,7 +126,7 @@ initialize pre-trained models
 Define a preprocessing and prepare an input data
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ You can use
+You can use
 ``torchvision.transforms`` to make a preprocessing or
 use\ `preprocessing transforms from the model
 wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models>`__.
@@ -134,10 +134,10 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 .. code:: ipython3
 
     import torch
-    
-    
+
+
     preprocess = models.ConvNeXt_Tiny_Weights.DEFAULT.transforms()
-    
+
     input_data = preprocess(image)
     input_data = torch.stack([input_data], dim=0)
 
@@ -148,7 +148,7 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
       warnings.warn(
 
 
-Use the original model to run an inference\ `back to top ⬆️ <#Table-of-contents:>`__
+Use the original model to run an inference\
 ------------------------------------------------------------------------------------
 
 .. code:: ipython3
@@ -160,8 +160,8 @@ And print results
 .. code:: ipython3
 
     import urllib.request
-    
-    
+
+
     # download class number to class label mapping
     imagenet_classes_file_path = "imagenet_2012.txt"
     urllib.request.urlretrieve(
@@ -169,12 +169,12 @@ And print results
         filename=imagenet_classes_file_path
     )
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
-    
-    
+
+
     def print_results(outputs: torch.Tensor):
         _, predicted_class = outputs.max(1)
         predicted_probability = torch.softmax(outputs, dim=1)[0, predicted_class].item()
-    
+
         print(f"Predicted Class: {predicted_class.item()}")
         print(f"Predicted Label: {imagenet_classes[predicted_class.item()]}")
         print(f"Predicted Probability: {predicted_probability}")
@@ -194,7 +194,7 @@ And print results
 Convert the model to OpenVINO Intermediate representation format
 ----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -208,12 +208,12 @@ interface. However, it can also be saved on disk using
 .. code:: ipython3
 
     from pathlib import Path
-    
-    import openvino as ov 
-    
-    
+
+    import openvino as ov
+
+
     ov_model_xml_path = Path('models/ov_convnext_model.xml')
-    
+
     if not ov_model_xml_path.exists():
         ov_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
         converted_model = ov.convert_model(model, example_input=torch.randn(1, 3, 224, 224))
@@ -234,7 +234,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -242,7 +242,7 @@ Select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -257,10 +257,10 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     compiled_model = core.compile_model(ov_model_xml_path, device_name=device.value)
 
-Use the OpenVINO IR model to run an inference\ `back to top ⬆️ <#Table-of-contents:>`__
+Use the OpenVINO IR model to run an inference\
 ---------------------------------------------------------------------------------------
 
 .. code:: ipython3

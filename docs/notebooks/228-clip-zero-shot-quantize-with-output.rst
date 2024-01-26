@@ -8,38 +8,38 @@ Compression Framework) and infer quantized model via OpenVINO™ Toolkit.
 The optimization process contains the following steps:
 
 1. Quantize the converted OpenVINO model from
-   `notebook <228-clip-zero-shot-convert.ipynb>`__ with NNCF.
+   `notebook <228-clip-zero-shot-convert-with-output.html>`__ with NNCF.
 2. Check the model result using the same input data from the
-   `notebook <228-clip-zero-shot-convert.ipynb>`__.
+   `notebook <228-clip-zero-shot-convert-with-output.html>`__.
 3. Compare model size of converted and quantized models.
 4. Compare performance of converted and quantized models.
 
 ..
 
    **NOTE**: you should run
-   `228-clip-zero-shot-convert <228-clip-zero-shot-convert.ipynb>`__
+   `228-clip-zero-shot-convert <228-clip-zero-shot-convert-with-output.html>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Create and initialize
-   quantization <#Create-and-initialize-quantization>`__
+   quantization <#create-and-initialize-quantization>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
+   -  `Prepare datasets <#prepare-datasets>`__
 
--  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
+-  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -49,7 +49,7 @@ Prerequisites
 Create and initialize quantization
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -69,7 +69,7 @@ The optimization process contains the following steps:
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -79,7 +79,7 @@ model.
 .. code:: ipython3
 
     import os
-    
+
     fp16_model_path = 'clip-vit-base-patch16.xml'
     if not os.path.exists(fp16_model_path):
         raise RuntimeError('This notebook should be run after 228-clip-zero-shot-convert.ipynb.')
@@ -87,7 +87,7 @@ model.
 .. code:: ipython3
 
     from transformers import CLIPProcessor, CLIPModel
-    
+
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
     max_length = model.config.text_config.max_position_embeddings
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
@@ -111,7 +111,7 @@ model.
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
+
     def check_text_data(data):
         """
         Check if the given data is text-based.
@@ -121,7 +121,7 @@ model.
         if isinstance(data, list):
             return all(isinstance(x, str) for x in data)
         return False
-    
+
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -129,7 +129,7 @@ model.
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-    
+
     def collate_fn(example, image_column="image_url", text_column="caption"):
         """
         Preprocesses an example by loading and transforming image and text data.
@@ -140,10 +140,10 @@ model.
         """
         assert len(example) == 1
         example = example[0]
-    
+
         if not check_text_data(example[text_column]):
             raise ValueError("Text data is not valid")
-    
+
         url = example[image_column]
         try:
             image = get_pil_from_url(url)
@@ -152,7 +152,7 @@ model.
                 return None
         except Exception:
             return None
-    
+
         inputs = processor(text=example[text_column], images=[image], return_tensors="pt", padding=True)
         if inputs['input_ids'].shape[1] > max_length:
             return None
@@ -163,7 +163,7 @@ model.
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-    
+
     def prepare_calibration_data(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -186,8 +186,8 @@ model.
                             }
                         )
         return data
-    
-    
+
+
     def prepare_dataset(opt_init_steps=300, max_train_samples=1000):
         """
         Prepares a vision-text dataset for quantization.
@@ -208,11 +208,11 @@ Create a quantized model from the pre-trained ``FP16`` model.
     import logging
     import nncf
     from openvino.runtime import Core, serialize
-    
+
     core = Core()
-    
+
     nncf.set_log_level(logging.ERROR)
-    
+
     int8_model_path = 'clip-vit-base-patch16_int8.xml'
     calibration_data = prepare_dataset()
     ov_model = core.read_model(fp16_model_path)
@@ -236,7 +236,7 @@ Create a quantized model from the pre-trained ``FP16`` model.
         raise RuntimeError(
             'Calibration dataset is empty. Please check internet connection and try to download images manually.'
         )
-    
+
     calibration_dataset = nncf.Dataset(calibration_data)
     quantized_model = nncf.quantize(
         model=ov_model,
@@ -264,24 +264,24 @@ in the NNCF repository for more information.
 Run quantized OpenVINO model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
 the same input data from the `1st
-notebook <228-clip-zero-shot-image-classification.ipynb>`__.
+notebook <228-clip-zero-shot-image-classification-with-output.html>`__.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -300,7 +300,7 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
     from openvino.runtime import compile_model
     from visualize import visualize_result
     from urllib.request import urlretrieve
-    
+
     sample_path = Path("data/coco.jpg")
     sample_path.parent.mkdir(parents=True, exist_ok=True)
     urlretrieve(
@@ -308,10 +308,10 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
         sample_path,
     )
     image = Image.open(sample_path)
-    
+
     input_labels = ['cat', 'dog', 'wolf', 'tiger', 'man', 'horse', 'frog', 'tree', 'house', 'computer']
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], return_tensors="pt", padding=True)
     compiled_model = compile_model(int8_model_path)
     logits_per_image_out = compiled_model.output(0)
@@ -327,12 +327,12 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
 Compare File Size
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     fp16_ir_model_size = Path(fp16_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(f"FP16 IR model size: {fp16_ir_model_size:.2f} MB")
@@ -350,7 +350,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+To measure the inference
 performance of the ``FP16`` and ``INT8`` models, we use median inference
 time on calibration dataset. So we can approximately estimate the speed
 up of the dynamic quantized models.
@@ -363,7 +363,7 @@ up of the dynamic quantized models.
 
     import time
     from openvino.runtime import compile_model
-    
+
     def calculate_inference_time(model_path, calibration_data):
         model = compile_model(model_path)
         output_layer = model.output(0)

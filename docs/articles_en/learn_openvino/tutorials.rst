@@ -60,6 +60,24 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 
 .. showcase::
+   :title: 280-depth-anything
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/280-depth-anything/280-depth-anything.gif
+
+   Depth estimation with DepthAnything and OpenVINO.
+
+.. showcase::
+   :title: 279-mobilevlm-language-assistant
+   :img: _static/images/notebook_eye.png
+
+   Mobile language assistant with MobileVLM and OpenVINO.
+
+.. showcase::
+   :title: 278-stable-diffusion-ip-adapter
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/278-stable-diffusion-ip-adapter/278-stable-diffusion-ip-adapter.png
+
+   Image Generation with Stable Diffusion and IP-Adapter.
+
+.. showcase::
    :title: 275-llm-question-answering
    :img: _static/images/notebook_eye.png
 
@@ -103,24 +121,6 @@ Below you will find a selection of recommended tutorials that demonstrate infere
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/269-film-slowmo/269-film-slowmo.gif
 
    Frame interpolation using FILM and OpenVINO.
-
-.. showcase::
-   :title: 267-distil-whisper-asr
-   :img: _static/images/notebook_eye.png
-
-   Automatic speech recognition using Distil-Whisper and OpenVINO.
-
-.. showcase::
-   :title: 265-wuerstchen-image-generation
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/265-wuerstchen-image-generation/265-wuerstchen-image-generation.png
-
-   Image generation with Würstchen and OpenVINO.
-
-.. showcase::
-   :title: 264-qrcode-monster
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/264-qrcode-monster/264-qrcode-monster.png
-
-   Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
 
 
 

@@ -12,18 +12,18 @@ original image. The Following pipeline will be used in this notebook.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Download the Model <#Download-the-Model>`__
+-  `Download the Model <#download-the-model>`__
 -  `Convert Tensorflow model to OpenVINO IR
-   format <#Convert-Tensorflow-model-to-OpenVINO-IR-format>`__
--  `Load the model <#Load-the-model>`__
+   format <#convert-tensorflow-model-to-openvino-ir-format>`__
+-  `Load the model <#load-the-model>`__
 -  `Determine the input shapes of the
-   model <#Determine-the-input-shapes-of-the-model>`__
--  `Create a square mask <#Create-a-square-mask>`__
--  `Load and Resize the Image <#Load-and-Resize-the-Image>`__
--  `Generating the Masked Image <#Generating-the-Masked-Image>`__
--  `Preprocessing <#Preprocessing>`__
--  `Inference <#Inference>`__
--  `Save the Restored Image <#Save-the-Restored-Image>`__
+   model <#determine-the-input-shapes-of-the-model>`__
+-  `Create a square mask <#create-a-square-mask>`__
+-  `Load and Resize the Image <#load-and-resize-the-image>`__
+-  `Generating the Masked Image <#generating-the-masked-image>`__
+-  `Preprocessing <#preprocessing>`__
+-  `Inference <#inference>`__
+-  `Save the Restored Image <#save-the-restored-image>`__
 
 .. |pipeline| image:: https://user-images.githubusercontent.com/4547501/165792473-ba784c0d-0a37-409f-a5f6-bb1849c1d140.png
 
@@ -57,7 +57,7 @@ Table of contents:
 Download the Model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
 model is already downloaded) and then unzip it. Downloaded model stored
@@ -91,7 +91,7 @@ be obtained from original model checkpoint can be found in this
 Convert Tensorflow model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format with model conversion API. For more
@@ -120,7 +120,7 @@ This step is also skipped if the model is already converted.
 Load the model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, load the OpenVINO IR model and perform as follows:
 
@@ -172,7 +172,7 @@ Only a few lines of code are required to run the model:
 Determine the input shapes of the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Note that both input shapes are the same. However, the second input has
 1 channel (monotone).
@@ -184,7 +184,7 @@ Note that both input shapes are the same. However, the second input has
 Create a square mask
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Next, create a single channeled mask that will be laid on top of the
 original image.
@@ -229,7 +229,7 @@ original image.
 Load and Resize the Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This image will be altered by using the mask. You can process any image
 you like. Just change the URL below.
@@ -260,7 +260,7 @@ you like. Just change the URL below.
 Generating the Masked Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This multiplication of the image and the mask gives the result of the
 masked image layered on top of the original image. The ``masked_image``
@@ -281,7 +281,7 @@ will be the first input to the GMCNN model.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model expects the input dimensions to be ``NHWC``.
 
@@ -296,7 +296,7 @@ The model expects the input dimensions to be ``NHWC``.
 Inference
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Do inference with the given masked image and the mask. Then, show the
 restored image.
@@ -316,7 +316,7 @@ restored image.
 Save the Restored Image
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Save the restored image to the data directory to download it.
 

@@ -17,25 +17,25 @@ larger batch sizes.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Load and run the original
-   pipeline <#Load-and-run-the-original-pipeline>`__
+   pipeline <#load-and-run-the-original-pipeline>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Convert the Text Encoder <#Convert-the-Text-Encoder>`__
-   -  `Convert the U-ViT transformer <#Convert-the-U-ViT-transformer>`__
+   -  `Convert the Text Encoder <#convert-the-text-encoder>`__
+   -  `Convert the U-ViT transformer <#convert-the-u-vit-transformer>`__
    -  `Convert VQ-GAN decoder
-      (VQVAE) <#Convert-VQ-GAN-decoder-(VQVAE)>`__
+      (VQVAE) <#convert-vq-gan-decoder-vqvae>`__
 
 -  `Compiling models and prepare
-   pipeline <#Compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+   pipeline <#compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -45,7 +45,7 @@ Prerequisites
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -55,18 +55,18 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import torch
     from diffusers import AmusedPipeline
-    
-    
+
+
     pipe = AmusedPipeline.from_pretrained(
         "amused/amused-256",
     )
-    
+
     prompt = "kind smiling ghost"
     image = pipe(prompt, generator=torch.Generator('cpu').manual_seed(8)).images[0]
     image.save('text2image_256.png')
@@ -110,7 +110,7 @@ Load and run the original pipeline
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 aMUSEd consists of three separately trained components: a pre-trained
 CLIP-L/14 text encoder, a VQ-GAN, and a U-ViT.
@@ -132,8 +132,8 @@ Define paths for converted models:
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     TRANSFORMER_OV_PATH = Path('models/transformer_ir.xml')
     TEXT_ENCODER_OV_PATH = Path('models/text_encoder_ir.xml')
     VQVAE_OV_PATH = Path('models/vqvae_ir.xml')
@@ -146,10 +146,10 @@ file.
 .. code:: ipython3
 
     import torch
-    
+
     import openvino as ov
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -157,7 +157,7 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-            
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -166,7 +166,7 @@ file.
 Convert the Text Encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -174,18 +174,18 @@ Convert the Text Encoder
         def __init__(self, text_encoder):
             super().__init__()
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids=None, return_dict=None, output_hidden_states=None):
-            
+
             outputs = self.text_encoder(
                 input_ids=input_ids,
                 return_dict=return_dict,
-                output_hidden_states=output_hidden_states, 
+                output_hidden_states=output_hidden_states,
             )
-    
+
             return outputs.text_embeds, outputs.last_hidden_state, outputs.hidden_states
-    
-    
+
+
     input_ids = pipe.tokenizer(
         prompt,
         return_tensors="pt",
@@ -193,13 +193,13 @@ Convert the Text Encoder
         truncation=True,
         max_length=pipe.tokenizer.model_max_length,
     )
-    
+
     input_example = {
         'input_ids': input_ids.input_ids,
-        'return_dict': torch.tensor(True), 
+        'return_dict': torch.tensor(True),
         'output_hidden_states': torch.tensor(True)
     }
-    
+
     convert(TextEncoderWrapper(pipe.text_encoder), TEXT_ENCODER_OV_PATH, input_example)
 
 
@@ -246,7 +246,7 @@ Convert the Text Encoder
 Convert the U-ViT transformer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -254,32 +254,32 @@ Convert the U-ViT transformer
         def __init__(self, transformer):
             super().__init__()
             self.transformer = transformer
-    
+
         def forward(self, latents=None, micro_conds=None, pooled_text_emb=None, encoder_hidden_states=None):
-            
+
             return self.transformer(
                 latents,
-                micro_conds=micro_conds, 
-                pooled_text_emb=pooled_text_emb, 
+                micro_conds=micro_conds,
+                pooled_text_emb=pooled_text_emb,
                 encoder_hidden_states=encoder_hidden_states,
             )
-    
-    
+
+
     shape = (1, 16, 16)
     latents = torch.full(
         shape, pipe.scheduler.config.mask_token_id, dtype=torch.long
     )
     latents = torch.cat([latents] * 2)
-    
-    
+
+
     example_input = {
         'latents': latents,
         'micro_conds': torch.rand([2, 5], dtype=torch.float32),
         'pooled_text_emb': torch.rand([2, 768], dtype=torch.float32),
-        'encoder_hidden_states': torch.rand([2, 77, 768], dtype=torch.float32), 
+        'encoder_hidden_states': torch.rand([2, 77, 768], dtype=torch.float32),
     }
-    
-    
+
+
     pipe.transformer.eval()
     w_transformer = TransformerWrapper(pipe.transformer)
     convert(w_transformer, TRANSFORMER_OV_PATH, example_input)
@@ -287,7 +287,7 @@ Convert the U-ViT transformer
 Convert VQ-GAN decoder (VQVAE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ Function ``get_latents`` is
+Function ``get_latents`` is
 needed to return real latents for the conversion. Due to the VQVAE
 implementation autogenerated tensor of the required shape is not
 suitable. This function repeats part of ``AmusedPipeline``.
@@ -300,8 +300,8 @@ suitable. This function repeats part of ``AmusedPipeline``.
             shape, pipe.scheduler.config.mask_token_id, dtype=torch.long
         )
         model_input = torch.cat([latents] * 2)
-        
-        
+
+
         model_output = pipe.transformer(
             model_input,
             micro_conds=torch.rand([2, 5], dtype=torch.float32),
@@ -311,39 +311,39 @@ suitable. This function repeats part of ``AmusedPipeline``.
         guidance_scale = 10.0
         uncond_logits, cond_logits = model_output.chunk(2)
         model_output = uncond_logits + guidance_scale * (cond_logits - uncond_logits)
-        
-        
+
+
         latents = pipe.scheduler.step(
             model_output=model_output,
             timestep=torch.tensor(0),
             sample=latents,
         ).prev_sample
-    
+
         return latents
-    
-    
+
+
     class VQVAEWrapper(torch.nn.Module):
         def __init__(self, vqvae):
             super().__init__()
             self.vqvae = vqvae
-    
+
         def forward(self, latents=None, force_not_quantize=True, shape=None):
             outputs = self.vqvae.decode(
                 latents,
                 force_not_quantize=force_not_quantize,
-                shape=shape.tolist(), 
+                shape=shape.tolist(),
             )
-    
+
             return outputs
-    
-    
+
+
     latents = get_latents()
     example_vqvae_input = {
         'latents': latents,
         'force_not_quantize': torch.tensor(True),
         'shape': torch.tensor((1, 16, 16, 64))
     }
-    
+
     convert(VQVAEWrapper(pipe.vqvae), VQVAE_OV_PATH, example_vqvae_input)
 
 
@@ -362,15 +362,15 @@ suitable. This function repeats part of ``AmusedPipeline``.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    
+
+
     core = ov.Core()
     DEVICE = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -378,7 +378,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description='Device:',
         disabled=False,
     )
-    
+
     DEVICE
 
 
@@ -403,29 +403,29 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-    
-    
+
+
     class ConvTextEncoderWrapper(torch.nn.Module):
         def __init__(self, text_encoder, config):
             super().__init__()
             self.config = config
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids=None, return_dict=None, output_hidden_states=None):
             inputs = {
                 'input_ids': input_ids,
                 'return_dict': return_dict,
                 'output_hidden_states': output_hidden_states
             }
-            
+
             outs = self.text_encoder(inputs)
-    
+
             outputs = namedtuple('CLIPTextModelOutput', ('text_embeds', 'last_hidden_state', 'hidden_states'))
-            
+
             text_embeds = torch.from_numpy(outs[0])
             last_hidden_state = torch.from_numpy(outs[1])
             hidden_states = list(torch.from_numpy(out) for out in outs.values())[2:]
-            
+
             return outputs(text_embeds, last_hidden_state, hidden_states)
 
 .. code:: ipython3
@@ -435,18 +435,18 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
             super().__init__()
             self.config = config
             self.transformer = transformer
-    
+
         def forward(self, latents=None, micro_conds=None, pooled_text_emb=None, encoder_hidden_states=None, **kwargs):
             outputs = self.transformer(
                 {
                     'latents': latents,
-                    'micro_conds': micro_conds, 
-                    'pooled_text_emb': pooled_text_emb, 
+                    'micro_conds': micro_conds,
+                    'pooled_text_emb': pooled_text_emb,
                     'encoder_hidden_states': encoder_hidden_states,
                 },
                 share_inputs=False
             )
-    
+
             return torch.from_numpy(outputs[0])
 
 .. code:: ipython3
@@ -457,17 +457,17 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.vqvae = vqvae
             self.dtype = dtype
             self.config = config
-    
+
         def decode(self, latents=None, force_not_quantize=True, shape=None):
             inputs = {
                 'latents': latents,
                 'force_not_quantize': force_not_quantize,
                 'shape': torch.tensor(shape)
             }
-            
+
             outs = self.vqvae(inputs)
             outs = namedtuple('VQVAE', 'sample')(torch.from_numpy(outs[0]))
-            
+
             return outs
 
 And insert wrappers instances in the pipeline:
@@ -475,18 +475,18 @@ And insert wrappers instances in the pipeline:
 .. code:: ipython3
 
     prompt = "kind smiling ghost"
-    
+
     transformer = pipe.transformer
     vqvae = pipe.vqvae
     text_encoder = pipe.text_encoder
-    
-    pipe.__dict__["_internal_dict"]['_execution_device'] = pipe._execution_device  # this is to avoid some problem that can occur in the pipeline 
+
+    pipe.__dict__["_internal_dict"]['_execution_device'] = pipe._execution_device  # this is to avoid some problem that can occur in the pipeline
     pipe.register_modules(
         text_encoder=ConvTextEncoderWrapper(ov_text_encoder, text_encoder.config),
         transformer=ConvTransformerWrapper(ov_transformer, transformer.config),
         vqvae=ConvVQVAEWrapper(ov_vqvae, vqvae.dtype, vqvae.config),
     )
-    
+
     image = pipe(prompt, generator=torch.Generator('cpu').manual_seed(8)).images[0]
     image.save('text2image_256.png')
 
@@ -517,19 +517,19 @@ And insert wrappers instances in the pipeline:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import numpy as np
     import gradio as gr
-    
-    
+
+
     def generate(prompt, seed, _=gr.Progress(track_tqdm=True)):
         image = pipe(prompt, generator=torch.Generator('cpu').manual_seed(seed)).images[0]
         return image
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [
@@ -556,12 +556,12 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

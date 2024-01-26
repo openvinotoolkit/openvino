@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../240-dolly-2-instruction-following>`__ for reference. In this
+example <240-dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
@@ -41,27 +41,27 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `login to huggingfacehub to get access to pretrained
    model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
 -  `Instantiate Model using Optimum
-   Intel <#Instantiate-Model-using-Optimum-Intel>`__
--  `Compress model weights <#Compress-model-weights>`__
+   Intel <#instantiate-model-using-optimum-intel>`__
+-  `Compress model weights <#compress-model-weights>`__
 
    -  `Weights Compression using Optimum
-      Intel <#Weights-Compression-using-Optimum-Intel>`__
+      Intel <#weights-compression-using-optimum-intel>`__
    -  `Weights Compression using
-      NNCF <#Weights-Compression-using-NNCF>`__
+      NNCF <#weights-compression-using-nncf>`__
 
 -  `Select device for inference and model
-   variant <#Select-device-for-inference-and-model-variant>`__
--  `Run Chatbot <#Run-Chatbot>`__
+   variant <#select-device-for-inference-and-model-variant>`__
+-  `Run Chatbot <#run-chatbot>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -80,11 +80,12 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
->\ **Note**: conversion of some models can require additional actions
+
+**Note**: conversion of some models can require additional actions
 from user side and at least 64GB RAM for conversion.
 
 The available options are:
@@ -117,20 +118,22 @@ The available options are:
    `repository <https://github.com/facebookresearch/llama>`__ and
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__
-   >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+
+   **Note**: run model with demo, you will need to accept license
+   agreement.
+   You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
-   >You can login on Hugging Face Hub in notebook environment, using
+   You can login on Hugging Face Hub in notebook environment, using
    following code:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model 
+       ## login to huggingfacehub to get access to pretrained model
        from huggingface_hub import notebook_login, whoami
 
        try:
@@ -228,14 +231,14 @@ The available options are:
 .. code:: ipython3
 
     model_ids = list(SUPPORTED_LLM_MODELS)
-    
+
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-    
+
     model_id
 
 
@@ -261,7 +264,7 @@ The available options are:
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -341,7 +344,7 @@ with Optimum Intel.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -354,7 +357,7 @@ quality.
 Weights Compression using Optimum Intel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To enable weights compression via NNCF for models supported by Optimum
 Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
@@ -375,7 +378,7 @@ LLAMA and Zephyr examples.
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts OpenVINO model
@@ -390,7 +393,7 @@ will consider this variant based on MPT model.
 .. code:: ipython3
 
     from IPython.display import display
-    
+
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -406,7 +409,7 @@ will consider this variant based on MPT model.
         description="Prepare FP16 model",
         disabled=False,
     )
-    
+
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -435,15 +438,15 @@ We can now save floating point and compressed model variants
 .. code:: ipython3
 
     nncf.set_log_level(logging.ERROR)
-    
+
     pt_model_id = model_configuration["model_id"]
     pt_model_name = model_id.value.split("-")[0]
     model_type = AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True).model_type
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-    
-    
+
+
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -467,8 +470,8 @@ We can now save floating point and compressed model variants
             converters[pt_model_name](model, fp16_model_dir)
             del model
         gc.collect()
-    
-    
+
+
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -499,8 +502,8 @@ We can now save floating point and compressed model variants
             del ov_model
             del compressed_model
         gc.collect()
-    
-    
+
+
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
@@ -534,8 +537,8 @@ We can now save floating point and compressed model variants
                 "ratio": 0.72,
             },
             "qwen-7b-chat": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM, 
-                "group_size": 128, 
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 128,
                 "ratio": 0.6
             },
             'red-pajama-3b-chat': {
@@ -549,7 +552,7 @@ We can now save floating point and compressed model variants
                 "ratio": 0.8,
             },
         }
-    
+
         model_compression_params = compression_configs.get(
             model_id.value, compression_configs["default"]
         )
@@ -568,7 +571,7 @@ We can now save floating point and compressed model variants
             else:
                 ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
                 shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
-    
+
         else:
             convert_to_fp16()
             ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
@@ -583,8 +586,8 @@ We can now save floating point and compressed model variants
         del ov_model
         del compressed_model
         gc.collect()
-    
-    
+
+
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -599,7 +602,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-    
+
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -625,7 +628,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -639,7 +642,7 @@ Select device for inference and model variant
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -670,14 +673,14 @@ variant of model weights and inference device
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-    
+
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-    
+
     model_to_run
 
 
@@ -692,7 +695,7 @@ variant of model weights and inference device
 .. code:: ipython3
 
     from transformers import AutoTokenizer
-    
+
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -700,18 +703,18 @@ variant of model weights and inference device
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-    
+
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    
+
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
-    
+
     model_name = model_configuration["model_id"]
     class_key = model_id.value.split("-")[0]
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    
+
     model_class = (
         OVModelForCausalLM
         if not model_configuration["remote"]
@@ -759,7 +762,7 @@ variant of model weights and inference device
 Run Chatbot
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how
@@ -796,14 +799,14 @@ answers.
 
 ::
 
-   playing: 0.5  
-   sleeping: 0.25  
-   eating: 0.15  
-   driving: 0.05  
-   flying: 0.05  
+   playing: 0.5
+   sleeping: 0.25
+   eating: 0.15
+   driving: 0.05
+   flying: 0.05
 
-   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
-   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."  
+   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."
+   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."
    - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
@@ -848,8 +851,8 @@ answers.
         StoppingCriteriaList,
         TextIteratorStreamer,
     )
-    
-    
+
+
     model_name = model_configuration["model_id"]
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
@@ -857,7 +860,7 @@ answers.
     stop_tokens = model_configuration.get("stop_tokens")
     roles = model_configuration.get("roles")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
-    
+
     chinese_examples = [
         ["你好!"],
         ["你是谁?"],
@@ -867,7 +870,7 @@ answers.
         ["给我讲一个年轻人奋斗创业最终取得成功的故事。"],
         ["给这个故事起一个标题。"],
     ]
-    
+
     english_examples = [
         ["Hello there! How are you doing?"],
         ["What is OpenVINO?"],
@@ -879,7 +882,7 @@ answers.
             "Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"
         ],
     ]
-    
+
     japanese_examples = [
         ["こんにちは！調子はどうですか?"],
         ["OpenVINOとは何ですか?"],
@@ -889,7 +892,7 @@ answers.
         ["コードを書くときに避けるべきよくある間違いは何ですか?"],
         ["人工知能と「OpenVINOの利点」について100語程度のブログ記事を書いてください。"],
     ]
-    
+
     examples = (
         chinese_examples
         if ("qwen" in model_id.value or "chatglm" in model_id.value)
@@ -897,14 +900,14 @@ answers.
         if ("youri" in model_id.value)
         else english_examples
     )
-    
+
     max_new_tokens = 256
-    
-    
+
+
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-    
+
         def __call__(
             self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
         ) -> bool:
@@ -912,35 +915,35 @@ answers.
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
-    
-    
+
+
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-    
+
         stop_tokens = [StopOnTokens(stop_tokens)]
-    
-    
+
+
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by default
-    
+
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-    
+
         """
         partial_text += new_text
         return partial_text
-    
-    
+
+
     text_processor = model_configuration.get(
         "partial_text_processor", default_partial_text_processor
     )
-    
-    
+
+
     def convert_history_to_token(history: List[Tuple[str, str]], roles=None):
         """
         function for conversion history stored as list pairs of user and assistant messages to tokens according to model expected conversation template
@@ -988,12 +991,12 @@ answers.
                 [input_ids], return_tensors="pt", is_split_into_words=True
             ).input_ids
         return input_token
-    
-    
+
+
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-    
+
         Params:
           message: current message
           history: conversation history
@@ -1002,12 +1005,12 @@ answers.
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-    
-    
+
+
     def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
-    
+
         Params:
           history: conversation history
           temperature:  parameter for control the level of creativity in AI-generated text.
@@ -1016,9 +1019,9 @@ answers.
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           conversation_id: unique conversation identifier.
-    
+
         """
-    
+
         # Construct the input message string for the model by concatenating the current system message and conversation history
         # Tokenize the messages string
         input_ids = convert_history_to_token(history, roles)
@@ -1040,9 +1043,9 @@ answers.
         )
         if stop_tokens is not None:
             generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
-    
+
         stream_complete = Event()
-    
+
         def generate_and_signal_complete():
             """
             genration function for single thread
@@ -1050,25 +1053,25 @@ answers.
             global start_time
             ov_model.generate(**generate_kwargs)
             stream_complete.set()
-    
+
         t1 = Thread(target=generate_and_signal_complete)
         t1.start()
-    
+
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield history
-    
-    
+
+
     def get_uuid():
         """
         universal unique identifier for thread
         """
         return str(uuid4())
-    
-    
+
+
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -1142,7 +1145,7 @@ answers.
         gr.Examples(
             examples, inputs=msg, label="Click on any example and press the 'Submit' button"
         )
-    
+
         submit_event = msg.submit(
             fn=user,
             inputs=[msg, chatbot],
@@ -1187,7 +1190,7 @@ answers.
             queue=False,
         )
         clear.click(lambda: None, None, chatbot, queue=False)
-    
+
     demo.queue(max_size=2)
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')

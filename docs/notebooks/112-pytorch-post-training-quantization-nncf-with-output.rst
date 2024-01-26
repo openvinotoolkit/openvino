@@ -25,35 +25,35 @@ quantization, not demanding the fine-tuning of the model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparations <#Preparations>`__
+-  `Preparations <#preparations>`__
 
-   -  `Imports <#Imports>`__
-   -  `Settings <#Settings>`__
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
    -  `Download and Prepare Tiny ImageNet
-      dataset <#Download-and-Prepare-Tiny-ImageNet-dataset>`__
-   -  `Helpers classes and functions <#Helpers-classes-and-functions>`__
-   -  `Validation function <#Validation-function>`__
+      dataset <#download-and-prepare-tiny-imagenet-dataset>`__
+   -  `Helpers classes and functions <#helpers-classes-and-functions>`__
+   -  `Validation function <#validation-function>`__
    -  `Create and load original uncompressed
-      model <#Create-and-load-original-uncompressed-model>`__
+      model <#create-and-load-original-uncompressed-model>`__
    -  `Create train and validation
-      DataLoaders <#Create-train-and-validation-DataLoaders>`__
+      DataLoaders <#create-train-and-validation-dataloaders>`__
 
 -  `Model quantization and
-   benchmarking <#Model-quantization-and-benchmarking>`__
+   benchmarking <#model-quantization-and-benchmarking>`__
 
-   -  `I. Evaluate the loaded model <#I.-Evaluate-the-loaded-model>`__
+   -  `I. Evaluate the loaded model <#i--evaluate-the-loaded-model>`__
    -  `II. Create and initialize
-      quantization <#II.-Create-and-initialize-quantization>`__
+      quantization <#ii--create-and-initialize-quantization>`__
    -  `III. Convert the models to OpenVINO Intermediate Representation
       (OpenVINO
-      IR) <#III.-Convert-the-models-to-OpenVINO-Intermediate-Representation-(OpenVINO-IR)>`__
+      IR) <#iii--convert-the-models-to-openvino-intermediate-representation-openvino-ir>`__
    -  `IV. Compare performance of INT8 model and FP32 model in
-      OpenVINO <#IV.-Compare-performance-of-INT8-model-and-FP32-model-in-OpenVINO>`__
+      OpenVINO <#iv--compare-performance-of-int8-model-and-fp32-model-in-openvino>`__
 
 Preparations
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -78,16 +78,16 @@ Preparations
     # required C++ tools. This code assumes that Visual Studio 2019 is installed in the default
     # directory. If you have a different C++ compiler, add the correct path to os.environ["PATH"]
     # directly.
-    
+
     # Adding the path to os.environ["LIB"] is not always required - it depends on the system configuration.
-    
+
     import sys
-    
+
     if sys.platform == "win32":
         import distutils.command.build_ext
         import os
         from pathlib import Path
-    
+
         VS_INSTALL_DIR = r"C:/Program Files (x86)/Microsoft Visual Studio"
         cl_paths = sorted(list(Path(VS_INSTALL_DIR).glob("**/Hostx86/x64/cl.exe")))
         if len(cl_paths) == 0:
@@ -112,7 +112,7 @@ Preparations
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -121,15 +121,15 @@ Imports
     import zipfile
     from pathlib import Path
     from typing import List, Tuple
-    
+
     import nncf
     import openvino as ov
-    
+
     import torch
     from torchvision.datasets import ImageFolder
     from torchvision.models import resnet50
     import torchvision.transforms as transforms
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -142,27 +142,27 @@ Imports
 Settings
 ~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {torch_device} device")
-    
+
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     BASE_MODEL_NAME = "resnet50"
     IMAGE_SIZE = [64, 64]
-    
+
     OUTPUT_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     # Paths where PyTorch and OpenVINO IR models will be stored.
     fp32_checkpoint_filename = Path(BASE_MODEL_NAME + "_fp32").with_suffix(".pth")
     fp32_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_fp32").with_suffix(".xml")
     int8_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_int8").with_suffix(".xml")
-    
-    
+
+
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/304_resnet50_fp32.pth"
     download_file(fp32_pth_url, directory=MODEL_DIR, filename=fp32_checkpoint_filename)
 
@@ -189,7 +189,7 @@ Settings
 Download and Prepare Tiny ImageNet dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 -  100k images of shape 3x64x64,
 -  200 different classes: snake, spider, cat, truck, grasshopper, gull,
@@ -208,29 +208,29 @@ Download and Prepare Tiny ImageNet dataset
         zip_ref.extractall(path=output_dir)
         zip_ref.close()
         print(f"Successfully downloaded and extracted dataset to: {output_dir}")
-    
-    
+
+
     def create_validation_dir(dataset_dir: Path):
         VALID_DIR = dataset_dir / "val"
         val_img_dir = VALID_DIR / "images"
-    
+
         fp = open(VALID_DIR / "val_annotations.txt", "r")
         data = fp.readlines()
-    
+
         val_img_dict = {}
         for line in data:
             words = line.split("\t")
             val_img_dict[words[0]] = words[1]
         fp.close()
-    
+
         for img, folder in val_img_dict.items():
             newpath = val_img_dir / folder
             if not newpath.exists():
                 os.makedirs(newpath)
             if (val_img_dir / img).exists():
                 os.rename(val_img_dir / img, newpath / img)
-    
-    
+
+
     DATASET_DIR = OUTPUT_DIR / "tiny-imagenet-200"
     if not DATASET_DIR.exists():
         download_tiny_imagenet_200(OUTPUT_DIR)
@@ -251,7 +251,7 @@ Download and Prepare Tiny ImageNet dataset
 Helpers classes and functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below will help to count accuracy and visualize validation
 process.
@@ -260,7 +260,7 @@ process.
 
     class AverageMeter(object):
         """Computes and stores the average and current value"""
-    
+
         def __init__(self, name: str, fmt: str = ":f"):
             self.name = name
             self.fmt = fmt
@@ -268,65 +268,65 @@ process.
             self.avg = 0
             self.sum = 0
             self.count = 0
-    
+
         def update(self, val: float, n: int = 1):
             self.val = val
             self.sum += val * n
             self.count += n
             self.avg = self.sum / self.count
-    
+
         def __str__(self):
             fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
             return fmtstr.format(**self.__dict__)
-    
-    
+
+
     class ProgressMeter(object):
         """Displays the progress of validation process"""
-    
+
         def __init__(self, num_batches: int, meters: List[AverageMeter], prefix: str = ""):
             self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
             self.meters = meters
             self.prefix = prefix
-    
+
         def display(self, batch: int):
             entries = [self.prefix + self.batch_fmtstr.format(batch)]
             entries += [str(meter) for meter in self.meters]
             print("\t".join(entries))
-    
+
         def _get_batch_fmtstr(self, num_batches: int):
             num_digits = len(str(num_batches // 1))
             fmt = "{:" + str(num_digits) + "d}"
             return "[" + fmt + "/" + fmt.format(num_batches) + "]"
-    
-    
+
+
     def accuracy(output: torch.Tensor, target: torch.Tensor, topk: Tuple[int] = (1,)):
         """Computes the accuracy over the k top predictions for the specified values of k"""
         with torch.no_grad():
             maxk = max(topk)
             batch_size = target.size(0)
-    
+
             _, pred = output.topk(maxk, 1, True, True)
             pred = pred.t()
             correct = pred.eq(target.view(1, -1).expand_as(pred))
-    
+
             res = []
             for k in topk:
                 correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
                 res.append(correct_k.mul_(100.0 / batch_size))
-    
+
             return res
 
 Validation function
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from typing import Union
     from openvino.runtime.ie_api import CompiledModel
-    
-    
+
+
     def validate(val_loader: torch.utils.data.DataLoader, model: Union[torch.nn.Module, CompiledModel]):
         """Compute the metrics using data from val_loader for the model"""
         batch_time = AverageMeter("Time", ":3.3f")
@@ -338,13 +338,13 @@ Validation function
         if not isinstance(model, CompiledModel):
             model.eval()
             model.to(torch_device)
-    
+
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(val_loader):
                 images = images.to(torch_device)
                 target = target.to(torch_device)
-    
+
                 # Compute the output.
                 if isinstance(model, CompiledModel):
                     output_layer = model.output(0)
@@ -352,20 +352,20 @@ Validation function
                     output = torch.from_numpy(output)
                 else:
                     output = model(images)
-    
+
                 # Measure accuracy and record loss.
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 top1.update(acc1[0], images.size(0))
                 top5.update(acc5[0], images.size(0))
-    
+
                 # Measure elapsed time.
                 batch_time.update(time.time() - end)
                 end = time.time()
-    
+
                 print_frequency = 10
                 if i % print_frequency == 0:
                     progress.display(i)
-    
+
             print(
                 " * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f} Total time: {total_time:.3f}".format(top1=top1, top5=top5, total_time=end - start_time)
             )
@@ -374,10 +374,9 @@ Validation function
 Create and load original uncompressed model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-ResNet-50 from the ```torchivision``
-repository <https://github.com/pytorch/vision>`__ is pre-trained on
+
+ResNet-50 from the `torchivision repository <https://github.com/pytorch/vision>`__ is pre-trained on
 ImageNet with more prediction classes than Tiny ImageNet, so the model
 is adjusted by swapping the last FC layer to one with fewer output
 values.
@@ -397,14 +396,14 @@ values.
         else:
             raise RuntimeError("There is no checkpoint to load")
         return model
-    
-    
+
+
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
 Create train and validation DataLoaders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -431,7 +430,7 @@ Create train and validation DataLoaders
                 [transforms.Resize(IMAGE_SIZE), transforms.ToTensor(), normalize]
             ),
         )
-    
+
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -440,7 +439,7 @@ Create train and validation DataLoaders
             pin_memory=True,
             sampler=None,
         )
-    
+
         val_loader = torch.utils.data.DataLoader(
             val_dataset,
             batch_size=batch_size,
@@ -449,14 +448,14 @@ Create train and validation DataLoaders
             pin_memory=True,
         )
         return train_loader, val_loader
-    
-    
+
+
     train_loader, val_loader = create_dataloaders()
 
 Model quantization and benchmarking
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 With the validation pipeline, model files, and data-loading procedures
 for model calibration now prepared, it’s time to proceed with the actual
@@ -465,7 +464,7 @@ post-training quantization using NNCF.
 I. Evaluate the loaded model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -522,7 +521,7 @@ I. Evaluate the loaded model
 II. Create and initialize quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF enables post-training quantization by adding the quantization
 layers into the model graph and then using a subset of the training
@@ -544,8 +543,8 @@ Guide <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__.
     def transform_fn(data_item):
         images, _ = data_item
         return images
-    
-    
+
+
     calibration_dataset = nncf.Dataset(train_loader, transform_fn)
 
 2. Create a quantized model from the pre-trained ``FP32`` model and the
@@ -592,10 +591,6 @@ Guide <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -623,10 +618,6 @@ Guide <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -696,7 +687,7 @@ Representation (IR) format.
 III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert the Pytorch models to OpenVINO IR, use Model Conversion
 Python API. The models will be saved to the ‘OUTPUT’ directory for later
@@ -708,9 +699,9 @@ For more information about model conversion, refer to this
 .. code:: ipython3
 
     dummy_input = torch.randn(128, 3, *IMAGE_SIZE)
-    
+
     model_ir = ov.convert_model(model, example_input=dummy_input, input=[-1, 3, *IMAGE_SIZE])
-    
+
     ov.save_model(model_ir, fp32_ir_path)
 
 
@@ -727,7 +718,7 @@ For more information about model conversion, refer to this
 .. code:: ipython3
 
     quantized_model_ir = ov.convert_model(quantized_model, example_input=dummy_input, input=[-1, 3, *IMAGE_SIZE])
-    
+
     ov.save_model(quantized_model_ir, int8_ir_path)
 
 
@@ -743,7 +734,7 @@ For more information about model conversion, refer to this
 
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1093: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-    
+
     Mismatched elements: 25573 / 25600 (99.9%)
     Greatest absolute difference: 0.5424436330795288 at index (1, 149) (up to 1e-05 allowed)
     Greatest relative difference: 42.99047422811133 at index (90, 158) (up to 1e-05 allowed)
@@ -755,7 +746,7 @@ Select inference device for OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -763,7 +754,7 @@ Select inference device for OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -887,7 +878,7 @@ Evaluate the FP32 and INT8 models.
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -924,20 +915,20 @@ throughput (frames per second) values.
         """Prints the output from benchmark_app in human-readable format"""
         parsed_output = [line for line in benchmark_output if 'FPS' in line]
         print(*parsed_output, sep='\n')
-    
-    
+
+
     print('Benchmark FP32 model (OpenVINO IR)')
     benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print('Benchmark INT8 model (OpenVINO IR)')
     benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print('Benchmark FP32 model (OpenVINO IR) synchronously')
     benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print('Benchmark INT8 model (OpenVINO IR) synchronously')
     benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
@@ -977,7 +968,7 @@ Show device Information for reference:
 
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device_name in devices:
         device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
         print(f"{device_name}: {device_full_name}")

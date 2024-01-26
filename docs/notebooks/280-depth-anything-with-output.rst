@@ -15,35 +15,38 @@ page <https://depth-anything.github.io/>`__,
 `repository <https://github.com/LiheYoung/Depth-Anything>`__
 
 In this tutorial we will explore how to convert and run DepthAnything
-using OpenVINO. #### Table of contents: -
-`Prerequisites <#Prerequisites>`__ - `Load and run PyTorch
-model <#Load-and-run-PyTorch-model>`__ - `Prepare input
-data <#Prepare-input-data>`__ - `Run model
-inference <#Run-model-inference>`__ - `Convert Model to OpenVINO IR
-format <#Convert-Model-to-OpenVINO-IR-format>`__ - `Run OpenVINO model
-inference <#Run-OpenVINO-model-inference>`__ - `Select inference
-device <#Select-inference-device>`__ - `Run inference on
-image <#Run-inference-on-image>`__ - `Run inference on
-video <#Run-inference-on-video>`__ - `Interactive
-demo <#Interactive-demo>`__
+using OpenVINO.
+
+**Table of contents:**
+
+- `Prerequisites <#prerequisites>`__
+- `Load and run PyTorch model <#load-and-run-pytorch-model>`__
+- `Prepare input data <#prepare-input-data>`__
+- `Run model inference <#run-model-inference>`__
+- `Convert Model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
+- `Run OpenVINO model inference <#run-openvino-model-inference>`__
+- `Select inference device <#select-inference-device>`__
+- `Run inference on image <#run-inference-on-image>`__
+- `Run inference on video <#run-inference-on-video>`__
+- `Interactive demo <#interactive-demo>`__
 
 .. |image.png| image:: https://depth-anything.github.io/static/images/pipeline.png
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     repo_dir = Path("Depth-Anything")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/LiheYoung/Depth-Anything
     %cd Depth-Anything
-    
+
     %pip install -q "openvino>=2023.2.0"
     %pip install -q -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
@@ -56,17 +59,205 @@ Prerequisites
 .. parsed-literal::
 
     remote: Enumerating objects: 302, done.[K
-    remote: Counting objects:   1% (1/98)[Kremote: Counting objects:   2% (2/98)[Kremote: Counting objects:   3% (3/98)[Kremote: Counting objects:   4% (4/98)[Kremote: Counting objects:   5% (5/98)[Kremote: Counting objects:   6% (6/98)[Kremote: Counting objects:   7% (7/98)[Kremote: Counting objects:   8% (8/98)[Kremote: Counting objects:   9% (9/98)[Kremote: Counting objects:  10% (10/98)[Kremote: Counting objects:  11% (11/98)[Kremote: Counting objects:  12% (12/98)[Kremote: Counting objects:  13% (13/98)[Kremote: Counting objects:  14% (14/98)[Kremote: Counting objects:  15% (15/98)[Kremote: Counting objects:  16% (16/98)[Kremote: Counting objects:  17% (17/98)[Kremote: Counting objects:  18% (18/98)[Kremote: Counting objects:  19% (19/98)[Kremote: Counting objects:  20% (20/98)[Kremote: Counting objects:  21% (21/98)[Kremote: Counting objects:  22% (22/98)[Kremote: Counting objects:  23% (23/98)[Kremote: Counting objects:  24% (24/98)[Kremote: Counting objects:  25% (25/98)[Kremote: Counting objects:  26% (26/98)[Kremote: Counting objects:  27% (27/98)[Kremote: Counting objects:  28% (28/98)[Kremote: Counting objects:  29% (29/98)[Kremote: Counting objects:  30% (30/98)[Kremote: Counting objects:  31% (31/98)[Kremote: Counting objects:  32% (32/98)[Kremote: Counting objects:  33% (33/98)[Kremote: Counting objects:  34% (34/98)[Kremote: Counting objects:  35% (35/98)[Kremote: Counting objects:  36% (36/98)[Kremote: Counting objects:  37% (37/98)[Kremote: Counting objects:  38% (38/98)[Kremote: Counting objects:  39% (39/98)[Kremote: Counting objects:  40% (40/98)[Kremote: Counting objects:  41% (41/98)[Kremote: Counting objects:  42% (42/98)[Kremote: Counting objects:  43% (43/98)[Kremote: Counting objects:  44% (44/98)[Kremote: Counting objects:  45% (45/98)[Kremote: Counting objects:  46% (46/98)[Kremote: Counting objects:  47% (47/98)[Kremote: Counting objects:  48% (48/98)[Kremote: Counting objects:  50% (49/98)[Kremote: Counting objects:  51% (50/98)[Kremote: Counting objects:  52% (51/98)[Kremote: Counting objects:  53% (52/98)[Kremote: Counting objects:  54% (53/98)[Kremote: Counting objects:  55% (54/98)[Kremote: Counting objects:  56% (55/98)[Kremote: Counting objects:  57% (56/98)[Kremote: Counting objects:  58% (57/98)[Kremote: Counting objects:  59% (58/98)[Kremote: Counting objects:  60% (59/98)[Kremote: Counting objects:  61% (60/98)[Kremote: Counting objects:  62% (61/98)[Kremote: Counting objects:  63% (62/98)[Kremote: Counting objects:  64% (63/98)[Kremote: Counting objects:  65% (64/98)[Kremote: Counting objects:  66% (65/98)[Kremote: Counting objects:  67% (66/98)[Kremote: Counting objects:  68% (67/98)[Kremote: Counting objects:  69% (68/98)[Kremote: Counting objects:  70% (69/98)[Kremote: Counting objects:  71% (70/98)[Kremote: Counting objects:  72% (71/98)[Kremote: Counting objects:  73% (72/98)[Kremote: Counting objects:  74% (73/98)[Kremote: Counting objects:  75% (74/98)[Kremote: Counting objects:  76% (75/98)[Kremote: Counting objects:  77% (76/98)[Kremote: Counting objects:  78% (77/98)[Kremote: Counting objects:  79% (78/98)[Kremote: Counting objects:  80% (79/98)[Kremote: Counting objects:  81% (80/98)[Kremote: Counting objects:  82% (81/98)[Kremote: Counting objects:  83% (82/98)[Kremote: Counting objects:  84% (83/98)[Kremote: Counting objects:  85% (84/98)[Kremote: Counting objects:  86% (85/98)[Kremote: Counting objects:  87% (86/98)[Kremote: Counting objects:  88% (87/98)[Kremote: Counting objects:  89% (88/98)[Kremote: Counting objects:  90% (89/98)[Kremote: Counting objects:  91% (90/98)[Kremote: Counting objects:  92% (91/98)[Kremote: Counting objects:  93% (92/98)[Kremote: Counting objects:  94% (93/98)[Kremote: Counting objects:  95% (94/98)[Kremote: Counting objects:  96% (95/98)[Kremote: Counting objects:  97% (96/98)[Kremote: Counting objects:  98% (97/98)[Kremote: Counting objects: 100% (98/98)[Kremote: Counting objects: 100% (98/98), done.[K
-    remote: Compressing objects:   1% (1/83)[Kremote: Compressing objects:   2% (2/83)[Kremote: Compressing objects:   3% (3/83)[Kremote: Compressing objects:   4% (4/83)[Kremote: Compressing objects:   6% (5/83)[Kremote: Compressing objects:   7% (6/83)[Kremote: Compressing objects:   8% (7/83)[Kremote: Compressing objects:   9% (8/83)[Kremote: Compressing objects:  10% (9/83)[Kremote: Compressing objects:  12% (10/83)[Kremote: Compressing objects:  13% (11/83)[Kremote: Compressing objects:  14% (12/83)[Kremote: Compressing objects:  15% (13/83)[Kremote: Compressing objects:  16% (14/83)[Kremote: Compressing objects:  18% (15/83)[Kremote: Compressing objects:  19% (16/83)[Kremote: Compressing objects:  20% (17/83)[Kremote: Compressing objects:  21% (18/83)[Kremote: Compressing objects:  22% (19/83)[Kremote: Compressing objects:  24% (20/83)[Kremote: Compressing objects:  25% (21/83)[Kremote: Compressing objects:  26% (22/83)[Kremote: Compressing objects:  27% (23/83)[Kremote: Compressing objects:  28% (24/83)[Kremote: Compressing objects:  30% (25/83)[Kremote: Compressing objects:  31% (26/83)[Kremote: Compressing objects:  32% (27/83)[Kremote: Compressing objects:  33% (28/83)[Kremote: Compressing objects:  34% (29/83)[Kremote: Compressing objects:  36% (30/83)[Kremote: Compressing objects:  37% (31/83)[Kremote: Compressing objects:  38% (32/83)[Kremote: Compressing objects:  39% (33/83)[Kremote: Compressing objects:  40% (34/83)[Kremote: Compressing objects:  42% (35/83)[Kremote: Compressing objects:  43% (36/83)[Kremote: Compressing objects:  44% (37/83)[Kremote: Compressing objects:  45% (38/83)[Kremote: Compressing objects:  46% (39/83)[Kremote: Compressing objects:  48% (40/83)[Kremote: Compressing objects:  49% (41/83)[Kremote: Compressing objects:  50% (42/83)[Kremote: Compressing objects:  51% (43/83)[Kremote: Compressing objects:  53% (44/83)[Kremote: Compressing objects:  54% (45/83)[Kremote: Compressing objects:  55% (46/83)[Kremote: Compressing objects:  56% (47/83)[Kremote: Compressing objects:  57% (48/83)[Kremote: Compressing objects:  59% (49/83)[Kremote: Compressing objects:  60% (50/83)[Kremote: Compressing objects:  61% (51/83)[Kremote: Compressing objects:  62% (52/83)[Kremote: Compressing objects:  63% (53/83)[Kremote: Compressing objects:  65% (54/83)[Kremote: Compressing objects:  66% (55/83)[Kremote: Compressing objects:  67% (56/83)[Kremote: Compressing objects:  68% (57/83)[Kremote: Compressing objects:  69% (58/83)[Kremote: Compressing objects:  71% (59/83)[Kremote: Compressing objects:  72% (60/83)[Kremote: Compressing objects:  73% (61/83)[Kremote: Compressing objects:  74% (62/83)[Kremote: Compressing objects:  75% (63/83)[Kremote: Compressing objects:  77% (64/83)[Kremote: Compressing objects:  78% (65/83)[Kremote: Compressing objects:  79% (66/83)[Kremote: Compressing objects:  80% (67/83)[Kremote: Compressing objects:  81% (68/83)[Kremote: Compressing objects:  83% (69/83)[Kremote: Compressing objects:  84% (70/83)[Kremote: Compressing objects:  85% (71/83)[Kremote: Compressing objects:  86% (72/83)[Kremote: Compressing objects:  87% (73/83)[Kremote: Compressing objects:  89% (74/83)[Kremote: Compressing objects:  90% (75/83)[Kremote: Compressing objects:  91% (76/83)[Kremote: Compressing objects:  92% (77/83)[Kremote: Compressing objects:  93% (78/83)[Kremote: Compressing objects:  95% (79/83)[Kremote: Compressing objects:  96% (80/83)[Kremote: Compressing objects:  97% (81/83)[Kremote: Compressing objects:  98% (82/83)[Kremote: Compressing objects: 100% (83/83)[Kremote: Compressing objects: 100% (83/83), done.[K
+    remote: Counting objects:   1% (1/98)[K
+    remote: Counting objects:   2% (2/98)[K
+    remote: Counting objects:   3% (3/98)[K
+    remote: Counting objects:   4% (4/98)[K
+    remote: Counting objects:   5% (5/98)[K
+    remote: Counting objects:   6% (6/98)[K
+    remote: Counting objects:   7% (7/98)[K
+    remote: Counting objects:   8% (8/98)[K
+    remote: Counting objects:   9% (9/98)[K
+    remote: Counting objects:  10% (10/98)[K
+    remote: Counting objects:  11% (11/98)[K
+    remote: Counting objects:  12% (12/98)[K
+    remote: Counting objects:  13% (13/98)[K
+    remote: Counting objects:  14% (14/98)[K
+    remote: Counting objects:  15% (15/98)[K
+    remote: Counting objects:  16% (16/98)[K
+    remote: Counting objects:  17% (17/98)[K
+    remote: Counting objects:  18% (18/98)[K
+    remote: Counting objects:  19% (19/98)[K
+    remote: Counting objects:  20% (20/98)[K
+    remote: Counting objects:  21% (21/98)[K
+    remote: Counting objects:  22% (22/98)[K
+    remote: Counting objects:  23% (23/98)[K
+    remote: Counting objects:  24% (24/98)[K
+    remote: Counting objects:  25% (25/98)[K
+    remote: Counting objects:  26% (26/98)[K
+    remote: Counting objects:  27% (27/98)[K
+    remote: Counting objects:  28% (28/98)[K
+    remote: Counting objects:  29% (29/98)[K
+    remote: Counting objects:  30% (30/98)[K
+    remote: Counting objects:  31% (31/98)[K
+    remote: Counting objects:  32% (32/98)[K
+    remote: Counting objects:  33% (33/98)[K
+    remote: Counting objects:  34% (34/98)[K
+    remote: Counting objects:  35% (35/98)[K
+    remote: Counting objects:  36% (36/98)[K
+    remote: Counting objects:  37% (37/98)[K
+    remote: Counting objects:  38% (38/98)[K
+    remote: Counting objects:  39% (39/98)[K
+    remote: Counting objects:  40% (40/98)[K
+    remote: Counting objects:  41% (41/98)[K
+    remote: Counting objects:  42% (42/98)[K
+    remote: Counting objects:  43% (43/98)[K
+    remote: Counting objects:  44% (44/98)[K
+    remote: Counting objects:  45% (45/98)[K
+    remote: Counting objects:  46% (46/98)[K
+    remote: Counting objects:  47% (47/98)[K
+    remote: Counting objects:  48% (48/98)[K
+    remote: Counting objects:  50% (49/98)[K
+    remote: Counting objects:  51% (50/98)[K
+    remote: Counting objects:  52% (51/98)[K
+    remote: Counting objects:  53% (52/98)[K
+    remote: Counting objects:  54% (53/98)[K
+    remote: Counting objects:  55% (54/98)[K
+    remote: Counting objects:  56% (55/98)[K
+    remote: Counting objects:  57% (56/98)[K
+    remote: Counting objects:  58% (57/98)[K
+    remote: Counting objects:  59% (58/98)[K
+    remote: Counting objects:  60% (59/98)[K
+    remote: Counting objects:  61% (60/98)[K
+    remote: Counting objects:  62% (61/98)[K
+    remote: Counting objects:  63% (62/98)[K
+    remote: Counting objects:  64% (63/98)[K
+    remote: Counting objects:  65% (64/98)[K
+    remote: Counting objects:  66% (65/98)[K
+    remote: Counting objects:  67% (66/98)[K
+    remote: Counting objects:  68% (67/98)[K
+    remote: Counting objects:  69% (68/98)[K
+    remote: Counting objects:  70% (69/98)[K
+    remote: Counting objects:  71% (70/98)[K
+    remote: Counting objects:  72% (71/98)[K
+    remote: Counting objects:  73% (72/98)[K
+    remote: Counting objects:  74% (73/98)[K
+    remote: Counting objects:  75% (74/98)[K
+    remote: Counting objects:  76% (75/98)[K
+    remote: Counting objects:  77% (76/98)[K
+    remote: Counting objects:  78% (77/98)[K
+    remote: Counting objects:  79% (78/98)[K
+    remote: Counting objects:  80% (79/98)[K
+    remote: Counting objects:  81% (80/98)[K
+    remote: Counting objects:  82% (81/98)[K
+    remote: Counting objects:  83% (82/98)[K
+    remote: Counting objects:  84% (83/98)[K
+    remote: Counting objects:  85% (84/98)[K
+    remote: Counting objects:  86% (85/98)[K
+    remote: Counting objects:  87% (86/98)[K
+    remote: Counting objects:  88% (87/98)[K
+    remote: Counting objects:  89% (88/98)[K
+    remote: Counting objects:  90% (89/98)[K
+    remote: Counting objects:  91% (90/98)[K
+    remote: Counting objects:  92% (91/98)[K
+    remote: Counting objects:  93% (92/98)[K
+    remote: Counting objects:  94% (93/98)[K
+    remote: Counting objects:  95% (94/98)[K
+    remote: Counting objects:  96% (95/98)[K
+    remote: Counting objects:  97% (96/98)[K
+    remote: Counting objects:  98% (97/98)[K
+    remote: Counting objects: 100% (98/98)[K
+    remote: Counting objects: 100% (98/98), done.[K
+    remote: Compressing objects:   1% (1/83)[K
+    remote: Compressing objects:   2% (2/83)[K
+    remote: Compressing objects:   3% (3/83)[K
+    remote: Compressing objects:   4% (4/83)[K
+    remote: Compressing objects:   6% (5/83)[K
+    remote: Compressing objects:   7% (6/83)[K
+    remote: Compressing objects:   8% (7/83)[K
+    remote: Compressing objects:   9% (8/83)[K
+    remote: Compressing objects:  10% (9/83)[K
+    remote: Compressing objects:  12% (10/83)[K
+    remote: Compressing objects:  13% (11/83)[K
+    remote: Compressing objects:  14% (12/83)[K
+    remote: Compressing objects:  15% (13/83)[K
+    remote: Compressing objects:  16% (14/83)[K
+    remote: Compressing objects:  18% (15/83)[K
+    remote: Compressing objects:  19% (16/83)[K
+    remote: Compressing objects:  20% (17/83)[K
+    remote: Compressing objects:  21% (18/83)[K
+    remote: Compressing objects:  22% (19/83)[K
+    remote: Compressing objects:  24% (20/83)[K
+    remote: Compressing objects:  25% (21/83)[K
+    remote: Compressing objects:  26% (22/83)[K
+    remote: Compressing objects:  27% (23/83)[K
+    remote: Compressing objects:  28% (24/83)[K
+    remote: Compressing objects:  30% (25/83)[K
+    remote: Compressing objects:  31% (26/83)[K
+    remote: Compressing objects:  32% (27/83)[K
+    remote: Compressing objects:  33% (28/83)[K
+    remote: Compressing objects:  34% (29/83)[K
+    remote: Compressing objects:  36% (30/83)[K
+    remote: Compressing objects:  37% (31/83)[K
+    remote: Compressing objects:  38% (32/83)[K
+    remote: Compressing objects:  39% (33/83)[K
+    remote: Compressing objects:  40% (34/83)[K
+    remote: Compressing objects:  42% (35/83)[K
+    remote: Compressing objects:  43% (36/83)[K
+    remote: Compressing objects:  44% (37/83)[K
+    remote: Compressing objects:  45% (38/83)[K
+    remote: Compressing objects:  46% (39/83)[K
+    remote: Compressing objects:  48% (40/83)[K
+    remote: Compressing objects:  49% (41/83)[K
+    remote: Compressing objects:  50% (42/83)[K
+    remote: Compressing objects:  51% (43/83)[K
+    remote: Compressing objects:  53% (44/83)[K
+    remote: Compressing objects:  54% (45/83)[K
+    remote: Compressing objects:  55% (46/83)[K
+    remote: Compressing objects:  56% (47/83)[K
+    remote: Compressing objects:  57% (48/83)[K
+    remote: Compressing objects:  59% (49/83)[K
+    remote: Compressing objects:  60% (50/83)[K
+    remote: Compressing objects:  61% (51/83)[K
+    remote: Compressing objects:  62% (52/83)[K
+    remote: Compressing objects:  63% (53/83)[K
+    remote: Compressing objects:  65% (54/83)[K
+    remote: Compressing objects:  66% (55/83)[K
+    remote: Compressing objects:  67% (56/83)[K
+    remote: Compressing objects:  68% (57/83)[K
+    remote: Compressing objects:  69% (58/83)[K
+    remote: Compressing objects:  71% (59/83)[K
+    remote: Compressing objects:  72% (60/83)[K
+    remote: Compressing objects:  73% (61/83)[K
+    remote: Compressing objects:  74% (62/83)[K
+    remote: Compressing objects:  75% (63/83)[K
+    remote: Compressing objects:  77% (64/83)[K
+    remote: Compressing objects:  78% (65/83)[K
+    remote: Compressing objects:  79% (66/83)[K
+    remote: Compressing objects:  80% (67/83)[K
+    remote: Compressing objects:  81% (68/83)[K
+    remote: Compressing objects:  83% (69/83)[K
+    remote: Compressing objects:  84% (70/83)[K
+    remote: Compressing objects:  85% (71/83)[K
+    remote: Compressing objects:  86% (72/83)[K
+    remote: Compressing objects:  87% (73/83)[K
+    remote: Compressing objects:  89% (74/83)[K
+    remote: Compressing objects:  90% (75/83)[K
+    remote: Compressing objects:  91% (76/83)[K
+    remote: Compressing objects:  92% (77/83)[K
+    remote: Compressing objects:  93% (78/83)[K
+    remote: Compressing objects:  95% (79/83)[K
+    remote: Compressing objects:  96% (80/83)[K
+    remote: Compressing objects:  97% (81/83)[K
+    remote: Compressing objects:  98% (82/83)[K
+    remote: Compressing objects: 100% (83/83)[K
+    remote: Compressing objects: 100% (83/83), done.[K
 
 
 .. parsed-literal::
 
-    Receiving objects:   0% (1/302)Receiving objects:   1% (4/302)Receiving objects:   2% (7/302)Receiving objects:   3% (10/302)Receiving objects:   4% (13/302)Receiving objects:   5% (16/302)
+    Receiving objects:   0% (1/302)
+    Receiving objects:   1% (4/302)
+    Receiving objects:   2% (7/302)
+    Receiving objects:   3% (10/302)
+    Receiving objects:   4% (13/302)
+    Receiving objects:   5% (16/302)
 
 .. parsed-literal::
 
-    Receiving objects:   6% (19/302)Receiving objects:   7% (22/302)Receiving objects:   8% (25/302)
+    Receiving objects:   6% (19/302)
+    Receiving objects:   7% (22/302)
+    Receiving objects:   8% (25/302)
 
 .. parsed-literal::
 
@@ -74,11 +265,16 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:   9% (28/302), 4.68 MiB | 3.01 MiB/sReceiving objects:  10% (31/302), 4.68 MiB | 3.01 MiB/sReceiving objects:  11% (34/302), 4.68 MiB | 3.01 MiB/sReceiving objects:  12% (37/302), 4.68 MiB | 3.01 MiB/sReceiving objects:  13% (40/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:   9% (28/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:  10% (31/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:  11% (34/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:  12% (37/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:  13% (40/302), 4.68 MiB | 3.01 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  14% (43/302), 4.68 MiB | 3.01 MiB/sReceiving objects:  15% (46/302), 4.68 MiB | 3.01 MiB/s
+    Receiving objects:  14% (43/302), 4.68 MiB | 3.01 MiB/s
+Receiving objects:  15% (46/302), 4.68 MiB | 3.01 MiB/s
 
 .. parsed-literal::
 
@@ -90,7 +286,9 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  16% (49/302), 8.35 MiB | 3.23 MiB/sReceiving objects:  17% (52/302), 8.35 MiB | 3.23 MiB/sReceiving objects:  18% (55/302), 8.35 MiB | 3.23 MiB/s
+    Receiving objects:  16% (49/302), 8.35 MiB | 3.23 MiB/s
+    Receiving objects:  17% (52/302), 8.35 MiB | 3.23 MiB/s
+    Receiving objects:  18% (55/302), 8.35 MiB | 3.23 MiB/s
 
 .. parsed-literal::
 
@@ -102,11 +300,18 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  20% (61/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  21% (64/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  22% (67/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  20% (61/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  21% (64/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  22% (67/302), 13.81 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  23% (70/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  24% (73/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  25% (76/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  26% (79/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  27% (82/302), 13.81 MiB | 3.34 MiB/sReceiving objects:  28% (85/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  23% (70/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  24% (73/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  25% (76/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  26% (79/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  27% (82/302), 13.81 MiB | 3.34 MiB/s
+    Receiving objects:  28% (85/302), 13.81 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
@@ -114,11 +319,60 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  29% (88/302), 17.48 MiB | 3.55 MiB/sReceiving objects:  30% (91/302), 17.48 MiB | 3.55 MiB/sReceiving objects:  31% (94/302), 17.48 MiB | 3.55 MiB/sReceiving objects:  32% (97/302), 17.48 MiB | 3.55 MiB/s
+    Receiving objects:  29% (88/302), 17.48 MiB | 3.55 MiB/s
+    Receiving objects:  30% (91/302), 17.48 MiB | 3.55 MiB/s
+    Receiving objects:  31% (94/302), 17.48 MiB | 3.55 MiB/s
+    Receiving objects:  32% (97/302), 17.48 MiB | 3.55 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  33% (100/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  34% (103/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  35% (106/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  36% (109/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  37% (112/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  38% (115/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  39% (118/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  40% (121/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  41% (124/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  42% (127/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  43% (130/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  44% (133/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  45% (136/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  46% (139/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  47% (142/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  48% (145/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  49% (148/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  50% (151/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  51% (155/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  52% (158/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  53% (161/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  54% (164/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  55% (167/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  56% (170/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  57% (173/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  58% (176/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  59% (179/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  60% (182/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  61% (185/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  62% (188/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  63% (191/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  64% (194/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  65% (197/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  66% (200/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  67% (203/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  68% (206/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  69% (209/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  70% (212/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  71% (215/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  72% (218/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  73% (221/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  74% (224/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  75% (227/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  76% (230/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  77% (233/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  78% (236/302), 19.32 MiB | 3.55 MiB/sReceiving objects:  79% (239/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  33% (100/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  34% (103/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  35% (106/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  36% (109/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  37% (112/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  38% (115/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  39% (118/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  40% (121/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  41% (124/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  42% (127/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  43% (130/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  44% (133/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  45% (136/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  46% (139/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  47% (142/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  48% (145/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  49% (148/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  50% (151/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  51% (155/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  52% (158/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  53% (161/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  54% (164/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  55% (167/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  56% (170/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  57% (173/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  58% (176/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  59% (179/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  60% (182/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  61% (185/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  62% (188/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  63% (191/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  64% (194/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  65% (197/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  66% (200/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  67% (203/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  68% (206/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  69% (209/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  70% (212/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  71% (215/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  72% (218/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  73% (221/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  74% (224/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  75% (227/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  76% (230/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  77% (233/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  78% (236/302), 19.32 MiB | 3.55 MiB/s
+    Receiving objects:  79% (239/302), 19.32 MiB | 3.55 MiB/s
 
 .. parsed-literal::
 
@@ -170,7 +424,8 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  83% (251/302), 50.47 MiB | 3.55 MiB/sReceiving objects:  84% (254/302), 50.47 MiB | 3.55 MiB/s
+    Receiving objects:  83% (251/302), 50.47 MiB | 3.55 MiB/s
+    Receiving objects:  84% (254/302), 50.47 MiB | 3.55 MiB/s
 
 .. parsed-literal::
 
@@ -214,7 +469,8 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  86% (262/302), 83.16 MiB | 3.55 MiB/sReceiving objects:  87% (263/302), 83.16 MiB | 3.55 MiB/s
+    Receiving objects:  86% (262/302), 83.16 MiB | 3.55 MiB/s
+    Receiving objects:  87% (263/302), 83.16 MiB | 3.55 MiB/s
 
 .. parsed-literal::
 
@@ -250,7 +506,9 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  90% (272/302), 106.97 MiB | 3.55 MiB/sReceiving objects:  91% (275/302), 106.97 MiB | 3.55 MiB/sReceiving objects:  92% (278/302), 106.97 MiB | 3.55 MiB/s
+    Receiving objects:  90% (272/302), 106.97 MiB | 3.55 MiB/s
+    Receiving objects:  91% (275/302), 106.97 MiB | 3.55 MiB/s
+    Receiving objects:  92% (278/302), 106.97 MiB | 3.55 MiB/s
 
 .. parsed-literal::
 
@@ -275,8 +533,46 @@ Prerequisites
 .. parsed-literal::
 
     remote: Total 302 (delta 35), reused 62 (delta 15), pack-reused 204[K
-    Receiving objects:  95% (287/302), 116.13 MiB | 3.55 MiB/sReceiving objects:  96% (290/302), 116.13 MiB | 3.55 MiB/sReceiving objects:  97% (293/302), 116.13 MiB | 3.55 MiB/sReceiving objects:  98% (296/302), 116.13 MiB | 3.55 MiB/sReceiving objects:  99% (299/302), 116.13 MiB | 3.55 MiB/sReceiving objects: 100% (302/302), 116.13 MiB | 3.55 MiB/sReceiving objects: 100% (302/302), 117.40 MiB | 3.51 MiB/s, done.
-    Resolving deltas:   0% (0/80)Resolving deltas:   1% (1/80)Resolving deltas:   3% (3/80)Resolving deltas:   6% (5/80)Resolving deltas:  11% (9/80)Resolving deltas:  12% (10/80)Resolving deltas:  17% (14/80)Resolving deltas:  18% (15/80)Resolving deltas:  22% (18/80)Resolving deltas:  23% (19/80)Resolving deltas:  26% (21/80)Resolving deltas:  27% (22/80)Resolving deltas:  30% (24/80)Resolving deltas:  32% (26/80)Resolving deltas:  41% (33/80)Resolving deltas:  42% (34/80)Resolving deltas:  47% (38/80)Resolving deltas:  48% (39/80)Resolving deltas:  50% (40/80)Resolving deltas:  51% (41/80)Resolving deltas:  52% (42/80)Resolving deltas:  53% (43/80)Resolving deltas:  55% (44/80)Resolving deltas:  56% (45/80)Resolving deltas:  58% (47/80)Resolving deltas:  67% (54/80)Resolving deltas:  83% (67/80)Resolving deltas:  85% (68/80)Resolving deltas:  93% (75/80)Resolving deltas:  95% (76/80)Resolving deltas:  96% (77/80)Resolving deltas: 100% (80/80)Resolving deltas: 100% (80/80), done.
+    Receiving objects:  95% (287/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects:  96% (290/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects:  97% (293/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects:  98% (296/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects:  99% (299/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects: 100% (302/302), 116.13 MiB | 3.55 MiB/s
+    Receiving objects: 100% (302/302), 117.40 MiB | 3.51 MiB/s, done.
+    Resolving deltas:   0% (0/80)
+    Resolving deltas:   1% (1/80)
+    Resolving deltas:   3% (3/80)
+    Resolving deltas:   6% (5/80)
+    Resolving deltas:  11% (9/80)
+    Resolving deltas:  12% (10/80)
+    Resolving deltas:  17% (14/80)
+    Resolving deltas:  18% (15/80)
+    Resolving deltas:  22% (18/80)
+    Resolving deltas:  23% (19/80)
+    Resolving deltas:  26% (21/80)
+    Resolving deltas:  27% (22/80)
+    Resolving deltas:  30% (24/80)
+    Resolving deltas:  32% (26/80)
+    Resolving deltas:  41% (33/80)
+    Resolving deltas:  42% (34/80)
+    Resolving deltas:  47% (38/80)
+    Resolving deltas:  48% (39/80)
+    Resolving deltas:  50% (40/80)
+    Resolving deltas:  51% (41/80)
+    Resolving deltas:  52% (42/80)
+    Resolving deltas:  53% (43/80)
+    Resolving deltas:  55% (44/80)
+    Resolving deltas:  56% (45/80)
+    Resolving deltas:  58% (47/80)
+    Resolving deltas:  67% (54/80)
+    Resolving deltas:  83% (67/80)
+    Resolving deltas:  85% (68/80)
+    Resolving deltas:  93% (75/80)
+    Resolving deltas:  95% (76/80)
+    Resolving deltas:  96% (77/80)
+    Resolving deltas: 100% (80/80)
+    Resolving deltas: 100% (80/80), done.
 
 
 .. parsed-literal::
@@ -287,7 +583,7 @@ Prerequisites
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -297,28 +593,24 @@ Prerequisites
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     pyannote-audio 2.0.1 requires torchaudio<1.0,>=0.10, but you have torchaudio 2.1.2+cpu which is incompatible.
     tokenizers 0.14.1 requires huggingface_hub<0.18,>=0.16.4, but you have huggingface-hub 0.20.3 which is incompatible.
-    
+
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
 
-.. parsed-literal::
-
-    
-
 
 Load and run PyTorch model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To be able run PyTorch model on CPU, we should disable xformers
 attention optimizations first.
@@ -327,10 +619,10 @@ attention optimizations first.
 
     attention_file_path = Path("./torchhub/facebookresearch_dinov2_main/dinov2/layers/attention.py")
     orig_attention_path = attention_file_path.parent / ("orig_" + attention_file_path.name)
-    
+
     if not orig_attention_path.exists():
         attention_file_path.rename(orig_attention_path)
-        
+
         with orig_attention_path.open("r") as f:
             data = f.read()
             data = data.replace("XFORMERS_AVAILABLE = True", "XFORMERS_AVAILABLE = False")
@@ -350,7 +642,7 @@ DepthAnything family.
 .. code:: ipython3
 
     from depth_anything.dpt import DepthAnything
-    
+
     encoder = 'vits'  # can also be 'vitb' or 'vitl'
     model_id = 'depth_anything_{:}14'.format(encoder)
     depth_anything = DepthAnything.from_pretrained(f'LiheYoung/{model_id}')
@@ -369,22 +661,22 @@ DepthAnything family.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import urllib.request
     from PIL import Image
-    
-    
+
+
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
     from notebook_utils import download_file
-    
+
     download_file("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb", "furseal.png")
-    
+
     Image.open("furseal.png").resize((600, 400))
 
 
@@ -409,10 +701,10 @@ range.
 
     from depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
     from torchvision.transforms import Compose
-    
+
     import cv2
     import torch
-    
+
     transform = Compose([
         Resize(
             width=518,
@@ -425,8 +717,8 @@ range.
         NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         PrepareForNet(),
     ])
-    
-    
+
+
     image = cv2.cvtColor(cv2.imread('furseal.png'), cv2.COLOR_BGR2RGB) / 255.0
     h, w = image.shape[:-1]
     image = transform({'image': image})['image']
@@ -435,7 +727,7 @@ range.
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Preprocessed image passed to model forward and model returns depth map
 in format ``B`` x ``H`` x ``W``, where ``B`` is input batch size, ``H``
@@ -453,17 +745,17 @@ image size and prepare it for visualization.
 
     import torch.nn.functional as F
     import numpy as np
-    
+
     depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-            
+
     depth = depth.cpu().detach().numpy().astype(np.uint8)
     depth_color = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)
 
 .. code:: ipython3
 
     from matplotlib import pyplot as plt
-    
+
     plt.imshow(depth_color[:, :, ::-1]);
 
 
@@ -474,7 +766,7 @@ image size and prepare it for visualization.
 Convert Model to OpenVINO IR format
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -487,9 +779,9 @@ loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     import openvino as ov
-    
-    OV_DEPTH_ANYTHING_PATH = Path(f'{model_id}.xml') 
-    
+
+    OV_DEPTH_ANYTHING_PATH = Path(f'{model_id}.xml')
+
     if not OV_DEPTH_ANYTHING_PATH.exists():
         ov_model = ov.convert_model(depth_anything, example_input=image, input=[1, 3, 518, 518])
         ov.save_model(ov_model, OV_DEPTH_ANYTHING_PATH)
@@ -514,30 +806,30 @@ loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to run OpenVINO model
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -556,7 +848,7 @@ For starting work, please select inference device from dropdown list.
 Run inference on image
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -567,7 +859,7 @@ Run inference on image
     depth = res[0]
     depth = cv2.resize(depth, (w, h))
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-            
+
     depth = depth.astype(np.uint8)
     depth_color = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)
 
@@ -583,12 +875,12 @@ Run inference on image
 Run inference on video
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     download_file("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4", "./Coco Walking in Berkeley.mp4")
-    
+
     VIDEO_FILE = "./Coco Walking in Berkeley.mp4"
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
@@ -606,7 +898,7 @@ Run inference on video
     # Try the `THEO` encoding if you have FFMPEG installed.
     # FOURCC = cv2.VideoWriter_fourcc(*"THEO")
     FOURCC = cv2.VideoWriter_fourcc(*"vp09")
-    
+
     # Create Path objects for the input video and the result video.
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
@@ -627,11 +919,11 @@ Run inference on video
         raise ValueError(f"The video at {VIDEO_FILE} cannot be read.")
     input_fps = cap.get(cv2.CAP_PROP_FPS)
     input_video_frame_height, input_video_frame_width = image.shape[:2]
-    
+
     target_fps = input_fps / ADVANCE_FRAMES
     target_frame_height = int(input_video_frame_height * SCALE_OUTPUT)
     target_frame_width = int(input_video_frame_width * SCALE_OUTPUT)
-    
+
     cap.release()
     print(
         f"The input video has a frame width of {input_video_frame_width}, "
@@ -655,13 +947,13 @@ Run inference on video
     def normalize_minmax(data):
         """Normalizes the values in `data` between 0 and 1"""
         return (data - data.min()) / (data.max() - data.min())
-    
-    
+
+
     def convert_result_to_image(result, colormap="viridis"):
         """
         Convert network result of floating point numbers to an RGB image with
         integer values from 0-255 by applying a colormap.
-    
+
         `result` is expected to be a single network result in 1,H,W shape
         `colormap` is a matplotlib colormap.
         See https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -672,8 +964,8 @@ Run inference on video
         result = result.astype(np.uint8)
         result = cv2.applyColorMap(result, cv2.COLORMAP_INFERNO)[:, :, ::-1]
         return result
-    
-    
+
+
     def to_rgb(image_data) -> np.ndarray:
         """
         Convert image_data from BGR to RGB
@@ -692,15 +984,15 @@ Run inference on video
         clear_output,
         display,
     )
-    
+
     # Initialize variables.
     input_video_frame_nr = 0
     start_time = time.perf_counter()
     total_inference_duration = 0
-    
+
     # Open the input video
     cap = cv2.VideoCapture(str(VIDEO_FILE))
-    
+
     # Create a result video.
     out_video = cv2.VideoWriter(
         str(result_video_path),
@@ -708,35 +1000,35 @@ Run inference on video
         target_fps,
         (target_frame_width * 2, target_frame_height),
     )
-    
+
     num_frames = int(NUM_SECONDS * input_fps)
     total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) if num_frames == 0 else num_frames
     progress_bar = ProgressBar(total=total_frames)
     progress_bar.display()
-    
+
     try:
         while cap.isOpened():
             ret, image = cap.read()
             if not ret:
                 cap.release()
                 break
-    
+
             if input_video_frame_nr >= total_frames:
                 break
-    
+
             h, w = image.shape[:-1]
             input_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
             input_image = transform({'image': input_image})['image']
             # Reshape the image to network input shape NCHW.
             input_image = np.expand_dims(input_image, 0)
-    
+
             # Do inference.
             inference_start_time = time.perf_counter()
             result = compiled_model(input_image)[0]
             inference_stop_time = time.perf_counter()
             inference_duration = inference_stop_time - inference_start_time
             total_inference_duration += inference_duration
-    
+
             if input_video_frame_nr % (10 * ADVANCE_FRAMES) == 0:
                 clear_output(wait=True)
                 progress_bar.display()
@@ -750,7 +1042,7 @@ Run inference on video
                         f"({1/inference_duration:.2f} FPS)"
                     )
                 )
-    
+
             # Transform the network result to a RGB image.
             result_frame = to_rgb(convert_result_to_image(result))
             # Resize the image and the result to a target frame shape.
@@ -760,13 +1052,13 @@ Run inference on video
             stacked_frame = np.hstack((image, result_frame))
             # Save a frame to the video.
             out_video.write(stacked_frame)
-    
+
             input_video_frame_nr = input_video_frame_nr + ADVANCE_FRAMES
             cap.set(1, input_video_frame_nr)
-    
+
             progress_bar.progress = input_video_frame_nr
             progress_bar.update()
-    
+
     except KeyboardInterrupt:
         print("Processing interrupted.")
     finally:
@@ -776,7 +1068,7 @@ Run inference on video
         cap.release()
         end_time = time.perf_counter()
         duration = end_time - start_time
-    
+
         print(
             f"Processed {processed_frames} frames in {duration:.2f} seconds. "
             f"Total FPS (including video processing): {processed_frames/duration:.2f}."
@@ -787,7 +1079,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.48 seconds. Total FPS (including video processing): 4.45.Inference FPS: 10.00 
+    Processed 60 frames in 13.48 seconds. Total FPS (including video processing): 4.45.Inference FPS: 10.00
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -813,7 +1105,7 @@ Run inference on video
 
     Showing video saved at
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/280-depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video 
+    If you cannot see the video in your browser, please click on the following link to download the video
 
 
 
@@ -834,7 +1126,7 @@ Run inference on video
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can apply model on own images. You can move the slider on the
 resulting image to switch between the original image and the depth map
@@ -848,7 +1140,7 @@ view.
     import os
     import tempfile
     from gradio_imageslider import ImageSlider
-    
+
     css = """
     #img-display-container {
         max-height: 100vh;
@@ -860,55 +1152,55 @@ view.
         max-height: 80vh;
         }
     """
-    
-    
+
+
     title = "# Depth Anything with OpenVINO"
-    
-    
+
+
     def predict_depth(model, image):
         return model(image)[0]
-    
+
     with gr.Blocks(css=css) as demo:
         gr.Markdown(title)
         gr.Markdown("### Depth Prediction demo")
         gr.Markdown("You can slide the output to compare the depth prediction with input image")
-    
+
         with gr.Row():
             input_image = gr.Image(label="Input Image", type='numpy', elem_id='img-display-input')
             depth_image_slider = ImageSlider(label="Depth Map with Slider View", elem_id='img-display-output', position=0)
         raw_file = gr.File(label="16-bit raw depth (can be considered as disparity)")
         submit = gr.Button("Submit")
-    
+
         def on_submit(image):
             original_image = image.copy()
-    
+
             h, w = image.shape[:2]
-    
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
             image = transform({'image': image})['image']
             image = np.expand_dims(image, 0)
-    
+
             depth = predict_depth(compiled_model, image)
             depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
-    
+
             raw_depth = Image.fromarray(depth.astype('uint16'))
             tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
             raw_depth.save(tmp.name)
-    
+
             depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
             depth = depth.astype(np.uint8)
             colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
-    
+
             return [(original_image, colored_depth), tmp.name]
-    
+
         submit.click(on_submit, inputs=[input_image], outputs=[depth_image_slider, raw_file])
-    
+
         example_files = os.listdir('assets/examples')
         example_files.sort()
         example_files = [os.path.join('assets/examples', filename) for filename in example_files]
         examples = gr.Examples(examples=example_files, inputs=[input_image], outputs=[depth_image_slider, raw_file], fn=on_submit, cache_examples=False)
-    
-    
+
+
     if __name__ == '__main__':
         try:
             demo.queue().launch(debug=False)
@@ -922,12 +1214,12 @@ view.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

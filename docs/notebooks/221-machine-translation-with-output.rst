@@ -19,14 +19,14 @@ The structure is the same as the one for the input.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Downloading model <#Downloading-model>`__
--  `Load and configure the model <#Load-and-configure-the-model>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load tokenizers <#Load-tokenizers>`__
--  `Perform translation <#Perform-translation>`__
--  `Translate the sentence <#Translate-the-sentence>`__
+-  `Downloading model <#downloading-model>`__
+-  `Load and configure the model <#load-and-configure-the-model>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load tokenizers <#load-tokenizers>`__
+-  `Perform translation <#perform-translation>`__
+-  `Translate the sentence <#translate-the-sentence>`__
 
-   -  `Test your translation <#Test-your-translation>`__
+   -  `Test your translation <#test-your-translation>`__
 
 .. code:: ipython3
 
@@ -71,7 +71,7 @@ Table of contents:
 Downloading model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following command will download the model to the current directory.
 Make sure you have run ``pip install openvino-dev`` beforehand.
@@ -136,7 +136,7 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
 Load and configure the model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model is now available in the ``model/`` folder. Below, we load and
 configure its inputs and outputs.
@@ -153,7 +153,7 @@ configure its inputs and outputs.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -188,7 +188,7 @@ select device from dropdown list for running inference using OpenVINO
 Load tokenizers
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -217,7 +217,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
 Perform translation
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following function translates a sentence in English to German.
 
@@ -268,7 +268,7 @@ The following function translates a sentence in English to German.
 Translate the sentence
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following function is a basic loop that translates sentences.
 
@@ -300,7 +300,7 @@ The following function is a basic loop that translates sentences.
 Test your translation
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Run the following cell with an English sentence to have it translated to
 German

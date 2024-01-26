@@ -18,7 +18,7 @@ This notebook needs a quantized OpenVINO IR model and images from the
 `KiTS-19 <https://github.com/neheller/kits19>`__ dataset, converted to
 2D images. (To learn how the model is quantized, see the `Convert and
 Quantize a UNet Model and Show Live
-Inference <110-ct-segmentation-quantize-nncf.ipynb>`__ tutorial.)
+Inference <110-ct-segmentation-quantize-nncf-with-output.html>`__ tutorial.)
 
 This notebook provides a pre-trained model, trained for 20 epochs with
 the full KiTS-19 frames dataset, which has an F1 score on the validation
@@ -32,19 +32,19 @@ scan to use for inference.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Benchmark Model Performance <#Benchmark-Model-Performance>`__
--  `Download and Prepare Data <#Download-and-Prepare-Data>`__
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Benchmark Model Performance <#benchmark-model-performance>`__
+-  `Download and Prepare Data <#download-and-prepare-data>`__
+-  `Show Live Inference <#show-live-inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Prepare images <#Prepare-images>`__
-   -  `Specify device <#Specify-device>`__
-   -  `Setting callback function <#Setting-callback-function>`__
+      Files <#load-model-and-list-of-image-files>`__
+   -  `Prepare images <#prepare-images>`__
+   -  `Specify device <#specify-device>`__
+   -  `Setting callback function <#setting-callback-function>`__
    -  `Create asynchronous inference queue and perform
-      it <#Create-asynchronous-inference-queue-and-perform-it>`__
+      it <#create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 
@@ -59,7 +59,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -67,13 +67,13 @@ Imports
     import sys
     import zipfile
     from pathlib import Path
-    
+
     import numpy as np
     from monai.transforms import LoadImage
     import openvino as ov
-    
+
     from custom_segmentation import SegmentationModel
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -93,7 +93,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -104,16 +104,16 @@ trained or optimized yourself, adjust the model paths.
 
     # The directory that contains the IR model (xml and bin) files.
     models_dir = Path('pretrained_model')
-    
+
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/FP16-INT8/'
     ir_model_name_xml = 'quantized_unet_kits19.xml'
     ir_model_name_bin = 'quantized_unet_kits19.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=models_dir)
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=models_dir)
-    
+
     MODEL_PATH = models_dir / ir_model_name_xml
-    
+
     # Uncomment the next line to use the FP16 model instead of the quantized model.
     # MODEL_PATH = "pretrained_model/unet_kits19.xml"
 
@@ -133,7 +133,7 @@ trained or optimized yourself, adjust the model paths.
 Benchmark Model Performance
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+To measure the inference
 performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 - an inference performance measurement tool in OpenVINO. Benchmark tool
@@ -154,16 +154,16 @@ is a command-line application that can be run in the notebook with
     core = ov.Core()
     # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
     device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
-    
+
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + device_list,
         value=device_list[0],
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -188,12 +188,12 @@ is a command-line application that can be run in the notebook with
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
@@ -245,7 +245,7 @@ is a command-line application that can be run in the notebook with
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
+    [ INFO ] Fill input 'input.1' with random values
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
 
@@ -272,7 +272,7 @@ is a command-line application that can be run in the notebook with
 Download and Prepare Data
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download one validation video for live inference.
 
@@ -292,9 +292,9 @@ downloaded and extracted in the next cell.
     # The CT scan case number. For example: 16 for data from the case_00016 directory.
     # Currently only 117 is supported.
     CASE = 117
-    
+
     case_path = BASEDIR / f"case_{CASE:05d}"
-    
+
     if not case_path.exists():
         filename = download_file(
             f"https://storage.openvinotoolkit.org/data/test_data/openvino_notebooks/kits19/case_{CASE:05d}.zip"
@@ -321,7 +321,7 @@ downloaded and extracted in the next cell.
 Show Live Inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -335,7 +335,7 @@ Caching, refer to the `OpenVINO API
 tutorial <002-openvino-api-with-output.html>`__.
 
 We will use
-```AsyncInferQueue`` <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal
@@ -354,7 +354,7 @@ Everything else will be handled by the ``AsyncInferQueue`` instance.
 Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -371,7 +371,7 @@ to see the implementation.
         ie=core, model_path=Path(MODEL_PATH), sigmoid=True, rotate_and_flip=True
     )
     image_paths = sorted(case_path.glob("imaging_frames/*jpg"))
-    
+
     print(f"{case_path.name}, {len(image_paths)} images")
 
 
@@ -383,7 +383,7 @@ to see the implementation.
 Prepare images
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -393,10 +393,10 @@ tutorial.
 .. code:: ipython3
 
     framebuf = []
-    
+
     next_frame_id = 0
     reader = LoadImage(image_only=True, dtype=np.uint8)
-    
+
     while next_frame_id < len(image_paths) - 1:
         image_path = image_paths[next_frame_id]
         image = reader(str(image_path))
@@ -406,7 +406,7 @@ tutorial.
 Specify device
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -424,7 +424,7 @@ Specify device
 Setting callback function
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -439,20 +439,20 @@ The ``callback`` function will show the results of inference.
     import cv2
     import copy
     from IPython import display
-    
+
     from typing import Dict, Any
-    
+
     # Define a callback function that runs every time the asynchronous pipeline completes inference on a frame
     def completion_callback(infer_request: ov.InferRequest, user_data: Dict[str, Any],) -> None:
         preprocess_meta = user_data['preprocess_meta']
-        
+
         raw_outputs = {out.any_name: copy.deepcopy(res.data) for out, res in zip(infer_request.model_outputs, infer_request.output_tensors)}
         frame = segmentation_model.postprocess(raw_outputs, preprocess_meta)
-    
+
         _, encoded_img = cv2.imencode(".jpg", frame, params=[cv2.IMWRITE_JPEG_QUALITY, 90])
         # Create IPython image
         i = display.Image(data=encoded_img)
-    
+
         # Display the image in this notebook
         display.clear_output(wait=True)
         display.display(i)
@@ -460,39 +460,39 @@ The ``callback`` function will show the results of inference.
 Create asynchronous inference queue and perform it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import time
-    
+
     load_start_time = time.perf_counter()
     compiled_model = core.compile_model(segmentation_model.net, device.value)
     # Create asynchronous inference queue with optimal number of infer requests
     infer_queue = ov.AsyncInferQueue(compiled_model)
     infer_queue.set_callback(completion_callback)
     load_end_time = time.perf_counter()
-    
+
     results = [None] * len(framebuf)
     frame_number = 0
-    
+
     # Perform inference on every frame in the framebuffer
     start_time = time.time()
     for i, input_frame in enumerate(framebuf):
         inputs, preprocessing_meta = segmentation_model.preprocess({segmentation_model.net.input(0): input_frame})
         infer_queue.start_async(inputs, {'preprocess_meta': preprocessing_meta})
-    
+
     # Wait until all inference requests in the AsyncInferQueue are completed
     infer_queue.wait_all()
     stop_time = time.time()
-    
+
     # Calculate total inference time and FPS
     total_time = stop_time - start_time
     fps = len(framebuf) / total_time
-    time_per_frame = 1 / fps 
-    
+    time_per_frame = 1 / fps
+
     print(f"Loaded model to {device} in {load_end_time-load_start_time:.2f} seconds.")
-    
+
     print(f'Total time to infer all frames: {total_time:.3f}s')
     print(f'Time per frame: {time_per_frame:.6f}s ({fps:.3f} FPS)')
 
