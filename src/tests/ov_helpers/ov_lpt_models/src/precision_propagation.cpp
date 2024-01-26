@@ -11,7 +11,6 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -281,7 +280,7 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     return function;
 }
 
-std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel) {
+std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
     const std::vector<size_t> stride = { 1, 1 };
     const std::vector<size_t> padBegin = { 0, 0 };
     const std::vector<size_t> padEnd = { 0, 0 };

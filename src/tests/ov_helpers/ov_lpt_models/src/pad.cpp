@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "openvino/opsets/opset12.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/pad.hpp"
 #include "low_precision/network_helper.hpp"
