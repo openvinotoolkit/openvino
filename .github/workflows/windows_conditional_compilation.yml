@@ -171,8 +171,8 @@ jobs:
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel 7 --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel 7 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show sccache stats
         run: '& "$Env:SCCACHE_PATH" --show-stats'
