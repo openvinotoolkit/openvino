@@ -10,6 +10,7 @@ namespace {
 using ov::test::Gather7LayerTest;
 using ov::test::Gather8LayerTest;
 using ov::test::Gather8withIndicesDataLayerTest;
+using ov::test::GatherStringWithIndicesDataLayerTest;
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
@@ -228,5 +229,52 @@ const auto gatherWithIndicesParams = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
+
+const ov::test::gatherStringParamsTuple test_string_params_1 = {
+    ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3}}),  // input shape
+    ov::Shape{1},                                                                 // indices shape
+    std::tuple<int, int>{0, 0},                                                   // axis, batch
+    ov::element::string,                                                          // model type
+    ov::test::utils::DEVICE_CPU,                                                  // device
+    std::vector<int64_t>{0},                                                      // indices value
+    std::vector<std::string>{"Abc", "xyz", "..."}};
+
+const ov::test::gatherStringParamsTuple test_string_params_2 = {
+    ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3}}),  // input shape
+    ov::Shape{1},                                                                 // indices shape
+    std::tuple<int, int>{0, 0},                                                   // axis, batch
+    ov::element::string,                                                          // model type
+    ov::test::utils::DEVICE_CPU,                                                  // device
+    std::vector<int64_t>{1},                                                      // indices value
+    std::vector<std::string>{"Abc", "xyz", "..."}};
+
+const ov::test::gatherStringParamsTuple test_string_params_3 = {
+    ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3}}),  // input shape
+    ov::Shape{2},                                                                 // indices shape
+    std::tuple<int, int>{0, 0},                                                   // axis, batch
+    ov::element::string,                                                          // model type
+    ov::test::utils::DEVICE_CPU,                                                  // device
+    std::vector<int64_t>{0, 2},                                                   // indices value
+    std::vector<std::string>{"Abc", "xyz", "..."}};
+
+const ov::test::gatherStringParamsTuple test_string_params_4 = {
+    ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{3}}),  // input shape
+    ov::Shape{2},                                                                 // indices shape
+    std::tuple<int, int>{0, 0},                                                   // axis, batch
+    ov::element::string,                                                          // model type
+    ov::test::utils::DEVICE_CPU,                                                  // device
+    std::vector<int64_t>{0, 1},                                                   // indices value
+    std::vector<std::string>{"Ab", "1345", "xyz"}};
+
+std::vector<ov::test::gatherStringParamsTuple> string_cases_params{test_string_params_1,
+                                                                   test_string_params_2,
+                                                                   test_string_params_3,
+                                                                   test_string_params_4};
+const auto gatherWithStringParams = testing::ValuesIn(string_cases_params);
+
+INSTANTIATE_TEST_CASE_P(smoke_gather_string,
+                        GatherStringWithIndicesDataLayerTest,
+                        gatherWithStringParams,
+                        GatherStringWithIndicesDataLayerTest::getTestCaseName);
 
 }  // namespace
