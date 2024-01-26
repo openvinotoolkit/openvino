@@ -689,7 +689,7 @@ void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
 }
 
-std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
+std::shared_ptr<ov::Model> LayerTestsCommon::GetFunction() {
     return function;
 }
 

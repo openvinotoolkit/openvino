@@ -14,11 +14,17 @@
 #    endif
 #endif
 
-#include "ngraph/function.hpp"
+#include <memory>
+
+#include "ngraph/deprecated.hpp"
+#include "ngraph/ngraph_visibility.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ngraph {
 /// \brief Creates a "specialized" clone of a function. The partial shapes and element types of
-///        the function's parameters may be narrowed to more specific shapes and element types,
+///        the function's parameters may be narrowed to more specific shapes and element type
 ///        and constant values may optionally be substituted for any or all of the parameters.
 /// \param f The function to be cloned.
 /// \param parameter_element_types The new parameter element types to substitute. Length must
@@ -101,8 +107,8 @@ namespace ngraph {
 ///
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Function> specialize_function(std::shared_ptr<Function> f,
-                                              const std::vector<ov::element::Type>& parameter_element_types,
-                                              const std::vector<ov::PartialShape>& parameter_shapes,
-                                              const std::vector<void*>& parameter_values);
+std::shared_ptr<ov::Model> specialize_function(std::shared_ptr<ov::Model> f,
+                                               const std::vector<ov::element::Type>& parameter_element_types,
+                                               const std::vector<ov::PartialShape>& parameter_shapes,
+                                               const std::vector<void*>& parameter_values);
 }  // namespace ngraph

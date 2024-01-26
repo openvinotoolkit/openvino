@@ -520,8 +520,8 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
     }
 
     // Make parameter node
-    std::shared_ptr<op::Parameter> par_node =
-        std::make_shared<op::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
+    std::shared_ptr<ov::op::v0::Parameter> par_node =
+        std::make_shared<ov::op::v0::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
     std::vector<ov::Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
@@ -720,7 +720,7 @@ bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_
     return false;
 }
 
-void plot_graph(std::shared_ptr<Function> f,
+void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
                 std::function<void(const Node& node, std::vector<std::string>& attributes)> attributes) {
     ov::pass::Manager pass_manager;
