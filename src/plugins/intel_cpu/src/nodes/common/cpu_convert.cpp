@@ -26,18 +26,13 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-template <typename src_t, typename dst_t>
-void convert_vec_avx2(jit_generator & gen,
-                 const RegExp & src,
-                 const RegExp & dst);
-
-template <typename src_t, typename dst_t>
-void convert_vec_avx512(jit_generator & gen,
+template <typename src_t, typename dst_t, int isa>
+void convert_vec(jit_generator & gen,
                  const RegExp & src,
                  const RegExp & dst);
 
 template <>
-void convert_vec_avx2<ov::float16, float>(jit_generator & gen,
+void convert_vec<ov::float16, float, cpu_isa_t::avx2>(jit_generator & gen,
                                      const RegExp & src,
                                      const RegExp & dst) {
     auto const & f16vec = gen.xmm3;
@@ -49,7 +44,7 @@ void convert_vec_avx2<ov::float16, float>(jit_generator & gen,
 }
 
 template <>
-void convert_vec_avx2<float, ov::float16>(jit_generator & gen,
+void convert_vec<float, ov::float16, cpu_isa_t::avx2>(jit_generator & gen,
                                      const RegExp & src,
                                      const RegExp & dst) {
     auto const & f16vec = gen.xmm3;
@@ -62,27 +57,27 @@ void convert_vec_avx2<float, ov::float16>(jit_generator & gen,
 
 // AVX512 instructions for ov::float16 to float conversion
 template <>
-void convert_vec_avx512<ov::float16, float>(jit_generator & gen,
-                                        const RegExp & src,
-                                        const RegExp & dst) {
-    auto const & f16vec = gen.zmm3;
+void convert_vec<ov::float16, float, cpu_isa_t::avx512_core>(jit_generator & gen,
+                                     const RegExp & src,
+                                     const RegExp & dst) {
+    auto const & f16vec = gen.ymm3;
     auto const & f32vec = gen.zmm4;
 
-    gen.vmovdqu16(f16vec, gen.zword[src]);
+    gen.movdqu(f16vec, gen.yword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
     gen.vmovups(gen.zword[dst], f32vec);
 }
 
 template <>
-void convert_vec_avx512<float, ov::float16>(jit_generator & gen,
-                                        const RegExp & src,
-                                        const RegExp & dst) {
-    auto const & f16vec = gen.zmm3;
+void convert_vec<float, ov::float16, cpu_isa_t::avx512_core>(jit_generator & gen,
+                                     const RegExp & src,
+                                     const RegExp & dst) {
+    auto const & f16vec = gen.ymm3;
     auto const & f32vec = gen.zmm4;
 
     gen.vmovups(f32vec, gen.zword[src]);
     gen.vcvtps2ph(f16vec, f32vec, 0);
-    gen.vmovdqu16(gen.zword[dst], f16vec);
+    gen.movdqu(gen.yword[dst], f16vec);
 }
 
 class jit_convert_array : public jit_kernel {
@@ -157,12 +152,12 @@ public:
     static fn_t get() {
         // fallback to AVX2 if AVX512 is not available
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            static jit_convert_array converter(convert_vec_avx512<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
+            static jit_convert_array converter(convert_vec<src_t, dst_t, cpu_isa_t::avx512_core>, sizeof(src_t), sizeof(dst_t));
             auto& generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
         } else if (mayiuse(cpu_isa_t::avx2) && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
-            static jit_convert_array converter(convert_vec_avx2<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
+            static jit_convert_array converter(convert_vec<src_t, dst_t, cpu_isa_t::avx2>, sizeof(src_t), sizeof(dst_t));
             auto& generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
