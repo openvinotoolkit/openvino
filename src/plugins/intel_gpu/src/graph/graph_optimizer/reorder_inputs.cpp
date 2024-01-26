@@ -894,12 +894,13 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
     const auto reorder_input_pooling = [&p, &rf](typed_program_node<pooling>& pooling_node) {
         // Change input data type of pooling node from i32 to f32
-        auto& input = pooling_node.input();
-        auto input_layout = input.get_output_layout();
+        auto dep = pooling_node.get_dependency_with_port(0);
+        const auto& input = dep.first;
+        auto input_layout = input->get_output_layout();
         if (pooling_node.get_primitive()->mode == pooling_mode::max && input_layout.data_type == data_types::i32) {
             auto new_layout = input_layout;
             new_layout.data_type = data_types::f32;
-            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
             }

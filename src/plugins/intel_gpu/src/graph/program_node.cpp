@@ -83,7 +83,7 @@ std::vector<layout> const program_node::get_input_layouts() const {
 
 layout program_node::get_input_layout(size_t idx) const {
     const auto& d = get_dependency_with_port(idx);
-    return d.first->get_output_layout(false, d.second);
+    return d.first->get_output_layout(true, d.second);
 }
 
 ov::PartialShape program_node::get_input_pshape(size_t idx) const {
