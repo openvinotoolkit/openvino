@@ -94,7 +94,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
          :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :doc:`OpenVINO State API<ov_ug_state_api>`, [Example of stateful model inference](#example-of-stateful-model-inference).
+4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`, [Example of stateful model inference](#example-of-stateful-model-inference).
 
 **Known Limitations**
 
