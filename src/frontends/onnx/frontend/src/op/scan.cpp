@@ -10,7 +10,6 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/function.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"

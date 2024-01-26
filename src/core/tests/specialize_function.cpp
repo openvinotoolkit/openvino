@@ -27,7 +27,7 @@ TEST(specialize_function, et_shape_static) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -48,7 +48,7 @@ TEST(specialize_function, et_dynamic_shape_static) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -69,7 +69,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -90,7 +90,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -111,7 +111,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<int32_t> p1_subst_vals{5, 0, 3, 8, 5, 8};
 
@@ -147,7 +147,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic_validation_fails) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -171,7 +171,7 @@ TEST(specialize_function, et_dynamic_shape_static_validation_fails) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -198,7 +198,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -225,7 +225,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -247,7 +247,7 @@ TEST(specialize_function, et_count_wrong) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -269,7 +269,7 @@ TEST(specialize_function, shape_count_wrong) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr};
 
@@ -291,7 +291,7 @@ TEST(specialize_function, value_count_wrong) {
     auto k = std::make_shared<Convert>(p1, element::f32);
     auto a = std::make_shared<Add>(p0, k);
 
-    auto f = std::make_shared<Function>(a, ov::ParameterVector{p0, p1});
+    auto f = std::make_shared<ov::Model>(a, ov::ParameterVector{p0, p1});
 
     std::vector<void*> param_vals{nullptr, nullptr, nullptr};
 

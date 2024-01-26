@@ -25,9 +25,9 @@ const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::L
 
 namespace ngraph {
 namespace onnx_import {
-std::shared_ptr<Function> import_onnx_model(std::istream& stream,
-                                            const std::string& model_path,
-                                            const bool enable_mmap) {
+std::shared_ptr<ov::Model> import_onnx_model(std::istream& stream,
+                                             const std::string& model_path,
+                                             const bool enable_mmap) {
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
@@ -43,7 +43,7 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
     return model;
 }
 
-std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const bool enable_mmap) {
+std::shared_ptr<ov::Model> import_onnx_model(const std::string& file_path, const bool enable_mmap) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
