@@ -3,6 +3,7 @@
 //
 
 #include "gemm_kernel_ref.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey GemmKernelRef::GetSupportedKey() const {
@@ -35,6 +36,22 @@ DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& 
     return DeviceFeaturesKey();
 }
 
+GemmKernelBase::DispatchData GemmKernelRef::SetDefault(const gemm_params& params) const {
+    const auto& output = params.outputs[0];
+
+    DispatchData dispatchData;
+
+    if (!output.is_dynamic()) {
+        auto total_batches = output.LogicalSize() /
+                            (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
+        dispatchData.gws = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
+                             total_batches };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    }
+
+    return dispatchData;
+}
+
 JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = Parent::GetJitConstants(params);
 
@@ -45,6 +62,15 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
         jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
         jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACTIVATION"));
     }
+
+    jit.AddConstants({
+        MakeJitConstant("TR_B", GetTransposedDims(params.output_order).at(0)),
+        MakeJitConstant("TR_F", GetTransposedDims(params.output_order).at(1)),
+        MakeJitConstant("TR_W", GetTransposedDims(params.output_order).at(4)),
+        MakeJitConstant("TR_Z", GetTransposedDims(params.output_order).at(5)),
+        MakeJitConstant("TR_Y", GetTransposedDims(params.output_order).at(6)),
+        MakeJitConstant("TR_X", GetTransposedDims(params.output_order).at(7)),
+    });
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

@@ -17,8 +17,11 @@ struct gemm_params : public base_params {
 
     float alpha;
     float beta;
-    bool transpose_input0;
-    bool transpose_input1;
+    uint32_t transpose_input0;
+    uint32_t transpose_input1;
+    std::vector<int64_t> input0_order;
+    std::vector<int64_t> input1_order;
+    std::vector<int64_t> output_order;
     QuantizationType quantization = QuantizationType::NONE;
 
     ParamsKey GetParamsKey() const override {
@@ -49,6 +52,12 @@ protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;
     virtual DispatchData SetDefault(const gemm_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+
+    std::string GetDimsOrder(const std::vector<int64_t>& order_idx) const;
+    size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor &output, char target_dim) const;
+    std::vector<int64_t> ConvTo8dims(const std::vector<int64_t>& order_idx) const;
+    std::vector<std::string> GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt = false) const;
+
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;

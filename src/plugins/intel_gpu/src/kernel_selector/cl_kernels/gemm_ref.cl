@@ -26,11 +26,7 @@ inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, ui
 }
 
 inline uint FUNC(get_input0_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
-#if !TRANSPOSE_INPUT0
-    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
-#else
-    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, x, y);
-#endif
+    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT0_DIMS_ORDER);
 }
 
 inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
@@ -50,11 +46,7 @@ inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, ui
 }
 
 inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
-#if !TRANSPOSE_INPUT1
-    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
-#else
-    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, x, y);
-#endif
+    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
 }
 
 #ifdef INPUT2_TYPE
@@ -100,11 +92,7 @@ KERNEL(gemm_ref)(
     bidx /= OUTPUT_SIZE_Z;
     const uint w = bidx % OUTPUT_SIZE_W;
 
-#if !TRANSPOSE_INPUT0
-    const uint K = INPUT0_SIZE_X;
-#else
-    const uint K = INPUT0_SIZE_Y;
-#endif
+    const uint K = CAT(INPUT0_SIZE_, MATMUL_AXIS);
 
     ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
@@ -129,7 +117,7 @@ KERNEL(gemm_ref)(
     }
 #endif
 
-    const uint dst_index = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+    const uint dst_index = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X);
 
     ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(acc);
 

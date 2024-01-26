@@ -124,6 +124,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
+#include "plugin/transformations/transpose_matmul_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -702,6 +703,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
