@@ -56,7 +56,7 @@ ov::op::RoundingType get_rounding_type(const Node& node);
 ///
 /// \return A pair of (padding_above, padding_below), which elements contains number of
 ///         pixels to pad in respective dimensions (height, width, depth).
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_t kernel_rank);
+std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const Node& node, const size_t kernel_rank);
 
 /// \brief Get padding values for the operation described by an ONNX node.
 /// \details Values are taken from the `pads` attribute.
@@ -67,7 +67,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 ///
 /// \return A pair of (padding_above, padding_below), which elements contains number of
 ///         pixels to pad in respective dimensions (height, width, depth).
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node);
+std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const Node& node);
 
 ///
 /// \brief         Calculate paddings with respect to auto_pad value.
@@ -86,8 +86,8 @@ void calculate_auto_pads(const Shape& data_shape,
                          const Strides& strides,
                          const Strides& dilations,
                          const ov::op::PadType& pad_type,
-                         CoordinateDiff& padding_below,
-                         CoordinateDiff& padding_above);
+                         ov::CoordinateDiff& padding_below,
+                         ov::CoordinateDiff& padding_above);
 
 /// \brief      Gets the 'auto_pad' attribute value.
 ///
