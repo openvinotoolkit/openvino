@@ -170,9 +170,6 @@ private:
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
-    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
-
     ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
                                                                 const std::shared_ptr<const ov::Model>& model,
                                                                 const ov::SoPtr<ov::IRemoteContext>& context,
