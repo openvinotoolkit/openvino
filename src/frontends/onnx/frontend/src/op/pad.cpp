@@ -66,9 +66,9 @@ OutputVector pad(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
-    Output<ov::Node> values;
-    Output<ov::Node> padding_begin;
-    Output<ov::Node> padding_end;
+    ov::Output<ov::Node> values;
+    ov::Output<ov::Node> padding_begin;
+    ov::Output<ov::Node> padding_end;
 
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         values = reshape::interpret_as_scalar(inputs[2]);

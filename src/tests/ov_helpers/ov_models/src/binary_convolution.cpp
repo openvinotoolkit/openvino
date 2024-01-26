@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeBinaryConvolution(const Output<Node>& in,
+std::shared_ptr<Node> makeBinaryConvolution(const ov::Output<Node>& in,
                                             const std::vector<size_t>& filterSize,
                                             const std::vector<size_t>& strides,
                                             const std::vector<ptrdiff_t>& padsBegin,
