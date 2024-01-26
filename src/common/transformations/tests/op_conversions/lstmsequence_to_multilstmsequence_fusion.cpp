@@ -102,12 +102,10 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto squeeze_2 = std::make_shared<op::v0::Squeeze>(lstm_sequence_2->output(0), axis_1_1);
 
         auto abs = std::make_shared<op::v0::Abs>(squeeze_2->output(0));
-        //std::cout << "ONE\n";
         ParameterVector params = {X, H, C, W, R, B, X_2, H_2, C_2, W_2, R_2, B_2};
         model = std::make_shared<Model>(NodeVector{abs}, params);
-        pass::VisualizeTree(std::string("/home/pwysocki/") + "multi.svg").run_on_model(model);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        //std::cout << "TWO\n";
+        manager.register_pass<ov::pass::VisualizeTree>(std::string("/home/pwysocki/") + "multi.svg");
     }
 
     {

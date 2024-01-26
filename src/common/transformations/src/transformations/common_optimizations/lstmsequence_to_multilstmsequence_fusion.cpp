@@ -93,9 +93,9 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      const std::shared_ptr<ov::Node>& axis_1) {
     const auto X_in = cp_to.make<ov::op::v0::Concat>(x_to_concat, 1);
     const auto X_in_squeezed = cp_to.make<ov::op::v0::Squeeze>(X_in->output(0), axis_0);
-    const auto Ht_in = cp_to.add(first_cell->input_value(1).get_node_shared_ptr());
-    const auto Ct_in = cp_to.add(first_cell->input_value(2).get_node_shared_ptr());
-    const auto seq_len = cp_to.add(first_cell->input_value(3).get_node_shared_ptr());
+    const auto Ht_in = cp_to.add(last_cell->input_value(1).get_node_shared_ptr());
+    const auto Ct_in = cp_to.add(last_cell->input_value(2).get_node_shared_ptr());
+    const auto seq_len = cp_to.add(last_cell->input_value(3).get_node_shared_ptr());
     const auto W_in = cp_to.make<ov::op::v0::Concat>(weights_to_concat, 1);
     const auto R_in = cp_to.make<ov::op::v0::Concat>(recurrence_weights_to_concat, 1);
     const auto B_in = cp_to.make<ov::op::v0::Concat>(biases_to_concat, 1);
@@ -151,6 +151,18 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         std::shared_ptr<op::v5::LSTMSequence> current_lstm = std::dynamic_pointer_cast<op::v5::LSTMSequence>(lstm);
         if (!current_lstm) {
             return false;
+        }
+        // check if LSTMSequence's output doesn't lead to another LSTMSequence
+        // essentially check if it's the last LSTMSequence in the series
+        for (const auto& target : lstm->get_output_target_inputs(0)) {
+            // detect Squeeze inbetween two LSTMSequence nodes
+            auto squeeze = std::dynamic_pointer_cast<op::v0::Squeeze>(target.get_node()->shared_from_this());
+            for (const auto& target_2 : squeeze->get_output_target_inputs(0)) {
+                auto lstm_1 = std::dynamic_pointer_cast<op::v5::LSTMSequence>(target_2.get_node()->shared_from_this());
+                if (squeeze && lstm_1 && is_equal_cells(lstm_1, current_lstm)) {
+                    return false;
+                }
+            }
         }
 
         int lstm_count;
