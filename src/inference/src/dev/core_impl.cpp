@@ -1274,34 +1274,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         std::lock_guard<std::mutex> lock(get_mutex());
         created_plugins.reserve(plugins.size());
 
-        // TODO: keep only:
-        //    coreConfig.set_and_update(config);
-        // once GPU remove support of ov::cache_dir
-        // CoreConfg::set_and_update will drop CACHE_DIR from config map
-        // and updates core config with new ov::cache_dir
-        if (deviceName.empty()) {
-            coreConfig.set_and_update(config);
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto cache_it = config.find(ov::cache_dir.name());
-            if (cache_it != config.end()) {
-                coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
-                config.erase(cache_it);
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            // apply and remove core properties
-            auto it = config.find(ov::force_tbb_terminate.name());
-            if (it != config.end()) {
-                auto flag = it->second.as<bool>();
-                ov::threading::executor_manager()->set_property({{it->first, flag}});
-                config.erase(it);
-            }
-
-            it = config.find(ov::enable_mmap.name());
-            if (it != config.end()) {
-                config.erase(it);
-            }
-        }
+        coreConfig.set_and_update(config);
 
         if (!config.empty()) {
             auto base_desc = pluginRegistry.find(clearDeviceName);
@@ -1570,11 +1543,6 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
         _flag_enable_mmap = flag;
         config.erase(it);
     }
-}
-
-void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
-    std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-    _cacheConfigPerDevice[name] = CoreConfig::CacheConfig::create(dir);
 }
 
 std::string ov::CoreImpl::CoreConfig::get_cache_dir() const {
