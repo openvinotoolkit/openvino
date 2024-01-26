@@ -70,7 +70,7 @@ OutputVector blackmanwindow(const Node& node) {
     const auto scaled_cos_2 = std::make_shared<v1::Multiply>(cos_2, a_2);
     const auto y_values = std::make_shared<v1::Add>(std::make_shared<v1::Add>(a_0, scaled_cos_1), scaled_cos_2);
 
-    if (output_datatype == element::f32) {
+    if (output_datatype == ov::element::f32) {
         return {y_values};
     } else {
         return {std::make_shared<v0::Convert>(y_values, output_datatype)};

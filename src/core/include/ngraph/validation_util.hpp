@@ -29,6 +29,11 @@ using ov::normalize_axes;
 using ov::normalize_axis;
 using ov::op::v0::Constant;
 
+namespace element {
+using ov::element::Type;
+using ov::element::Type_t;
+}  // namespace element
+
 NGRAPH_API_DEPRECATED
 NGRAPH_API
 Strides conv_default_strides(const Node* node,
