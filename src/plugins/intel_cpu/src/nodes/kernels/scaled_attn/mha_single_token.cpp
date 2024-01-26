@@ -144,10 +144,10 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
     auto v_zp = _mm256_set1_ps(zp);
     for (; i + 4 * vec_len_f32_avx2 <= S; i += 4* vec_len_f32_avx2) {
-        auto v0_128 = _mm_loadu_si64(v + i);
-        auto v1_128 = _mm_loadu_si64(v + i + vec_len_f32_avx2);
-        auto v2_128 = _mm_loadu_si64(v + i + vec_len_f32_avx2 * 2);
-        auto v3_128 = _mm_loadu_si64(v + i + vec_len_f32_avx2 * 3);
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i));
+        auto v1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2));
+        auto v2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2 * 2));
+        auto v3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2 * 3));
 
         auto v0_out = mm256_uni_loadu_ps(out + i);
         auto v1_out = mm256_uni_loadu_ps(out + i + vec_len_f32_avx2);
@@ -180,8 +180,8 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
         mm256_uni_storeu_ps(out + i + vec_len_f32_avx2 * 3, v3_out);
     }
     if (i + 2 * vec_len_f32_avx2 <= S) {
-        auto v0_128 = _mm_loadu_si64(v + i);
-        auto v1_128 = _mm_loadu_si64(v + i + vec_len_f32_avx2);
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i));
+        auto v1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2));
 
         auto v0_out = mm256_uni_loadu_ps(out + i);
         auto v1_out = mm256_uni_loadu_ps(out + i + vec_len_f32_avx2);
@@ -203,7 +203,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
         i += 2 * vec_len_f32_avx2;
     }
     if (i + vec_len_f32_avx2 <= S) {
-        auto v0_128 = _mm_loadu_si64(v + i);
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i));
         auto v0_out = mm256_uni_loadu_ps(out + i);
         auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
         auto v0_value = _mm256_cvtepi32_ps(v0_256);
@@ -484,10 +484,10 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         auto va2 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 2);
         auto va3 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 3);
 
-        auto vb0_128 = _mm_loadu_si64(b + i);
-        auto vb1_128 = _mm_loadu_si64(b + i + vec_len_f32_avx2);
-        auto vb2_128 = _mm_loadu_si64(b + i + vec_len_f32_avx2 * 2);
-        auto vb3_128 = _mm_loadu_si64(b + i + vec_len_f32_avx2 * 3);
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
+        auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 2));
+        auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 3));
 
         auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
         auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
@@ -508,8 +508,8 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         auto va0 = mm256_uni_loadu_ps(a + i);
         auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
 
-        auto vb0_128 = _mm_loadu_si64(b + i);
-        auto vb1_128 = _mm_loadu_si64(b + i + vec_len_f32_avx2);
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
 
         auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
         auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
@@ -523,7 +523,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
     }
     if (i + vec_len_f32_avx2 <= n) {
         auto va0 = mm256_uni_loadu_ps(a + i);
-        auto vb0_128 = _mm_loadu_si64(b + i);
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
         auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
         auto vb0 = _mm256_cvtepi32_ps(vb0_256);
         vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);

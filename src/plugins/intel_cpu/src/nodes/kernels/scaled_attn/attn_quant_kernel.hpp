@@ -148,7 +148,7 @@ static void quant_u8(uint8_t* a, T* b, size_t n, float& scale, float& zp) {
         auto low4 = _mm256_castsi256_si128(v_i32);
         auto packed = _mm_packs_epi32(low4, high4);
         packed = _mm_packus_epi16(packed, packed);
-        _mm_storeu_si64(a + i, packed);
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(a + i), packed);
     }
 #endif
     for (; i < n; i++) {

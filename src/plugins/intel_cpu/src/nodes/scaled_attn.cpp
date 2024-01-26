@@ -1256,9 +1256,8 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
     auto p = std::getenv("USE_KV_U8");
-    if (p && std::string(p) == "1")
-        kvcache_precision = ov::element::u8;
-    else
+    kvcache_precision = ov::element::u8;
+    if (p && std::string(p) == "0")
         kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
     return kvcache_precision;
