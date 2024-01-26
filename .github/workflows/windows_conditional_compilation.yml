@@ -59,7 +59,7 @@ jobs:
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
-      SCCACHE_LOG: debug
+      SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
