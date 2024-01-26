@@ -474,7 +474,9 @@ int get_model_prefer_threads(const int num_streams,
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
 #ifdef __APPLE__
             if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
-                model_prefer = proc_type_table[0][ALL_PROC];
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
+                                   ? proc_type_table[0][MAIN_CORE_PROC]
+                                   : proc_type_table[0][ALL_PROC];
             }
 #else
             bool llm_related = has_matmul_with_compressed_weights(model);
