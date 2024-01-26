@@ -91,7 +91,7 @@ ov::OutputVector stft(const Node& node) {
                 v0::Constant::create(ov::element::i64,
                                      Shape{2},
                                      std::vector<int64_t>{batch + 1, sig_idx * frame_step + frame_length});
-            const auto slice_axes = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{0, axis});
+            const auto slice_axes = v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{0, axis});
             const auto slice = std::make_shared<v8::Slice>(signal, start, stop, step, slice_axes);
             const ov::Output<ov::Node> flatten_slice = std::make_shared<v1::Reshape>(
                 slice,

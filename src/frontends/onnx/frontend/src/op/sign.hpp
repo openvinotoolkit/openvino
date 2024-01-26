@@ -7,8 +7,8 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "openvino/op/sign.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/sign.hpp"
 
 namespace ngraph {
 namespace onnx_import {

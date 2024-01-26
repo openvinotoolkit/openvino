@@ -7,8 +7,8 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "openvino/op/sigmoid.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/sigmoid.hpp"
 
 namespace ngraph {
 namespace onnx_import {
