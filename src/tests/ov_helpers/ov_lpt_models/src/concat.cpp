@@ -11,7 +11,6 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -451,7 +450,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithSplitedIntermediate(
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
 
-    Output<Node> lastOutput = intermediateOp->output(1);
+    ov::Output<Node> lastOutput = intermediateOp->output(1);
     if (addConvolution) {
         auto weights = ov::opset1::Constant::create(
             precision, ov::Shape{ static_cast<size_t>(inputShape[1].get_length() / numSplit),
@@ -1512,7 +1511,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
     const auto lastDequantization2 = makeDequantization(intermediateOp->output(1), dequantizationOperations2);
     lastDequantization1->set_friendly_name("output_1");
 
-    Output<Node> lastOutput = lastDequantization2;
+    ov::Output<Node> lastOutput = lastDequantization2;
     if (addConvolution) {
         auto weights = ov::opset1::Constant::create(
             precision,
@@ -2028,7 +2027,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateReshape(
     return function;
 }
 
-std::shared_ptr<Node> ConcatFunction::makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel) {
+std::shared_ptr<Node> ConcatFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
     const std::vector<size_t> stride = { 1, 1 };
     const std::vector<size_t> padBegin = { 0, 0 };
     const std::vector<size_t> padEnd = { 0, 0 };

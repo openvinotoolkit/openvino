@@ -15,6 +15,15 @@
 #include "openvino/util/file_util.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/add.hpp"
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "

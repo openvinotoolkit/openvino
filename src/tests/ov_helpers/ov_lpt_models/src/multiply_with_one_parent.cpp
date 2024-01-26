@@ -5,7 +5,6 @@
 #include "ov_lpt_models/multiply_with_one_parent.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
