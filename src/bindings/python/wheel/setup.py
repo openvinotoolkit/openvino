@@ -661,7 +661,7 @@ setup(
     license="OSI Approved :: Apache Software License",
     author="Intel(R) Corporation",
     description="OpenVINO(TM) Runtime",
-    install_requires=get_install_requires("./requirements.txt"),  # replace with pyproject.toml
+    install_requires=get_install_requires(SCRIPT_DIR.parents[0] / "requirements.txt"),  # replace with pyproject.toml
     long_description=get_description(long_description_md),
     long_description_content_type="text/markdown",
     download_url="https://github.com/openvinotoolkit/openvino/releases",
