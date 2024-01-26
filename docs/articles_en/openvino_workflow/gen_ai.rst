@@ -198,5 +198,5 @@ Additional Resources
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
-* `Stateful Models Low-Level Details <openvino_docs_OV_UG_stateful_models_intro>`
-* `Working with Textual Data <openvino_docs_OV_UG_string_tensors>`
+* :doc:`Stateful Models Low-Level Details <openvino_docs_OV_UG_stateful_models_intro>`
+* :doc:`Working with Textual Data <openvino_docs_OV_UG_string_tensors>`

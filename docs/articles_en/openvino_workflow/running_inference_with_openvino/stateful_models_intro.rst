@@ -22,6 +22,8 @@ Hidden state data from previous inference should be passed to the next inference
 Usually the contextual data is not required to be accessed in the user application and should be just passed through to the next inference call manually using model API.
 Stateful models simplifies programming of this scenario and unlocks additional performance potential of OpenVINO runtime.
 
+.. _ov_ug_stateful_model_benefits:
+
 OpenVINO Stateful Model Benefits
 #################################
 
@@ -53,10 +55,6 @@ to save data for the next inference call.
 OpenVINO has a special API to simplify work with Stateful models. State is automatically saved between inferences,
 and there is a way to reset state when needed. You can also read state or set it to some new value between inferences.
 
-Stateful Model Example
-######################
-
-
 .. image:: _static/images/stateful_model_example.svg
    :align: center
 
@@ -78,47 +76,21 @@ You can find more details on these operations in :doc:`ReadValue <openvino_docs_
 How to get OpenVINO Model with States
 #########################################
 
-* :ref:`Apply LowLatency2 transformation.<ov_ug_low_latency>`
-   If a model contains a loop that runs over some sequence of input data,
-   the LowLatency2 transformation can be applied to get model with states.
-   Note: there are some [specific limitations]() to use the transformation.
+* :ref:`Optimum-Intel<gen_ai_guide>`
+   This is the most user-friendly way to get `the Benefits<_ov_ug_stateful_model_benefits>`
+   from using Stateful models in OpenVINO.
+   All necessary optimizations will be applied automatically inside Optimum-Intel tool.
 
 * :ref:`Apply MakeStateful transformation.<ov_ug_make_stateful>`
    If after conversion from original model to OpenVINO representation, the resulting model contains Parameter and Result operations,
    which pairwise have the same shape and element type, the MakeStateful transformation can be applied to get model with states.
 
-.. _ov_ug_state_api:
+* :ref:`Apply LowLatency2 transformation.<ov_ug_low_latency>`
+   If a model contains a loop that runs over some sequence of input data,
+   the LowLatency2 transformation can be applied to get model with states.
 
-OpenVINO State API
-##################
-
-OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a model and `ov::VariableState` class to operate with states. 
-Below you can find brief description of methods and the example of how to use this interface.
-
-**`ov::InferRequest` methods:**
-
-* `std::vector<VariableState> query_state();`
-    allows to get all available stats for the given inference request.
-
-* `void reset_state()`
-    allows to reset all States to their default values.
-
-**`ov::VariableState` methods:**
-
-* `std::string get_name() const`
-    returns name(variable_id) of the according State(Variable)
-
-* `void reset()`
-    reset state to the default value
-
-* `void set_state(const Tensor& state)`
-    set new value for State
-
-* `Tensor get_state() const`
-    returns current value of State
-
-Example of Stateful Model Inference
-###################################
+Stateful Model Inference
+########################
 
 The example below demonstrates inference of three independent sequences of data. State should be reset between these sequences.
 
@@ -133,3 +105,31 @@ if the first step is done in one infer request and the second in another, state 
 
 You can find more powerful examples demonstrating how to work with models with states in speech sample and demo. 
 Descriptions can be found in :doc:`Samples Overview<openvino_docs_OV_UG_Samples_Overview>`
+
+.. _ov_ug_state_api:
+
+OpenVINO State API
+##################
+
+OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a model and `ov::VariableState` class to operate with states.
+Below you can find brief description of methods and the example of how to use this interface.
+
+**`ov::InferRequest` methods:**
+* `std::vector<VariableState> query_state();`
+    allows to get all available stats for the given inference request.
+
+* `void reset_state()`
+    allows to reset all States to their default values.
+
+**`ov::VariableState` methods:**
+* `std::string get_name() const`
+    returns name(variable_id) of the according State(Variable)
+
+* `void reset()`
+    reset state to the default value
+
+* `void set_state(const Tensor& state)`
+    set new value for State
+
+* `Tensor get_state() const`
+    returns current value of State
