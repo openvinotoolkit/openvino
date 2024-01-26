@@ -57,7 +57,9 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     OutputVector inputs{query, key, value};
     // Index 3 is dropout
     auto causal = false;
-    if (!context.input_is_none(4)) {
+    if (context.has_attribute("is_causal")) {
+        causal = context.get_attribute<bool>("scale");
+    } else if (!context.input_is_none(4)) {
         causal = context.const_input<bool>(4);
     }
     if (context.has_attribute("attn_mask")) {
@@ -72,7 +74,6 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(scale, query)));
     }
     auto sdpa = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, causal));
-    //return {context.mark_node(std::make_shared<v0::Unsqueeze>(sdpa, zero))};
     return {context.mark_node(make_list_construct({sdpa}))};
 };
 
