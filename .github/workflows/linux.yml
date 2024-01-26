@@ -651,9 +651,13 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           ref: 'master'
 
-      #
-      # Dependencies
-      #
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -663,6 +667,10 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           show-cache-info: 'false'
+
+      #
+      # Dependencies
+      #
 
       - name: Install python dependencies
         run: |
