@@ -112,7 +112,7 @@ the most common reason is that the value of shapes is hardcoded in a constant so
    :align: center
 
 **Solution:**
-Trim non-reshapable layers via :doc:`ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`.
+Trim non-reshapable layers via :doc:`ModelOptimizer CLI <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` `--input`, `--output`.
 For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
 `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
 
