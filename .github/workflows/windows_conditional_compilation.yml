@@ -153,8 +153,8 @@ jobs:
       - name: Clean sccache stats
         run: '& "$Env:SCCACHE_PATH" --zero-stats'
 
-        # to get more information on the issue
-        # described in the next step
+      # to get more information on the issue
+      # described in the next step
       - name: Show which network ports are used
         run: netstat -ban
 
