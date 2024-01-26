@@ -78,10 +78,10 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
     ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto gconv = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{ element::f32 },
-        ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
         strides,
         pads,
         pads,

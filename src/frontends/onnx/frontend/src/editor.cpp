@@ -69,7 +69,7 @@ ValueInfoProto* find_graph_value_info(GraphProto& graph, const std::string& name
     return nullptr;
 }
 
-void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_type) {
+void modify_input_type(ValueInfoProto& onnx_input, const ov::element::Type_t elem_type) {
     OPENVINO_ASSERT(onnx_input.has_type(),
                     "The input is malformed - it doesn't contain the 'type' field. Cannot change the "
                     "data type. Input name: ",
@@ -87,7 +87,7 @@ void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_ty
                     "The input type for input '",
                     onnx_input.name(),
                     "' cannot be set to: ",
-                    element::Type(elem_type).get_type_name(),
+                    ov::element::Type(elem_type).get_type_name(),
                     ". This type is not allowed in ONNX.");
     tensor_type->set_elem_type(ov_to_onnx_data_type(elem_type));
 }
@@ -147,7 +147,7 @@ void modify_initializer(TensorProto& initializer,
                     "Initializer '",
                     name,
                     "' type cannot be set to: ",
-                    element::Type(elem_type).get_type_name(),
+                    ov::element::Type(elem_type).get_type_name(),
                     ". This type is not allowed in ONNX.");
 
     initializer.Clear();
@@ -364,7 +364,7 @@ void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) c
     out_file.close();
 }
 
-void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, element::Type_t>& input_types) {
+void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, ov::element::Type_t>& input_types) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_types) {
@@ -377,7 +377,7 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
-element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
+ov::element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
 

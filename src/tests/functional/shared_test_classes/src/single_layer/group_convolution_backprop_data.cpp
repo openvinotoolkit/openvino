@@ -109,7 +109,7 @@ void GroupConvBackpropLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData> groupConvBackpropData;
     if (!outputShape.empty()) {
-        auto outShape = ov::op::v0::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+        auto outShape = ov::op::v0::Constant::create(ov::element::i64, {outputShape.size()}, outputShape);
         groupConvBackpropData = std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(
         ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels, numGroups, false, outPadding));

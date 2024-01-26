@@ -23,7 +23,7 @@ template <ov::element::Type_t from, ov::element::Type_t to>
 class ConvertConstantsPrecision : public ov::pass::MatcherPass {
 public:
     ConvertConstantsPrecision() {
-        auto constant = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0});
 
         ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(m.get_match_root());

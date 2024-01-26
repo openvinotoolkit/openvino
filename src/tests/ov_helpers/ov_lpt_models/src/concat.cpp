@@ -225,14 +225,15 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithNeighbors(
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
         auto convolutionAddition = std::make_shared<ov::opset1::Convolution>(
-                concat1,
-                std::make_shared<ov::opset1::Multiply>(
-                        std::make_shared<ov::opset1::Convert>(ov::opset1::Constant::create(element::i8, convShape, {1}), element::f32),
-                        ov::opset1::Constant::create(element::f32, Shape{}, {1})),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            concat1,
+            std::make_shared<ov::opset1::Multiply>(
+                std::make_shared<ov::opset1::Convert>(ov::opset1::Constant::create(ov::element::i8, convShape, {1}),
+                                                      ov::element::f32),
+                ov::opset1::Constant::create(ov::element::f32, Shape{}, {1})),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         convolutionAddition->set_friendly_name("convolution_addition");
         results.push_back(std::make_shared<ov::opset1::Result>(convolutionAddition));
     }
@@ -257,14 +258,15 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithNeighbors(
         convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
         auto convolutionNeighbor = std::make_shared<ov::opset1::Convolution>(
-                fakeQuantize2,
-                std::make_shared<ov::opset1::Multiply>(
-                        std::make_shared<ov::opset1::Convert>(ov::opset1::Constant::create(element::i8, convShape, {1}), element::f32),
-                        ov::opset1::Constant::create(element::f32, Shape{}, {1})),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            fakeQuantize2,
+            std::make_shared<ov::opset1::Multiply>(
+                std::make_shared<ov::opset1::Convert>(ov::opset1::Constant::create(ov::element::i8, convShape, {1}),
+                                                      ov::element::f32),
+                ov::opset1::Constant::create(ov::element::f32, Shape{}, {1})),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         convolutionNeighbor->set_friendly_name("convolution_neighbor");
         results.push_back(std::make_shared<ov::opset1::Result>(convolutionNeighbor));
     }
@@ -438,7 +440,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithSplitedIntermediate(
 
     std::shared_ptr<ov::op::Op> intermediateOp;
 
-    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, splitedAxis);
     intermediateOp = std::make_shared<ov::opset1::Split>(fakeQuantize2->output(0), constant, numSplit);
 
     intermediateOp->set_friendly_name("intermediate");
@@ -864,18 +866,18 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithIntermediateReshape(
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(
-            fakeQuantize1,
-            ov::opset1::Constant::create(element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
-            true);
+        fakeQuantize1,
+        ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
+        true);
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
     const auto reshape2 = std::make_shared<ov::opset1::Reshape>(
-            fakeQuantize2,
-            ov::opset1::Constant::create(element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
-            true);
+        fakeQuantize2,
+        ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
+        true);
     const std::shared_ptr<ov::opset1::Concat> concat = std::make_shared<ov::opset1::Concat>(
             ov::OutputVector{ reshape1->output(0), reshape2->output(0) }, 1);
     concat->set_friendly_name("output");
@@ -1048,7 +1050,9 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
 
         const auto reshape1 = std::make_shared<ov::opset1::Reshape>(
             parent,
-            std::make_shared<ov::opset1::Constant>(element::i32, Shape{ intermediateShape.size() }, intermediateShape),
+            std::make_shared<ov::opset1::Constant>(ov::element::i32,
+                                                   Shape{intermediateShape.size()},
+                                                   intermediateShape),
             true);
 
         const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
@@ -1061,7 +1065,7 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
 
         const auto reshape2 = std::make_shared<ov::opset1::Reshape>(
             maxPool,
-            std::make_shared<ov::opset1::Constant>(element::i32, Shape{ originalShape.size() }, originalShape),
+            std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{originalShape.size()}, originalShape),
             true);
 
         return reshape2;
@@ -1121,7 +1125,7 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     auto& rtInfo = parent->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
 
-    parent = makeConvolution(parent, element::f32, false);
+    parent = makeConvolution(parent, ov::element::f32, false);
 
     if (!dequantizationAfter.empty()) {
         parent = makeDequantization(parent, dequantizationAfter);
@@ -1202,14 +1206,16 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithNeighbors(
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
         auto convolutionAddition = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                element::TypeVector{ element::f32, element::f32 },
-                element::TypeVector{ element::f32 },
-                ov::op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(ov::opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            ov::element::TypeVector{ov::element::f32, ov::element::f32},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(mainBranch, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(ov::opset1::Constant::create(ov::element::i8, convShape, {1}),
+                                               ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         convolutionAddition->set_friendly_name("convolution_addition");
         output_name1 = "convolution_addition";
         mainBranch = convolutionAddition;
@@ -1247,14 +1253,16 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithNeighbors(
         convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
         auto convolutionNeighbor = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                element::TypeVector{ element::f32, element::f32 },
-                element::TypeVector{ element::f32 },
-                ov::op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(ov::opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            ov::element::TypeVector{ov::element::f32, ov::element::f32},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(neighbor, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(ov::opset1::Constant::create(ov::element::i8, convShape, {1}),
+                                               ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         convolutionNeighbor->set_friendly_name("convolution_neighbor");
         output_name2 = "convolution_neighbor";
         neighbor = convolutionNeighbor;
@@ -1426,13 +1434,13 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateAvgPool(
     parent1->set_friendly_name("concat");
 
     std::shared_ptr<Node> parent2 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(
-        std::vector<ov::element::Type>{ element::f32, element::f32 },
-        std::vector<ov::element::Type>{ element::f32 },
-        ov::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(intermediateOp, ov::element::f32).get(),
+        Strides{1, 1},
+        Shape{1, 1},
+        Shape{0, 0},
+        Shape{2, 2},
         true,
         op::RoundingType::FLOOR);
     parent2->set_friendly_name("avgPool");
@@ -1496,7 +1504,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
 
     std::shared_ptr<ov::op::Op> intermediateOp;
 
-    const auto constant = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
+    const auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, splitedAxis);
     intermediateOp = std::make_shared<ov::opset1::Split>(deqBefore2, constant, numSplit);
     intermediateOp->set_friendly_name("intermediate");
 
@@ -1994,21 +2002,21 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateReshape(
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
-    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, element::u8);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, ov::element::u8);
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(
-            fakeQuantize1,
-            ov::opset1::Constant::create(element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
-            true);
+        fakeQuantize1,
+        ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
+        true);
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
-    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, element::u8);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, ov::element::u8);
     const auto reshape2 = std::make_shared<ov::opset1::Reshape>(
-            fakeQuantize2,
-            ov::opset1::Constant::create(element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
-            true);
+        fakeQuantize2,
+        ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
+        true);
     const std::shared_ptr<ov::opset1::Concat> concat = std::make_shared<ov::opset1::Concat>(
             ov::OutputVector{ reshape1->output(0), reshape2->output(0) }, 1);
     concat->set_friendly_name("output_original");

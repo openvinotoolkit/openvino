@@ -125,10 +125,7 @@ std::shared_ptr<Node> createWeightsOriginal(
 
             weights = std::make_shared<ov::opset1::Reshape>(
                 weights,
-                ov::opset1::Constant::create(
-                    element::i64,
-                    Shape{ static_cast<size_t>(rankLength) + 1ul },
-                    values),
+                ov::opset1::Constant::create(ov::element::i64, Shape{static_cast<size_t>(rankLength) + 1ul}, values),
                 true);
         }
     }
@@ -333,18 +330,19 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
             addReshape);
     }
 
-    auto convolutionOriginal = ov::opset1::GroupConvolution(
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::GroupConvolution(ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
+                                     ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+                                     ov::Strides{1, 1},
+                                     ov::CoordinateDiff{0, 0},
+                                     ov::CoordinateDiff{0, 0},
+                                     ov::Strides{1, 1});
 
-    std::shared_ptr<ov::opset1::GroupConvolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    std::shared_ptr<ov::opset1::GroupConvolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);

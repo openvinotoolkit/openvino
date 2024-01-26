@@ -18,46 +18,35 @@ const std::vector<ov::PartialShape> inputShapes = {
 };
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "U8",
-        true
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
+     "output/GroupConvolution",
+     "U8",
+     true},
     // Multiply with scalar is not transformed to GroupConvolution
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{1, 1, 1, 1}},
-        "output/GroupConvolution",
-        "",
-        true
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{4.f}, ov::element::f32, Shape{1, 1, 1, 1}},
+     "output/GroupConvolution",
+     "",
+     true},
     // Multiply with scalar is not transformed to GroupConvolution
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{}},
-        "output/GroupConvolution",
-        "",
-        true
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{4.f}, ov::element::f32, Shape{}},
+     "output/GroupConvolution",
+     "",
+     true},
     // Zero point
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "U8",
-        true
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
+     "output/GroupConvolution",
+     "U8",
+     true},
     // Zero point
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "U8",
-        true
-    }
-};
+    {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f / 2.f}, {-1.28f}, {1.27f / 2.f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1}},
+     "output/GroupConvolution",
+     "U8",
+     true}};
 
 //Comment out the tests because of the transformation is disabled by another WR
 /*
@@ -78,41 +67,30 @@ const std::vector<ov::PartialShape> inputShapes = {
 };
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1, 1}},
+     "output/GroupConvolution",
+     "U8"},
     // Multiply with scalar is not transformed to GroupConvolution
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{1, 1, 1, 1, 1}},
-        "output/GroupConvolution",
-        ""
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{4.f}, ov::element::f32, Shape{1, 1, 1, 1, 1}},
+     "output/GroupConvolution",
+     ""},
     // Multiply with scalar is not transformed to GroupConvolution
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{}},
-        "output/GroupConvolution",
-        ""
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
+     {{4.f}, ov::element::f32, Shape{}},
+     "output/GroupConvolution",
+     ""},
     // Zero point
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    },
+    {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1, 1}},
+     "output/GroupConvolution",
+     "U8"},
     // Zero point
-    {
-        { 256ul, ov::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    }
-};
+    {{256ul, ov::Shape{1, 1, 1, 1}, {-1.28f}, {1.27f / 2.f}, {-1.28f}, {1.27f / 2.f}},
+     {{1.f, 2.f, 3.f}, ov::element::f32, Shape{1, 3, 1, 1, 1}},
+     "output/GroupConvolution",
+     "U8"}};
 
 //Comment out the tests because of the transformation is disabled by another WR
 /*

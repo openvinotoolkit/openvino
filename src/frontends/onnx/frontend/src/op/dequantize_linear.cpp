@@ -28,8 +28,8 @@ std::shared_ptr<ov::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& zero_point = inputs[2];
 
-        if (zero_point.get_element_type() != element::f32) {
-            return std::make_shared<v0::Convert>(zero_point, element::f32);
+        if (zero_point.get_element_type() != ov::element::f32) {
+            return std::make_shared<v0::Convert>(zero_point, ov::element::f32);
         }
 
         return zero_point.get_node_shared_ptr();
@@ -49,9 +49,9 @@ OutputVector dequantize_linear(const Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = detail::get_zero_point(inputs);
 
-    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
+    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
 
-    const auto converted_x = std::make_shared<v0::Convert>(x, element::f32);
+    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
 
     if (zero_point) {
         common::validate_scalar_input("Zero point", zero_point);
@@ -131,7 +131,7 @@ std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
         target_dims.push_back(1);
     }
 
-    const auto target_shape = v0::Constant::create(element::i64, Shape{target_dims.size()}, target_dims);
+    const auto target_shape = v0::Constant::create(ov::element::i64, Shape{target_dims.size()}, target_dims);
 
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }
@@ -149,7 +149,7 @@ OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
-    const auto converted_x = std::make_shared<v0::Convert>(x, element::f32);
+    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
 
     if (zero_point) {
         validate_zero_point(zero_point, x, axis);

@@ -78,9 +78,9 @@ InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::I
             rawBlobDataPtr[i] = static_cast<ov::bfloat16>(data[i] / divisor);
         }
     } else if (InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision()) {
-        auto *rawBlobDataPtr = blob->buffer().as<ngraph::float16 *>();
+        auto* rawBlobDataPtr = blob->buffer().as<ov::float16*>();
         for (size_t i = 0; i < size; i++) {
-            rawBlobDataPtr[i] = static_cast<ngraph::float16>(data[i] / divisor);
+            rawBlobDataPtr[i] = static_cast<ov::float16>(data[i] / divisor);
         }
     }
 

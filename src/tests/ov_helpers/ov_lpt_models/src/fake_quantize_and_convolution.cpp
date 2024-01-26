@@ -186,30 +186,28 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     std::shared_ptr<Node> lastOperation;
     if (operation == "Convolution") {
         lastOperation = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-            ov::opset1::Convolution(
-                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 }),
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(parentOnActivation, ov::element::f32).get(),
+                                    ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                    ov::Strides{1, 1},
+                                    ov::CoordinateDiff{0, 0},
+                                    ov::CoordinateDiff{0, 0},
+                                    ov::Strides{1, 1}),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     } else if (operation == "GroupConvolution") {
         lastOperation = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-            ov::opset1::GroupConvolution(
-                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 }),
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            ov::opset1::GroupConvolution(ov::op::TemporaryReplaceOutputType(parentOnActivation, ov::element::f32).get(),
+                                         ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                         ov::Strides{1, 1},
+                                         ov::CoordinateDiff{0, 0},
+                                         ov::CoordinateDiff{0, 0},
+                                         ov::Strides{1, 1}),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
         if (multiplyAfter) {
             const auto& O = lastOperation->get_shape()[1];
             std::vector<float> weights_val(O, 1);
-            auto constant = ov::opset1::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
+            auto constant = ov::opset1::Constant::create(ov::element::f32, Shape{O, 1, 1}, weights_val);
             lastOperation = std::make_shared<ov::opset1::Multiply>(lastOperation, constant);
         }
     } else {

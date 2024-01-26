@@ -26,7 +26,7 @@ OutputVector constant_of_shape(const onnx_import::Node& node) {
         constant_value = value_tensor.get_ov_constant();
         constant_value = reshape::interpret_as_scalar(constant_value);
     } else {
-        constant_value = v0::Constant::create(element::f32, {}, {0});
+        constant_value = v0::Constant::create(ov::element::f32, {}, {0});
     }
     const auto& inputs = node.get_ng_inputs();
     if (inputs.size() == 0 || common::is_failsafe_node(inputs[0].get_node_shared_ptr()) ||

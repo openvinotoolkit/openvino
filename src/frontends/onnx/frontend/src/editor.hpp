@@ -62,7 +62,7 @@ public:
     ///                    used to modified the ONNX model loaded from a file. This method
     ///                    throws an exception if the model doesn't contain any of
     ///                    the inputs specified in its parameter.
-    void set_input_types(const std::map<std::string, element::Type_t>& input_types);
+    void set_input_types(const std::map<std::string, ov::element::Type_t>& input_types);
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input shapes for all inputs specified in the provided map.
@@ -300,7 +300,7 @@ public:
     ///
     /// \param output_edge Name of tensor for which element type will be returned.
     ///
-    element::Type_t get_input_type(const std::string& tensor_name) const;
+    ov::element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;

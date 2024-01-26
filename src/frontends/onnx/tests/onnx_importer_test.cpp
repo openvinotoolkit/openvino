@@ -32,7 +32,7 @@ TEST(ONNX_Importer_Tests, ImportBasicModel) {
 
     ASSERT_EQ(model->get_output_size(), 1);
     ASSERT_EQ(std::string(model->get_output_op(0)->get_type_name()), "Result");
-    ASSERT_EQ(model->get_output_element_type(0), element::f32);
+    ASSERT_EQ(model->get_output_element_type(0), ov::element::f32);
     ASSERT_EQ(model->get_output_shape(0), Shape({2, 2}));
     ASSERT_EQ(count_additions, 2);
     ASSERT_EQ(count_constants, 2);
@@ -55,7 +55,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
 
     ASSERT_EQ(model->get_output_size(), 1);
     ASSERT_EQ(std::string(model->get_output_op(0)->get_type_name()), "Result");
-    ASSERT_EQ(model->get_output_element_type(0), element::f32);
+    ASSERT_EQ(model->get_output_element_type(0), ov::element::f32);
     ASSERT_EQ(model->get_output_shape(0), Shape({3, 4, 5}));
     ASSERT_EQ(count_selu, 1);
     ASSERT_EQ(count_constants, 2);
@@ -79,8 +79,8 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
     ASSERT_EQ(model->get_output_size(), 2);
     ASSERT_EQ(std::string(model->get_output_op(0)->get_type_name()), "Result");
     ASSERT_EQ(std::string(model->get_output_op(1)->get_type_name()), "Result");
-    ASSERT_EQ(model->get_output_element_type(0), element::f32);
-    ASSERT_EQ(model->get_output_element_type(1), element::i64);
+    ASSERT_EQ(model->get_output_element_type(0), ov::element::f32);
+    ASSERT_EQ(model->get_output_element_type(1), ov::element::i64);
     ASSERT_EQ(model->get_output_shape(0), Shape({3, 3}));
     ASSERT_EQ(model->get_output_shape(1), Shape({3, 3}));
     ASSERT_EQ(count_topk, 1);

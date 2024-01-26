@@ -22,7 +22,8 @@ std::shared_ptr<ov::Model> ReshapeFunction::getOriginal(
 
     std::shared_ptr<Node> reshape_pattern;
     if (!reshapeConstValues.empty()) {
-        reshape_pattern = ov::opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
+        reshape_pattern =
+            ov::opset1::Constant::create(ov::element::i64, Shape{reshapeConstValues.size()}, reshapeConstValues);
     } else {
         reshape_pattern = std::make_shared<ov::opset1::ShapeOf>(dequantizationOp);
     }
@@ -67,7 +68,8 @@ std::shared_ptr<ov::Model> ReshapeFunction::getReference(
 
     std::shared_ptr<Node> reshape_pattern;
     if (!reshapeConstValues.empty()) {
-        reshape_pattern = ov::opset1::Constant::create(element::i64, Shape{ reshapeConstValues.size() }, reshapeConstValues);
+        reshape_pattern =
+            ov::opset1::Constant::create(ov::element::i64, Shape{reshapeConstValues.size()}, reshapeConstValues);
     } else {
         reshape_pattern = makeDequantization(quantizationOpBefore, dequantizationAfter);
         reshape_pattern = std::make_shared<ov::opset1::ShapeOf>(reshape_pattern);

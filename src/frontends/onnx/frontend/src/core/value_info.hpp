@@ -44,7 +44,7 @@ public:
     const ov::PartialShape& get_shape() const {
         return m_partial_shape;
     }
-    const element::Type& get_element_type() const {
+    const ov::element::Type& get_element_type() const {
         if (m_value_info_proto->type().tensor_type().has_elem_type()) {
             return common::get_ov_element_type(m_value_info_proto->type().tensor_type().elem_type());
         }

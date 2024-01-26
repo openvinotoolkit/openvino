@@ -10,7 +10,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
-                                           const element::Type& type,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& cropsBegin,
                                            const std::vector<int64_t>& cropsEnd) {

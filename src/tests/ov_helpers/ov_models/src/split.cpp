@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace builder {
 std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
-                                    const element::Type& type,
+                                    const ov::element::Type& type,
                                     size_t numSplits,
                                     int64_t axis) {
     auto splitAxisOp =

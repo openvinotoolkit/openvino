@@ -102,7 +102,7 @@ void ROIAlignLayerTest::SetUp() {
     ov::Shape idxShape = {coordsShape[0]};
 
     auto coords = std::make_shared<ov::op::v0::Constant>(ngPrc, coordsShape, proposalVector.data());
-    auto roisIdx = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
+    auto roisIdx = std::make_shared<ov::op::v0::Constant>(ov::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ov::Node> roiAlign = std::make_shared<ov::op::v3::ROIAlign>(params[0],
                                                                                         coords,
@@ -187,7 +187,7 @@ void ROIAlignV9LayerTest::SetUp() {
     ov::Shape idxShape = {coordsShape[0]};
 
     auto coords = std::make_shared<ov::op::v0::Constant>(ngPrc, coordsShape, proposalVector.data());
-    auto roisIdx = std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
+    auto roisIdx = std::make_shared<ov::op::v0::Constant>(ov::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ov::Node> roiAlign = std::make_shared<ov::op::v9::ROIAlign>(
             params[0],

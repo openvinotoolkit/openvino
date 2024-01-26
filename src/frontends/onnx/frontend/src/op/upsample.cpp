@@ -75,7 +75,7 @@ OutputVector upsample(const onnx_import::Node& node) {
     scales[rank_size - 1] = width_scale;
     scales[rank_size - 2] = height_scale;
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = default_opset::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
 
     return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
@@ -96,7 +96,7 @@ OutputVector upsample(const onnx_import::Node& node) {
                      "Input tensor's rank is required to be the same as number of "
                      "elements of 'scales' attribute.");
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = default_opset::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
 
     return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }

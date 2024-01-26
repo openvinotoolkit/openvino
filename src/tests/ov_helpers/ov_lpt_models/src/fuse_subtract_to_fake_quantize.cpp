@@ -40,7 +40,7 @@ std::shared_ptr<ov::Model> FuseSubtractToFakeQuantizeFunction::get(
     const DequantizationOperations& dequantization2) {
     const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
 
-    const auto axis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{}, 1ul);
+    const auto axis = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, 1ul);
     const std::shared_ptr<Node> split = std::make_shared<ov::opset1::Split>(input, axis, 2ul);
 
     const auto fakeQuantize = makeFakeQuantize(split->output(0), ov::element::f32, fqOnData);
