@@ -107,7 +107,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
    **Current solution:** Trim non-reshapable layers via `ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
    `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
 
-.. tab:: C++
+   .. tab:: C++
 
       .. doxygensnippet:: docs/snippets/ov_model_state_intro.cpp
          :language: cpp
