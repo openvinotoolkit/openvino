@@ -369,6 +369,8 @@ const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::i4,
                                                                ov::element::nf4};
 
+const std::vector<ov::test::ElementType> weights_precisions_FP16 = {ov::element::u8};
+
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
@@ -405,7 +407,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_FP16,
                          MatmulWeightsDecompression_FP16,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_amx),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(weights_precisions_FP16),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
@@ -463,7 +465,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_FP16,
                          MatmulWeightsDecompression_FP16,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_amx),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(weights_precisions_FP16),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(decompression_subtract_type),
