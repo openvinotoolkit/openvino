@@ -46,21 +46,9 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
 };
 
 OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& context) {
-    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
-    // dropout_p=0., bool is_causal=False)  TODO: Scale parameter?
-    num_inputs_check(context, 3, 6);  // TODO: Set 7 instead of 6 if `scale` argument supported in FX.
-    auto output = translate_scaled_dot_product_attention_common(context);
-    // TODO: scaled_dot_product_flash_attention has 9 outputs but for most cases only
-    // the first input is used. Rest of the outputs should be returned properly as
-    // needed.
-    ov::OutputVector out_vec;
-    out_vec.push_back(output);
-    return {context.mark_node(make_list_construct(out_vec))};
-};
-
-OutputVector translate_scaled_dot_product_attention_for_cpu_fx(const NodeContext& context) {
     // torch.ops.aten._scaled_dot_product_flash_attention_for_cpu.default(arg1_1, arg2_1, arg3_1, 0.0, True, attn_mask =
     // arg0_1, scale = 5.0)
+    // aten._scaled_dot_product_flash_attention.default(arg0_1, arg1_1, arg2_1, 0.0, True, scale = 5.0)
     num_inputs_check(context, 3, 5);
     const auto query = context.get_input(0);
     const auto key = context.get_input(1);
@@ -84,7 +72,8 @@ OutputVector translate_scaled_dot_product_attention_for_cpu_fx(const NodeContext
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(scale, query)));
     }
     auto sdpa = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, causal));
-    return {context.mark_node(std::make_shared<v0::Unsqueeze>(sdpa, zero))};
+    //return {context.mark_node(std::make_shared<v0::Unsqueeze>(sdpa, zero))};
+    return {context.mark_node(make_list_construct({sdpa}))};
 };
 
 }  // namespace op
