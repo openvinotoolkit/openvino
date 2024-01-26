@@ -60,7 +60,7 @@ std::vector<T> get_monotonic_range(T end_value, T start_value = T{0}, T step = T
 /// \param[in]  step         The step value for the sequence.
 ///
 /// \return     The node which represents monotonic sequence.
-std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
+std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
                                                               int64_t start_value = 0,
                                                               int64_t step = 1);
 
@@ -149,10 +149,10 @@ bool is_failsafe_node(const std::shared_ptr<ov::Node>& node);
 /// \brief Marks an output of a node as "optimized out" meaning that during the import of an ONNX operation
 ///        no OV nodes have been created and the ONNX operator returns its inputs as its outputs.
 ///        This information is later used to add extra names to the tensors associated with such outputs.
-void mark_as_optimized_out(Output<ov::Node>& node_output);
+void mark_as_optimized_out(ov::Output<ov::Node>& node_output);
 
 /// \brief Checks if a given output was marked as optimized out byt the function above.
-bool is_optimized_out(const Output<ov::Node>& node_output);
+bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 
 /// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
 std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "onnx_import/core/null_node.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -64,7 +64,7 @@ OutputVector dequantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace detail {
-void validate_scale(const Output<ov::Node> scale, const Output<ov::Node> x, const int64_t axis) {
+void validate_scale(const ov::Output<ov::Node> scale, const ov::Output<ov::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     FRONT_END_GENERAL_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
                             "Dequantization scale needs to be a scalar or a vector.");
@@ -84,7 +84,7 @@ void validate_scale(const Output<ov::Node> scale, const Output<ov::Node> x, cons
     }
 }
 
-void validate_zero_point(const Output<ov::Node> zero_point, const Output<ov::Node> x, const int64_t axis) {
+void validate_zero_point(const ov::Output<ov::Node> zero_point, const ov::Output<ov::Node> x, const int64_t axis) {
     const auto& zero_point_shape = zero_point.get_partial_shape();
     FRONT_END_GENERAL_CHECK(zero_point_shape.rank().get_length() == 0 || zero_point_shape.rank().get_length() == 1,
                             "Zero point needs to be a scalar or a vector.");
@@ -104,9 +104,9 @@ void validate_zero_point(const Output<ov::Node> zero_point, const Output<ov::Nod
     }
 }
 
-std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node>& input,
+std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
                                         const int64_t axis,
-                                        const PartialShape& x_shape) {
+                                        const ov::PartialShape& x_shape) {
     // these reshapes make sure that dequantization happens over the specified axis
     auto input_rank = input.get_partial_shape().rank();
 
@@ -136,8 +136,8 @@ std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node>& input,
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }
 
-OutputVector dequantize_linear(const Output<ov::Node>& x,
-                               const Output<ov::Node>& scale,
+OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
+                               const ov::Output<ov::Node>& scale,
                                const std::shared_ptr<ov::Node>& zero_point,
                                int64_t axis,
                                const Node& node) {
@@ -145,9 +145,7 @@ OutputVector dequantize_linear(const Output<ov::Node>& x,
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = ov::normalize_axis(node.get_description(), axis, x_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);

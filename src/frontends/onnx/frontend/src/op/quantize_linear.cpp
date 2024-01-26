@@ -5,7 +5,6 @@
 #include "op/quantize_linear.hpp"
 
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/op/subtract.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -23,7 +23,7 @@ namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-Output<ov::Node> get_zero_point(const OutputVector& inputs) {
+ov::Output<ov::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
@@ -31,7 +31,7 @@ Output<ov::Node> get_zero_point(const OutputVector& inputs) {
     }
 }
 
-void validate_zero_point_type(const Node& onnx_node, const Output<ov::Node>& y_zero_point) {
+void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>& y_zero_point) {
     const auto& y_zero_point_et = y_zero_point.get_element_type();
     CHECK_VALID_NODE(
         onnx_node,
@@ -41,7 +41,7 @@ void validate_zero_point_type(const Node& onnx_node, const Output<ov::Node>& y_z
         "integer type.");
 }
 
-Output<ov::Node> validate_scale(const Node& onnx_node, const Output<ov::Node>& y_scale) {
+ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
     const auto& y_scale_et = y_scale.get_element_type();
     CHECK_VALID_NODE(onnx_node, y_scale_et.is_static(), "\"y_scale\" input data type must be static.");
     if (y_scale_et != element::f32) {
@@ -50,7 +50,7 @@ Output<ov::Node> validate_scale(const Node& onnx_node, const Output<ov::Node>& y
     return y_scale;
 }
 
-Output<ov::Node> validate_data(const Node& onnx_node, const Output<ov::Node>& data) {
+ov::Output<ov::Node> validate_data(const Node& onnx_node, const ov::Output<ov::Node>& data) {
     const auto& data_et = data.get_element_type();
     CHECK_VALID_NODE(onnx_node, data_et.is_static(), "\"x\" input data type must be static.");
 
@@ -93,8 +93,8 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
 }
 
 std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands(
-    const Output<ov::Node>& y_scale,
-    const Output<ov::Node>& y_zero_point,
+    const ov::Output<ov::Node>& y_scale,
+    const ov::Output<ov::Node>& y_zero_point,
     const std::shared_ptr<ov::Node>& output_low,
     const std::shared_ptr<ov::Node>& output_high,
     const element::Type& data_type) {
@@ -103,24 +103,20 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands
     const auto& zero_point = std::make_shared<v0::Convert>(y_zero_point, data_type);
 
     input_low = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_low, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_low)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(input_low)) {
         input_low = constant;
     }
     input_high = std::make_shared<v1::Multiply>(y_scale, std::make_shared<v1::Subtract>(output_high, zero_point));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(input_high)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(input_high)) {
         input_high = constant;
     }
 
     return std::make_tuple(input_low, input_high);
 }
 }  // namespace
-std::shared_ptr<ov::Node> make_fake_quantize(const Output<ov::Node>& y_scale,
-                                             const Output<ov::Node>& y_zero_point,
-                                             const Output<ov::Node>& data) {
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
+                                             const ov::Output<ov::Node>& y_zero_point,
+                                             const ov::Output<ov::Node>& data) {
     const element::Type& destination_type = y_zero_point.get_element_type();
     const element::Type& data_type = data.get_element_type();
 
@@ -158,9 +154,9 @@ OutputVector quantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace {
-OutputVector quantize_linear(Output<ov::Node> x,
-                             Output<ov::Node> y_scale,
-                             Output<ov::Node> y_zero_point,
+OutputVector quantize_linear(ov::Output<ov::Node> x,
+                             ov::Output<ov::Node> y_scale,
+                             ov::Output<ov::Node> y_zero_point,
                              int64_t axis,
                              Node node) {
     namespace detail = ngraph::onnx_import::op::detail;
@@ -171,9 +167,7 @@ OutputVector quantize_linear(Output<ov::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    axis = normalize_axis(node.get_description(), axis, x_shape.rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
