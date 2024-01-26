@@ -27,7 +27,6 @@ OutputVector translate_var_mean(const NodeContext& context) {
     bool unbiased = true;
     bool keepdims = false;
     auto num_elements = numel(context, data);
-    bool keepdim_mean;
     std::shared_ptr<ov::Node> mean, t_mean;
     ov::Output<ov::Node> axes;
     if (context.inputs().size() == 2) {
@@ -36,7 +35,6 @@ OutputVector translate_var_mean(const NodeContext& context) {
         unbiased = context.const_input<bool>(1);
         mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, keepdims));
         t_mean = mean;
-        keepdim_mean = keepdims;
     } else {
         // aten::var_mean(input, dim, unbiased:bool=None, keepdim:bool=None)
         if (!context.input_is_none(2)) {
@@ -58,11 +56,10 @@ OutputVector translate_var_mean(const NodeContext& context) {
             reduced_dims = context.mark_node(std::make_shared<v8::Gather>(reduced_dims, axes, zero));
             num_elements = context.mark_node(std::make_shared<v1::ReduceProd>(reduced_dims, zero, false));
         }
-        keepdim_mean = context.input_is_none(1) ? false : keepdims;
     }
     auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, t_mean));
     auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
-    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, keepdim_mean));
+    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, keepdims));
     // if unbiased=true Bessel’s correction will be used
     // Correct bias in calculating variance, by dividing it over (N - 1) instead on N
     if (unbiased) {

@@ -126,10 +126,11 @@ class PytorchLayerTest:
                     if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
                         # do not differentiate between int32 and int64
                         continue
-                    assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
+                    assert ov_type == fw_type, f"dtype validation failed: ov={ov_type} vs fw={fw_type}"
                     continue
-                ov_tensor_fw_format = torch.tensor(np.array(ov_tensor))
-                assert ov_tensor_fw_format.dtype == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_fw_format.dtype} != {fw_tensor.dtype}"
+                ov_tensor_format = torch.tensor(np.array(ov_tensor))
+                assert ov_tensor_format.dtype == fw_tensor.dtype, f"dtype validation failed: ov={ov_tensor_format.dtype} vs fw={fw_tensor.dtype}"
+                assert ov_tensor_format.shape == fw_tensor.shape, f"Shapes are not equal: ov={ov_tensor_format.shape} vs fw={fw_tensor.shape}"
 
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
@@ -146,7 +147,6 @@ class PytorchLayerTest:
                 if np.array(cur_fw_res).size == 0:
                     continue
                 cur_ov_res = infer_res[compiled.output(i)]
-                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
                 n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
                                                                         atol=fw_eps,
                                                                         rtol=fw_eps, equal_nan=True).sum()
