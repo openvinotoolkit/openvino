@@ -42,7 +42,7 @@ OutputVector stft(const Node& node) {
         CHECK_VALID_NODE(node,
                          ov::op::util::is_constant(frame_length_node.get_node_shared_ptr()) &&
                              ov::shape_size(frame_length_node.get_shape()) <= 1,
-                         "frame_length input must be a scalar or ov::Shape{1} constant.");
+                         "frame_length input must be a scalar or Shape{1} constant.");
         frame_length = ov::as_type_ptr<default_opset::Constant>(frame_length_node.get_node_shared_ptr())
                            ->cast_vector<int64_t>()[0];
     }
