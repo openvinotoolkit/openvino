@@ -201,7 +201,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --verbose
+        run: cmake --build ${OPENVINO_BUILD_DIR} --verbose --parallel 8
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
