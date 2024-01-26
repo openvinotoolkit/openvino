@@ -644,13 +644,6 @@ jobs:
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
-
       - name: Fetch setup_python action
         uses: actions/checkout@v4
         with:
@@ -667,6 +660,13 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           show-cache-info: 'false'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          ref: 'master'
 
       #
       # Dependencies
