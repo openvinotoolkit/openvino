@@ -4,15 +4,11 @@
 
 #include "op/reshape.hpp"
 
-#include <cstddef>
-#include <memory>
-#include <vector>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/reshape.hpp"
 #include "utils/reshape.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -23,7 +19,7 @@ OutputVector reshape(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
     const auto data = ng_inputs.at(0);
 
-    Output<ngraph::Node> pattern;
+    ov::Output<ov::Node> pattern;
     bool special_zero = true;
     // Since opset 5 the target shape is provided as input
     if (ng_inputs.size() == 2) {
@@ -35,7 +31,7 @@ OutputVector reshape(const Node& node) {
         pattern = node.get_attribute_as_constant<std::vector<int64_t>>("shape", {});
     }
 
-    return {std::make_shared<default_opset::Reshape>(data, pattern, special_zero)};
+    return {std::make_shared<v1::Reshape>(data, pattern, special_zero)};
 }
 
 }  // namespace set_1

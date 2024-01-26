@@ -40,7 +40,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "xml_parse_utils.h"
+#include "openvino/util/xml_parse_utils.hpp"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
@@ -169,32 +169,6 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
     try {
         return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
-void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
-    if (deviceName_.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
-    }
-    if (deviceName_.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
-    }
-    if (deviceName_.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support extensions. Please, set extensions directly to fallback devices";
-    }
-
-    try {
-        _impl->AddExtension(extension);
-    } catch (const ov::Exception& ex) {
-        IE_THROW() << ex.what();
-    }
-}
-
-void Core::AddExtension(const IExtensionPtr& extension) {
-    try {
-        _impl->AddExtension(extension);
     } catch (const ov::Exception& ex) {
         IE_THROW() << ex.what();
     }

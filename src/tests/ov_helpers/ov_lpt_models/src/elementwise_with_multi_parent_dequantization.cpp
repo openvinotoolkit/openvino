@@ -6,12 +6,10 @@
 #include "low_precision/network_helper.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,9 +18,9 @@ std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get
     const ov::Shape& inputShape,
     const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+    const ov::builder::subgraph::DequantizationOperations& dequantization1,
     const ov::element::Type& precision2,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization2) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization2) {
     const auto input1_1 = std::make_shared<ov::opset1::Parameter>(precision1, inputShape);
     const auto input1_2 = std::make_shared<ov::opset1::Parameter>(precision1, ov::Shape({ inputShape[0], inputShape[1], 1, 1 }));
     const std::shared_ptr<ov::Node> multiply1 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
@@ -57,4 +55,4 @@ std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

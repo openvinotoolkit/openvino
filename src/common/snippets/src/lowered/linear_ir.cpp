@@ -133,10 +133,10 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
     auto print_rinfo = [](const RegInfo& rinfo) {
         std::cerr << " : {";
         for (auto i : rinfo.first)
-            std::cerr << i << " ";
+            std::cerr << regTypeToStr(i.type) << "[" << i.idx << "] ";
         std::cerr << " => ";
         for (auto i : rinfo.second)
-            std::cerr << i << " ";
+            std::cerr << regTypeToStr(i.type) << "[" << i.idx << "] ";
         std::cerr << "}";
     };
     std::map<PortConnectorPtr, int> td2int;

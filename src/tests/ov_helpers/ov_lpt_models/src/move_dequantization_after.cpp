@@ -6,18 +6,17 @@
 #include "low_precision/network_helper.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
     std::shared_ptr<ov::Model> MoveDequantizationAfterFunction::getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization) {
+        const ov::builder::subgraph::DequantizationOperations dequantization) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deq = makeDequantization(input, dequantization);
@@ -44,9 +43,9 @@ namespace subgraph {
     std::shared_ptr<ov::Model> MoveDequantizationAfterFunction::getReference(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
+        const ov::builder::subgraph::DequantizationOperations dequantizationAfter) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -75,4 +74,4 @@ namespace subgraph {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

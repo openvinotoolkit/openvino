@@ -13,7 +13,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Reposito
    Note that the APT distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for GNA and NPU inference
+   * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
 
@@ -148,7 +148,8 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
          .. code-block:: sh
 
-            sudo apt install openvino-2023.2.0
+
+            sudo apt install openvino-2023.3.0
 
 .. note::
 
@@ -221,7 +222,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo apt autoremove openvino-2023.2.0
+         sudo apt autoremove openvino-2023.3.0
 
 
 What's Next?
@@ -239,6 +240,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
+  * `Object classification sample <openvino_sample_hello_classification.html>`_
 
 You can also try the following:
 

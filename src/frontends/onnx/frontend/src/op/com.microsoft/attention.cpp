@@ -4,7 +4,6 @@
 
 #include "op/com.microsoft/attention.hpp"
 
-#include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
@@ -266,7 +265,7 @@ NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
 // Handling both mask_index variants (so (batch_size) and (2 * batch_size)) is tricky since we don't
 // know its dimensions upfront. So we compute both variants and use Select operator to select
 // the right one in the runtime (unless it gets constantfolded before).
-std::shared_ptr<ov::Node> attention_mask_from_indices(const Output<ov::Node>& mask_index,
+std::shared_ptr<ov::Node> attention_mask_from_indices(const ov::Output<ov::Node>& mask_index,
                                                       const element::Type_t& type,
                                                       const std::shared_ptr<ov::Node>& batch_size,
                                                       const std::shared_ptr<ov::Node>& all_seq_len) {
@@ -372,7 +371,7 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
 //
 // Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
-std::shared_ptr<ov::Node> raw_mask(const Output<ov::Node>& mask_index,
+std::shared_ptr<ov::Node> raw_mask(const ov::Output<ov::Node>& mask_index,
                                    ov::Dimension::value_type mask_rank,
                                    const element::Type_t& type) {
     std::shared_ptr<ov::Node> mask = std::make_shared<v0::Convert>(mask_index, type);

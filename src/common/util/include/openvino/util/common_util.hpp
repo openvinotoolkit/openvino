@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -117,6 +118,21 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
     return std::any_of(vec.begin(), vec.end(), [&](const T& x) {
         return x == v;
     });
+}
+
+/**
+ * @brief multiply vector's values
+ * @param vec - vector with values
+ * @return result of multiplication
+ */
+template <typename T, typename A>
+T product(std::vector<T, A> const& vec) {
+    if (vec.empty())
+        return 0;
+    T ret = vec[0];
+    for (size_t i = 1; i < vec.size(); ++i)
+        ret *= vec[i];
+    return ret;
 }
 
 /**
