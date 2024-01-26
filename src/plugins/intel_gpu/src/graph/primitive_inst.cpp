@@ -685,7 +685,24 @@ bool primitive_inst::use_async_compilation() {
         return false;
     }
 
-    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() || _node->is_type<gemm>() ||
+    bool compile_fc_impls = _node->is_type<fully_connected>();
+    if (compile_fc_impls) {
+        const auto& fc_node = _node->as<fully_connected>();
+        if (fc_node.get_primitive()->compressed_weights) {
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            auto input_shape = _impl_params->get_input_layout().get_shape();
+            auto batch_size = std::accumulate(input_shape.begin(),
+                                              input_shape.end() - 1,
+                                              size_t{1},
+                                              std::multiplies<size_t>());
+
+            // Disable async compilation for all int4 FC, except in the case of batch_size == 1
+            if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
+                compile_fc_impls = false;
+        }
+    }
+
+    return (_node->is_type<convolution>() || compile_fc_impls || _node->is_type<gemm>() ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -802,6 +819,13 @@ bool primitive_inst::update_impl() {
 
                         if (!can_be_optimized()) {
                             auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                            // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
+                            // the newly chosen impl is not added to the impl cache for beffer performance.
+                            if (_node->is_type<gemm>() &&
+                                _dynamic_impl->get_kernel_name().find("gemm_ref") == std::string::npos &&
+                                impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
+                                return;
+                            }
                             if (impl->get_kernels_source().size() > 0) {
                                 auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                                 impl->set_kernels(kernels);
