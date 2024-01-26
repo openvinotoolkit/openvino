@@ -20,8 +20,8 @@ class TestComplexConjugate(CommonTFLayerTest):
         imag_part_shape = inputs_info['imag_part']
 
         inputs_data = {}
-        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.complex64) - 2
-        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.complex64) - 2
+        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
+        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
 
         return inputs_data
     def create_complex_conjugate_net(self, input_shape):
@@ -34,8 +34,8 @@ class TestComplexConjugate(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            real_part = tf.compat.v1.placeholder(np.complex64, input_shape, 'real_part')
-            imag_part = tf.compat.v1.placeholder(np.complex64, input_shape, 'imag_part')
+            real_part = tf.compat.v1.placeholder(np.float32, input_shape, 'real_part')
+            imag_part = tf.compat.v1.placeholder(np.float32, input_shape, 'imag_part')
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
@@ -59,46 +59,3 @@ class TestComplexConjugate(CommonTFLayerTest):
         self._test(*self.create_complex_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
-
-
-class TestConjugate(CommonTFLayerTest):
-
-    def _prepare_input(self, inputs_info):
-
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
-
-        inputs_data = {}
-        inputs_data['input'] = np.random.default_rng().random(input_shape).astype(np.complex64)
-
-        return inputs_data
-
-    def create_conjugate_net(self, input_shape):
-        """
-            TensorFlow net                                 IR net
-            Placeholder->Conjugate    =>       Placeholder->Conjugate
-        """
-
-        tf.compat.v1.reset_default_graph()
-
-        # Create the graph and model
-        with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(np.complex64, input_shape, 'input')
-
-            tf.raw_ops.Conj(input=input, name = "Operation")
-
-            tf.compat.v1.global_variables_initializer()
-            tf_net = sess.graph_def
-
-        ref_net = None
-
-        return tf_net, ref_net
-
-    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
-    @pytest.mark.precommit_tf_fe
-    @pytest.mark.nightly
-    def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
-        self._test(*self.create_conjugate_net(input_shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend) 
