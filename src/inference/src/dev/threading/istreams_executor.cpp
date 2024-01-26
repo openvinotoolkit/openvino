@@ -23,6 +23,102 @@ namespace threading {
 
 IStreamsExecutor::~IStreamsExecutor() {}
 
+void IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
+    set_property({{key, value}});
+}
+
+void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
+    for (const auto& it : property) {
+        const auto& key = it.first;
+        const auto value = it.second;
+        if (key == ov::num_streams) {
+            auto streams = value.as<ov::streams::Num>();
+            if (streams.num >= 0) {
+                _streams = streams.num;
+            } else if (streams.num < ov::streams::NUMA) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::num_streams.name(),
+                               ". Expected non negative numbers (#streams) or ",
+                               "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                               streams);
+            }
+        } else if (key == ov::inference_num_threads) {
+            int val_i;
+            try {
+                val_i = value.as<int>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::inference_num_threads.name(),
+                               ". Expected only positive numbers (#threads)");
+            }
+            if (val_i < 0) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::inference_num_threads.name(),
+                               ". Expected only positive numbers (#threads)");
+            }
+            _threads = val_i;
+        } else if (key == ov::internal::threads_per_stream) {
+            _threads_per_stream = static_cast<int>(value.as<size_t>());
+        } else if (key == ov::affinity) {
+            ov::Affinity affinity = value.as<ov::Affinity>();
+            switch (affinity) {
+            case ov::Affinity::NONE:
+                _threadBindingType = ThreadBindingType::NONE;
+                break;
+            case ov::Affinity::CORE: {
+#if (defined(__APPLE__) || defined(_WIN32))
+                _threadBindingType = ThreadBindingType::NUMA;
+#else
+                _threadBindingType = ThreadBindingType::CORES;
+#endif
+            } break;
+            case ov::Affinity::NUMA:
+                _threadBindingType = ThreadBindingType::NUMA;
+                break;
+            case ov::Affinity::HYBRID_AWARE:
+                _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+                break;
+            default:
+                OPENVINO_THROW("Unsupported affinity type");
+            }
+        } else {
+            OPENVINO_THROW("Wrong value for property key ", key);
+        }
+    }
+}
+
+ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
+    if (key == ov::supported_properties) {
+        std::vector<std::string> properties{
+            ov::num_streams.name(),
+            ov::inference_num_threads.name(),
+            ov::internal::threads_per_stream.name(),
+            ov::affinity.name(),
+        };
+        return properties;
+    } else if (key == ov::affinity) {
+        switch (_threadBindingType) {
+        case IStreamsExecutor::ThreadBindingType::NONE:
+            return ov::Affinity::NONE;
+        case IStreamsExecutor::ThreadBindingType::CORES:
+            return ov::Affinity::CORE;
+        case IStreamsExecutor::ThreadBindingType::NUMA:
+            return ov::Affinity::NUMA;
+        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+            return ov::Affinity::HYBRID_AWARE;
+        }
+    } else if (key == ov::num_streams) {
+        return decltype(ov::num_streams)::value_type{_streams};
+    } else if (key == ov::inference_num_threads) {
+        return decltype(ov::inference_num_threads)::value_type{_threads};
+    } else if (key == ov::internal::threads_per_stream) {
+        return decltype(ov::internal::threads_per_stream)::value_type{_threads_per_stream};
+    } else {
+        OPENVINO_THROW("Wrong value for property key ", key);
+    }
+    return {};
+}
+
 IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     const IStreamsExecutor::Config& initial) {
     const auto proc_type_table = get_proc_type_table();

@@ -120,6 +120,28 @@ public:
             update_executor_config();
         }
 
+        // These APIs which includes set_property and get_property can not be removed until they will never be called by
+        // other plugins such as NV plugin.
+        /**
+         * @brief Sets configuration
+         * @param properties map of properties
+         */
+        void set_property(const ov::AnyMap& properties);
+
+        /**
+         * @brief Sets configuration
+         * @param key property name
+         * @param value property value
+         */
+        void set_property(const std::string& key, const ov::Any& value);
+
+        /**
+         * @brief Return configuration value
+         * @param key configuration key
+         * @return configuration value wrapped into ov::Any
+         */
+        ov::Any get_property(const std::string& key) const;
+
         std::string get_name() {
             return _name;
         }

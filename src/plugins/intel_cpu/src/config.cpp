@@ -89,16 +89,25 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>());
             }
         } else if (key == ov::inference_num_threads.name()) {
-            int value;
+            ov::Any value = val.as<std::string>();
+            int threads_value;
             try {
-                value = val.as<int>();
+                threads_value = value.as<int>();
             } catch (const std::exception&) {
-                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only positive numbers (#threads)");
             }
-            if (value < 0) {
-                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            if (threads_value < 0) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only positive numbers (#threads)");
             }
-            threads = value;
+            threads = threads_value;
         } else if (key == ov::internal::threads_per_stream.name()) {
             try {
                 threadsPerStream = val.as<int>();
