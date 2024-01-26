@@ -39,17 +39,25 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
         const auto master_prelast = *++master_shape.rbegin();
         return std::all_of(input_shapes.begin(), input_shapes.end(),
                            [=](const VectorDims& s) {
+                               OPENVINO_ASSERT(s.size() >= 2, "LastDimsNotBroadcasted can't process shape with less than two dims");
                                return *s.rbegin() == master_last &&
                                       *++s.rbegin() == master_prelast;
                             });
     };
 
+    // Index of InputShape with the minimal rank
+    size_t min_rank_idx = 0;
+    for (size_t i = 1; i < input_shapes.size(); ++i) {
+        if (input_shapes[i].size() < input_shapes[min_rank_idx].size())
+            min_rank_idx = i;
+    }
+
     size_t jit_work_amount = master_shape.back();
     size_t num_dims_collapsed = 0;
     while (jit_work_amount < min_jit_work_amount &&
+           (num_dims_collapsed + 1) < input_shapes[min_rank_idx].size() &&
            can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
-           LastDimsNotBroadcasted(input_shapes, master_shape) &&
-           num_dims_collapsed < master_shape.size() - 1) {
+           LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
