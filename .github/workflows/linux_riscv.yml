@@ -213,6 +213,19 @@ jobs:
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
 
+      - name: Show sccache log
+        continue-on-error: true
+        run: |
+          cat ${SCCACHE_ERROR_LOG}
+
+      - name: Upload sccache log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: sccache_log
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'error'
+
       - name: Build OpenVINO C++ samples
         run: |
           source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
