@@ -80,8 +80,6 @@ ov::Any Configuration::Get(const std::string& name) const {
         return {disable_transformations};
     } else if (name == ov::num_streams) {
         return {std::to_string(streams_executor_config._streams)};
-    } else if (name == ov::internal::cpu_bind_thread) {
-        return streams_executor_config.get_property(name);
     } else if (name == ov::inference_num_threads) {
         return {std::to_string(streams_executor_config._threads)};
     } else if (name == ov::internal::threads_per_stream) {

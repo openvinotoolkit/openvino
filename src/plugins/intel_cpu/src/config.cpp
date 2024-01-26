@@ -345,20 +345,6 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    switch (streamExecutorConfig._threadBindingType) {
-    case IStreamsExecutor::ThreadBindingType::NONE:
-        _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
-        break;
-    case IStreamsExecutor::ThreadBindingType::CORES:
-        _config.insert({ov::internal::cpu_bind_thread.name(), "YES"});
-        break;
-    case IStreamsExecutor::ThreadBindingType::NUMA:
-        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::NUMA)});
-        break;
-    case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::HYBRID_AWARE)});
-        break;
-    }
     if (collectPerfCounters == true)
         _config.insert({ov::enable_profiling.name(), "YES"});
     else

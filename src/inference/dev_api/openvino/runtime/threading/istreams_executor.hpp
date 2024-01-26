@@ -82,8 +82,6 @@ public:
          * @return configured values
          */
         static Config make_default_multi_threaded(const Config& initial);
-        static int get_default_num_streams(
-            const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information
