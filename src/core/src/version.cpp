@@ -5,7 +5,6 @@
 #include "openvino/core/version.hpp"
 
 namespace ov {
-const char* OV_VERSION_NUMBER = CI_BUILD_NUMBER;
 
 std::ostream& operator<<(std::ostream& s, const Version& version) {
     s << version.description << std::endl;
@@ -25,7 +24,7 @@ std::ostream& operator<<(std::ostream& s, const std::map<std::string, Version>& 
 }
 
 const Version get_openvino_version() noexcept {
-    static const Version version = {OV_VERSION_NUMBER, "OpenVINO Runtime"};
+    static const Version version = {CI_BUILD_NUMBER, "OpenVINO Runtime"};
     return version;
 }
 
