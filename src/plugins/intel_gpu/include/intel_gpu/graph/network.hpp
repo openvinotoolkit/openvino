@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #include "intel_gpu/graph/topology.hpp"

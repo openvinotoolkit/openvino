@@ -74,6 +74,9 @@ KERNEL(gemm_tiled_opt)(
 #ifdef INPUT2_TYPE
     const __global INPUT2_TYPE* input2,
 #endif // INPUT2_TYPE
+#if BEAM_TABLE_TERM
+    const __global BEAM_TABLE_TYPE* beam_table,
+#endif
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS

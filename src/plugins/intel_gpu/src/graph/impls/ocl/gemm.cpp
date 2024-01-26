@@ -65,7 +65,7 @@ public:
         params.indirect_input0 = primitive->indirect_a;
         params.indirect_input1 = primitive->indirect_b;
         if (primitive->indirect_a || primitive->indirect_b) {
-            OPENVINO_ASSERT(impl_param.input_layouts.size() == 3);
+            OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
             params.beam_table = convert_data_tensor(impl_param.input_layouts[2]);
         }
 
@@ -96,6 +96,15 @@ public:
         }
 
         return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(static_canonicalize_shapes(impl_param));
+        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+
+        return make_unique<gemm_impl>(best_kernel);
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -151,7 +160,7 @@ attach_gemm_impl::attach_gemm_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
+    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, gemm_impl::create, types, formats);
 
     const std::vector<format::type> dyn_formats {
         format::bfyx,
@@ -161,7 +170,7 @@ attach_gemm_impl::attach_gemm_impl() {
 
     implementation_map<gemm>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,
-                                  typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dyn_formats);
+                                  gemm_impl::create, types, dyn_formats);
 }
 
 }  // namespace detail

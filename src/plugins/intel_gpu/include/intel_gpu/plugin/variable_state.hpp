@@ -68,6 +68,8 @@ public:
         return m_initial_layout;
     }
 
+    ov::element::Type get_user_specified_type() const;
+
 protected:
     cldnn::layout m_layout;
     ov::element::Type m_user_specified_type;
@@ -79,7 +81,6 @@ protected:
     const cldnn::layout m_initial_layout;
 
     void update_device_buffer();
-    ov::element::Type get_user_specified_type() const;
 };
 
 using VariablesMap = std::unordered_map<std::string, std::shared_ptr<GPUVariableState>>;

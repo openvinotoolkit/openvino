@@ -149,6 +149,24 @@ struct gemm : public primitive_base<gemm> {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
+
+        auto get_transpose_mode = [](const std::vector<int64_t>& order_idx) {
+            int64_t rank = order_idx.size() - 1;
+
+            if (rank == order_idx[rank]) {
+                // normal
+                return TransposeType::X_LAST;
+            } else if (rank == order_idx[rank - 1]) {
+                // the second last dim is moved to the last
+                return TransposeType::Y_LAST;
+            } else {
+                // other
+                return TransposeType::OTHER;
+            }
+        };
+
+        transpose_input0 = get_transpose_mode(input0_order);
+        transpose_input1 = get_transpose_mode(input1_order);
     }
 
     /// @brief Flag for transposing first input matrix

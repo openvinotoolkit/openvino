@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/input_layout.hpp"
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "data_inst.h"
@@ -1347,6 +1348,15 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     if (_exec_deps.empty() && dependencies.empty()) {
         dependencies = events;
     } else {
+        auto depends_on_input = std::any_of(_deps.begin(), _deps.end(), [](const std::pair<primitive_inst*, int32_t>& d){
+            return d.first->_node->is_type<input_layout>();
+        });
+
+        // use network execution events as dependency for any primitive connected to the input_layout node
+        // to ensure that primitive can synchronize on these events
+        if (depends_on_input)
+            dependencies.insert(dependencies.end(), events.begin(), events.end());
+
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {

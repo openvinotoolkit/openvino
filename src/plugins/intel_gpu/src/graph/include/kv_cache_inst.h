@@ -5,6 +5,8 @@
 #pragma once
 
 #include "intel_gpu/primitives/kv_cache.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
 #include "variable.hpp"
 
@@ -21,6 +23,20 @@ public:
     program_node& input() const { return get_dependency(0); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    std::vector<layout> get_shape_info_input_layouts() const override {
+        std::vector<layout> res;
+        for (size_t i = 0; i < get_dependencies().size(); i++) {
+            const auto& d = get_dependency_with_port(i);
+            res.push_back(d.first->get_output_layout(false, d.second));
+        }
+
+        if (get_primitive()->indirect) { // insert an additional input with beam table past layout
+            res.push_back(layout(ov::PartialShape::dynamic(2), data_types::i32, format::bfyx));
+        }
+
+        return res;
+    }
 };
 
 using kv_cache_node = typed_program_node<kv_cache>;
@@ -78,6 +94,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] max_pad (max_sequence_elements - concat_axis_size) = " << max_pad << std::endl;
         return max_pad;
     }
+    void update_shape_info_tensor(const kernel_impl_params& params) override;
 
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}

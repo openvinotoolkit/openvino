@@ -28,6 +28,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
+    k.EnableIndirectGemm();
 
     return k;
 }
