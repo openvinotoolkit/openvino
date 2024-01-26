@@ -34,6 +34,7 @@ const std::vector<std::vector<size_t >> padEnds = {{0, 0},
 const std::vector<ov::op::RoundingType> roundingTypes = {ov::op::RoundingType::CEIL,
                                                          ov::op::RoundingType::FLOOR};
 const std::vector<ov::element::Type> indexElementTypes = {ov::element::i32};
+
 const std::vector<int64_t> axes = {0, 2};
 const std::vector<ov::Shape> inputShapeSmall = {{1, 3, 30, 30}};
 const std::vector<ov::Shape> inputShapeLarge = {{1, 3, 50, 50}};
