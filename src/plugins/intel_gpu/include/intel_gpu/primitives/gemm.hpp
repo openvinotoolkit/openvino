@@ -25,6 +25,12 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
+    typedef enum {
+        X_LAST = 0,
+        Y_LAST,
+        OTHER,
+    } TransposeType;
+
     gemm() : primitive_base("", {}) {}
 
     /// @brief Constructs gemm layer.
@@ -38,16 +44,16 @@ struct gemm : public primitive_base<gemm> {
     gemm(const primitive_id& id,
          const std::vector<input_info>& inputs,
          const data_types data_type,
-         const bool transpose_input0 = false,
-         const bool transpose_input1 = false,
+         const bool transpose_input0,
+         const bool transpose_input1,
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const size_t input_rank = 4,
          const size_t weight_rank = 4,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
-          transpose_input0(transpose_input0),
-          transpose_input1(transpose_input1),
+          transpose_input0(transpose_input0 ? 1 : 0),
+          transpose_input1(transpose_input1 ? 1 : 0),
           alpha(alpha),
           beta(beta),
           input_rank(input_rank),
@@ -55,25 +61,97 @@ struct gemm : public primitive_base<gemm> {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
+
+        auto get_transposed_order = [] (size_t rank, bool transposed) {
+            std::vector<int64_t> order(rank);
+            std::iota(order.begin(), order.end(), 0);
+            if (transposed)
+                std::swap(order[rank - 1], order[rank - 2]);
+            return order;
+        };
+
+        input0_order = get_transposed_order(input_rank, transpose_input0);
+        input1_order = get_transposed_order(weight_rank, transpose_input1);
+        output_order = {};
+    }
+
+    /// @brief Constructs gemm layer.
+    /// @brief Primitive id containing first matrix
+    /// @brief Primitive id containing second matrix
+    /// @brief Transposed order of first input matrix
+    /// @brief Transposed order of second input matrix
+    /// @brief Transposed order of output matrix
+    /// @brief Variable containing ALPHA parameter
+    /// @brief Variable containing BETA parameter
+    gemm(const primitive_id& id,
+         const std::vector<input_info>& inputs,
+         const data_types data_type,
+         const std::vector<int64_t>& input0_order = {0, 1, 2, 3},
+         const std::vector<int64_t>& input1_order = {0, 1, 2, 3},
+         const std::vector<int64_t>& output_order = {},
+         const float alpha = 1.0f,
+         const float beta = 0.0f,
+         const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+          input0_order(input0_order),
+          input1_order(input1_order),
+          output_order(output_order),
+          alpha(alpha),
+          beta(beta),
+          input_rank(input0_order.size()),
+          weight_rank(input1_order.size()) {
+        if (inputs.size() != 2 && inputs.size() != 3) {
+            throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
+        }
+
+        auto get_transpose_mode = [](const std::vector<int64_t>& order_idx) {
+            int64_t rank = order_idx.size() - 1;
+
+            if (rank == order_idx[rank]) {
+                // normal
+                return TransposeType::X_LAST;
+            } else if (rank == order_idx[rank - 1]) {
+                // the second last dim is moved to the last
+                return TransposeType::Y_LAST;
+            } else {
+                // other
+                return TransposeType::OTHER;
+            }
+        };
+
+        transpose_input0 = get_transpose_mode(input0_order);
+        transpose_input1 = get_transpose_mode(input1_order);
     }
 
     /// @brief Flag for transposing first input matrix
-    bool transpose_input0 = false;
+    uint32_t transpose_input0 = 0;
     /// @brief Flag for transposing second input matrix
-    bool transpose_input1 = false;
+    uint32_t transpose_input1 = 0;
+    /// @brief order of input 0
+    std::vector<int64_t> input0_order;
+    /// @brief order of input 1
+    std::vector<int64_t> input1_order;
+    /// @brief order of output
+    std::vector<int64_t> output_order;
     /// @brief Variable containing ALPHA parameter
     float alpha = 1.0f;
     /// @brief Variable containing BETA parameter
     float beta = 1.0f;
     /// @brief First matrix rank
     size_t input_rank = 4;
-     /// @brief Second matrix rank
+    /// @brief Second matrix rank
     size_t weight_rank = 4;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, transpose_input0);
         seed = hash_combine(seed, transpose_input1);
+        for (auto order : input0_order)
+            seed = hash_combine(seed, order);
+        for (auto order : input1_order)
+            seed = hash_combine(seed, order);
+        for (auto order : output_order)
+            seed = hash_combine(seed, order);
         seed = hash_combine(seed, alpha);
         seed = hash_combine(seed, beta);
         return seed;
@@ -97,6 +175,9 @@ struct gemm : public primitive_base<gemm> {
         primitive_base<gemm>::save(ob);
         ob << transpose_input0;
         ob << transpose_input1;
+        ob << input0_order;
+        ob << input1_order;
+        ob << output_order;
         ob << alpha;
         ob << beta;
         ob << input_rank;
@@ -107,6 +188,9 @@ struct gemm : public primitive_base<gemm> {
         primitive_base<gemm>::load(ib);
         ib >> transpose_input0;
         ib >> transpose_input1;
+        ib >> input0_order;
+        ib >> input1_order;
+        ib >> output_order;
         ib >> alpha;
         ib >> beta;
         ib >> input_rank;

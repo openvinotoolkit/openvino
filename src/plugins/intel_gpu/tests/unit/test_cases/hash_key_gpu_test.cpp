@@ -127,8 +127,8 @@ public:
 
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
-        ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-        ASSERT_EQ(params_hash, 12585836190897043350UL);
+        ASSERT_EQ(primitive_hash, 6333308204192016515UL);
+        ASSERT_EQ(params_hash, 5512364123521496254UL);
     }
 
     void test_permute_basic(bool is_caching_test) {
