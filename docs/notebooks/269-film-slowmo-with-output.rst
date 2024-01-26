@@ -43,32 +43,32 @@ a model source.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare images <#Prepare-images>`__
--  `Load the model <#Load-the-model>`__
--  `Infer the model <#Infer-the-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare images <#prepare-images>`__
+-  `Load the model <#load-the-model>`__
+-  `Infer the model <#infer-the-model>`__
 
    -  `Single middle frame
-      interpolation <#Single-middle-frame-interpolation>`__
-   -  `Recursive frame generation <#Recursive-frame-generation>`__
+      interpolation <#single-middle-frame-interpolation>`__
+   -  `Recursive frame generation <#recursive-frame-generation>`__
 
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
--  `Inference <#Inference>`__
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Inference <#inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Single middle frame
-      interpolation <#Single-middle-frame-interpolation>`__
-   -  `Recursive frame generation <#Recursive-frame-generation>`__
+      interpolation <#single-middle-frame-interpolation>`__
+   -  `Recursive frame generation <#recursive-frame-generation>`__
 
--  `Interactive inference <#Interactive-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -77,13 +77,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    
+
     [notice] A new release of pip is available: 23.2.1 -> 23.3.1
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
     WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
-    
+
     [notice] A new release of pip is available: 23.2.1 -> 23.3.1
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
@@ -96,8 +96,8 @@ Prerequisites
     from typing import Optional, Generator
     from datetime import datetime
     import gc
-    
-    
+
+
     import tensorflow_hub as hub
     import tensorflow as tf
     import openvino as ov
@@ -136,13 +136,13 @@ Prerequisites
     OV_OUTPUT_VIDEO_PATH = DATA_PATH / "ov_output.webm"
     TIMES_TO_INTERPOLATE = 5
     DATA_PATH.mkdir(parents=True, exist_ok=True)
-    
+
     PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True  # allows Gradio to read PNG images with large metadata
 
 Prepare images
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download images and cast them to NumPy arrays to provide as model
 inputs.
@@ -153,7 +153,7 @@ inputs.
         result = frame.astype(np.float32) / 255  # normalize to [0, 1]
         result = result[np.newaxis, ...]  # add batch dim
         return result
-    
+
     def prepare_input(img_url: str):
         if not IMAGES[img_url].exists():
             urlretrieve(img_url, IMAGES[img_url])
@@ -162,11 +162,11 @@ inputs.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.array(img)
         img = preprocess_np_frame(img)
-        
+
         return img
-    
+
     input_images = [prepare_input(url) for url in IMAGES]
-    
+
     input = {
         "x0": input_images[0],
         "x1": input_images[1],
@@ -191,7 +191,7 @@ inputs.
 Load the model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model is loaded using ``tensorflow_hub.KerasLayer`` function. Then, we
 specify shapes of input tensors to cast loaded object to
@@ -218,12 +218,12 @@ Hub <https://tfhub.dev/google/film/1>`__.
 Infer the model
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Single middle frame interpolation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -254,7 +254,7 @@ Single middle frame interpolation
 Recursive frame generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process will take as input 2 original frames (first and last) and
 generate a midpoint frame. Then, it will repeat itself for pairs “first
@@ -267,7 +267,7 @@ generating :math:`2^t-1` images.
     class Interpolator:
         def __init__(self, model):
             self._model = model
-    
+
         def _recursive_generator(
             self,
             frame1: np.ndarray,
@@ -276,12 +276,12 @@ generating :math:`2^t-1` images.
             bar: Optional[tqdm] = None,
         ) -> Generator[np.ndarray, None, None]:
             """Splits halfway to repeatedly generate more frames.
-    
+
             Args:
               frame1: Input image 1.
               frame2: Input image 2.
               num_recursions: How many times to interpolate the consecutive image pairs.
-    
+
             Yields:
               The interpolated frames, including the first frame (frame1), but excluding
               the final frame2.
@@ -295,18 +295,18 @@ generating :math:`2^t-1` images.
                     bar.update(1)
                 yield from self._recursive_generator(frame1, mid_frame, num_recursions - 1, bar)
                 yield from self._recursive_generator(mid_frame, frame2, num_recursions - 1, bar)
-    
+
         def interpolate_recursively(
             self, frame1: np.ndarray, frame2: np.ndarray, times_to_interpolate: int
         ) -> Generator[np.ndarray, None, None]:
             """Generates interpolated frames by repeatedly interpolating the midpoint.
-    
+
             Args:
               frame1: Input image 1.
               frame2: Input image 2.
               times_to_interpolate: Number of times to do recursive midpoint
                 interpolation.
-    
+
             Yields:
               The interpolated frames (including the inputs).
             """
@@ -332,7 +332,7 @@ generating :math:`2^t-1` images.
 .. code:: ipython3
 
     height, width = input_images[0][0].shape[:2]
-    interpolator = Interpolator(film_model) 
+    interpolator = Interpolator(film_model)
     frames = interpolator.interpolate_recursively(input_images[0], input_images[1], TIMES_TO_INTERPOLATE)
     save_as_video(frames, width, height, OUTPUT_VIDEO_PATH)
 
@@ -367,7 +367,7 @@ generating :math:`2^t-1` images.
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert a TensorFlow Keras Model to OpenVINO Intermediate
 Representation (IR), call the ``openvino.convert_model()`` function and
@@ -395,12 +395,12 @@ object to disk using the ``openvino.save_model()`` function.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -431,7 +431,7 @@ select device from dropdown list for running inference using OpenVINO
 Single middle frame interpolation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model output has multiple tensors, including auxiliary inference data.
 The main output tensor - interpolated image - is stored at “image” key.
@@ -456,7 +456,7 @@ Model returned intermediate image. Let’s see what it is.
 Recursive frame generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now let’s create a smooth video by recursively generating frames between
 initial, middle and final images.
@@ -499,7 +499,7 @@ initial, middle and final images.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -510,7 +510,7 @@ Interactive inference
         filename = DATA_PATH / f"output_{datetime.now().isoformat()}.webm"
         save_as_video(frames, width, height, filename)
         return filename
-    
+
     demo = gr.Interface(
         generate,
         [

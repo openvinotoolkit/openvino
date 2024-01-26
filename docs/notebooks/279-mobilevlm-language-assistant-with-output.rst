@@ -20,25 +20,27 @@ response. LDP refers to a lightweight downsample projector (left).
 
 See more information on official
 `GitHub <https://github.com/Meituan-AutoML/MobileVLM>`__ project page
-and `paper <https://arxiv.org/abs/2312.16886>`__. #### Table of
-contents: - `Install requirements <#Install-requirements>`__ - `Clone
-MobileVLM repository <#Clone-MobileVLM-repository>`__ - `Import required
-packages <#Import-required-packages>`__ - `Load the
-model <#Load-the-model>`__ - `Convert model to OpenVINO Intermediate
-Representation
-(IR) <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)>`__ -
-`Inference <#Inference>`__ - `Load OpenVINO
-model <#Load-OpenVINO-model>`__ - `Prepare input
-data <#Prepare-input-data>`__ - `Run generation
-process <#Run-generation-process>`__ - `Interactive
-inference <#Interactive-inference>`__
+and `paper <https://arxiv.org/abs/2312.16886>`__.
+
+**Table of contents:**
+
+- `Install requirements <#install-requirements>`__
+- `Clone MobileVLM repository <#clone-mobilevlm-repository>`__
+- `Import required packages <#import-required-packages>`__
+- `Load the model <#load-the-model>`__
+- `Convert model to OpenVINO Intermediate Representation (IR) <#convert-model-to-openvino-intermediate-representation-ir>`__
+- `Inference <#inference>`__
+- `Load OpenVINO model <#load-openvino-model>`__
+- `Prepare input data <#prepare-input-data>`__
+- `Run generation process <#run-generation-process>`__
+- `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/Meituan-AutoML/MobileVLM/raw/main/assets/mobilevlm_arch.png
 
 Install requirements
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -49,7 +51,7 @@ Install requirements
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -59,7 +61,7 @@ Install requirements
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -67,7 +69,7 @@ Install requirements
     datasets 2.16.1 requires huggingface-hub>=0.19.4, but you have huggingface-hub 0.17.3 which is incompatible.
     diffusers 0.25.1 requires huggingface-hub>=0.20.2, but you have huggingface-hub 0.17.3 which is incompatible.
     pyannote-audio 2.0.1 requires torchaudio<1.0,>=0.10, but you have torchaudio 2.1.2+cpu which is incompatible.
-    
+
 
 .. parsed-literal::
 
@@ -77,7 +79,7 @@ Install requirements
 Clone MobileVLM repository
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -91,7 +93,7 @@ Clone MobileVLM repository
 Import required packages
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -99,7 +101,7 @@ Import required packages
     import itertools
     import gc
     from typing import Optional, List, Tuple
-    
+
     from mobilevlm.model.mobilevlm import load_pretrained_model
     from mobilevlm.conversation import conv_templates, SeparatorStyle
     from mobilevlm.utils import (
@@ -140,19 +142,19 @@ Import required packages
 
     MODELS_DIR = Path("./models")
     MODEL_PATH = 'mtgv/MobileVLM-1.7B'
-    
+
     TEMPERATURE = 0.2
     TOP_P = None
     NUM_BEAMS = 1
     MAX_NEW_TOKENS = 512
-    
+
     IMAGE_PATH = MOBILEVLM_REPO_DIR / "assets" / "samples" / "demo.jpg"
     PROMPT_STR = "Who is the author of this book?\nAnswer the question using a single word or phrase."
 
 Load the model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To load the model, we use pre-defined ``load_pretrained_model`` function
 in ``mobilevlm`` module. It returns the model itself, tokenizer, and
@@ -189,7 +191,7 @@ image processor to convert images to appropriate tensors.
 Convert model to OpenVINO Intermediate Representation (IR)
 ----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -248,7 +250,7 @@ compression instead of INT8 weight compression.
         description='Compression mode:',
         disabled=False,
     )
-    
+
     compression_mode
 
 
@@ -278,7 +280,7 @@ compression instead of INT8 weight compression.
         def __init__(self, model):
             super().__init__()
             self.model = model
-    
+
         def forward(
             self,
             input_ids: torch.LongTensor = None,
@@ -294,7 +296,7 @@ compression instead of INT8 weight compression.
             )
             hidden_states = outputs[0]
             logits = self.model.lm_head(hidden_states)
-    
+
             return (logits,) + outputs[1:]
 
 .. code:: ipython3
@@ -332,10 +334,10 @@ compression instead of INT8 weight compression.
         "inputs_embeds": torch.zeros((1, 205, 2048)),
         "attention_mask": torch.ones((1, 205), dtype=torch.long),
     }
-    
+
     wrapped = ModelWrapper(model)
     past_key_values = wrapped(**example_input)[1]
-    
+
     if not stage1_xml_path.exists():
         ov_model = ov.convert_model(wrapped, example_input=example_input)
         set_output_names(ov_model, past_key_values)
@@ -389,10 +391,7 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -423,12 +422,6 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
 
 .. code:: ipython3
 
@@ -437,7 +430,7 @@ compression instead of INT8 weight compression.
         "past_key_values": past_key_values,
         "attention_mask": torch.ones((1, past_key_values[-1][-1].shape[-2] + 1), dtype=torch.long),
     }
-    
+
     if not stage2_xml_path.exists():
         ov_model = ov.convert_model(
             wrapped,
@@ -472,13 +465,6 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
@@ -506,13 +492,6 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
 .. code:: ipython3
 
     prepare_inputs_labels_for_multimodal = model.prepare_inputs_labels_for_multimodal
@@ -529,7 +508,7 @@ compression instead of INT8 weight compression.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVMobileLlamaForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -545,7 +524,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
         def __init__(self, stage1_path, stage2_path, device):
             self.stage1 = core.compile_model(stage1_path, device)
             self.stage2 = core.read_model(stage2_path)
-    
+
             self.generation_config = transformers.GenerationConfig.from_model_config(config)
             self.config = transformers.AutoConfig.from_pretrained(MODELS_DIR)
             self.main_input_name = "input_ids"
@@ -558,11 +537,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.key_value_output_names = [key for key in self.output_names if "present" in key]
             stage2 = core.compile_model(self.stage2, device)
             self.request = stage2.create_infer_request()
-    
+
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-    
+
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -573,7 +552,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             **kwargs,
         ) -> transformers.modeling_outputs.CausalLMOutputWithPast:
             return self.forward(input_ids, images, attention_mask, prefix_mask, past_key_values)
-    
+
         def forward(
             self,
             input_ids: torch.LongTensor,
@@ -598,35 +577,35 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 )
                 # Add the past_key_values to the decoder inputs
                 inputs = dict(zip(self.key_value_input_names, past_key_values))
-    
+
             else:
                 return self.forward_with_image(input_ids, images, attention_mask)
             inputs["input_ids"] = np.array(input_ids)
-    
+
             if "attention_mask" in self.input_names:
                 inputs["attention_mask"] = np.array(attention_mask)
-    
+
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-    
+
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
-    
+
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(
                 self.request.get_tensor(key).data for key in self.key_value_output_names
             )
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-    
+
             past_key_values = tuple(
                 past_key_values[i : i + self.num_pkv]
                 for i in range(0, len(past_key_values), self.num_pkv)
             )
-    
+
             return transformers.modeling_outputs.CausalLMOutputWithPast(
                 logits=logits, past_key_values=past_key_values
             )
-    
+
         def forward_with_image(self, input_ids, images, attention_mask):
             """First step inference method, that resolves multimodal data"""
             _, attention_mask, _, input_embed, _ = prepare_inputs_labels_for_multimodal(
@@ -648,14 +627,14 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -670,7 +649,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -679,7 +658,7 @@ Load OpenVINO model
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -721,7 +700,7 @@ Prepare input data
 Run generation process
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -750,13 +729,13 @@ Run generation process
 .. parsed-literal::
 
     🚀 MobileVLM-1.7B with OpenVINO: Susan Wise Bauer
-    
+
 
 
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -774,7 +753,7 @@ Interactive inference
             prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
         ).unsqueeze(0)
         stopping_criteria = KeywordsStoppingCriteria([stop_str], tokenizer, input_ids)
-    
+
         output_ids = ov_model.generate(
             input_ids,
             images=images_tensor,
@@ -791,10 +770,10 @@ Interactive inference
         outputs = outputs.strip()
         if outputs.endswith(stop_str):
             outputs = outputs[: -len(stop_str)]
-    
+
         return outputs.strip()
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [gr.Image(label="Image", type="pil"), gr.Textbox(label="Prompt")],
@@ -807,7 +786,7 @@ Interactive inference
         ],
         allow_flagging="never"
     )
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -820,12 +799,12 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

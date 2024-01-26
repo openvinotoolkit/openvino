@@ -31,45 +31,45 @@ Transactions on Pattern Analysis and Machine Intelligence, doi:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#Preparation>`__
+-  `Preparation <#preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Download the model <#Download-the-model>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Download the model <#download-the-model>`__
 
--  `Functions <#Functions>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Monodepth on Image <#Monodepth-on-Image>`__
+-  `Functions <#functions>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Monodepth on Image <#monodepth-on-image>`__
 
    -  `Load, resize and reshape input
-      image <#Load,-resize-and-reshape-input-image>`__
-   -  `Do inference on the image <#Do-inference-on-the-image>`__
-   -  `Display monodepth image <#Display-monodepth-image>`__
+      image <#load-resize-and-reshape-input-image>`__
+   -  `Do inference on the image <#do-inference-on-the-image>`__
+   -  `Display monodepth image <#display-monodepth-image>`__
 
--  `Monodepth on Video <#Monodepth-on-Video>`__
+-  `Monodepth on Video <#monodepth-on-video>`__
 
-   -  `Video Settings <#Video-Settings>`__
-   -  `Load the Video <#Load-the-Video>`__
+   -  `Video Settings <#video-settings>`__
+   -  `Load the Video <#load-the-video>`__
    -  `Do Inference on a Video and Create Monodepth
-      Video <#Do-Inference-on-a-Video-and-Create-Monodepth-Video>`__
-   -  `Display Monodepth Video <#Display-Monodepth-Video>`__
+      Video <#do-inference-on-a-video-and-create-monodepth-video>`__
+   -  `Display Monodepth Video <#display-monodepth-video>`__
 
 Preparation
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q matplotlib opencv-python requests tqdm
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -99,13 +99,13 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import time
     from pathlib import Path
-    
+
     import cv2
     import matplotlib.cm
     import matplotlib.pyplot as plt
@@ -120,13 +120,13 @@ Imports
         display,
     )
     import openvino as ov
-    
+
     from notebook_utils import download_file, load_image
 
 Download the model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model is in the `OpenVINO Intermediate Representation
 (IR) <https://docs.openvino.ai/nightly/openvino_ir.html>`__ format.
@@ -134,14 +134,14 @@ The model is in the `OpenVINO Intermediate Representation
 .. code:: ipython3
 
     model_folder = Path('model')
-    
+
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/depth-estimation-midas/FP32/'
     ir_model_name_xml = 'MiDaS_small.xml'
     ir_model_name_bin = 'MiDaS_small.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
-    
+
     model_xml_path = model_folder / ir_model_name_xml
 
 
@@ -160,20 +160,20 @@ The model is in the `OpenVINO Intermediate Representation
 Functions
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     def normalize_minmax(data):
         """Normalizes the values in `data` between 0 and 1"""
         return (data - data.min()) / (data.max() - data.min())
-    
-    
+
+
     def convert_result_to_image(result, colormap="viridis"):
         """
         Convert network result of floating point numbers to an RGB image with
         integer values from 0-255 by applying a colormap.
-    
+
         `result` is expected to be a single network result in 1,H,W shape
         `colormap` is a matplotlib colormap.
         See https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -184,8 +184,8 @@ Functions
         result = cmap(result)[:, :, :3] * 255
         result = result.astype(np.uint8)
         return result
-    
-    
+
+
     def to_rgb(image_data) -> np.ndarray:
         """
         Convert image_data from BGR to RGB
@@ -195,14 +195,14 @@ Functions
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -210,7 +210,7 @@ select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -225,7 +225,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
 it for the specified device with ``core.compile_model``. Get input and
@@ -237,22 +237,22 @@ output keys and the expected input shape for the model.
     core.set_property({'CACHE_DIR': '../cache'})
     model = core.read_model(model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
-    
+
     input_key = compiled_model.input(0)
     output_key = compiled_model.output(0)
-    
+
     network_input_shape = list(input_key.shape)
     network_image_height, network_image_width = network_input_shape[2:]
 
 Monodepth on Image
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load, resize and reshape input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -262,17 +262,17 @@ H=height, W=width).
 
     IMAGE_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
     image = load_image(path=IMAGE_FILE)
-    
+
     # Resize to input shape for network.
     resized_image = cv2.resize(src=image, dsize=(network_image_height, network_image_width))
-    
+
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
 Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -280,11 +280,11 @@ original image shape.
 .. code:: ipython3
 
     result = compiled_model([input_image])[output_key]
-    
+
     # Convert the network result of disparity map to an image that shows
     # distance as colors.
     result_image = convert_result_to_image(result=result)
-    
+
     # Resize back to original image shape. The `cv2.resize` function expects shape
     # in (width, height), [::-1] reverses the (height, width) shape to match this.
     result_image = cv2.resize(result_image, image.shape[:2][::-1])
@@ -299,7 +299,7 @@ original image shape.
 Display monodepth image
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -315,7 +315,7 @@ Display monodepth image
 Monodepth on Video
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default, only the first 4 seconds are processed in order to quickly
 check that everything works. Change ``NUM_SECONDS`` in the cell below to
@@ -324,7 +324,7 @@ modify this. Set ``NUM_SECONDS`` to 0 to process the whole video.
 Video Settings
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -346,7 +346,7 @@ Video Settings
     # Try the `THEO` encoding if you have FFMPEG installed.
     # FOURCC = cv2.VideoWriter_fourcc(*"THEO")
     FOURCC = cv2.VideoWriter_fourcc(*"vp09")
-    
+
     # Create Path objects for the input video and the result video.
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
@@ -355,7 +355,7 @@ Video Settings
 Load the Video
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -369,11 +369,11 @@ compute values for these properties for the monodepth video.
         raise ValueError(f"The video at {VIDEO_FILE} cannot be read.")
     input_fps = cap.get(cv2.CAP_PROP_FPS)
     input_video_frame_height, input_video_frame_width = image.shape[:2]
-    
+
     target_fps = input_fps / ADVANCE_FRAMES
     target_frame_height = int(input_video_frame_height * SCALE_OUTPUT)
     target_frame_width = int(input_video_frame_width * SCALE_OUTPUT)
-    
+
     cap.release()
     print(
         f"The input video has a frame width of {input_video_frame_width}, "
@@ -395,7 +395,7 @@ compute values for these properties for the monodepth video.
 Do Inference on a Video and Create Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -403,10 +403,10 @@ Do Inference on a Video and Create Monodepth Video
     input_video_frame_nr = 0
     start_time = time.perf_counter()
     total_inference_duration = 0
-    
+
     # Open the input video
     cap = cv2.VideoCapture(str(VIDEO_FILE))
-    
+
     # Create a result video.
     out_video = cv2.VideoWriter(
         str(result_video_path),
@@ -414,36 +414,36 @@ Do Inference on a Video and Create Monodepth Video
         target_fps,
         (target_frame_width * 2, target_frame_height),
     )
-    
+
     num_frames = int(NUM_SECONDS * input_fps)
     total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) if num_frames == 0 else num_frames
     progress_bar = ProgressBar(total=total_frames)
     progress_bar.display()
-    
+
     try:
         while cap.isOpened():
             ret, image = cap.read()
             if not ret:
                 cap.release()
                 break
-    
+
             if input_video_frame_nr >= total_frames:
                 break
-    
+
             # Only process every second frame.
             # Prepare a frame for inference.
             # Resize to the input shape for network.
             resized_image = cv2.resize(src=image, dsize=(network_image_height, network_image_width))
             # Reshape the image to network input shape NCHW.
             input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
-    
+
             # Do inference.
             inference_start_time = time.perf_counter()
             result = compiled_model([input_image])[output_key]
             inference_stop_time = time.perf_counter()
             inference_duration = inference_stop_time - inference_start_time
             total_inference_duration += inference_duration
-    
+
             if input_video_frame_nr % (10 * ADVANCE_FRAMES) == 0:
                 clear_output(wait=True)
                 progress_bar.display()
@@ -457,7 +457,7 @@ Do Inference on a Video and Create Monodepth Video
                         f"({1/inference_duration:.2f} FPS)"
                     )
                 )
-    
+
             # Transform the network result to a RGB image.
             result_frame = to_rgb(convert_result_to_image(result))
             # Resize the image and the result to a target frame shape.
@@ -467,13 +467,13 @@ Do Inference on a Video and Create Monodepth Video
             stacked_frame = np.hstack((image, result_frame))
             # Save a frame to the video.
             out_video.write(stacked_frame)
-    
+
             input_video_frame_nr = input_video_frame_nr + ADVANCE_FRAMES
             cap.set(1, input_video_frame_nr)
-    
+
             progress_bar.progress = input_video_frame_nr
             progress_bar.update()
-    
+
     except KeyboardInterrupt:
         print("Processing interrupted.")
     finally:
@@ -483,7 +483,7 @@ Do Inference on a Video and Create Monodepth Video
         cap.release()
         end_time = time.perf_counter()
         duration = end_time - start_time
-    
+
         print(
             f"Processed {processed_frames} frames in {duration:.2f} seconds. "
             f"Total FPS (including video processing): {processed_frames/duration:.2f}."
@@ -494,14 +494,14 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 37.40 seconds. Total FPS (including video processing): 1.60.Inference FPS: 43.54 
+    Processed 60 frames in 37.40 seconds. Total FPS (including video processing): 1.60.Inference FPS: 43.54
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
 Display Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -525,7 +525,7 @@ Display Monodepth Video
 
     Showing monodepth video saved at
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video 
+    If you cannot see the video in your browser, please click on the following link to download the video
 
 
 

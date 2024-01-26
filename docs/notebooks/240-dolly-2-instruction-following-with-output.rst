@@ -84,32 +84,32 @@ and `repo <https://github.com/databrickslabs/dolly>`__
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Download and Convert Model <#Download-and-Convert-Model>`__
+-  `Download and Convert Model <#download-and-convert-model>`__
 
    -  `NNCF model weights
-      compression <#NNCF-model-weights-compression>`__
+      compression <#nncf-model-weights-compression>`__
 
 -  `Create an instruction-following inference
-   pipeline <#Create-an-instruction-following-inference-pipeline>`__
+   pipeline <#create-an-instruction-following-inference-pipeline>`__
 
-   -  `Setup imports <#Setup-imports>`__
+   -  `Setup imports <#setup-imports>`__
    -  `Prepare template for user
-      prompt <#Prepare-template-for-user-prompt>`__
-   -  `Helpers for output parsing <#Helpers-for-output-parsing>`__
-   -  `Main generation function <#Main-generation-function>`__
-   -  `Helpers for application <#Helpers-for-application>`__
+      prompt <#prepare-template-for-user-prompt>`__
+   -  `Helpers for output parsing <#helpers-for-output-parsing>`__
+   -  `Main generation function <#main-generation-function>`__
+   -  `Helpers for application <#helpers-for-application>`__
 
 -  `Run instruction-following
-   pipeline <#Run-instruction-following-pipeline>`__
+   pipeline <#run-instruction-following-pipeline>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -127,7 +127,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -159,7 +159,7 @@ select device from dropdown list for running inference using OpenVINO
 Download and Convert Model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -229,7 +229,7 @@ compatible with Optimum models.
 NNCF model weights compression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF `Weights Compression
 algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/CompressWeights.md>`__
@@ -307,7 +307,7 @@ accuracy drop.
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -315,7 +315,7 @@ iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
 reached. To obtain intermediate generation results without waiting until
 when generation is finished, we will use
-```TextIteratorStreamer`` <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
+`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
 provided as part of HuggingFace `Streaming
 API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
 
@@ -413,7 +413,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -427,7 +427,7 @@ Setup imports
 Prepare template for user prompt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -460,7 +460,7 @@ into model with providing additional context.
 Helpers for output parsing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
@@ -502,7 +502,7 @@ the code below find its id for using it as generation stop-criteria.
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -564,7 +564,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -632,7 +632,7 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text

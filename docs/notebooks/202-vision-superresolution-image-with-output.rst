@@ -17,51 +17,51 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#Preparation>`__
+-  `Preparation <#preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Settings <#Settings>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
 
-      -  `Select inference device <#Select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
-   -  `Functions <#Functions>`__
+   -  `Functions <#functions>`__
 
--  `Load the Superresolution Model <#Load-the-Superresolution-Model>`__
--  `Load and Show the Input Image <#Load-and-Show-the-Input-Image>`__
+-  `Load the Superresolution Model <#load-the-superresolution-model>`__
+-  `Load and Show the Input Image <#load-and-show-the-input-image>`__
 -  `Superresolution on a Crop of the
-   Image <#Superresolution-on-a-Crop-of-the-Image>`__
+   Image <#superresolution-on-a-crop-of-the-image>`__
 
-   -  `Crop the Input Image once. <#Crop-the-Input-Image-once.>`__
+   -  `Crop the Input Image once. <#crop-the-input-image-once->`__
    -  `Reshape/Resize Crop for Model
-      Input <#Reshape/Resize-Crop-for-Model-Input>`__
-   -  `Do Inference <#Do-Inference>`__
-   -  `Show and Save Results <#Show-and-Save-Results>`__
+      Input <#reshaperesize-crop-for-model-input>`__
+   -  `Do Inference <#do-inference>`__
+   -  `Show and Save Results <#show-and-save-results>`__
 
       -  `Save Superresolution and Bicubic Image
-         Crop <#Save-Superresolution-and-Bicubic-Image-Crop>`__
+         Crop <#save-superresolution-and-bicubic-image-crop>`__
       -  `Write Animated GIF with Bicubic/Superresolution
-         Comparison <#Write-Animated-GIF-with-Bicubic/Superresolution-Comparison>`__
+         Comparison <#write-animated-gif-with-bicubicsuperresolution-comparison>`__
       -  `Create a Video with Sliding Bicubic/Superresolution
-         Comparison <#Create-a-Video-with-Sliding-Bicubic/Superresolution-Comparison>`__
+         Comparison <#create-a-video-with-sliding-bicubicsuperresolution-comparison>`__
 
 -  `Superresolution on full input
-   image <#Superresolution-on-full-input-image>`__
+   image <#superresolution-on-full-input-image>`__
 
-   -  `Compute patches <#Compute-patches>`__
-   -  `Do Inference <#Do-Inference>`__
+   -  `Compute patches <#compute-patches>`__
+   -  `Do Inference <#do-inference>`__
    -  `Save superresolution image and the bicubic
-      image <#Save-superresolution-image-and-the-bicubic-image>`__
+      image <#save-superresolution-image-and-the-bicubic-image>`__
 
 Preparation
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -88,7 +88,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -117,12 +117,12 @@ Imports
 Settings
 ~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -175,7 +175,7 @@ select device from dropdown list for running inference using OpenVINO
 Functions
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -238,7 +238,7 @@ Functions
 Load the Superresolution Model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Super Resolution model expects two inputs: the input image and a
 bicubic interpolation of the input image to the target size of
@@ -288,7 +288,7 @@ information about the network inputs and outputs.
 Load and Show the Input Image
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **NOTE**: For the best results, use raw images (like ``TIFF``,
    ``BMP`` or ``PNG``). Compressed images (like ``JPEG``) may appear
@@ -325,12 +325,12 @@ Load and Show the Input Image
 Superresolution on a Crop of the Image
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Crop the Input Image once.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Crop the network input size. Give the X (width) and Y (height)
 coordinates for the top left corner of the crop. Set the ``CROP_FACTOR``
@@ -381,7 +381,7 @@ as the crop size.
 Reshape/Resize Crop for Model Input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The input image is resized to a network input size, and reshaped to
 (N,C,H,W) (N=number of images, C=number of channels, H=height, W=width).
@@ -406,7 +406,7 @@ interpolation. This bicubic image is the second input to the network.
 Do Inference
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Do inference and convert the inference result to an ``RGB`` image.
 
@@ -425,7 +425,7 @@ Do inference and convert the inference result to an ``RGB`` image.
 Show and Save Results
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Show the bicubic image and the enhanced superresolution image.
 
@@ -453,7 +453,7 @@ Show the bicubic image and the enhanced superresolution image.
 Save Superresolution and Bicubic Image Crop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -487,7 +487,7 @@ Save Superresolution and Bicubic Image Crop
 Write Animated GIF with Bicubic/Superresolution Comparison
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -527,7 +527,7 @@ Write Animated GIF with Bicubic/Superresolution Comparison
 Create a Video with Sliding Bicubic/Superresolution Comparison
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This may take a while. For the video, the superresolution and bicubic
 image are resized by a factor of 2 to improve processing speed. This
@@ -597,7 +597,7 @@ the ``Files`` tool.
 Superresolution on full input image
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Superresolution on the full image is done by dividing the image into
 patches of equal size, doing superresolution on each path, and then
@@ -610,7 +610,7 @@ effects.
 Compute patches
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -657,7 +657,7 @@ Compute patches
 Do Inference
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below reads one patch of the image at a time. Each patch is
 reshaped to the network input shape and upsampled with bicubic
@@ -781,7 +781,7 @@ as total time to process each patch.
 Save superresolution image and the bicubic image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

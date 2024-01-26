@@ -8,37 +8,37 @@ Compression Framework) and infer quantized model via OpenVINO™ Toolkit.
 
 The optimization process contains the following steps: 1. Quantize
 converted OpenVINO model from
-`notebook <239-image-bind-convert.ipynb>`__ with NNCF. 2. Compare
+`notebook <239-image-bind-convert-with-output.html>`__ with NNCF. 2. Compare
 probability matrices between converted and quantized models on input
 data examples. 3. Compare model size of converted and quantized models.
 4. Compare performance of converted and quantized models.
 
    **NOTE**: you should run
-   `239-image-bind-convert <239-image-bind-convert.ipynb>`__ notebook
+   `239-image-bind-convert <239-image-bind-convert-with-output.html>`__ notebook
    first to generate OpenVINO IR models that are used for quantization.
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Create and initialize
-   quantization <#Create-and-initialize-quantization>`__
+   quantization <#create-and-initialize-quantization>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
+   -  `Prepare datasets <#prepare-datasets>`__
 
 -  `Compare results for the OpenVINO FP16 model and the quantized
-   model <#Compare-results-for-the-OpenVINO-FP16-model-and-the-quantized-model>`__
+   model <#compare-results-for-the-openvino-fp16-model-and-the-quantized-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
-      -  `Compare File Size <#Compare-File-Size>`__
+      -  `Compare File Size <#compare-file-size>`__
       -  `Compare inference time of the FP16 IR and quantized
-         models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+         models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Prerequisites
 Create and initialize quantization
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -113,7 +113,7 @@ quantized model. 3. Serialize the ``INT8`` model using
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -211,7 +211,7 @@ quantize image and text models.
         vision_data, text_data = collect_vision_text_data(dataloader, opt_init_steps)
         return vision_data, text_data
 
-The ```ESC-50`` <https://github.com/karolpiczak/ESC-50>`__ dataset is
+The `ESC-50 <https://github.com/karolpiczak/ESC-50>`__ dataset is
 used to quantize the audio modality of the ImageBind model. Dataset is a
 labeled collection of 2000 environmental audio recordings suitable for
 benchmarking methods of environmental sound classification. The dataset
@@ -443,11 +443,11 @@ in the NNCF repository for more information.
 Compare results for the OpenVINO FP16 model and the quantized model
 -------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare the probability matrices for ``FP16`` and ``INT8`` models. More
 details about probability matrix can be found in
-`notebook <239-image-bind-convert.ipynb>`__.
+`notebook <239-image-bind-convert-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -467,7 +467,7 @@ details about probability matrix can be found in
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -570,7 +570,7 @@ Get embeddings of quantized models
 Compare File Size
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -607,7 +607,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can

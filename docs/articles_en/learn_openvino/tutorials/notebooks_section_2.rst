@@ -12,6 +12,36 @@ Model Demos
 Demos that demonstrate inference on a particular model.
 
 .. showcase::
+   :title: 280-depth-anything
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/280-depth-anything/280-depth-anything.gif
+
+   Depth estimation with DepthAnything and OpenVINO.
+
+.. showcase::
+   :title: 279-mobilevlm-language-assistant
+   :img: _static/images/notebook_eye.png
+
+   Mobile language assistant with MobileVLM and OpenVINO.
+
+.. showcase::
+   :title: 278-stable-diffusion-ip-adapter
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/278-stable-diffusion-ip-adapter/278-stable-diffusion-ip-adapter.png
+
+   Image Generation with Stable Diffusion and IP-Adapter.
+
+.. showcase::
+   :title: 277-amused-lightweight-text-to-image
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/277-amused-lightweight-text-to-image/277-amused-lightweight-text-to-image.png
+
+   Lightweight image generation with aMUSEd and OpenVINO.
+
+.. showcase::
+   :title: 276-stable-diffusion-torchdynamo-backend
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/276-stable-diffusion-torchdynamo-backend/276-stable-diffusion-torchdynamo-backend.png
+
+   Image Generation with Stable Diffusion using OpenVINO TorchDynamo backend.
+
+.. showcase::
    :title: 275-llm-question-answering
    :img: _static/images/notebook_eye.png
 

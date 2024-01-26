@@ -31,41 +31,41 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `login to huggingfacehub to get access to pretrained
    model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
--  `Convert model <#Convert-model>`__
+-  `Convert model <#convert-model>`__
 
-   -  `Convert LLM model <#Convert-LLM-model>`__
-   -  `Compress LLM model weights <#Compress-model-weights>`__
+   -  `Convert LLM model <#convert-llm-model>`__
+   -  `Compress LLM model weights <#compress-model-weights>`__
 
       -  `Weights Compression using Optimum
-         Intel <#Weights-Compression-using-Optimum-Intel>`__
+         Intel <#weights-compression-using-optimum-intel>`__
       -  `Weights Compression using
-         NNCF <#Weights-Compression-using-NNCF>`__
+         NNCF <#weights-compression-using-nncf>`__
 
-   -  `Convert embedding model <#Convert-embedding-model>`__
+   -  `Convert embedding model <#convert-embedding-model>`__
 
 -  `Select device for inference and model
-   variant <#Select-device-for-inference-and-model-variant>`__
+   variant <#select-device-for-inference-and-model-variant>`__
 
    -  `Select device for embedding model
-      inference <#Select-device-for-embedding-model-inference>`__
+      inference <#select-device-for-embedding-model-inference>`__
    -  `Select device for LLM model
-      inference <#Select-device-for-LLM-model-inference>`__
+      inference <#select-device-for-llm-model-inference>`__
 
--  `Load model <#Load-model>`__
+-  `Load model <#load-model>`__
 
-   -  `Load embedding model <#Load-embedding-model>`__
-   -  `Load LLM model <#Load-LLM-model>`__
+   -  `Load embedding model <#load-embedding-model>`__
+   -  `Load LLM model <#load-llm-model>`__
 
--  `Run QA over Document <#Run-QA-over-Document>`__
+-  `Run QA over Document <#run-qa-over-document>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -87,7 +87,7 @@ Install required dependencies
     WARNING: Skipping openvino-dev as it is not installed.
     WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
-    
+
     [notice] A new release of pip is available: 23.3.1 -> 23.3.2
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
@@ -96,11 +96,12 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
->\ **Note**: conversion of some models can require additional actions
+
+**Note**: conversion of some models can require additional actions
 from user side and at least 64GB RAM for conversion.
 
 The available embedding model options are:
@@ -147,20 +148,22 @@ The available LLM model options are:
    `repository <https://github.com/facebookresearch/llama>`__ and
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__
-   >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+
+   **Note**: run model with demo, you will need to accept license
+   agreement.
+   You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
-   >You can login on Hugging Face Hub in notebook environment, using
+   You can login on Hugging Face Hub in notebook environment, using
    following code:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model 
+       ## login to huggingfacehub to get access to pretrained model
        from huggingface_hub import notebook_login, whoami
 
        try:
@@ -288,26 +291,26 @@ The available LLM model options are:
 Convert model
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert LLM model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from config import SUPPORTED_EMBEDDING_MODELS, SUPPORTED_LLM_MODELS
-    
+
     llm_model_id = list(SUPPORTED_LLM_MODELS)
-    
+
     llm_model_id = widgets.Dropdown(
         options=llm_model_id,
         value=llm_model_id[0],
         description="LLM Model:",
         disabled=False,
     )
-    
+
     llm_model_id
 
 
@@ -381,7 +384,7 @@ with Optimum Intel.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -394,7 +397,7 @@ quality.
 Weights Compression using Optimum Intel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To enable weights compression via NNCF for models supported by Optimum
 Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
@@ -415,7 +418,7 @@ LLAMA and Zephyr examples.
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts OpenVINO model
@@ -430,7 +433,7 @@ will consider this variant based on MPT model.
 .. code:: ipython3
 
     from IPython.display import display
-    
+
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -446,7 +449,7 @@ will consider this variant based on MPT model.
         description="Prepare FP16 model",
         disabled=False,
     )
-    
+
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -473,17 +476,17 @@ will consider this variant based on MPT model.
 .. code:: ipython3
 
     from converter import converters
-    
+
     nncf.set_log_level(logging.ERROR)
-    
+
     pt_model_id = llm_model_configuration["model_id"]
     pt_model_name = llm_model_id.value.split("-")[0]
     model_type = AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True).model_type
     fp16_model_dir = Path(llm_model_id.value) / "FP16"
     int8_model_dir = Path(llm_model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(llm_model_id.value) / "INT4_compressed_weights"
-    
-    
+
+
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -507,8 +510,8 @@ will consider this variant based on MPT model.
             converters[pt_model_name](model, fp16_model_dir)
             del model
         gc.collect()
-    
-    
+
+
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -539,8 +542,8 @@ will consider this variant based on MPT model.
             del ov_model
             del compressed_model
         gc.collect()
-    
-    
+
+
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
@@ -557,7 +560,7 @@ will consider this variant based on MPT model.
                 "mode": nncf.CompressWeightsMode.INT4_SYM,
                 "group_size": 64,
                 "ratio": 0.6,
-            },"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", 
+            },"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1",
             "neural-chat-7b-v3-1": {
                 "mode": nncf.CompressWeightsMode.INT4_SYM,
                 "group_size": 64,
@@ -574,8 +577,8 @@ will consider this variant based on MPT model.
                 "ratio": 0.72
             },
             "qwen-7b-chat": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM, 
-                "group_size": 128, 
+                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "group_size": 128,
                 "ratio": 0.6
             },
             'red-pajama-3b-chat': {
@@ -589,7 +592,7 @@ will consider this variant based on MPT model.
                 "ratio": 0.8,
             },
         }
-    
+
         model_compression_params = compression_configs.get(
             llm_model_id.value, compression_configs["default"]
         )
@@ -608,7 +611,7 @@ will consider this variant based on MPT model.
             else:
                 ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
                 shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
-    
+
         else:
             convert_to_fp16()
             ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
@@ -623,8 +626,8 @@ will consider this variant based on MPT model.
         del ov_model
         del compressed_model
         gc.collect()
-    
-    
+
+
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -639,7 +642,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-    
+
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -663,7 +666,7 @@ Let’s compare model size for different compression types
 Convert embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Since some embedding models can only support limited languages, we can
 filter them out according the LLM you selected.
@@ -671,17 +674,17 @@ filter them out according the LLM you selected.
 .. code:: ipython3
 
     embedding_model_id = list(SUPPORTED_EMBEDDING_MODELS)
-    
+
     if "qwen" not in llm_model_id.value and "chatglm" not in llm_model_id.value:
         embedding_model_id = [x for x in embedding_model_id if "chinese" not in x]
-    
+
     embedding_model_id = widgets.Dropdown(
         options=embedding_model_id,
         value=embedding_model_id[0],
         description="Embedding Model:",
         disabled=False,
     )
-    
+
     embedding_model_id
 
 
@@ -707,7 +710,7 @@ filter them out according the LLM you selected.
 .. code:: ipython3
 
     embedding_model_dir = Path(embedding_model_id.value)
-    
+
     if not (embedding_model_dir / "openvino_model.xml").exists():
         model = AutoModel.from_pretrained(embedding_model_configuration["model_id"])
         converters[embedding_model_id.value](model, embedding_model_dir)
@@ -718,7 +721,7 @@ filter them out according the LLM you selected.
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -726,7 +729,7 @@ Select device for inference and model variant
 Select device for embedding model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -737,7 +740,7 @@ Select device for embedding model inference
         description="Device:",
         disabled=False,
     )
-    
+
     embedding_device
 
 
@@ -762,7 +765,7 @@ Select device for embedding model inference
 Select device for LLM model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -772,7 +775,7 @@ Select device for LLM model inference
         description="Device:",
         disabled=False,
     )
-    
+
     llm_device
 
 
@@ -797,12 +800,12 @@ Select device for LLM model inference
 Load model
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load embedding model
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Wrapper around a text embedding model for LangChain, used for converting
 text to embeddings.
@@ -810,7 +813,7 @@ text to embeddings.
 .. code:: ipython3
 
     from ov_embedding_model import OVEmbeddings
-    
+
     embedding = OVEmbeddings.from_model_id(
         embedding_model_dir,
         do_norm=embedding_model_configuration["do_norm"],
@@ -826,7 +829,7 @@ text to embeddings.
 Load LLM model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The cell below create ``OVMPTModel``, ``OVQWENModel`` and
 ``OVCHATGLM2Model`` wrapper based on ``OVModelForCausalLM`` model.
@@ -844,14 +847,14 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-    
+
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-    
+
     model_to_run
 
 
@@ -866,7 +869,7 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
 .. code:: ipython3
 
     from langchain.llms import HuggingFacePipeline
-    
+
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -874,23 +877,23 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-    
+
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    
+
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if llm_model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and llm_device.value in ["GPU", "AUTO"]:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
-    
+
     model_name = llm_model_configuration["model_id"]
     stop_tokens = llm_model_configuration.get("stop_tokens")
     class_key = llm_model_id.value.split("-")[0]
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    
+
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-    
+
         def __call__(
             self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
         ) -> bool:
@@ -898,13 +901,13 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
-    
+
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-    
+
         stop_tokens = [StopOnTokens(stop_tokens)]
-    
+
     model_class = (
         OVModelForCausalLM
         if not llm_model_configuration["remote"]
@@ -952,14 +955,14 @@ response text. An OpenVINO compiled model can be run locally through the
     )
     if stop_tokens is not None:
         generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
-        
+
     pipe = pipeline("text-generation", **generate_kwargs)
     llm = HuggingFacePipeline(pipeline=pipe)
 
 Run QA over Document
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -1014,13 +1017,13 @@ question and the retrieved data.
         UnstructuredODTLoader,
         UnstructuredPowerPointLoader,
         UnstructuredWordDocumentLoader, )
-    
-    
+
+
     class ChineseTextSplitter(CharacterTextSplitter):
         def __init__(self, pdf: bool = False, **kwargs):
             super().__init__(**kwargs)
             self.pdf = pdf
-    
+
         def split_text(self, text: str) -> List[str]:
             if self.pdf:
                 text = re.sub(r"\n{3,}", "\n", text)
@@ -1034,16 +1037,16 @@ question and the retrieved data.
                 elif ele:
                     sent_list.append(ele)
             return sent_list
-    
-    
+
+
     TEXT_SPLITERS = {
         "Character": CharacterTextSplitter,
         "RecursiveCharacter": RecursiveCharacterTextSplitter,
         "Markdown": MarkdownTextSplitter,
         "Chinese": ChineseTextSplitter,
     }
-    
-    
+
+
     LOADERS = {
         ".csv": (CSVLoader, {}),
         ".doc": (UnstructuredWordDocumentLoader, {}),
@@ -1069,71 +1072,71 @@ question and the retrieved data.
     import gradio as gr
     import re
     from uuid import uuid4
-    
-    
+
+
     def load_single_document(file_path: str) -> List[Document]:
         """
         helper for loading a single document
-    
+
         Params:
           file_path: document path
         Returns:
           documents loaded
-    
+
         """
         ext = "." + file_path.rsplit(".", 1)[-1]
         if ext in LOADERS:
             loader_class, loader_args = LOADERS[ext]
             loader = loader_class(file_path, **loader_args)
             return loader.load()
-    
+
         raise ValueError(f"File does not exist '{ext}'")
-    
-    
+
+
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by default
-    
+
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-    
+
         """
         partial_text += new_text
         return partial_text
-    
-    
+
+
     text_processor = llm_model_configuration.get(
         "partial_text_processor", default_partial_text_processor
     )
-    
-    
+
+
     def build_chain(docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k):
         """
         Initialize a QA chain
-    
+
         Params:
           doc: orignal documents provided by user
           chunk_size:  size of a single sentence chunk
           chunk_overlap: overlap size between 2 chunks
           vector_search_top_k: Vector search top k
-    
+
         """
         documents = []
         for doc in docs:
             documents.extend(load_single_document(doc.name))
-    
+
         text_splitter = TEXT_SPLITERS[spliter_name](
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
-    
+
         texts = text_splitter.split_documents(documents)
-    
+
         db = Chroma.from_documents(texts, embedding)
         retriever = db.as_retriever(search_kwargs={"k": vector_search_top_k})
-    
+
         global rag_chain
         prompt = PromptTemplate.from_template(llm_model_configuration["prompt_template"])
         chain_type_kwargs = {"prompt": prompt}
@@ -1143,14 +1146,14 @@ question and the retrieved data.
             retriever=retriever,
             chain_type_kwargs=chain_type_kwargs,
         )
-    
+
         return "Retriever is Ready"
-    
-    
+
+
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-    
+
         Params:
           message: current message
           history: conversation history
@@ -1159,41 +1162,41 @@ question and the retrieved data.
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-    
-    
+
+
     def bot(history, conversation_id):
         """
         callback function for running chatbot on submit button click
-    
+
         Params:
           history: conversation history.
           conversation_id: unique conversation identifier.
-    
+
         """
         stream_complete = Event()
-    
+
         def infer(question):
             rag_chain.run(question)
             stream_complete.set()
-    
+
         t1 = Thread(target=infer, args=(history[-1][0],))
         t1.start()
-    
+
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield history
-    
-    
+
+
     def get_uuid():
         """
         universal unique identifier for thread
         """
         return str(uuid4())
-    
-    
+
+
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -1231,7 +1234,7 @@ question and the retrieved data.
                         info="Method used to splite the documents",
                         multiselect=False,
                     )
-    
+
                     chunk_size = gr.Slider(
                         label="Chunk size",
                         value=1000,
@@ -1241,7 +1244,7 @@ question and the retrieved data.
                         interactive=True,
                         info="Size of sentence chunk",
                     )
-    
+
                     chunk_overlap = gr.Slider(
                         label="Chunk overlap",
                         value=200,
@@ -1251,7 +1254,7 @@ question and the retrieved data.
                         interactive=True,
                         info=("Overlap between 2 chunks"),
                     )
-    
+
                     vector_search_top_k = gr.Slider(
                         1,
                         10,
@@ -1290,7 +1293,7 @@ question and the retrieved data.
             user, [msg, chatbot], [msg, chatbot], queue=False, trigger_mode="once"
         ).then(bot, [chatbot, conversation_id], chatbot, queue=True)
         clear.click(lambda: None, None, chatbot, queue=False)
-    
+
     demo.queue(max_size=2)
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
@@ -1303,21 +1306,15 @@ question and the retrieved data.
 .. parsed-literal::
 
     Running on local URL:  http://10.3.233.70:4888
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://10.3.233.70:4888/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://10.3.233.70:4888/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
-
-
-
-.. parsed-literal::
-
-    
 
 
 

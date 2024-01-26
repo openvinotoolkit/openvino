@@ -33,37 +33,37 @@ used to convert the models to OpenVINO™ IR format.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install Prerequisites <#Install-prerequisites>`__
--  `SSD-1B Base model <#SSD-1B-Base-model>`__
+-  `Install Prerequisites <#install-prerequisites>`__
+-  `SSD-1B Base model <#ssd-1b-base-model>`__
 
    -  `Select inference device SSD-1B Base
-      model <#Select-inference-device-SSD-1B-Base-model>`__
+      model <#select-inference-device-ssd-1b-base-model>`__
    -  `Run Text2Image generation
-      pipeline <#Run-Text2Image-generation-pipeline>`__
+      pipeline <#run-text2image-generation-pipeline>`__
    -  `Text2image Generation Interactive
-      Demo <#Text2image-Generation-Interactive-Demo>`__
+      Demo <#text2image-generation-interactive-demo>`__
 
--  `Latent Consistency Model (LCM) <#Latent-ConsistencyModel-(LCM)>`__
+-  `Latent Consistency Model (LCM) <#latent-consistencymodel-lcm>`__
 
-   -  `Infer the original model <#Infer-the-original-model>`__
+   -  `Infer the original model <#infer-the-original-model>`__
    -  `Convert the model to OpenVINO
-      IR <#Convert-the-model-to-OpenVINO-IR>`__
+      IR <#convert-the-model-to-openvino-ir>`__
 
-      -  `Imports <#Imports>`__
-      -  `Convert VAE <#Convert-VAE>`__
-      -  `Convert U-NET <#Convert-U-NET>`__
-      -  `Convert Encoders <#Convert-Encoders>`__
+      -  `Imports <#imports>`__
+      -  `Convert VAE <#convert-vae>`__
+      -  `Convert U-NET <#convert-u-net>`__
+      -  `Convert Encoders <#convert-encoders>`__
 
-   -  `Compiling models <#Compiling-models>`__
-   -  `Building the pipeline <#Building-the-pipeline>`__
-   -  `Inference <#Inference>`__
+   -  `Compiling models <#compiling-models>`__
+   -  `Building the pipeline <#building-the-pipeline>`__
+   -  `Inference <#inference>`__
    -  `Image2Image Generation with LCM Interactive
-      Demo <#Image2Image-Generation-with-LCM-Interactive-Demo>`__
+      Demo <#image2image-generation-with-lcm-interactive-demo>`__
 
 Install prerequisites
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Install prerequisites
 SSD-1B Base model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will start with the base model part, which is responsible for the
 generation of images of the desired output size.
@@ -97,15 +97,15 @@ You can save the model on disk using the ``save_pretrained`` method.
 
     from pathlib import Path
     from optimum.intel.openvino import OVStableDiffusionXLPipeline
-    
-    
+
+
     model_id = "segmind/SSD-1B"
     model_dir = Path("openvino-ssd-1b")
 
 Select inference device SSD-1B Base model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -113,17 +113,17 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
-    
+
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -138,8 +138,8 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import gc
-    
-    
+
+
     if not model_dir.exists():
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_id, compile=False, device=device.value, export=True, load_in_8bit=False)
         text2image_pipe.half()
@@ -162,7 +162,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Text2Image generation pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can run the model for the generation of images using text
 prompts. To speed up evaluation and reduce the required memory we
@@ -170,7 +170,8 @@ decrease ``num_inference_steps`` and image size (using ``height`` and
 ``width``). You can modify them to suit your needs and depend on the
 target hardware. We also specified a ``generator`` parameter based on a
 numpy random state with a specific seed for results reproducibility.
->\ **Note**: Generating a default size 1024x1024 image requires about
+
+**Note**: Generating a default size 1024x1024 image requires about
 53GB for the SSD-1B model in case if the converted model is loaded from
 disk and up to 64GB RAM for the SDXL model after exporting.
 
@@ -201,8 +202,8 @@ loaded from disk.
 .. code:: ipython3
 
     import numpy as np
-    
-    
+
+
     prompt = "cute cat 4k, high-res, masterpiece, best quality, soft lighting, dynamic angle"
     image = text2image_pipe(prompt, num_inference_steps=15, height=512, width=512, generator=np.random.RandomState(314)).images[0]
     image
@@ -223,21 +224,21 @@ loaded from disk.
 Image2Image Generation Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     prompt = "An astronaut riding a green horse"
     neg_prompt = "ugly, blurry, poor quality"
-    
+
     def generate_from_text(text_promt, neg_prompt, seed, num_steps):
         result = text2image_pipe(text_promt, negative_prompt=neg_prompt, num_inference_steps=num_steps, generator=np.random.RandomState(seed), height=512, width=512).images[0]
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             positive_input = gr.Textbox(label="Text prompt")
@@ -249,13 +250,13 @@ Image2Image Generation Interactive Demo
             out = gr.Image(label="Result", type="pil", width=512)
             btn.click(generate_from_text, [positive_input, neg_input, seed_input, steps_input], out)
             gr.Examples([
-                [prompt, neg_prompt, 999, 20], 
+                [prompt, neg_prompt, 999, 20],
                 ["underwater world coral reef, colorful jellyfish, 35mm, cinematic lighting, shallow depth of field,  ultra quality, masterpiece, realistic", neg_prompt, 89, 20],
                 ["a photo realistic happy white poodle dog ​​playing in the grass, extremely detailed, high res, 8k, masterpiece, dynamic angle", neg_prompt, 1569, 15],
                 ["Astronaut on Mars watching sunset, best quality, cinematic effects,", neg_prompt, 65245, 12],
                 ["Black and white street photography of a rainy night in New York, reflections on wet pavement", neg_prompt, 48199, 10]
             ], [positive_input, neg_input, seed_input, steps_input])
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -267,7 +268,7 @@ Image2Image Generation Interactive Demo
 Latent Consistency Model (LCM)
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Latent Consistency Model (LCM) was proposed in `Latent Consistency
 Models: Synthesizing High-Resolution Images with Few-Step
@@ -284,23 +285,23 @@ number of inference steps to just 2 to 8 steps.
 Infer the original model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from diffusers import UNet2DConditionModel, DiffusionPipeline, LCMScheduler
-    
-    
+
+
     unet = UNet2DConditionModel.from_pretrained("latent-consistency/lcm-ssd-1b", variant="fp16")
     pipe = DiffusionPipeline.from_pretrained("segmind/SSD-1B", unet=unet, variant="fp16")
-    
+
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
     pipe.to("cpu")
-    
+
     prompt = "a close-up picture of an old man standing in the rain"
-    
+
     image = pipe(prompt, num_inference_steps=4, guidance_scale=1.0).images[0]
-    
+
     image
 
 
@@ -330,7 +331,7 @@ Infer the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The pipeline consists of four important parts:
 
@@ -344,15 +345,15 @@ Let us convert each part:
 Imports
 ^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     import numpy as np
     import torch
-    
+
     import openvino as ov
 
 Let’s define the conversion function for PyTorch modules. We use
@@ -369,7 +370,7 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path)
-            
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -378,7 +379,7 @@ file.
 Convert VAE
 ^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -400,17 +401,17 @@ VAE decoder.
 .. code:: ipython3
 
     VAE_OV_PATH = Path('model/vae_decoder.xml')
-    
-    
+
+
     class VAEDecoderWrapper(torch.nn.Module):
         def __init__(self, vae):
             super().__init__()
             self.vae = vae
-    
+
         def forward(self, latents):
             return self.vae.decode(latents)
-        
-    
+
+
     pipe.vae.eval()
     vae_decoder = VAEDecoderWrapper(pipe.vae)
     latents = torch.zeros((1, 4, 64, 64))
@@ -419,7 +420,7 @@ VAE decoder.
 Convert U-NET
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -427,24 +428,24 @@ text encoder hidden state.
 .. code:: ipython3
 
     UNET_OV_PATH = Path('model/unet_ir.xml')
-    
-    
+
+
     class UNETWrapper(torch.nn.Module):
         def __init__(self, unet):
             super().__init__()
             self.unet = unet
-    
+
         def forward(self, sample=None, timestep=None, encoder_hidden_states=None, timestep_cond=None, text_embeds=None, time_ids=None):
-            
+
             return self.unet.forward(
                 sample,
-                timestep, 
-                encoder_hidden_states, 
+                timestep,
+                encoder_hidden_states,
                 timestep_cond=timestep_cond,
                 added_cond_kwargs={'text_embeds': text_embeds, 'time_ids': time_ids}
             )
-    
-    
+
+
     example_input = {
         'sample': torch.rand([1, 4, 128, 128], dtype=torch.float32),
         'timestep': torch.from_numpy(np.array(1, dtype=float)),
@@ -453,8 +454,8 @@ text encoder hidden state.
         'text_embeds': torch.rand([1, 1280], dtype=torch.float32),
         'time_ids': torch.rand([1, 6], dtype=torch.float32),
     }
-    
-    
+
+
     pipe.unet.eval()
     w_unet = UNETWrapper(pipe.unet)
     convert(w_unet, UNET_OV_PATH, example_input)
@@ -462,7 +463,7 @@ text encoder hidden state.
 Convert Encoders
 ^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt into
 an embedding space that can be understood by the U-Net. It is usually a
@@ -475,21 +476,21 @@ a sequence of latent text embeddings.
         def __init__(self, encoder):
             super().__init__()
             self.encoder = encoder
-    
+
         def forward(
             self,
             input_ids=None,
             output_hidden_states=None,
         ):
             encoder_outputs = self.encoder(input_ids, output_hidden_states=output_hidden_states, return_dict=torch.tensor(True))
-    
+
             return encoder_outputs[0], list(encoder_outputs.hidden_states)
 
 .. code:: ipython3
 
     TEXT_ENCODER_1_OV_PATH = Path('model/text_encoder_1.xml')
     TEXT_ENCODER_2_OV_PATH = Path('model/text_encoder_2.xml')
-    
+
     inputs = {
         'input_ids': torch.ones((1, 77), dtype=torch.long),
         'output_hidden_states': torch.tensor(True),
@@ -498,37 +499,37 @@ a sequence of latent text embeddings.
 .. code:: ipython3
 
     pipe.text_encoder.eval()
-    
+
     w_encoder = EncoderWrapper(pipe.text_encoder)
     convert(w_encoder, TEXT_ENCODER_1_OV_PATH, inputs)
 
 .. code:: ipython3
 
     pipe.text_encoder_2.eval()
-    
+
     w_encoder = EncoderWrapper(pipe.text_encoder_2)
     convert(w_encoder, TEXT_ENCODER_2_OV_PATH, inputs)
 
 Compiling models
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='CPU',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -550,7 +551,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original ``DiffusionPipeline`` class.
@@ -558,16 +559,16 @@ interaction with original ``DiffusionPipeline`` class.
 .. code:: ipython3
 
     from collections import namedtuple
-    
-    
+
+
     class EncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-        
+
         def __init__(self, encoder, orig_encoder):
             self.encoder = encoder
-            self.modules = orig_encoder.modules  # accessed in the original workflow 
-            self.config = orig_encoder.config  # accessed in the original workflow 
-    
+            self.modules = orig_encoder.modules  # accessed in the original workflow
+            self.config = orig_encoder.config  # accessed in the original workflow
+
         def __call__(self, input_ids, **kwargs):
             output_hidden_states = kwargs['output_hidden_states']
             inputs = {
@@ -575,12 +576,12 @@ interaction with original ``DiffusionPipeline`` class.
                 'output_hidden_states': output_hidden_states
             }
             output = self.encoder(inputs)
-    
+
             hidden_states = []
             hidden_states_len = len(output)
             for i in range(1, hidden_states_len):
                 hidden_states.append(torch.from_numpy(output[i]))
-            
+
             BaseModelOutputWithPooling = namedtuple("BaseModelOutputWithPooling", 'last_hidden_state hidden_states')
             output = BaseModelOutputWithPooling(torch.from_numpy(output[0]), hidden_states)
             return output
@@ -588,14 +589,14 @@ interaction with original ``DiffusionPipeline`` class.
 .. code:: ipython3
 
     class UnetWrapper:
-    
+
         def __init__(self, unet, unet_orig):
             self.unet = unet
-            self.config = unet_orig.config  # accessed in the original workflow 
-            self.add_embedding = unet_orig.add_embedding  # accessed in the original workflow 
-    
+            self.config = unet_orig.config  # accessed in the original workflow
+            self.add_embedding = unet_orig.add_embedding  # accessed in the original workflow
+
         def __call__(self, *args, **kwargs):
-    
+
             latent_model_input, t = args
             inputs = {
                 'sample': latent_model_input,
@@ -605,25 +606,25 @@ interaction with original ``DiffusionPipeline`` class.
                 'text_embeds': kwargs['added_cond_kwargs']['text_embeds'],
                 'time_ids': kwargs['added_cond_kwargs']['time_ids']
             }
-            
-    
+
+
             output = self.unet(inputs)
-    
+
             return torch.from_numpy(output[0])
 
 .. code:: ipython3
 
     class VAEWrapper:
-        dtype = torch.float32  # accessed in the original workflow 
-        
+        dtype = torch.float32  # accessed in the original workflow
+
         def __init__(self, vae, vae_orig):
             self.vae = vae
-            self.config = vae_orig.config  # accessed in the original workflow 
-    
+            self.config = vae_orig.config  # accessed in the original workflow
+
         def decode(self, latents, return_dict=False):
             output = self.vae(latents)[0]
             output = torch.from_numpy(output)
-            
+
             return [output]
 
 And insert wrappers instances in the pipeline:
@@ -638,12 +639,12 @@ And insert wrappers instances in the pipeline:
 Inference
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     image = pipe(prompt, num_inference_steps=4, guidance_scale=1.0).images[0]
-    
+
     image
 
 
@@ -662,23 +663,23 @@ Inference
 Image2Image Generation with LCM Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     prompt = "An astronaut riding a green horse"
     neg_prompt = "ugly, blurry, poor quality"
-    
-    
+
+
     def generate_from_text(text_promt, neg_prompt, seed, num_steps):
         result = pipe(text_promt, negative_prompt=neg_prompt, num_inference_steps=num_steps, guidance_scale=1.0, generator=torch.Generator().manual_seed(seed), height=1024, width=1024).images[0]
-        
+
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             positive_input = gr.Textbox(label="Text prompt")
@@ -690,13 +691,13 @@ Image2Image Generation with LCM Interactive Demo
             out = gr.Image(label="Result", type="pil", width=1024)
             btn.click(generate_from_text, [positive_input, neg_input, seed_input, steps_input], out)
             gr.Examples([
-                [prompt, neg_prompt, 999, 4], 
+                [prompt, neg_prompt, 999, 4],
                 ["underwater world coral reef, colorful jellyfish, 35mm, cinematic lighting, shallow depth of field,  ultra quality, masterpiece, realistic", neg_prompt, 89, 4],
                 ["a photo realistic happy white poodle dog ​​playing in the grass, extremely detailed, high res, 8k, masterpiece, dynamic angle", neg_prompt, 1569, 4],
                 ["Astronaut on Mars watching sunset, best quality, cinematic effects,", neg_prompt, 65245, 4],
                 ["Black and white street photography of a rainy night in New York, reflections on wet pavement", neg_prompt, 48199, 4]
             ], [positive_input, neg_input, seed_input, steps_input])
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

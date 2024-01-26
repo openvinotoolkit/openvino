@@ -30,20 +30,20 @@ image classification. The notebook contains the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Instantiate model <#Instantiate-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Instantiate model <#instantiate-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
+   format. <#convert-model-to-openvino-intermediate-representation-ir-format->`__
+-  `Run OpenVINO model <#run-openvino-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Next Steps <#Next-Steps>`__
+-  `Next Steps <#next-steps>`__
 
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 CLIP (Contrastive Language-Image Pre-Training) is a neural network
 trained on various (image, text) pairs. It can be instructed in natural
@@ -87,7 +87,7 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     from transformers import CLIPProcessor, CLIPModel
-    
+
     # load pre-trained model
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
     # load preprocessor for model input
@@ -107,7 +107,7 @@ tokenizer and preparing the images.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -123,16 +123,16 @@ similarity score for the final result.
 
     from urllib.request import urlretrieve
     from pathlib import Path
-    
+
     from PIL import Image
-    
+
     urlretrieve(
         "https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/228-clip-zero-shot-image-classification/visualize.py",
         filename='visualize.py'
     )
     from visualize import visualize_result
-    
-    
+
+
     sample_path = Path("data/coco.jpg")
     sample_path.parent.mkdir(parents=True, exist_ok=True)
     urlretrieve(
@@ -140,12 +140,12 @@ similarity score for the final result.
         sample_path,
     )
     image = Image.open(sample_path)
-    
+
     input_labels = ['cat', 'dog', 'wolf', 'tiger', 'man', 'horse', 'frog', 'tree', 'house', 'computer']
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], return_tensors="pt", padding=True)
-    
+
     results = model(**inputs)
     logits_per_image = results['logits_per_image']  # this is the image-text similarity score
     probs = logits_per_image.softmax(dim=1).detach().numpy()  # we can take the softmax to get the label probabilities
@@ -159,7 +159,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format.
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -173,7 +173,7 @@ save it on disk for the next usage with ``ov.save_model``.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     model.config.torchscript = True
     ov_model = ov.convert_model(model, example_input=dict(inputs))
     ov.save_model(ov_model, 'clip-vit-base-patch16.xml')
@@ -200,7 +200,7 @@ save it on disk for the next usage with ``ov.save_model``.
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the OpenVINO CLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -209,28 +209,28 @@ same input data from the example above with PyTorch.
 .. code:: ipython3
 
     from scipy.special import softmax
-    
+
     # create OpenVINO core object instance
     core = ov.Core()
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -272,8 +272,8 @@ example, ``cat,dog,bird``)
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def classify(image, text):
         """Classify image using classes listing.
         Args:
@@ -287,10 +287,10 @@ example, ``cat,dog,bird``)
         inputs = processor(text=text_descriptions, images=[image], return_tensors="np", padding=True)
         ov_logits_per_image = compiled_model(dict(inputs))[logits_per_image_out]
         probs = softmax(ov_logits_per_image, axis=1)[0]
-        
+
         return {label: float(prob) for label, prob in zip(labels, probs)}
-    
-    
+
+
     demo = gr.Interface(
         classify,
         [
@@ -327,22 +327,22 @@ example, ``cat,dog,bird``)
 .. parsed-literal::
 
     Running on public URL: https://4ec3df1c48219763b1.gradio.live
-    
+
     This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from Terminal to deploy to Spaces (https://huggingface.co/spaces)
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="https://4ec3df1c48219763b1.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="https://4ec3df1c48219763b1.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 Next Steps
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Open the
-`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__
+`228-clip-zero-shot-quantize <228-clip-zero-shot-quantize-with-output.html>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

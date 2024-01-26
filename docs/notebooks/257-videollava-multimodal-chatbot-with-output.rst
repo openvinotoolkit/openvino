@@ -30,37 +30,34 @@ The tutorial consists from following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `About model <#About-model>`__
--  `Prerequisites <#Prerequisites>`__
+-  `About model <#about-model>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Build model and convert it to OpenVINO IR
-   format <#Build-model-and-convert-it-to-OpenVINO-IR-format>`__
+   format <#build-model-and-convert-it-to-openvino-ir-format>`__
 
    -  `Prepare helpers for model
-      conversion <#Prepare-helpers-for-model-conversion>`__
-   -  `Convert and Optimize Model <#Convert-and-Optimize-Model>`__
+      conversion <#prepare-helpers-for-model-conversion>`__
+   -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `Instantiate PyTorch model
-         :math:`\Uparrow`\ (#Table-of-content:) <#Instantiate-PyTorch-model-\Uparrow(#Table-of-content:)>`__
-      -  `Compress Model weights to 4 and 8 bits using NNCF
-         :math:`\Uparrow`\ (#Table-of-content:) <#Compress-Model-weights-to-4-and-8-bits-using-NNCF-\Uparrow(#Table-of-content:)>`__
-      -  `Convert model to OpenVINO IR format
-         :math:`\Uparrow`\ (#Table-of-content:) <#Convert-model-to-OpenVINO-IR-format-\Uparrow(#Table-of-content:)>`__
+      -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
-   pipeline <#Prepare-OpenVINO-based-inference-pipeline>`__
--  `Run model inference <#Run-model-inference>`__
+   pipeline <#prepare-openvino-based-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Load OpenVINO model <#Load-OpenVINO-model>`__
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Test model inference <#Test-model-inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Load OpenVINO model <#load-openvino-model>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Test model inference <#test-model-inference>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 About model
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Video-LLaVA connects pre-trained `CLIP
 ViT-L/14 <https://openai.com/research/clip>`__ visual encoders and large
@@ -77,7 +74,7 @@ More details about model can be found in original
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -90,12 +87,12 @@ Install required dependencies
 
     from pathlib import Path
     import sys
-    
+
     repo_dir = Path("Video-LLaVA")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/PKU-YuanGroup/Video-LLaVA.git
-    
+
     sys.path.insert(0, str(repo_dir.resolve()))
 
 .. container:: alert alert-block alert-warning
@@ -106,7 +103,7 @@ Install required dependencies
 .. code:: ipython3
 
     import gc
-    
+
     import transformers
     from llava.model import LlavaLlamaForCausalLM
     from llava.constants import (
@@ -116,11 +113,11 @@ Install required dependencies
         DEFAULT_X_TOKEN
     )
     transformers.logging.set_verbosity_error()
-    
+
     model_id = "LanguageBind/Video-LLaVA-7B"
-    
+
     config = transformers.AutoConfig.from_pretrained(model_id)
-    
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_id)
     model = LlavaLlamaForCausalLM.from_pretrained(model_id)
     image_tower = model.get_image_tower()
@@ -138,7 +135,7 @@ Install required dependencies
         for x in config.X:
             tokenizer.add_tokens([DEFAULT_X_START_TOKEN[x.upper()], DEFAULT_X_END_TOKEN[x.upper()]], special_tokens=True)
     preprocess_fn = model.prepare_inputs_labels_for_multimodal
-    
+
     del model
     gc.collect()
 
@@ -185,7 +182,7 @@ Install required dependencies
 Build model and convert it to OpenVINO IR format
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Video-LLaVA is autoregressive transformer generative model, it means
 that each next model step depends from model output from previous step.
@@ -225,7 +222,7 @@ model. More details about how it works can be found in this
 Prepare helpers for model conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below prepares function for converting Video-LLaVA model to
 OpenVINO Intermediate Representation format. It splits model on parts
@@ -243,13 +240,13 @@ on disk using ``ov.save_model``.
     import openvino as ov
     import nncf
     from typing import Optional, Tuple, List
-    
-    
+
+
     class ModelWrapper(torch.nn.Module):
         def __init__(self, model):
             super().__init__()
             self.model = model
-    
+
         def forward(
             self,
             input_ids: torch.LongTensor = None,
@@ -268,13 +265,13 @@ on disk using ``ov.save_model``.
                 output_hidden_states=False,
                 return_dict=True,
             )
-    
+
             hidden_states = outputs[0]
             logits = self.model.lm_head(hidden_states)
-    
+
             return (logits, outputs.past_key_values)
-    
-    
+
+
     def set_node_names(ov_model, input_names=None, output_names=None):
         if input_names is not None:
             for inp, name in zip(ov_model.inputs, input_names):
@@ -282,10 +279,10 @@ on disk using ``ov.save_model``.
         if output_names is not None:
             for out, name in zip(ov_model.outputs, output_names):
                 out.get_tensor().set_names({name})
-    
+
         ov_model.validate_nodes_and_infer_types()
-    
-    
+
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -293,7 +290,7 @@ on disk using ``ov.save_model``.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
+
     def convert_videollava(
         pt_model: torch.nn.Module,
         model_path: Path,
@@ -301,7 +298,7 @@ on disk using ``ov.save_model``.
     ):
         """
         Video-LLaVA model conversion function
-    
+
         Params:
           pt_model: PyTorch model
           model_path: path for saving model
@@ -315,7 +312,7 @@ on disk using ``ov.save_model``.
         wrapped = ModelWrapper(pt_model)
         first_stage_model_path = ov_out_path / "videollava_input_embed.xml"
         second_stage_model_path = ov_out_path / "videollava_with_past.xml"
-    
+
         if first_stage_model_path.exists() and second_stage_model_path.exists():
             print("Video-LLaVA model successfully converted")
             del pt_model
@@ -330,7 +327,7 @@ on disk using ``ov.save_model``.
         for idx in range(len(outs[1])):
             input_names.extend([f"past_key_values.{idx}.key", f"past_key_values.{idx}.value"])
             output_names.extend([f"present.{idx}.key", f"present.{idx}.value"])
-    
+
         if not first_stage_model_path.exists():
             ov_model = ov.convert_model(
                 wrapped, example_input=example_input_first_stage
@@ -343,8 +340,8 @@ on disk using ``ov.save_model``.
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
-                
-    
+
+
         if not second_stage_model_path.exists():
             example_input_second_stage = {
                 "input_ids": torch.ones((1, 1), dtype=torch.long),
@@ -353,7 +350,7 @@ on disk using ``ov.save_model``.
             }
             ov_model = ov.convert_model(wrapped, example_input=example_input_second_stage)
             set_node_names(ov_model, input_names, output_names)
-    
+
             if videollava_wc_parameters is not None:
                 print("Applying weight compression to second stage Video-LLaVA model")
                 ov_model = nncf.compress_weights(ov_model, **videollava_wc_parameters)
@@ -374,7 +371,7 @@ on disk using ``ov.save_model``.
 Convert and Optimize Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Download original PyTorch model. 2. Compress model weights using NNCF 3.
@@ -382,10 +379,10 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#Table-of-content:>`__
+Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``LlavaLlamaForCausalLM`` model class. Model weights will be downloaded
@@ -393,10 +390,10 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#Table-of-content:>`__
+Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -436,10 +433,10 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert model to OpenVINO format using conversion helper function
 defined above.
@@ -450,14 +447,14 @@ compression instead of INT8 weight compression.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-    
+
     compression_mode
 
 
@@ -477,12 +474,12 @@ compression instead of INT8 weight compression.
     else:
         compressed_model_dir = Path("videollava/INT8_compressed_weights")
         videollava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-    
+
     if not compressed_model_dir.exists():
         compressed_model_dir.mkdir(exist_ok=True, parents=True)
         model = LlavaLlamaForCausalLM.from_pretrained(model_id)
         model.resize_token_embeddings(len(tokenizer))
-        
+
         if hasattr(config, "max_sequence_length"):
             context_len = config.max_sequence_length
         else:
@@ -493,7 +490,7 @@ compression instead of INT8 weight compression.
         video_tower = model.get_video_tower()
         if not video_tower.is_loaded:
             video_tower.load_model()
-            
+
         model.eval()
         with torch.no_grad():
             convert_videollava(
@@ -531,10 +528,7 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -564,10 +558,7 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -590,10 +581,6 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -623,10 +610,6 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -638,7 +621,7 @@ compression instead of INT8 weight compression.
 Prepare OpenVINO based inference pipeline
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVLlavaLlamaForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -654,8 +637,8 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
     from transformers.modeling_outputs import CausalLMOutputWithPast
     import numpy as np
     import torch
-    
-    
+
+
     class OVLlavaLlamaForCausalLM(GenerationMixin):
         def __init__(self, core, model_dir, device):
             self.model = core.read_model(model_dir / "videollava_with_past.xml")
@@ -681,11 +664,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.main_input_name = "input_ids"
             self.device = torch.device("cpu")
             self.num_pkv = 2
-    
+
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-    
+
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -698,7 +681,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             return self.forward(
                 input_ids, images, attention_mask, prefix_mask, past_key_values
             )
-    
+
         def forward(
             self,
             input_ids: torch.LongTensor,
@@ -723,32 +706,32 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 )
                 # Add the past_key_values to the decoder inputs
                 inputs = dict(zip(self.key_value_input_names, past_key_values))
-    
+
             else:
                 return self.forward_with_image(input_ids, images, attention_mask)
             inputs["input_ids"] = np.array(input_ids)
-    
+
             if "attention_mask" in self.input_names:
                 inputs["attention_mask"] = np.array(attention_mask)
-    
+
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-    
+
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
-    
+
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(
                 self.request.get_tensor(key).data for key in self.key_value_output_names
             )
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-    
+
             past_key_values = tuple(
                 past_key_values[i : i + self.num_pkv]
                 for i in range(0, len(past_key_values), self.num_pkv)
             )
             return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
-    
+
         def forward_with_image(self, input_ids, images, attention_mask):
             """First step inference method, that resolves multimodal data"""
             _, attention_mask, _, input_embeds, _ = preprocess_fn(
@@ -761,10 +744,10 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             return CausalLMOutputWithPast(
                 logits=torch.from_numpy(logits), past_key_values=pkv
             )
-    
+
         def prepare_inputs_for_generation(self, input_ids, past_key_values=None, **kwargs):
             """
-            This function is used during running GenerationMixin.generate for preparing model specific inputs for 
+            This function is used during running GenerationMixin.generate for preparing model specific inputs for
             each generation step
             """
             past_len = 0
@@ -786,7 +769,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 "past_key_values": past_key_values,
                 "images": kwargs.get("images", None),
             }
-    
+
         def _reorder_cache(
             self, past_key_values: Tuple[Tuple[torch.Tensor]], beam_idx: torch.Tensor
         ) -> Tuple[Tuple[torch.Tensor]]:
@@ -795,7 +778,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             [`~PreTrainedModel.beam_sample`] is called.
             This is required to match `past_key_values` with the correct beam_idx at every generation step.
             """
-    
+
             # from transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel._reorder_cache
             return tuple(
                 tuple(np.take(past_state, beam_idx, 0) for past_state in layer_past)
@@ -805,7 +788,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when we have model and defined generation pipeline, we can run
 model inference.
@@ -813,7 +796,7 @@ model inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -822,16 +805,16 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -846,7 +829,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -855,7 +838,7 @@ Load OpenVINO model
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For preparing input data, we will use tokenizer and image processor
 defined in the begging of our tutorial. For alignment with original
@@ -864,17 +847,17 @@ PyTorch implementation we will use PyTorch tensors as input.
 .. code:: ipython3
 
     from IPython.display import display, Video, Image
-    
-    
+
+
     examples_dir = Path("Video-LLaVA/llava/serve/examples")
     video_file = examples_dir / "sample_demo_22.mp4"
     image_file = examples_dir / "sample_img_22.png"
-    
-    
+
+
     video_tensor = video_processor.preprocess(str(video_file), return_tensors="pt")["pixel_values"][0]
     image_tensor = image_processor.preprocess(str(image_file), return_tensors="pt")["pixel_values"][0]
     X_modalities = [[video_tensor, image_tensor], ["video", "image"]]
-    
+
     text_message = "Are the instruments in the pictures used in the video?"
     print(f"Question: {text_message}")
     display(Video(video_file, embed=True))
@@ -904,7 +887,7 @@ PyTorch implementation we will use PyTorch tensors as input.
 Test model inference
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generation process for long response maybe time consuming, for accessing
 partial result as soon as it is generated without waiting when whole
@@ -927,35 +910,35 @@ accumulating history of provided messages and images.
     from llava.constants import X_TOKEN_INDEX
     from transformers import TextStreamer
     from llava.conversation import conv_templates, SeparatorStyle
-    
-    # Prepare 
+
+    # Prepare
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     conv_mode = "llava_v1"
-    
+
     conv = conv_templates[conv_mode].copy()
     roles = ("user", "assistant")
-    
+
     if mm_use_x_start_end:
-        inp = DEFAULT_X_START_TOKEN["VIDEO"] + DEFAULT_X_TOKEN["VIDEO"] + DEFAULT_X_END_TOKEN["VIDEO"] + "\n" 
+        inp = DEFAULT_X_START_TOKEN["VIDEO"] + DEFAULT_X_TOKEN["VIDEO"] + DEFAULT_X_END_TOKEN["VIDEO"] + "\n"
         inp += DEFAULT_X_START_TOKEN["IMAGE"] + DEFAULT_X_TOKEN["IMAGE"] + DEFAULT_X_END_TOKEN["IMAGE"] + "\n"
         inp += text_message
     else:
         inp = DEFAULT_X_TOKEN["VIDEO"] + DEFAULT_X_TOKEN["IMAGE"] + "\n" + text_message
     conv.append_message(conv.roles[0], inp)
     conv.append_message(conv.roles[1], None)
-    
+
     prompt = conv.get_prompt()
     input_ids1 = tokenizer_X_token(prompt.split(f'\n{X_TOKEN_INDEX["IMAGE"]}')[0], tokenizer, X_TOKEN_INDEX['VIDEO'], return_tensors='pt').unsqueeze(0)
     input_ids2 = tokenizer_X_token(prompt.split(f'\n{X_TOKEN_INDEX["IMAGE"]}')[-1], tokenizer, X_TOKEN_INDEX['VIDEO'], return_tensors='pt').unsqueeze(0)
     input_ids3 = tokenizer_X_token(f'\n{X_TOKEN_INDEX["IMAGE"]}', tokenizer, X_TOKEN_INDEX['IMAGE'], return_tensors='pt').unsqueeze(0)
-    
+
     input_ids = torch.cat([input_ids1, input_ids3[:, 1:], input_ids2[:, 1:]], dim=-1)
     stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
     keywords = [stop_str]
     stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     print("Answer:")
-    
+
     output_ids = ov_model.generate(
         input_ids,
         images=X_modalities,
@@ -978,17 +961,17 @@ accumulating history of provided messages and images.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import torch
     import gradio as gr
-    
+
     from llava.constants import DEFAULT_X_TOKEN, X_TOKEN_INDEX
     from llava.conversation import conv_templates, SeparatorStyle
-    
-    
+
+
     def generate(image, video, textbox_in):
         if video is not None:
             textbox_in = DEFAULT_X_TOKEN["VIDEO"] + "\n" + textbox_in
@@ -996,7 +979,7 @@ Interactive demo
                 textbox_in += "\n" + DEFAULT_X_TOKEN["IMAGE"]
         elif image is not None:
             textbox_in = DEFAULT_X_TOKEN['IMAGE'] + '\n' + textbox_in
-    
+
         conv_mode = "llava_v1"
         conv = conv_templates[conv_mode].copy()
         conv.append_message(conv.roles[0], textbox_in)
@@ -1010,7 +993,7 @@ Interactive demo
                 input_ids1 = tokenizer_X_token(prompt.split(f'\n{X_TOKEN_INDEX["IMAGE"]}')[0], tokenizer, X_TOKEN_INDEX['VIDEO'], return_tensors='pt').unsqueeze(0)
                 input_ids2 = tokenizer_X_token(prompt.split(f'\n{X_TOKEN_INDEX["IMAGE"]}')[-1], tokenizer, X_TOKEN_INDEX['VIDEO'], return_tensors='pt').unsqueeze(0)
                 input_ids3 = tokenizer_X_token(f'\n{X_TOKEN_INDEX["IMAGE"]}', tokenizer, X_TOKEN_INDEX['IMAGE'], return_tensors='pt').unsqueeze(0)
-    
+
                 input_ids = torch.cat([input_ids1, input_ids3[:, 1:], input_ids2[:, 1:]], dim=-1)
             else:
                 input_ids = tokenizer_X_token(prompt, tokenizer, X_TOKEN_INDEX['IMAGE'], return_tensors='pt').unsqueeze(0)
@@ -1027,7 +1010,7 @@ Interactive demo
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-    
+
         generate_kwargs = dict(
             input_ids=input_ids,
             images=X_modalities,
@@ -1037,18 +1020,18 @@ Interactive demo
             use_cache=True,
             stopping_criteria=[stopping_criteria],
         )
-    
+
         output_ids = ov_model.generate(**generate_kwargs)
-    
+
         input_token_len = input_ids.shape[1]
         outputs = tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
         outputs = outputs.strip()
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
-        
+
         return outputs
-    
+
     demo = gr.Interface(
         generate,
         [

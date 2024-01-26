@@ -19,13 +19,13 @@ class.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Download model weights <#Download-model-weights>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Load an Image <#Load-an-Image>`__
--  `Do Inference <#Do-Inference>`__
--  `Visualize Results <#Visualize-Results>`__
+-  `Imports <#imports>`__
+-  `Download model weights <#download-model-weights>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Load an Image <#load-an-image>`__
+-  `Do Inference <#do-inference>`__
+-  `Visualize Results <#visualize-results>`__
 
 .. code:: ipython3
 
@@ -41,7 +41,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -63,7 +63,7 @@ Imports
 Download model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -101,7 +101,7 @@ Download model weights
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -131,7 +131,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -146,7 +146,7 @@ Load the Model
 Load an Image
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -184,7 +184,7 @@ Load an Image
 Do Inference
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -197,7 +197,7 @@ Do Inference
 Visualize Results
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

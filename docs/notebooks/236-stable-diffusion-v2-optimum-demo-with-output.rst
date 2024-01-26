@@ -6,13 +6,13 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Showing Info Available Devices <#Showing-Info-Available-Devices>`__
+-  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Download Pre-Converted Stable Diffusion 2.1
-   IR <#Download-Pre-Converted-Stable-Diffusion-2.1-IR>`__
+   IR <#download-pre-converted-stable-diffusion-2-1-ir>`__
 -  `Save the pre-trained models, Select the inference device and compile
-   it <#Save-the-pre-trained-models,-Select-the-inference-device-and-compile-it>`__
+   it <#save-the-pre-trained-models-select-the-inference-device-and-compile-it>`__
 -  `Be creative, add the prompt and enjoy the
-   result <#Be-creative,-add-the-prompt-and-enjoy-the-result>`__
+   result <#be-creative-add-the-prompt-and-enjoy-the-result>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -44,13 +44,13 @@ Autoencoder with Decoder and Encoder models.
    image
 
 The base model used for this example is the
-```stabilityai/stable-diffusion-2-1-base`` <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
+`stabilityai/stable-diffusion-2-1-base <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
 This model was converted to OpenVINO format, for accelerated inference
 on CPU or Intel GPU with OpenVINO’s integration into Optimum:
 ``optimum-intel``. The model weights are stored with FP16 precision,
 which reduces the size of the model by half. You can find the model used
 in this notebook is
-```helenai/stabilityai-stable-diffusion-2-1-base-ov`` <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
+`helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
 (IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
@@ -58,7 +58,7 @@ Let’s download the pre-converted model Stable Diffusion 2.1
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -96,7 +96,7 @@ this
 Download Pre-Converted Stable Diffusion 2.1 IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -189,7 +189,7 @@ Download Pre-Converted Stable Diffusion 2.1 IR
 Save the pre-trained models, Select the inference device and compile it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can save the model locally in order to avoid downloading process
 later. The model will also saved in the cache.
@@ -211,7 +211,7 @@ later. The model will also saved in the cache.
 Be creative, add the prompt and enjoy the result
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
