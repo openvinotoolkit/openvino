@@ -94,7 +94,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
          :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :doc:`OpenVINO State API<ov_us_state_api>`, [Example of stateful model inference](#example-of-stateful-model-inference).
+4. Use state API. See sections :doc:`OpenVINO State API<ov_ug_state_api>`, [Example of stateful model inference](#example-of-stateful-model-inference).
 
 **Known Limitations**
 
@@ -167,7 +167,7 @@ To get a model with states ready for inference, you can convert a model from ano
 or create an OpenVINO Model (details can be found in :doc:`Build OpenVINO Model section<openvino_docs_OV_UG_Model_Representation>`.
 Let's build the following graph using C++ OpenVINO API:
 
-.. image:: _static/images/stateful_model_example.png
+.. image:: _static/images/stateful_model_example.svg
 
 Example of Creating Model via OpenVINO API
 ##########################################
