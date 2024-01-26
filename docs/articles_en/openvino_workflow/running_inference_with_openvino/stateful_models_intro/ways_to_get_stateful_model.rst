@@ -6,8 +6,9 @@ Ways to get stateful models in OpenVINO
 State related Transformations
 #################################
 
-If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers.
-For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after execution of the whole TensorIterator primitive.
+If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain
+:doc:`Assign <openvino_docs_ops_infrastructure_Assign_6>`/:doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_6>` layers.
+For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain TensorIterator/Loop operations and the values will be obtained only after execution of the whole TensorIterator primitive.
 Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request,
 special LowLatency2 and MakeStateful transformations were introduced.
 
@@ -34,12 +35,13 @@ layers as it is shown in the picture below.
 Example of applying LowLatency2 transformation:
 
 .. image:: _static/images/applying_low_latency_2.svg
+   :align: center
 
 After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. 
 These inputs should set the initial value for initialization of ReadValue operations. 
 However, such initialization is not supported in the current State API implementation. 
 Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified 
-by the user via :doc:`State API<ov_ug_state_api>`.
+by the user via :ref:`State API<ov_ug_state_api>`.
 
 **Steps to apply LowLatency2 Transformation**
 
@@ -72,7 +74,7 @@ You can reshape the inputs of the model to set *sequence_dimension* to exactly 1
          :language: cpp
          :fragment: [ov:apply_low_latency_2]
 
-**Use_const_initializer argument**
+(Optional) Use Const Initializer argument:
 
 By default, the LowLatency2 transformation inserts a constant subgraph of the same shape as the previous input node, and with zero values as the initializing value for ReadValue nodes, please see the picture below. We can disable insertion of this subgraph by passing the `false` value for the `use_const_initializer` argument.
 
@@ -84,6 +86,7 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
 
 .. image:: _static/images/llt2_use_const_initializer.svg
+   :align: center
 
 **State naming rule:**  a name of a state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict what the name of the inserted State will be after the transformation is applied. For example:
 
@@ -94,18 +97,24 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
          :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :doc:`OpenVINO State API<ov_ug_state_api>`, [Example of stateful model inference](#example-of-stateful-model-inference).
+4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`, :ref:`Stateful Model Inference<ov_ug_stateful_model_inference>`.
 
 **Known Limitations**
 
 1. Unable to execute :doc:`Reshape <openvino_docs_OV_UG_ShapeInference>` to change the number iterations of TensorIterator/Loop layers to apply the transformation correctly due to hardcoded values of shapes somewhere in the model.
 
-   The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but models can be non-reshapable, the most common reason is that the value of shapes is hardcoded in a constant somewhere in the model.
+The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but models can be non-reshapable,
+the most common reason is that the value of shapes is hardcoded in a constant somewhere in the model.
+
 
 .. image:: _static/images/low_latency_limitation_2.svg
+   :scale: 70 %
+   :align: center
 
-   **Current solution:** Trim non-reshapable layers via `ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
-   `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
+**Solution:**
+Trim non-reshapable layers via :doc:`ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`.
+For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
+`--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
 
 .. tab:: C++
 
@@ -122,6 +131,8 @@ MakeStateful transformation changes the structure of the model by adding the abi
 replacing provided by user Parameter/Results with Assign/ReadValue operations as it is shown in the picture below.
 
 .. image:: _static/images/make_stateful_simple.png
+   :align: center
+   :scale: 70 %
 
 State naming rule: in most cases, a name of a state is a concatenation of Parameter/Result tensor names. 
 If there are no tensor names, :doc:`friendly names<openvino_docs_transformations>` are used.
@@ -131,6 +142,7 @@ Examples:
 Detailed illustration for all examples below:
 
 .. image:: _static/images/make_stateful_detailed.png
+   :align: center
 
 1. C++ API
 
@@ -168,6 +180,7 @@ or create an OpenVINO Model (details can be found in :doc:`Build OpenVINO Model 
 Let's build the following graph using C++ OpenVINO API:
 
 .. image:: _static/images/stateful_model_example.svg
+   :align: center
 
 Example of Creating Model via OpenVINO API
 ##########################################

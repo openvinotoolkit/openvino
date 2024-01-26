@@ -89,6 +89,8 @@ How to get OpenVINO Model with States
    If a model contains a loop that runs over some sequence of input data,
    the LowLatency2 transformation can be applied to get model with states.
 
+.. _ov_ug_stateful_model_inference:
+
 Stateful Model Inference
 ########################
 
@@ -115,6 +117,7 @@ OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list
 Below you can find brief description of methods and the example of how to use this interface.
 
 **`ov::InferRequest` methods:**
+
 * `std::vector<VariableState> query_state();`
     allows to get all available stats for the given inference request.
 
@@ -122,6 +125,7 @@ Below you can find brief description of methods and the example of how to use th
     allows to reset all States to their default values.
 
 **`ov::VariableState` methods:**
+
 * `std::string get_name() const`
     returns name(variable_id) of the according State(Variable)
 
