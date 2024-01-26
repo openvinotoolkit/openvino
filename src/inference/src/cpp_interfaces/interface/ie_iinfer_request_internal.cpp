@@ -290,7 +290,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             }
             const auto output = findOutputByNodeName(name);
             isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
-            ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
+            ov::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
             if (output && output->get_output_partial_shape(0).compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
             } else {

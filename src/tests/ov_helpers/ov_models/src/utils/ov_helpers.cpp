@@ -199,7 +199,7 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
     }
 
     std::vector<element::Type> paramElementTypes;
-    std::vector<PartialShape> paramShapes;
+    std::vector<ov::PartialShape> paramShapes;
     std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
     vecTmpConvertedInputs.reserve(inputs.size());
 
