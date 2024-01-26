@@ -12,6 +12,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -19,7 +20,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ov::Node> onnx_logsoftmax(const Output<ov::Node> data, const int64_t axis) {
+std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<v5::LogSoftmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<v3::ShapeOf>(data);
@@ -43,16 +44,12 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axis(node.get_description(), axis, data_rank);
         result = std::make_shared<v5::LogSoftmax>(data, 0);
         break;
     }
     default: {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axis = ov::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;
