@@ -39,7 +39,7 @@ After applying the transformation, ReadValue operations can receive other operat
 These inputs should set the initial value for initialization of ReadValue operations. 
 However, such initialization is not supported in the current State API implementation. 
 Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified 
-by the user via :doc:`State API<ov_ug_state_api>`.
+by the user via :ref:`State API <ov_ug_state_api>`.
 
 **Steps to apply LowLatency2 Transformation**
 
