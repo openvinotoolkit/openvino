@@ -69,24 +69,24 @@ struct LSTMNgInputMap {
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
-        auto axes = v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0});
+        auto axes = v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0});
         auto batch_size_node =
             std::make_shared<v8::Gather>(shape_of_x,
-                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0}),
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
                                          axes);
         auto seq_length_node =
             std::make_shared<v8::Gather>(shape_of_x,
-                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {1}),
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {1}),
                                          axes);
 
         auto shape_of_r = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_R]);
         auto num_directions_node =
             std::make_shared<v8::Gather>(shape_of_r,
-                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0}),
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
                                          axes);
         auto hidden_size_node =
             std::make_shared<v8::Gather>(shape_of_r,
-                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {2}),
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {2}),
                                          axes);
 
         // ------ Optional inputs ------
@@ -106,7 +106,7 @@ struct LSTMNgInputMap {
             auto b_shape = std::make_shared<v0::Concat>(
                 OutputVector{num_directions_node,
                              std::make_shared<v1::Multiply>(
-                                 v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {gates_count}),
+                                 v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {gates_count}),
                                  hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v3::Broadcast>(
@@ -158,7 +158,7 @@ struct LSTMNgInputMap {
             auto p_shape = std::make_shared<v0::Concat>(
                 OutputVector{num_directions_node,
                              std::make_shared<v1::Multiply>(
-                                 v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {P_gates_count}),
+                                 v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {P_gates_count}),
                                  hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_P] = std::make_shared<v3::Broadcast>(

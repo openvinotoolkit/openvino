@@ -437,7 +437,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
-    jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
+    auto max_tile_b_size = dispatchData.tile_m;
+    if (params.compressed &&
+        params.is_shape_agnostic &&
+        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4))
+        max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
+
+    jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));

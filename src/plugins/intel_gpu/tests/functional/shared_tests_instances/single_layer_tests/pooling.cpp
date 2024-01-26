@@ -9,7 +9,6 @@
 
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
-using namespace ngraph::element;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -35,7 +34,7 @@ const std::vector<std::vector<size_t >> padEnds = {{0, 0},
                                                           {0, 2}};
 const std::vector<ov::op::RoundingType> roundingTypes = {ov::op::RoundingType::CEIL,
                                                              ov::op::RoundingType::FLOOR};
-const std::vector<ngraph::element::Type_t> indexElementTypes = {ngraph::element::Type_t::i32};
+const std::vector<ov::element::Type_t> indexElementTypes = {ov::element::Type_t::i32};
 const std::vector<int64_t> axes = {0, 2};
 const std::vector<size_t > inputShapeSmall = {1, 3, 30, 30};
 const std::vector<size_t > inputShapeLarge = {1, 3, 50, 50};

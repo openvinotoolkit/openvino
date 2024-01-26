@@ -7,25 +7,22 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    const std::vector<element::Type> precisions = {
-        element::f32,
-        element::f16
-    };
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
-    const std::vector<ov::PartialShape> inputAndQuantizationShapes = {
-        { 1ul, 4ul, 16ul, 16ul },
-    };
+const std::vector<ov::PartialShape> inputAndQuantizationShapes = {
+    {1ul, 4ul, 16ul, 16ul},
+};
 
-    const std::vector<ov::AxisSet> reductionAxes = {{2, 3}, {1, 2, 3}};
+const std::vector<ov::AxisSet> reductionAxes = {{2, 3}, {1, 2, 3}};
 
-    const std::vector<bool> normalizeVariance = { true, false };
+const std::vector<bool> normalizeVariance = {true, false};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_LPT, MVNTransformation,
-        ::testing::Combine(
-            ::testing::ValuesIn(precisions),
-            ::testing::ValuesIn(inputAndQuantizationShapes),
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(reductionAxes),
-            ::testing::ValuesIn(normalizeVariance)),
-        MVNTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MVNTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(inputAndQuantizationShapes),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(reductionAxes),
+                                            ::testing::ValuesIn(normalizeVariance)),
+                         MVNTransformation::getTestCaseName);
 }  // namespace

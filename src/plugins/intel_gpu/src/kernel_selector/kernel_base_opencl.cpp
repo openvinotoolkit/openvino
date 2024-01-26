@@ -96,6 +96,7 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
         .add_line("// Kernel template: " + template_name + " ")
         .add_line("// Kernel name: " + kernel_id)
         .value_macro("KERNEL(name)", "__kernel void " + kernel_id)
+        .value_macro("KERNEL_ID", kernel_id)
         .decoration_macro("FUNC", "", kernel_id)
         .decoration_macro("FUNC_CALL", "", kernel_id)
         .decoration_macro("CONST_ARRAY_DECL", "__constant size_t ", kernel_id + " []")

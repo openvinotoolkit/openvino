@@ -48,7 +48,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
-        const auto axis_node = default_opset::Constant::create(element::i64, ov::Shape{1}, {axis});
+        const auto axis_node = default_opset::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             OPENVINO_SUPPRESS_DEPRECATED_START
@@ -71,7 +71,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
         const auto axis = scan_output_axes[i];
-        const auto axis_node = default_opset::Constant::create(element::i64, ov::Shape{1}, {axis});
+        const auto axis_node = default_opset::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         body_outputs[out_idx] = std::make_shared<default_opset::Unsqueeze>(body_outputs[out_idx], axis_node);
     }
 

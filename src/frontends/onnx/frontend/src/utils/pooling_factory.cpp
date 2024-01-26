@@ -30,7 +30,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
     std::iota(axes.begin(), axes.end(), 0);
     std::reverse(axes.begin() + 2, axes.end());
 
-    return std::make_shared<v0::Constant>(element::i32, ov::Shape{rank}, axes);
+    return std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{rank}, axes);
 }
 }  // namespace
 

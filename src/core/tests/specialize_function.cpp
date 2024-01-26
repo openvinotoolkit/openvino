@@ -10,6 +10,7 @@
 #include "openvino/op/convert.hpp"
 
 using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START;
 
 using ov::Shape;

@@ -822,31 +822,32 @@ std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t) {
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t) {
-#define OPENVINO_TYPE_TO_LOWEST_CONST(t)                                                                               \
-    case t:                                                                                                            \
-        return op::v0::Constant::create(t,                                                                             \
-                                        {},                                                                            \
-                                        {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
+#define OPENVINO_TYPE_TO_LOWEST_CONST(t)                                                       \
+    case t:                                                                                    \
+        return op::v0::Constant::create(                                                       \
+            t,                                                                                 \
+            {},                                                                                \
+            {std::numeric_limits<typename ov::element_type_traits<t>::value_type>::lowest()}); \
         break
 
     switch (t) {
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::boolean);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::bf16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::f64);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i8);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::i64);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u1);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u8);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u16);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u32);
-        OPENVINO_TYPE_TO_LOWEST_CONST(element::u64);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::boolean);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::bf16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::f16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::f32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::f64);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::i8);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::i16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::i32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::i64);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u1);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u8);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(ov::element::u64);
 
-    case element::undefined:
-    case element::dynamic:
+    case ov::element::undefined:
+    case ov::element::dynamic:
     default:
         return nullptr;
     }

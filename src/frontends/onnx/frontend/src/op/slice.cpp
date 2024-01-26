@@ -32,9 +32,9 @@ OutputVector slice(const Node& node) {
         steps = inputs.at(4);
     } else {
         const auto& default_step = default_opset::Constant::create(starts.get_element_type(), {1}, {1});
-        steps =
-            std::make_shared<default_opset::Broadcast>(default_step,
-                                                       std::make_shared<default_opset::ShapeOf>(starts, element::i64));
+        steps = std::make_shared<default_opset::Broadcast>(
+            default_step,
+            std::make_shared<default_opset::ShapeOf>(starts, ov::element::i64));
     }
 
     if (axes_input_provided) {
@@ -53,10 +53,10 @@ OutputVector slice(const Node& node) {
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 
     const auto starts =
-        std::make_shared<default_opset::Constant>(element::i64, ov::Shape{starts_atr.size()}, starts_atr);
+        std::make_shared<default_opset::Constant>(ov::element::i64, ov::Shape{starts_atr.size()}, starts_atr);
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
-    const auto steps = default_opset::Constant::create(element::i64,
+    const auto steps = default_opset::Constant::create(ov::element::i64,
                                                        ov::Shape{starts_atr.size()},
                                                        std::vector<int64_t>(starts_atr.size(), 1));
 
@@ -64,7 +64,7 @@ OutputVector slice(const Node& node) {
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps)};
     } else {
         const auto& axes =
-            std::make_shared<default_opset::Constant>(element::i64, ov::Shape{axes_atr.size()}, axes_atr);
+            std::make_shared<default_opset::Constant>(ov::element::i64, ov::Shape{axes_atr.size()}, axes_atr);
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps, axes)};
     }
 }

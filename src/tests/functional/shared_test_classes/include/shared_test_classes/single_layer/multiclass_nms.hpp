@@ -37,8 +37,8 @@ using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                 
                                        int32_t,                                    // keep_top_k
                                        ov::element::Type,                      // Output type
                                        ov::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
-                                       InputboolVar,                               // Sort result across batch, normalized
-                                       bool,                                       // make output shape static
+                                       InputboolVar,  // Sort result across batch, normalized
+                                       bool,          // make output shape static
                                        std::string>;
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>,

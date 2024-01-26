@@ -18,7 +18,8 @@ OutputVector squeeze(const Node& node) {
     if (axes.empty()) {
         return {std::make_shared<default_opset::Squeeze>(data)};
     } else {
-        const auto axes_const = std::make_shared<default_opset::Constant>(element::i64, ov::Shape{axes.size()}, axes);
+        const auto axes_const =
+            std::make_shared<default_opset::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
         return {std::make_shared<default_opset::Squeeze>(data, axes_const)};
     }
 }

@@ -76,7 +76,7 @@ std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<o
 /// \return A Constant node representing shifted identity matrix.
 template <typename T = double>
 std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const ov::Shape output_shape,
-                                                              const element::Type& output_type,
+                                                              const ov::element::Type& output_type,
                                                               const std::int64_t shift) {
     std::vector<T> identity_matrix(shape_size(output_shape), T{0});
     std::int64_t rows = output_shape[0];
@@ -100,7 +100,7 @@ std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const ov::Shape ou
 ///
 /// \return A Constant node representing identity matrix with shape (n, n).
 template <typename T = double>
-std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const element::Type& type) {
+std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const ov::element::Type& type) {
     return shifted_square_identity(ov::Shape{n, n}, type, 0);
 }
 
@@ -112,7 +112,7 @@ std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const elem
 /// \param[in] allowed_types An optional set of allowed element types for this input
 void validate_scalar_input(const char* input_name,
                            const std::shared_ptr<ov::Node> input,
-                           const std::set<element::Type> allowed_types = {});
+                           const std::set<ov::element::Type> allowed_types = {});
 
 /// \brief Temporary replacement for C++14 std::make_unique.
 /// \note details: https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
