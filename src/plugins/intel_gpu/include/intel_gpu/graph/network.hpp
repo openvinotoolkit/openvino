@@ -214,9 +214,9 @@ public:
         return *_memory_pool;
     }
 
-    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable);
+    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::GPUVariableState>& variable);
     bool has_variable(const std::string &variable_id) const;
-    ov::intel_gpu::VariableState& get_variable(const std::string &variable_id) const;
+    ov::intel_gpu::GPUVariableState& get_variable(const std::string &variable_id) const;
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
@@ -279,7 +279,7 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type);
+    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;

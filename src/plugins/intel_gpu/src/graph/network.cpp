@@ -1334,7 +1334,8 @@ void network::allocate_primitive_instance(program_node const& node) {
        kv_cache_ids.push_back(node.id());
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());
+        auto prim = inst->get_node().get_primitive();
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get());
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1372,7 +1373,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     }
 }
 
-void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
+void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::GPUVariableState>& variable) {
     GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
 }
@@ -1381,11 +1382,12 @@ bool network::has_variable(const std::string &variable_id) const {
     return _variables_states.find(variable_id) != _variables_states.end();
 }
 
-ov::intel_gpu::VariableState& network::get_variable(const std::string &variable_id) const {
+ov::intel_gpu::GPUVariableState& network::get_variable(const std::string &variable_id) const {
     auto it = _variables_states.find(variable_id);
     OPENVINO_ASSERT(it != _variables_states.end(), "[GPU] ", variable_id, " variable not found");
     return *it->second;
 }
+
 const ov::intel_gpu::VariableStateInfo& network::get_variable_info(const std::string &variable_id) const {
     auto it = _variables_state_info.find(variable_id);
     OPENVINO_ASSERT(it != _variables_state_info.end(), "[GPU] ", variable_id, " variable info not found");
@@ -1400,8 +1402,14 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type) {
+void network::set_variables_state_info(const std::string& variable_id,
+                                       const layout& variable_layout,
+                                       ov::element::Type user_specified_type,
+                                       const primitive* p) {
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+
+    _variables_state_info.at(variable_id).m_primitives.insert(p);
 }
+
 
 }  // namespace cldnn

@@ -573,7 +573,7 @@ void SyncInferRequest::allocate_states() {
     }
 }
 
-void SyncInferRequest::prepare_state(const std::string& name, const VariableState::Ptr variable) {
+void SyncInferRequest::prepare_state(const std::string& name, const std::shared_ptr<GPUVariableState>& variable) {
     m_graph->get_network()->set_variable(name, variable);
 }
 

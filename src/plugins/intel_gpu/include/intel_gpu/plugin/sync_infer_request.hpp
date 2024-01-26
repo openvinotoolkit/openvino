@@ -89,7 +89,7 @@ private:
     bool m_enable_profiling = false;
     bool m_use_external_queue = false;
 
-    void prepare_state(const std::string& name, const VariableState::Ptr variable);
+    void prepare_state(const std::string& name, const std::shared_ptr<GPUVariableState>& variable);
     std::vector<cldnn::event::ptr> prepare_input(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_output(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(const std::string& name,
