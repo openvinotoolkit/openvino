@@ -6,9 +6,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -28,7 +28,7 @@ OutputVector random_uniform_like(const Node& node) {
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    ngraph::element::Type target_type;
+    ov::element::Type target_type;
     if (node.has_attribute("dtype")) {
         const auto dtype = node.get_attribute_value<int64_t>("dtype");
         target_type = common::get_ov_element_type(dtype);
@@ -36,8 +36,14 @@ OutputVector random_uniform_like(const Node& node) {
         target_type = input.get_element_type();
     }
 
-    auto high_convert = std::make_shared<ov::op::v0::Convert>(high_const, target_type);
-    auto low_convert = std::make_shared<ov::op::v0::Convert>(low_const, target_type);
+    std::shared_ptr<ov::Node> high_convert =
+        target_type == ov::element::f32
+            ? std::static_pointer_cast<ov::Node>(high_const)
+            : std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(high_const, target_type));
+    std::shared_ptr<ov::Node> low_convert =
+        target_type == ov::element::f32
+            ? std::static_pointer_cast<ov::Node>(low_const)
+            : std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(low_const, target_type));
 
     const auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
 
