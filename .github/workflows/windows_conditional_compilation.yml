@@ -73,6 +73,7 @@ jobs:
         with:
           path: 'openvino'
           submodules: 'true'
+          ref: 'e8f8e4633be8f883425d61616191716c063ac660'
 
       - name: Clone test models
         uses: actions/checkout@v4
