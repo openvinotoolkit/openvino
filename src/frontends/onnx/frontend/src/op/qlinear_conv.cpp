@@ -37,12 +37,12 @@ OutputVector qlinear_conv(const Node& node) {
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,
-                                          std::make_shared<v0::Convert>(x_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
                                           1,
                                           node)[0];
     w = set_13::detail::dequantize_linear(w,
                                           w_scale,
-                                          std::make_shared<v0::Convert>(w_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
                                           1,
                                           node)[0];
 

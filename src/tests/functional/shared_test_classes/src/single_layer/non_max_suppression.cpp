@@ -19,7 +19,7 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::string targetDevice;
     std::tie(inShapeParams,
              inPrecisions,
@@ -291,7 +291,7 @@ void NmsLayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,
@@ -352,7 +352,7 @@ void Nms9LayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,

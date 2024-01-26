@@ -25,9 +25,14 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginalWithMaxPool(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
-    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
-        input, element::f32, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
-        fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(input,
+                                                                  ov::element::f32,
+                                                                  fakeQuantizeOnData.quantizationLevel,
+                                                                  fakeQuantizeOnData.constantShape,
+                                                                  fakeQuantizeOnData.inputLowValues,
+                                                                  fakeQuantizeOnData.inputHighValues,
+                                                                  fakeQuantizeOnData.outputLowValues,
+                                                                  fakeQuantizeOnData.outputHighValues);
     const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
         fakeQuantize,
         Strides{ 1, 1 },
@@ -101,15 +106,15 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
             Shape{1, 1},
             Shape{2, 2},
             true,
-            ov::op::RoundingType::FLOOR);
+            op::RoundingType::FLOOR);
     }
 
     auto updateDequantization = dequantization;
     if (!updateDequantization.subtract.empty()) {
-        updateDequantization.subtract.constantPrecision = element::f32;
+        updateDequantization.subtract.constantPrecision = ov::element::f32;
     }
     if (!updateDequantization.multiply.empty()) {
-        updateDequantization.multiply.constantPrecision = element::f32;
+        updateDequantization.multiply.constantPrecision = ov::element::f32;
     }
 
     updateDequantization.multiply.outPrecision = precision;
@@ -118,7 +123,7 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
         deq = makeDequantization(lastOperation, updateDequantization);
         ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, fakeQuantizeOutputPrecision);
     } else {
-        if (precision == element::f32) {
+        if (precision == ov::element::f32) {
             updateDequantization.convert = {};
         }
         deq = makeDequantization(lastOperation, updateDequantization);

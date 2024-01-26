@@ -19,7 +19,7 @@ const std::vector<InputShapeParams> inShapeParams = {
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
 const std::vector<float> threshold = {0.3f, 0.7f};
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<element::Type> outType = {element::i32, element::i64};
+const std::vector<ov::element::Type> outType = {ov::element::i32, ov::element::i64};
 const std::vector<bool> clockwise = {true, false};
 
 const std::vector<Precision> inputPrecisions = {Precision::FP32, Precision::FP16};

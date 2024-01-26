@@ -94,8 +94,8 @@ ov::Output<ov::Node> interpret_as_scalar(const ov::Output<ov::Node>& node) {
 ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::Node>& node,
                                                          const ov::Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
-    const auto one_const = v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto two_const = v0::Constant::create(element::i64, Shape{1}, {2});
+    const auto one_const = v0::Constant::create(ov::element::i64, Shape{1}, {1});
+    const auto two_const = v0::Constant::create(ov::element::i64, Shape{1}, {2});
     const auto tail_shape_rank = std::make_shared<v1::Subtract>(expected_rank, two_const);
     const auto tail_shape = std::make_shared<v3::Broadcast>(one_const, tail_shape_rank);
 
