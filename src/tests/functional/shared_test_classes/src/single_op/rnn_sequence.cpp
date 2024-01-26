@@ -7,7 +7,7 @@
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "shared_test_classes/single_op/rnn_sequence.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-// #include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;

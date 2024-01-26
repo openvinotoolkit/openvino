@@ -39,8 +39,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
 ## Additional Build Options
 
 - To build Python API, install `libpython3-dev:armhf` and `python3-pip`
-  packages using `apt-get`; then install `numpy` and `cython` python modules
-  via `pip3`, adding the following options:
+  packages using `apt-get`; add the following options:
    ```sh
    -DENABLE_PYTHON=ON \
    -DPython3_EXECUTABLE=/usr/bin/python3.8

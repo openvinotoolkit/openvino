@@ -678,6 +678,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above, e.g., shared memory.

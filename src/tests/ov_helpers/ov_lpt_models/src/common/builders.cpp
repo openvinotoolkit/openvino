@@ -9,12 +9,11 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -396,4 +395,4 @@ std::shared_ptr<Node> makeConvolution(
 
 } // namespace subgraph
 } // namespace builder
-} // namespace ngraph
+} // namespace ov

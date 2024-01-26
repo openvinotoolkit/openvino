@@ -11,7 +11,6 @@
 
 #include "core/transform.hpp"
 #include "core/value_info.hpp"
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
@@ -148,15 +147,15 @@ Graph::Graph(const std::string& model_dir,
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
             Tensor tensor = Tensor{initializer_tensor, m_model_dir, m_mmap_cache};
-            std::shared_ptr<default_opset::Constant> ov_constant;
+            std::shared_ptr<ov::op::v0::Constant> ov_constant;
             // For each initializer create a Constant node and store it in cache
             try {
-                ov_constant = tensor.get_ng_constant();
+                ov_constant = tensor.get_ov_constant();
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ov::Exception&) {
-                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ng_type());
+                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ov_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
@@ -165,7 +164,7 @@ Graph::Graph(const std::string& model_dir,
         }
     }
 
-    // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
+    // Process all ONNX graph inputs, convert them to OV nodes and store in cache
     for (const auto& input : m_model->get_graph().input()) {
         // Check if a Constant node was already created from an initializer
         if (m_cache->contains(input.name())) {
@@ -173,7 +172,7 @@ Graph::Graph(const std::string& model_dir,
         }
 
         ValueInfo value_info{input};
-        auto ov_node = value_info.get_ng_node(m_parameters, initializers);
+        auto ov_node = value_info.get_ov_node(m_parameters, initializers);
         m_cache->emplace_node(input.name(), std::move(ov_node));
     }
 }
@@ -183,7 +182,7 @@ void Graph::convert_to_ov_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
     std::map<std::string, uint64_t> op_statistics;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
             op_statistics[node_proto.op_type()]++;
@@ -249,10 +248,10 @@ void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
     }
 }
 
-std::shared_ptr<Function> Graph::convert() {
+std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ov_nodes();
     remove_dangling_parameters();
-    auto function = create_function();
+    auto function = create_model();
     set_metadata(function);
     return function;
 }
@@ -263,10 +262,10 @@ OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
     if (onnx_node.has_subgraphs()) {
         const auto& subgraphs = onnx_node.get_subgraphs();
         auto inputs = onnx_node.get_ng_inputs();
-        std::vector<std::shared_ptr<Function>> functions;
+        std::vector<std::shared_ptr<ov::Model>> models;
         for (const auto& kv : subgraphs) {
             auto& subgraph = kv.second;
-            functions.push_back(subgraph->decode());
+            models.push_back(subgraph->decode());
             for (const auto& input : subgraph->get_inputs_from_parent()) {
                 const auto& name = input.get_node()->get_friendly_name();
                 if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ov::Node>& n) -> bool {
@@ -276,7 +275,7 @@ OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
                 }
             }
         }
-        framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(onnx_node, functions, inputs);
+        framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(onnx_node, models, inputs);
     } else {
         framework_node = std::make_shared<frontend::ONNXFrameworkNode>(onnx_node);
     }
@@ -287,7 +286,7 @@ void Graph::decode_to_framework_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
     std::map<std::string, uint64_t> op_statistics;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
             op_statistics[node_proto.op_type()]++;
@@ -312,22 +311,22 @@ void Graph::decode_to_framework_nodes() {
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-std::shared_ptr<Function> Graph::create_function() {
-    auto function = std::make_shared<Function>(get_ov_outputs(), m_parameters, get_name());
+std::shared_ptr<ov::Model> Graph::create_model() {
+    auto model = std::make_shared<ov::Model>(get_ov_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
-    for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        const auto& result_node = function->get_output_op(i);
+    for (std::size_t i{0}; i < model->get_output_size(); ++i) {
+        const auto& result_node = model->get_output_op(i);
         const std::string onnx_output_name = onnx_outputs.Get(static_cast<int>(i)).name();
         result_node->set_friendly_name(onnx_output_name + "/sink_port_0");
         const auto& previous_operation = result_node->get_input_node_shared_ptr(0);
         previous_operation->set_friendly_name(onnx_output_name);
     }
-    return function;
+    return model;
 }
 
-std::shared_ptr<Function> Graph::decode() {
+std::shared_ptr<ov::Model> Graph::decode() {
     decode_to_framework_nodes();
-    auto function = create_function();
+    auto function = create_model();
     auto& rt_info = function->get_rt_info();
     rt_info[ONNX_GRAPH_RT_ATTRIBUTE] = shared_from_this();
     return function;
@@ -486,9 +485,9 @@ Output<ov::Node> Subgraph::get_ov_node_from_cache(const std::string& name) {
     return new_param;
 }
 
-std::shared_ptr<Function> Subgraph::convert() {
+std::shared_ptr<ov::Model> Subgraph::convert() {
     convert_to_ov_nodes();
-    return create_function();
+    return create_model();
 }
 
 const std::vector<Output<ov::Node>> Subgraph::get_inputs_from_parent() const {

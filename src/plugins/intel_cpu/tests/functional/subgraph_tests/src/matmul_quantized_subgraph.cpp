@@ -4,7 +4,6 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
@@ -118,7 +117,7 @@ protected:
                 return it->second.as<std::string>();
             };
             if (node->get_friendly_name() == nodeName) {
-                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+                auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
                 ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
                 ASSERT_EQ(node->get_output_element_type(0), outType);
                 ASSERT_EQ(node->get_input_element_type(0), inType);

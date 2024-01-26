@@ -10,27 +10,14 @@
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
-Napi::Function CoreWrap::get_class_constructor(Napi::Env env) {
+Napi::Function CoreWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "Core",
-                       {
-                           InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
-                           InstanceMethod("readModel", &CoreWrap::read_model_async),
-                           InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
-                           InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                       });
-}
-
-Napi::Object CoreWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->core_prototype = ref;
-
-    exports.Set("Core", prototype);
-    return exports;
+                       {InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
+                        InstanceMethod("readModel", &CoreWrap::read_model_async),
+                        InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
+                        InstanceMethod("compileModel", &CoreWrap::compile_model_async),
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -66,8 +53,8 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::Object& model,
                                          const Napi::String& device) {
-    const auto model_prototype = info.Env().GetInstanceData<AddonData>()->model_prototype;
-    if (model_prototype && model.InstanceOf(model_prototype->Value().As<Napi::Function>())) {
+    const auto& model_prototype = info.Env().GetInstanceData<AddonData>()->model;
+    if (model_prototype && model.InstanceOf(model_prototype.Value().As<Napi::Function>())) {
         const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
         const auto& compiled_model = _core.compile_model(m->get_model(), device);
         return CompiledModelWrap::wrap(info.Env(), compiled_model);
@@ -142,7 +129,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
+        auto obj = CompiledModelWrap::get_class(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
@@ -159,7 +146,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
         Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class_constructor(env).New({});
+        auto obj = CompiledModelWrap::get_class(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
@@ -228,4 +215,15 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error while compiling model.");
         return Napi::Value();
     }
+}
+
+Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
+    const auto& devices = _core.get_available_devices();
+    Napi::Array js_devices = Napi::Array::New(info.Env(), devices.size());
+
+    size_t i = 0;
+    for (const auto& dev : devices)
+        js_devices[i++] = dev;
+
+    return js_devices;
 }

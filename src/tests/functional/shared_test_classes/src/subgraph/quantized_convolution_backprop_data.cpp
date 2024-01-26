@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
+#include "ie_common.h"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {

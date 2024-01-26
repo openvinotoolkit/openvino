@@ -3,7 +3,13 @@
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace std;
 using namespace ov::op;

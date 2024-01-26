@@ -11,7 +11,6 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "base/behavior_test_utils.hpp"
-#include "ov_models/builders.hpp"
 
 #include "pugixml.hpp"
 
@@ -24,7 +23,7 @@ public:
     void SetUp() override;
 
 protected:
-    std::shared_ptr<ngraph::Function> fnPtr;
+    std::shared_ptr<ov::Model> fnPtr;
 };
 
 class ExecGraphSerializationTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,

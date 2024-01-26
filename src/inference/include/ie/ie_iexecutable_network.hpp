@@ -30,7 +30,6 @@
 #include "ie_iinfer_request.hpp"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
@@ -157,15 +156,6 @@ public:
      * @return code of the operation. InferenceEngine::OK if succeeded
      */
     virtual StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept = 0;
-
-    /**
-     * @brief Gets shared context used to create an executable network.
-     *
-     * @param pContext Reference to a pointer that will receive resulting shared context object ptr
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return code of the operation. InferenceEngine::OK if succeeded
-     */
-    virtual StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept = 0;
 
 protected:
     virtual ~IExecutableNetwork() = default;

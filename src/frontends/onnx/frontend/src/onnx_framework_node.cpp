@@ -23,7 +23,7 @@ std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const OutputVecto
 }
 
 std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_functions, inputs);
+    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_models, inputs);
 }
 
 std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -36,7 +36,7 @@ std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVe
                                                   error_message);
 }
 
-bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
+bool NotSupportedONNXNode::visit_attributes(ov::AttributeVisitor& visitor) {
     const auto& attrs = get_attrs();
     auto domain = attrs.get_opset_name();
     auto op_type = attrs.get_type_name();

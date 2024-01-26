@@ -4,12 +4,11 @@
 
 #include "ov_lpt_models/squeeze.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -17,7 +16,7 @@ std::shared_ptr<ov::Model> SqueezeFunction::getOriginal(
     const ov::PartialShape& inputShape,
     const std::vector<float>& axes,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
@@ -57,9 +56,9 @@ std::shared_ptr<ov::Model> SqueezeFunction::getReference(
     const ov::PartialShape& inputShape,
     const std::vector<float>& axes,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
@@ -77,4 +76,4 @@ std::shared_ptr<ov::Model> SqueezeFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

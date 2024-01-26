@@ -169,5 +169,24 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
     return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
 }
 
+std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
+    std::vector<cldnn::optional_data_type> output_data_types;
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        auto type = op->get_output_element_type(i);
+        if (precision_map.find(type) != precision_map.end())
+            type = precision_map.at(type);
+        output_data_types.push_back(cldnn::element_type_to_data_type(type));
+    }
+    return output_data_types;
+}
+
+std::vector<cldnn::padding> get_output_paddings(const ov::Node* op) {
+    std::vector<cldnn::padding> output_paddings;
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        output_paddings.push_back(cldnn::padding());
+    }
+    return output_paddings;
+}
+
 }  // namespace intel_gpu
 }  // namespace ov

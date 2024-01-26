@@ -37,7 +37,7 @@ function(_generate_dispatcher)
 // !! do not modify it !!!
 //
 #include \"${XARCH_API_HEADER}\"
-#include \"ie_system_conf.h\"
+#include \"openvino/runtime/system_conf.hpp\"
 
 ")
 

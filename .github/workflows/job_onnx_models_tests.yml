@@ -30,6 +30,7 @@ jobs:
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       MODELS_SHARE_PATH: "/mount/onnxtestdata"
       ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
+    if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -103,4 +104,4 @@ jobs:
           python3 -m pip install pytest-xdist[psutil] pytest-forked
 
       - name: ONNX Models Tests
-        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 12 --forked -k 'not _cuda' --model_zoo_xfail
+        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
