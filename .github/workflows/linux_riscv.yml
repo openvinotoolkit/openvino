@@ -206,6 +206,10 @@ jobs:
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
 
+      - name: Show sccache stats (bare)
+        continue-on-error: true
+        run: sccache --show-stats
+
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
 
