@@ -102,7 +102,8 @@ By default, the LowLatency2 transformation inserts a constant subgraph of the sa
 
    The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but models can be non-reshapable, the most common reason is that the value of shapes is hardcoded in a constant somewhere in the model.
 
-.. image:: _static/images/low_latency_limitation_2.svg
+   .. image:: _static/images/low_latency_limitation_2.svg
+      :scale: 70 %
 
    **Current solution:** Trim non-reshapable layers via `ModelOptimizer CLI<openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model> `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option:
    `--input Reshape_layer_name`. The problematic constant can be also replaced using OpenVINO, as shown in the example below.
