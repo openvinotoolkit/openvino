@@ -62,8 +62,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT/InterpolateTransformation.*)",
             // Issue: 128924
             R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
-            // Issue: 129802
-            R"(.*smoke_OVClassBasicTestP/OVClassBasicTestP.registerExistingPluginThrows.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif

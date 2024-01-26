@@ -68,7 +68,7 @@ jobs:
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
 
       - name: Fetch setup_python action
         uses: actions/checkout@v4
