@@ -9,7 +9,6 @@
 #include <fstream>
 #include <memory>
 
-#include "ngraph/except.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "ops_bridge.hpp"
