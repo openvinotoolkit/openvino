@@ -795,7 +795,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
     // Namely, the resulted model must contain the regular convolution, not grouped convolution
     { model = convert_model("conv_with_dynamic_input_channel"); }
     {
-        auto input = make_shared<v0::Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+        auto input = make_shared<v0::Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, 6});
 
         auto transpose_order = make_shared<v0::Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
         auto transpose = make_shared<v1::Transpose>(input, transpose_order);
