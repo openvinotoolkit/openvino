@@ -389,7 +389,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
             // get (already) cloned arguments and clone the node
             OutputVector cloned_args;
             for (auto input : node->inputs()) {
-                Output<Node> output = input.get_source_output();
+                ov::Output<Node> output = input.get_source_output();
                 cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
             }
             std::vector<std::shared_ptr<Node>> cloned_dependencies;
@@ -475,7 +475,7 @@ std::list<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_p
     return cloned_nodes;
 }
 
-bool is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant) {
+bool is_equal_to_const_value(const std::string& const_value, const ov::Output<Node>& reduce_constant) {
     if (auto rc = ov::as_type_ptr<ov::op::v0::Constant>(reduce_constant.get_node_shared_ptr())) {
         return (rc->get_all_data_elements_bitwise_identical() && rc->convert_value_to_string(0) == const_value);
     } else {
@@ -508,13 +508,13 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
         std::make_shared<op::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
-    std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
+    std::vector<ov::Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
     OPENVINO_ASSERT(dst_inputs.size() == 1,
                     "insert_result_parameter_split encountered more than "
                     "one input between the source and destination nodes");
     auto& dst_input = dst_inputs[0];
 
-    std::vector<Output<Node>> src_outputs = get_outputs_to(*src_node, *dst_node);
+    std::vector<ov::Output<Node>> src_outputs = get_outputs_to(*src_node, *dst_node);
     OPENVINO_ASSERT(src_outputs.size() == 1,
                     "insert_result_parameter_split encountered more than "
                     "one output between the source and destination nodes");
@@ -577,13 +577,13 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
                              const std::shared_ptr<Node>& dst_node,
                              const std::shared_ptr<Node>& new_node) {
     // Fix input / output
-    std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
+    std::vector<ov::Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
     OPENVINO_ASSERT(dst_inputs.size() == 1,
                     "insert_new_node_between encountered more than one "
                     "input between the source and destination nodes");
     auto& dst_input = dst_inputs[0];
 
-    std::vector<Output<Node>> src_outputs = get_outputs_to(*src_node, *dst_node);
+    std::vector<ov::Output<Node>> src_outputs = get_outputs_to(*src_node, *dst_node);
     OPENVINO_ASSERT(src_outputs.size() == 1,
                     "insert_new_node_between encountered more than one "
                     "output between the source and destination nodes");
@@ -610,12 +610,12 @@ std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
     return std::make_shared<ov::op::v0::Constant>(element_type, shape, cvals);
 }
 
-bool is_zero(const Output<Node>& reduce_constant) {
+bool is_zero(const ov::Output<Node>& reduce_constant) {
     auto result_bool = is_equal_to_const_value("0", reduce_constant);
     return result_bool;
 }
 
-bool is_one(const Output<Node>& reduce_constant) {
+bool is_one(const ov::Output<Node>& reduce_constant) {
     auto result_bool = is_equal_to_const_value("1", reduce_constant);
     return result_bool;
 }
@@ -713,7 +713,7 @@ void plot_graph(std::shared_ptr<Function> f,
 }
 
 std::vector<ov::Input<ov::Node>> get_inputs_from(Node& src, Node& dst) {
-    std::vector<Input<Node>> result;
+    std::vector<ov::Input<Node>> result;
 
     for (auto& input : dst.inputs()) {
         if (input.get_source_output().get_node() == &src) {
@@ -725,7 +725,7 @@ std::vector<ov::Input<ov::Node>> get_inputs_from(Node& src, Node& dst) {
 }
 
 std::vector<ov::Output<ov::Node>> get_outputs_to(Node& src, Node& dst) {
-    std::vector<Output<Node>> result;
+    std::vector<ov::Output<Node>> result;
 
     for (auto& output : src.outputs()) {
         bool targets_dst = false;

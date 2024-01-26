@@ -32,7 +32,7 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);

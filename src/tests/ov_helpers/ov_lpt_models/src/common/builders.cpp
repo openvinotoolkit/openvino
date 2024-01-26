@@ -9,21 +9,20 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 using namespace ov::pass::low_precision;
 
 std::shared_ptr<Node> makeDequantization(
-    const Output<Node>& data,
+    const ov::Output<Node>& data,
     const DequantizationOperations& dequantizationOperations) {
-    Output<Node> parent = data;
+    ov::Output<Node> parent = data;
 
     if (!dequantizationOperations.convert.empty()) {
         auto convert = std::make_shared<ov::opset1::Convert>(data, dequantizationOperations.convert.outPrecision);
@@ -74,8 +73,8 @@ std::shared_ptr<Node> makeDequantization(
             subtractConst = subtractConstConvert;
         }
 
-        Output<Node> leftBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? parent : subtractConst;
-        Output<Node> rightBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? subtractConst : parent;
+        ov::Output<Node> leftBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? parent : subtractConst;
+        ov::Output<Node> rightBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? subtractConst : parent;
 
         if (((dequantizationOperations.subtract.outPrecision == element::undefined) ||
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) &&
@@ -126,7 +125,7 @@ std::shared_ptr<Node> makeDequantization(
     return parent.get_node_shared_ptr();
 }
 
-std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const DequantizationOperations::Multiply& multiply) {
+std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& parent, const DequantizationOperations::Multiply& multiply) {
     std::vector<size_t> shape;
     auto values = multiply.values;
     if (multiply.constantShapeIsDefined) {
@@ -184,18 +183,18 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
     return newMultiply;
 }
 
-std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& reshape) {
+std::shared_ptr<Node> makeReshape(const ov::Output<Node>& data, const Reshape& reshape) {
     auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ reshape.values.size() }), reshape.values);
     return std::make_shared<ov::opset1::Reshape>(data, constant->output(0), reshape.special_zero);
 }
 
-std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& transpose) {
+std::shared_ptr<Node> makeTranspose(const ov::Output<Node>& data, const Transpose& transpose) {
     auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ transpose.values.size() }), transpose.values);
     return std::make_shared<ov::opset1::Transpose>(data, constant->output(0));
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& output,
+    const ov::Output<Node>& output,
     const ov::element::Type constantType,
     const FakeQuantizeOnData& fqOnData) {
     return ov::as_type_ptr<ov::opset1::FakeQuantize>(ov::test::utils::make_fake_quantize(
@@ -209,7 +208,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues));
 }
 
-std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution) {
+std::shared_ptr<ov::opset1::Convolution> makeConvolution(const ov::Output<Node>& output, const Convolution& convolution) {
     auto parentOnActivations = output;
     if (!convolution.zeroPointOnActivations.empty()) {
         auto constant = std::make_shared<ov::opset1::Constant>(
@@ -240,7 +239,7 @@ std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& out
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const Output<ov::Node>& output,
+    const ov::Output<ov::Node>& output,
     const ov::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
     const std::shared_ptr<ov::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData);
@@ -250,7 +249,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& input,
+    const ov::Output<Node>& input,
     const ov::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const bool subgraphOnConstantPath) {
@@ -396,4 +395,4 @@ std::shared_ptr<Node> makeConvolution(
 
 } // namespace subgraph
 } // namespace builder
-} // namespace ngraph
+} // namespace ov
