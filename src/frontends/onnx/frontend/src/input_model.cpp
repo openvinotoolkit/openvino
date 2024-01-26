@@ -237,7 +237,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return element::undefined;
+    return ov::element::undefined;
 }
 
 std::shared_ptr<Model> InputModel::decode() {

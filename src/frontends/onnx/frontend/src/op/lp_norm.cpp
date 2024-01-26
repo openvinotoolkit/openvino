@@ -34,7 +34,7 @@ ov::OutputVector lp_norm(const Node& node) {
                      p_norm,
                      "Only normalization of 1st or 2nd order is supported.");
 
-    const auto normalize_axis_const = v0::Constant::create(element::i64, {}, {normalize_axis});
+    const auto normalize_axis_const = v0::Constant::create(ov::element::i64, {}, {normalize_axis});
     std::shared_ptr<ov::Node> norm =
         ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
 

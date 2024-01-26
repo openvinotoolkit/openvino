@@ -50,14 +50,14 @@ ov::OutputVector fused_conv(const Node& node) {
         CHECK_VALID_NODE(node,
                          activation_params.size() == 1,
                          "activation_alpha attribute of LeakyRelu activation function was not provided");
-        const auto activation_alpha_node = v0::Constant::create(element::f32, Shape{}, activation_params);
+        const auto activation_alpha_node = v0::Constant::create(ov::element::f32, Shape{}, activation_params);
         return {std::make_shared<v0::PRelu>(conv_res, activation_alpha_node)};
     } else if (activation_type == "HardSigmoid") {
         CHECK_VALID_NODE(node,
                          activation_params.size() == 2,
                          "alpha and beta attributes of HardSigmoid activation function were not provided");
-        const auto alpha = v0::Constant::create<float>(element::f32, Shape{}, {activation_params[0]});
-        const auto beta = v0::Constant::create<float>(element::f32, Shape{}, {activation_params[1]});
+        const auto alpha = v0::Constant::create<float>(ov::element::f32, Shape{}, {activation_params[0]});
+        const auto beta = v0::Constant::create<float>(ov::element::f32, Shape{}, {activation_params[1]});
         return {std::make_shared<v0::HardSigmoid>(conv_res, alpha, beta)};
     }
     CHECK_VALID_NODE(node,

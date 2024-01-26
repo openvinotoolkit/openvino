@@ -25,11 +25,11 @@ ov::OutputVector matmul_integer(const Node& node) {
     const auto& A_zero_point = (inputs.size() > 2) ? inputs.at(2) : v0::Constant::create(ov::element::i32, {1}, {0});
     const auto& B_zero_point = (inputs.size() > 3) ? inputs.at(3) : v0::Constant::create(ov::element::i32, {1}, {0});
 
-    const auto& converted_A = std::make_shared<v0::Convert>(A, element::i32);
-    const auto& converted_B = std::make_shared<v0::Convert>(B, element::i32);
+    const auto& converted_A = std::make_shared<v0::Convert>(A, ov::element::i32);
+    const auto& converted_B = std::make_shared<v0::Convert>(B, ov::element::i32);
 
-    const auto& converted_A_zero_point = std::make_shared<v0::Convert>(A_zero_point, element::i32);
-    const auto& converted_B_zero_point = std::make_shared<v0::Convert>(B_zero_point, element::i32);
+    const auto& converted_A_zero_point = std::make_shared<v0::Convert>(A_zero_point, ov::element::i32);
+    const auto& converted_B_zero_point = std::make_shared<v0::Convert>(B_zero_point, ov::element::i32);
 
     const auto& A_zero_point_rank = A_zero_point.get_partial_shape().rank();
 

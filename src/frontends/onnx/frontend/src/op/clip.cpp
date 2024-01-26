@@ -75,7 +75,7 @@ std::shared_ptr<ov::op::v0::Constant> get_constant_max_of_type(ov::element::Type
 ov::OutputVector clip(const Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
     const ov::Output<ov::Node> data = inputs.at(0);
-    const element::Type data_type = data.get_element_type();
+    const ov::element::Type data_type = data.get_element_type();
     ov::Output<ov::Node> min;
     ov::Output<ov::Node> max;
 

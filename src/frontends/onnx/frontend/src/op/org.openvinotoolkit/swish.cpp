@@ -22,7 +22,7 @@ ov::OutputVector swish(const Node& node) {
     if (ng_inputs.size() > 1) {
         beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
     } else {
-        beta = v0::Constant::create(element::f32, Shape{}, {1.0});
+        beta = v0::Constant::create(ov::element::f32, Shape{}, {1.0});
     }
 
     return {std::make_shared<v4::Swish>(ng_inputs.at(0), beta)};

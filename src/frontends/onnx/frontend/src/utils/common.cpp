@@ -29,33 +29,33 @@ namespace common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BOOL:
-        return element::boolean;
+        return ov::element::boolean;
     case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
-        return element::f64;
+        return ov::element::f64;
     case ONNX_NAMESPACE::TensorProto_DataType_FLOAT16:
-        return element::f16;
+        return ov::element::f16;
     case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
-        return element::f32;
+        return ov::element::f32;
     case ONNX_NAMESPACE::TensorProto_DataType_INT8:
-        return element::i8;
+        return ov::element::i8;
     case ONNX_NAMESPACE::TensorProto_DataType_INT16:
-        return element::i16;
+        return ov::element::i16;
     case ONNX_NAMESPACE::TensorProto_DataType_INT32:
-        return element::i32;
+        return ov::element::i32;
     case ONNX_NAMESPACE::TensorProto_DataType_INT64:
-        return element::i64;
+        return ov::element::i64;
     case ONNX_NAMESPACE::TensorProto_DataType_UINT8:
-        return element::u8;
+        return ov::element::u8;
     case ONNX_NAMESPACE::TensorProto_DataType_UINT16:
-        return element::u16;
+        return ov::element::u16;
     case ONNX_NAMESPACE::TensorProto_DataType_UINT32:
-        return element::u32;
+        return ov::element::u32;
     case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
-        return element::u64;
+        return ov::element::u64;
     case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED:
-        return element::dynamic;
+        return ov::element::dynamic;
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
-        return element::bf16;
+        return ov::element::bf16;
     }
     OPENVINO_THROW("unsupported element type");
 }
@@ -66,19 +66,19 @@ std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<o
     if (value.get_partial_shape().rank().is_static()) {
         const auto range_value =
             get_monotonic_range<int64_t>(value.get_partial_shape().rank().get_length(), start_value, step);
-        return v0::Constant::create(element::i64, {range_value.size()}, range_value);
+        return v0::Constant::create(ov::element::i64, {range_value.size()}, range_value);
     }
 
     const auto value_shape = std::make_shared<v0::ShapeOf>(value);
-    return std::make_shared<v4::Range>(v0::Constant::create(element::i64, {}, {start_value}),
+    return std::make_shared<v4::Range>(v0::Constant::create(ov::element::i64, {}, {start_value}),
                                        std::make_shared<v0::ShapeOf>(value_shape),
-                                       v0::Constant::create(element::i64, {}, {step}),
-                                       element::i64);
+                                       v0::Constant::create(ov::element::i64, {}, {step}),
+                                       ov::element::i64);
 }
 
 void validate_scalar_input(const char* input_name,
                            const std::shared_ptr<ov::Node> input,
-                           const std::set<element::Type> allowed_types) {
+                           const std::set<ov::element::Type> allowed_types) {
     const auto validated_input_shape = input->get_output_partial_shape(0);
     const auto validated_input_rank = validated_input_shape.rank();
 
@@ -113,7 +113,7 @@ ov::OutputVector handle_opset6_binary_op(const Node& node) {
             if (axis < 0)
                 axis += lhs_rank;
             if (lhs_rank > axis + rhs_rank) {
-                auto ones = v0::Constant::create(element::i64,
+                auto ones = v0::Constant::create(ov::element::i64,
                                                  Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
                                                  std::vector<int64_t>(lhs_rank - axis - rhs_rank, 1));
                 auto rhs_shape = std::make_shared<v0::ShapeOf>(rhs_node);

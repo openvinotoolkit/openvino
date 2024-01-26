@@ -31,10 +31,10 @@ ov::OutputVector group_normalization(const Node& node) {
     const auto eps = node.get_attribute_value<float>("epsilon", 1e-05f);
     const auto num_groups = node.get_attribute_value<int64_t>("num_groups");
 
-    const auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
-    const auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto zero = v0::Constant::create(ov::element::i64, Shape{1}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, Shape{1}, {1});
     const auto c_dim = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(data), one, zero);
-    const auto g_dim = v0::Constant::create(element::i64, Shape{1}, {num_groups});
+    const auto g_dim = v0::Constant::create(ov::element::i64, Shape{1}, {num_groups});
 
     const auto c_g_div = std::make_shared<v1::Divide>(c_dim, g_dim);
 

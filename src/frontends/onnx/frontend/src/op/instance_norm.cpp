@@ -28,9 +28,9 @@ ov::OutputVector instance_norm(const Node& node) {
     const ov::PartialShape& bias_pshape = bias.get_partial_shape();
     const float epsilon{node.get_attribute_value<float>("epsilon", 1e-5f)};
 
-    element::Type result_et;
+    ov::element::Type result_et;
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
                      "Element types for data and scale input do not match (data element type: ",
                      data.get_element_type(),
                      ", scale element type: ",
@@ -38,7 +38,7 @@ ov::OutputVector instance_norm(const Node& node) {
                      ").");
 
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
                      "Element types for data and bias input do not match (data element type: ",
                      data.get_element_type(),
                      ", bias element type: ",

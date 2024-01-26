@@ -110,12 +110,12 @@ void MemoryTest::Infer() {
     inferRequest.Infer();
 }
 
-std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
     using namespace ngraph;
     function->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-    auto refInputsTypes = std::vector<element::Type>(inputs.size());
+    auto refInputsTypes = std::vector<ov::element::Type>(inputs.size());
     ov::TensorVector inputTensors;
     for (auto& input : inputs) {
         const auto& dataSize = input->byteSize();
@@ -140,7 +140,7 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     ov::TensorVector outputTensors(outInfo.size());
     function->evaluate(outputTensors, inputTensors, eval_context);
 
-    std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
     for (size_t idx = 0; idx < outInfo.size(); ++idx) {
         outputs[idx].first = outputTensors[idx].get_element_type();
         outputs[idx].second.resize(outputTensors[idx].get_byte_size());

@@ -69,28 +69,28 @@ ov::OutputVector stft(const Node& node) {
     }
     const int64_t batch_size = signal_param_shape[0].get_length();
     const auto nstfts = static_cast<int64_t>((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
-    const auto axis_const = default_opset::Constant::create(element::i64, {}, {axis});
-    const auto zero_const = default_opset::Constant::create(element::i64, {}, {0});
-    const auto step = default_opset::Constant::create(element::i64, Shape{2}, {1, 1});
+    const auto axis_const = default_opset::Constant::create(ov::element::i64, {}, {axis});
+    const auto zero_const = default_opset::Constant::create(ov::element::i64, {}, {0});
+    const auto step = default_opset::Constant::create(ov::element::i64, Shape{2}, {1, 1});
     ov::OutputVector all_signals;
     for (int64_t batch = 0; batch < batch_size; ++batch) {
         ov::OutputVector signals_in_batch;
         for (int64_t sig_idx = 0; sig_idx < nstfts; ++sig_idx) {
-            const auto start = default_opset::Constant::create(element::i64,
+            const auto start = default_opset::Constant::create(ov::element::i64,
                                                                Shape{2},
                                                                std::vector<int64_t>{batch, sig_idx * frame_step});
             const auto stop =
-                default_opset::Constant::create(element::i64,
+                default_opset::Constant::create(ov::element::i64,
                                                 Shape{2},
                                                 std::vector<int64_t>{batch + 1, sig_idx * frame_step + frame_length});
             const auto slice_axes =
-                default_opset::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{0, axis});
+                default_opset::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{0, axis});
             const auto slice = std::make_shared<default_opset::Slice>(signal, start, stop, step, slice_axes);
             const ov::Output<ov::Node> flatten_slice = std::make_shared<default_opset::Reshape>(
                 slice,
-                is_complex(slice) ? default_opset::Constant::create(element::i64, {2}, {-1, 2})
-                                  : (onesided ? default_opset::Constant::create(element::i64, {1}, {-1})
-                                              : default_opset::Constant::create(element::i64, {2}, {-1, 1})),
+                is_complex(slice) ? default_opset::Constant::create(ov::element::i64, {2}, {-1, 2})
+                                  : (onesided ? default_opset::Constant::create(ov::element::i64, {1}, {-1})
+                                              : default_opset::Constant::create(ov::element::i64, {2}, {-1, 1})),
                 false);
             const auto dft = dft::make_dft(
                 window_node_provided
@@ -100,7 +100,7 @@ ov::OutputVector stft(const Node& node) {
                               ? std::make_shared<default_opset::Broadcast>(  // align window shape with signal shape
                                     std::make_shared<default_opset::Unsqueeze>(
                                         ng_inputs[2],
-                                        default_opset::Constant::create(element::i64, {1}, {1})),
+                                        default_opset::Constant::create(ov::element::i64, {1}, {1})),
                                     std::make_shared<default_opset::ShapeOf>(flatten_slice))
                               : ng_inputs[2])
                     : flatten_slice,

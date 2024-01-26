@@ -40,17 +40,17 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
 
     // Get dimensions needed for default inputs creation
     auto shape_of_x = std::make_shared<v3::ShapeOf>(m_map[OpInput::X]);
-    auto axes = v0::Constant::create(element::i32, Shape{1}, {0});
+    auto axes = v0::Constant::create(ov::element::i32, Shape{1}, {0});
     auto batch_size_node =
-        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::i32, Shape{1}, {0}), axes);
+        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(ov::element::i32, Shape{1}, {0}), axes);
     auto seq_length_node =
-        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::i32, Shape{1}, {1}), axes);
+        std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(ov::element::i32, Shape{1}, {1}), axes);
 
     auto shape_of_r = std::make_shared<v3::ShapeOf>(m_map[OpInput::R]);
     auto num_directions_node =
-        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::i32, Shape{1}, {0}), axes);
+        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(ov::element::i32, Shape{1}, {0}), axes);
     auto hidden_size_node =
-        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::i32, Shape{1}, {2}), axes);
+        std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(ov::element::i32, Shape{1}, {2}), axes);
 
     // ------ Optional inputs ------
     if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
@@ -61,7 +61,7 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
         auto b_shape = std::make_shared<v0::Concat>(
             ov::OutputVector{
                 num_directions_node,
-                std::make_shared<v1::Multiply>(v0::Constant::create(element::Type_t::i64, Shape{1}, {gates_count}),
+                std::make_shared<v1::Multiply>(v0::Constant::create(ov::element::Type_t::i64, Shape{1}, {gates_count}),
                                                hidden_size_node)},
             0);
         m_map[OpInput::B] =

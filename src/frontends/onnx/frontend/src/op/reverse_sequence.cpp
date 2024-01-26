@@ -5,6 +5,7 @@
 #include "op/reverse_sequence.hpp"
 
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reverse_sequence.hpp"
@@ -22,7 +23,7 @@ ov::OutputVector reverse_sequence(const Node& node) {
 
     const auto sequence_lengths = node.get_ng_inputs().at(1);
     // OpenVINO supports only int32 type of sequence_lengths
-    const auto sequence_lengths_i32 = std::make_shared<v0::Convert>(node.get_ng_inputs().at(1), element::i32);
+    const auto sequence_lengths_i32 = std::make_shared<v0::Convert>(node.get_ng_inputs().at(1), ov::element::i32);
     const auto data_rank = data.get_partial_shape().rank();
 
     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);
