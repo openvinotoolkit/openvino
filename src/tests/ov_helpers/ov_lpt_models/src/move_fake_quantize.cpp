@@ -13,7 +13,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -54,10 +54,13 @@ std::shared_ptr<ov::Model> MoveFakeQuantize::get(
         inputs[0] = std::make_shared<ov::opset1::Parameter>(inputPrecision, newInputShape);
         inputs[0]->set_friendly_name("input");
 
-        const auto axis_constant = std::make_shared<ov::opset1::Constant>(element::i32, Shape{}, std::vector<int64_t>({axis}));
+        const auto axis_constant =
+            std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{}, std::vector<int64_t>({axis}));
         std::vector<int> split_lengths_values(inputShapes.size(), 1);
         split_lengths_values[split_lengths_values.size() - 1] = channels - (split_lengths_values.size() - 1);
-        const auto split_lengths = std::make_shared<ov::opset1::Constant>(element::i32, Shape{split_lengths_values.size()}, split_lengths_values);
+        const auto split_lengths = std::make_shared<ov::opset1::Constant>(ov::element::i32,
+                                                                          Shape{split_lengths_values.size()},
+                                                                          split_lengths_values);
         const auto split = std::make_shared<ov::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
         for (size_t i = 0; i < concatInputsCount; i++) {
             // added unary op to avoid Split -> Concat pair elimination
@@ -131,4 +134,4 @@ std::shared_ptr<ov::Model> MoveFakeQuantize::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

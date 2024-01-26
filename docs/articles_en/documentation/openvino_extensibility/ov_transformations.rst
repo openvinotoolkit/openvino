@@ -205,7 +205,7 @@ Another example shows how multiple matcher passes can be united into single Grap
 How to debug transformations 
 ############################
 
-If you are using ``ngraph::pass::Manager`` to run sequence of transformations, you can get additional debug capabilities by using the following environment variables:
+If you are using ``ov::pass::Manager`` to run sequence of transformations, you can get additional debug capabilities by using the following environment variables:
 
 .. code-block:: cpp
    

@@ -7,7 +7,7 @@
 #include <functional_test_utils/core_config.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
-#include "ngraph/pass/low_latency.hpp"
+#include "openvino/pass/low_latency.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/opsets/opset7.hpp"
@@ -58,7 +58,7 @@ void MemoryTest::SetUp() {
 }
 
 void MemoryTest::Run() {
-    functionRefs = ngraph::clone_function(*function);
+    functionRefs = function->clone();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     using namespace LayerTestsUtils;
     auto crashHandler = [](int errCode) {
@@ -110,12 +110,12 @@ void MemoryTest::Infer() {
     inferRequest.Infer();
 }
 
-std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
     using namespace ngraph;
     function->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-    auto refInputsTypes = std::vector<element::Type>(inputs.size());
+    auto refInputsTypes = std::vector<ov::element::Type>(inputs.size());
     ov::TensorVector inputTensors;
     for (auto& input : inputs) {
         const auto& dataSize = input->byteSize();
@@ -132,7 +132,7 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     }
 
     // evaluate method is not implemented for TI op.
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::UnrollTensorIterator>();
     manager.run_passes(function);
 
@@ -140,7 +140,7 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     ov::TensorVector outputTensors(outInfo.size());
     function->evaluate(outputTensors, inputTensors, eval_context);
 
-    std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
     for (size_t idx = 0; idx < outInfo.size(); ++idx) {
         outputs[idx].first = outputTensors[idx].get_element_type();
         outputs[idx].second.resize(outputTensors[idx].get_byte_size());
@@ -194,13 +194,13 @@ void MemoryTest::CreateCommonFunc() {
 void MemoryTest::ApplyLowLatency() {
     if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
-        manager.register_pass<pass::LowLatency2>();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(function);
     } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
-        manager.register_pass<pass::LowLatency2>(false);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::LowLatency2>(false);
         manager.run_passes(function);
     }
 }

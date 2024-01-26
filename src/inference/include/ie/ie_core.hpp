@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_extension.h"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
@@ -170,20 +169,6 @@ public:
     ExecutableNetwork LoadNetwork(const std::string& modelPath,
                                   const std::string& deviceName,
                                   const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @brief Registers extension
-     * @param extension Pointer to already loaded extension
-     */
-    void AddExtension(const IExtensionPtr& extension);
-
-    /**
-     * @brief Registers extension for the specified plugin
-     *
-     * @param extension Pointer to already loaded extension
-     * @param deviceName Device name to identify plugin to add an executable extension
-     */
-    void AddExtension(IExtensionPtr extension, const std::string& deviceName);
 
     /**
      * @brief Creates an executable network from a previously exported network

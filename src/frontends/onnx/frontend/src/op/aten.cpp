@@ -48,7 +48,7 @@ OutputVector aten(const Node& node) {
         inputs.size() == 4 && ov::op::util::is_null(inputs[2]) && !ov::op::util::is_null(inputs[3]);
     const bool is_offsets_three_inputs = inputs.size() == 3 && !ov::op::util::is_null(inputs[2]);
 
-    Output<ov::Node> embedding_bag;
+    ov::Output<ov::Node> embedding_bag;
     if (is_packed_two_inputs) {
         embedding_bag = std::make_shared<v3::EmbeddingBagPackedSum>(inputs[0], inputs[1]);
     } else if (is_packed_three_inputs) {
@@ -70,7 +70,7 @@ OutputVector aten(const Node& node) {
         // Shape aligned node, filled with zeros
         const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
         const auto weights_shape_node = std::make_shared<v3::ShapeOf>(emb_tbl_in, ind_type);
-        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, -1);
         const auto weights_last_dim =
             std::make_shared<v8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
         const auto zero_col_node = std::make_shared<v3::Broadcast>(zero_of_data_type_const, weights_last_dim);

@@ -23,17 +23,12 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_extension.h"
 #include "ie_input_info.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {
 
-ngraph::element::Type toLegacyType(const ngraph::element::Type& ngraph_type, bool input);
+ov::element::Type toLegacyType(const ov::element::Type& ngraph_type, bool input);
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -42,9 +37,8 @@ IE_SUPPRESS_DEPRECATED_START
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
-    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
-                         const std::vector<IExtensionPtr>& exts = {},
-                         bool newAPI = false);
+    CNNNetworkNGraphImpl(const std::shared_ptr<::ov::Model>& nGraph, bool newAPI = false);
+
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -65,19 +59,19 @@ public:
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
-    void addOutput(const ::ngraph::Output<::ngraph::Node>& dataName);
+    void addOutput(const ::ov::Output<::ov::Node>& dataName);
 
-    std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
+    std::shared_ptr<const ::ov::Model> getFunction() const noexcept override {
         return _ngraph_function;
     }
-    std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
+    std::shared_ptr<::ov::Model> getFunction() noexcept override {
         return _ngraph_function;
     }
 
     virtual void validate(int = 10);
 
     StatusCode reshape(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) noexcept override;
-    StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
+    StatusCode reshape(const std::map<std::string, ov::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
@@ -90,20 +84,15 @@ public:
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
         noexcept override;
 
-    const std::vector<IExtensionPtr> getExtensions() const {
-        return _ie_extensions;
-    }
-
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 
 protected:
-    std::shared_ptr<::ngraph::Function> _ngraph_function;
+    std::shared_ptr<::ov::Model> _ngraph_function;
 
 private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
-    const std::vector<IExtensionPtr> _ie_extensions;
     std::unordered_map<std::string, std::string> _tensorNames;
     bool _new_api = false;
 
@@ -114,13 +103,13 @@ private:
      * @param outName name for DataPtr
      * @param ptr reference to new DataPtr
      */
-    void createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr);
+    void createDataForResult(const ::ov::Output<::ov::Node>& output, const std::string& outName, DataPtr& ptr);
 
     /**
      * @brief Reshape on the same shape
      */
     void reshape();
-    void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
+    void reshape(const std::map<std::string, ov::PartialShape>& inputShapes);
     void validateFunctionNames() const;
 };
 
