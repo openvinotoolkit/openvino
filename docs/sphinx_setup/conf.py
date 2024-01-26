@@ -22,7 +22,7 @@ from sphinx.ext.autodoc import ClassDocumenter
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2023, Intel®'
+copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
