@@ -46,10 +46,10 @@ ov::pass::Proposal1Scales::Proposal1Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
-    auto convert_label = pattern::wrap_type<ov::op::v0::Convert>({parameter_label});
-    auto param_or_convert = pattern::optional<ov::op::v0::Convert>(convert_label);
+
+    auto optional_convert = pattern::optional<ov::op::v0::Convert>(parameter_label);
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {param_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });
@@ -71,9 +71,9 @@ ov::pass::Proposal4Scales::Proposal4Scales() {
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() &&
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
-    auto param_or_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(parameter_label);
+    auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(parameter_label);
     auto reshape_label = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
-        {param_or_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+        {optional_convert, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
         [](const Output<Node>& output) {
             return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1;
         });

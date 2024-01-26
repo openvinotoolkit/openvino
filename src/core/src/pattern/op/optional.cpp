@@ -16,12 +16,14 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
     ov::OutputVector or_in_values{input_value(0)};
-    or_in_values.push_back(
-        std::make_shared<ov::pass::pattern::op::WrapType>(optional_types, m_predicate, or_in_values));
+    auto wrap_node = std::make_shared<ov::pass::pattern::op::WrapType>(optional_types, m_predicate, or_in_values);
+    or_in_values.push_back(wrap_node);
 
     if (matcher->match_value(std::make_shared<ov::pass::pattern::op::Or>(or_in_values), graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
+        if (pattern_map.count(wrap_node)) {
+            pattern_map[shared_from_this()] = graph_value;
+        }
         return true;
     }
     return false;

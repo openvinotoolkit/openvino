@@ -61,12 +61,12 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto sub2 = pattern::wrap_type<ov::op::v1::Subtract>({x, mean2});
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{sub1, sub2});
-    const auto hasConvertOrNot = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
+    const auto optionalConvert = pattern::optional<ov::op::v0::Convert>(reuseSub1OrNot);
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
     auto const_2 = pattern::wrap_type<ov::op::v0::Constant>(value_is_equal_to<float>({2.0}));
-    auto power = pattern::wrap_type<ov::op::v1::Power>({hasConvertOrNot, const_2});
+    auto power = pattern::wrap_type<ov::op::v1::Power>({optionalConvert, const_2});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //     `---mean3--------------------------------'
