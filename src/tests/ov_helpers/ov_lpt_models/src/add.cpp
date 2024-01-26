@@ -11,11 +11,10 @@
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -34,7 +33,7 @@ std::shared_ptr<Node> configure_postops(const std::shared_ptr<Node>& parent,
         return parent;
     }
 
-    return ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+    return ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(
            res,
            precision,
            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
@@ -48,9 +47,9 @@ std::shared_ptr<ov::Model> AddFunction::getOriginal(
     const bool broadcast,
     const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+    const ov::builder::subgraph::DequantizationOperations& dequantization1,
     const ov::element::Type& precision2,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+    const ov::builder::subgraph::DequantizationOperations& dequantization2,
     const int constInput,
     const std::vector<float>& constValues,
     const std::string& additionalLayer,
@@ -67,7 +66,7 @@ std::shared_ptr<ov::Model> AddFunction::getOriginal(
             additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
             broadcast ? ov::PartialShape({inputShape1[0], inputShape1[1], 1, 1}) : inputShape1);
         if (additionalLayer != "") {
-            parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+            parent1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(
                 input1,
                 precision,
                 {256, Shape{}, {0}, {255}, {0}, {255}, precision1});
@@ -173,8 +172,8 @@ std::shared_ptr<ov::Model> AddFunction::getOriginal(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
     const bool broadcast,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2) {
+    const ov::builder::subgraph::FakeQuantizeOnData& fqOnData1,
+    const ov::builder::subgraph::FakeQuantizeOnData& fqOnData2) {
     ov::PartialShape inputShape2 = inputShape;
 
     if (broadcast) {
@@ -214,10 +213,10 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
     const bool broadcast,
     const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+    const ov::builder::subgraph::DequantizationOperations& dequantization1,
     const ov::element::Type& precision2,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantization2,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int constInputIndex,
     const std::vector<float>& constValues,
     const std::string& additionalLayer,
@@ -235,7 +234,7 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
             additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
             broadcast ? ov::PartialShape({inputShape1[0], inputShape1[1], 1, 1}) : inputShape1);
         if (additionalLayer != "") {
-            parent1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+            parent1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(
                     input1,
                     precision,
                     {256, Shape{}, {0}, {255}, {0}, {255}, precision1});
@@ -352,4 +351,4 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
