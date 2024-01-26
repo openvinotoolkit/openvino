@@ -9,7 +9,6 @@
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>
 
-#include <file_utils.h>
 #include <functional_test_utils/blob_utils.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
