@@ -75,7 +75,7 @@ std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<o
 ///
 /// \return A Constant node representing shifted identity matrix.
 template <typename T = double>
-std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const Shape output_shape,
+std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const ov::Shape output_shape,
                                                               const element::Type& output_type,
                                                               const std::int64_t shift) {
     std::vector<T> identity_matrix(shape_size(output_shape), T{0});
@@ -101,7 +101,7 @@ std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const Shape output
 /// \return A Constant node representing identity matrix with shape (n, n).
 template <typename T = double>
 std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const element::Type& type) {
-    return shifted_square_identity(Shape{n, n}, type, 0);
+    return shifted_square_identity(ov::Shape{n, n}, type, 0);
 }
 
 /// \brief Performs validation of an input that is expected to be a scalar.

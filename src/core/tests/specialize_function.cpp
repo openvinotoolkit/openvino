@@ -12,6 +12,7 @@
 using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START;
 
+using ov::Shape;
 using ov::op::v0::Constant;
 using ov::op::v0::Convert;
 using ov::op::v0::Parameter;

@@ -230,7 +230,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name) const {
     const auto value = get_attribute_value<T>(name);
     const element::Type type = ov::element::from<T>();
-    return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
+    return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
 }
 
 template <typename T>
@@ -238,7 +238,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             T default_value) const {
     const auto value = get_attribute_value<T>(name, default_value);
     const element::Type type = ov::element::from<T>();
-    return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
+    return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
 }
 
 template <typename T>
@@ -247,7 +247,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name, default_value);
     return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
-                                                  Shape{},
+                                                  ov::Shape{},
                                                   value);
 }
 
@@ -256,7 +256,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name);
     return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
-                                                  Shape{},
+                                                  ov::Shape{},
                                                   value);
 }
 

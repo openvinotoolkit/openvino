@@ -199,7 +199,7 @@ size_t get_user_count(Node* node);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_strided(const Strides& strides);
+bool is_strided(const ov::Strides& Strides);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API

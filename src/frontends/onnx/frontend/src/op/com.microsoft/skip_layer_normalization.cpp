@@ -31,7 +31,7 @@ OutputVector skip_layer_normalization(const Node& node) {
     float eps = node.get_attribute_value<float>("epsilon");
     // reduce over hidden_size
     int hidden_size_dim = 2;
-    const auto reduction_axes = v0::Constant::create(element::i32, Shape{1}, {hidden_size_dim});
+    const auto reduction_axes = v0::Constant::create(element::i32, ov::Shape{1}, {hidden_size_dim});
     std::shared_ptr<ov::Node> result =
         std::make_shared<v6::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
     // multiply by gamma

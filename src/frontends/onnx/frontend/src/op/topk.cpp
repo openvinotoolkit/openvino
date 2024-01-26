@@ -9,8 +9,8 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 

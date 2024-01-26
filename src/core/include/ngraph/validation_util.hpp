@@ -31,9 +31,9 @@ using ov::op::v0::Constant;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-Strides conv_default_strides(const Node* node,
-                             const ov::PartialShape& data_batch_shape,
-                             const ov::PartialShape& filters_shape);
+ov::Strides conv_default_strides(const Node* node,
+                                 const ov::PartialShape& data_batch_shape,
+                                 const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -45,12 +45,12 @@ NGRAPH_API_DEPRECATED
 NGRAPH_API
 ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                        const ov::PartialShape& data_shape,
-                                                       const Strides& data_dilation,
+                                                       const ov::Strides& data_dilation,
                                                        const CoordinateDiff& data_padding_below,
                                                        const CoordinateDiff& data_padding_above,
                                                        const ov::PartialShape& window_shape,
-                                                       const Strides& window_strides,
-                                                       const Strides& window_dilation,
+                                                       const ov::Strides& window_ov_strides,
+                                                       const ov::Strides& window_dilation,
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
 
@@ -58,8 +58,8 @@ NGRAPH_API_DEPRECATED
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
                                              const op::PadType auto_pad,
-                                             Strides& strides,
-                                             Strides& dilations,
+                                             ov::Strides& strides,
+                                             ov::Strides& dilations,
                                              CoordinateDiff& pads_begin,
                                              CoordinateDiff& pads_end);
 
@@ -70,10 +70,10 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
                                                const ov::PartialShape& window_shape,
-                                               const Strides& window_strides,
+                                               const ov::Strides& window_ov_strides,
                                                bool is_window_all_in_padding_allowed,
                                                bool ceil_mode = false,
-                                               const Strides& window_dilation = Strides{});
+                                               const ov::Strides& window_dilation = ov::Strides{});
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -108,11 +108,11 @@ ov::PartialShape infer_slice_shape(const Node* node,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
                                    const std::vector<int64_t>& strides,
-                                   const AxisSet& begin_mask,
-                                   const AxisSet& end_mask,
-                                   const AxisSet& new_axis_mask,
-                                   const AxisSet& shrink_axis_mask,
-                                   const AxisSet& ellipsis_mask);
+                                   const ov::AxisSet& begin_mask,
+                                   const ov::AxisSet& end_mask,
+                                   const ov::AxisSet& new_axis_mask,
+                                   const ov::AxisSet& shrink_axis_mask,
+                                   const ov::AxisSet& ellipsis_mask);
 
 /// \brief Try to compute the maximum value of value
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
@@ -149,11 +149,11 @@ namespace opset1 {
 ///
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
-                                      const Shape& filters_shape,
-                                      const Shape& output_shape,
-                                      const Strides& strides,
-                                      const Strides& dilations,
+void infer_conv_backprop_auto_padding(const ov::Shape& input_data_shape,
+                                      const ov::Shape& filters_shape,
+                                      const ov::Shape& output_shape,
+                                      const ov::Strides& strides,
+                                      const ov::Strides& dilations,
                                       const op::PadType auto_pad_type,
                                       const CoordinateDiff& output_padding,
                                       CoordinateDiff& pads_begin,

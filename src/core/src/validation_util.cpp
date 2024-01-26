@@ -21,7 +21,10 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
+using ov::AxisSet;
 using ov::Dimension;
+using ov::Shape;
+using ov::Strides;
 namespace op {
 namespace v0 {
 using ov::op::v0::Constant;
@@ -29,9 +32,9 @@ using ov::op::v0::Negative;
 }  // namespace v0
 }  // namespace op
 
-Strides conv_default_strides(const Node* /* node */,
-                             const ov::PartialShape& data_batch_shape,
-                             const ov::PartialShape& filters_shape) {
+ov::Strides conv_default_strides(const Node* /* node */,
+                                 const ov::PartialShape& data_batch_shape,
+                                 const ov::PartialShape& filters_shape) {
     size_t rank;
 
     if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() >= 2) {
@@ -97,7 +100,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
         data_padding_above,
         "), window shape (",
         window_shape,
-        "), window strides (",
+        "), window ov::Strides (",
         window_strides,
         "), and window dilation (",
         window_dilation,
@@ -115,7 +118,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                   ".");
             NODE_VALIDATION_CHECK(node,
                                   window_strides[i] > 0,
-                                  "Window strides (",
+                                  "Window ov::Strides (",
                                   window_strides,
                                   ") has zero dimension at axis ",
                                   i,
@@ -221,7 +224,7 @@ void validate_conv_params_spatial_dimensions(const Node* node,
     }
     NODE_VALIDATION_CHECK(node,
                           strides.size() == num_spatial_dims,
-                          "Strides should be defined for all and only spatial features.");
+                          "ov::Strides should be defined for all and only spatial features.");
     NODE_VALIDATION_CHECK(node,
                           dilations.size() == num_spatial_dims,
                           "Dilations should be defined for all and only spatial features.");
@@ -238,10 +241,10 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
                                                const ov::PartialShape& window_shape,
-                                               const Strides& window_strides,
+                                               const ov::Strides& window_strides,
                                                bool is_window_all_in_padding_allowed,
                                                bool ceil_mode,
-                                               const Strides& window_dilation) {
+                                               const ov::Strides& window_dilation) {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
                               (data_batch_shape.rank().get_length() >= 3 && data_batch_shape.rank().get_length() <= 5),
@@ -269,7 +272,7 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                           data_padding_above,
                           "), window shape (",
                           window_shape,
-                          "), and window strides (",
+                          "), and window ov::Strides (",
                           window_strides,
                           ") do not match.");
 
@@ -292,12 +295,12 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                               "Channel count is zero.");
 
         // For pooling ops we don't need dilation, so we fill in the identity value (all 1).
-        Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
-        Strides dilations = window_dilation;
+        ov::Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
+        ov::Strides dilations = window_dilation;
         // if the window_dilation was not specified, generate the default value (no dilations)
         if (window_dilation.empty()) {
             // dilations equal to 1 for each spatial axis mean that the window is not dilated
-            dilations = Strides(data_spatial_shape.rank().get_length(), 1);
+            dilations = ov::Strides(data_spatial_shape.rank().get_length(), 1);
         }
 
         data_output_spatial_shape = infer_windowed_reduction_output_shape(node,
@@ -474,12 +477,12 @@ ov::PartialShape infer_slice_shape(const Node* node,
     if (begin.size() && strides.size()) {
         NODE_VALIDATION_CHECK(node,
                               begin.size() == strides.size(),
-                              "Lower bounds and strides needs to have same number of values");
+                              "Lower bounds and ov::Strides needs to have same number of values");
     }
     if (end.size() && strides.size()) {
         NODE_VALIDATION_CHECK(node,
                               end.size() == strides.size(),
-                              "Upper bounds and strides needs to have same number of values");
+                              "Upper bounds and ov::Strides needs to have same number of values");
     }
 
     NODE_VALIDATION_CHECK(node, ellipsis_mask.size() <= 1, "At most one ellipsis is allowed.");

@@ -27,7 +27,7 @@ ov::Output<ov::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
-        return std::make_shared<v0::Constant>(element::u8, Shape{1}, std::uint8_t(0));
+        return std::make_shared<v0::Constant>(element::u8, ov::Shape{1}, std::uint8_t(0));
     }
 }
 
@@ -69,20 +69,20 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
     // should be aligned
     switch (destination_type) {
     case element::i8:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -128);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 127);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -128);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 127);
         break;
     case element::u8:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 255);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 255);
         break;
     case element::i16:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -32768);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 32767);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -32768);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 32767);
         break;
     case element::u16:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 65535);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 65535);
         break;
     default:
         OPENVINO_THROW("Unsupported element type for QuantizeLinear");
@@ -181,7 +181,7 @@ OutputVector quantize_linear(ov::Output<ov::Node> x,
                          " must match the number of respective input data axis size: ",
                          x_shape[axis]);
 
-        Shape target_shape(x_shape.rank().get_length(), 1);
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
         y_scale = ov::op::util::reshape(y_scale, target_shape);
@@ -196,7 +196,7 @@ OutputVector quantize_linear(ov::Output<ov::Node> x,
                          " must match the number of respective input data axis size: ",
                          x_shape[axis]);
 
-        Shape target_shape(x_shape.rank().get_length(), 1);
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
         y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);

@@ -43,7 +43,7 @@ namespace ngraph {
 /// param2: {?,?,4}
 /// ```
 ///
-/// Shape specialization would allow us to create a clone of f where the shapes are (for
+/// ov::Shape specialization would allow us to create a clone of f where the shapes are (for
 /// example):
 ///
 /// ```
@@ -90,7 +90,7 @@ namespace ngraph {
 ///       same as the number of f's parameters.
 ///    2. Each shape in parameter_shapes is a refinement of the shape of the corresponding
 ///       parameter of f. Roughly speaking, a shape s1 is said to "refine" s2 if s1 can be
-///       obtained from s2 by filling in s2's question marks. See PartialShape::refines for
+///       obtained from s2 by filling in s2's question marks. See ov::PartialShape::refines for
 ///       more details.
 ///    3. For all i, either the element type of fp_i is dynamic, or fp_i is the same as
 ///       parameter_element_types[i]. (Here fp_i is the ith parameter of f.)

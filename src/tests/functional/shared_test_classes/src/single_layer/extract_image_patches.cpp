@@ -40,8 +40,11 @@ void ExtractImagePatchesTest::SetUp() {
     auto inputNode = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
     ov::ParameterVector params = {inputNode};
 
-    auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(
-        inputNode, ov::Shape(kernel), ngraph::Strides(strides), ov::Shape(rates), pad_type);
+    auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(inputNode,
+                                                                           ov::Shape(kernel),
+                                                                           ov::Strides(strides),
+                                                                           ov::Shape(rates),
+                                                                           pad_type);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(extImgPatches)};
     function = std::make_shared<ov::Model>(results, params, "ExtractImagePatches");
 }

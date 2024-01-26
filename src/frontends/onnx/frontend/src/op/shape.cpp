@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/shape.hpp"
+#include "op/shape.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "op/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

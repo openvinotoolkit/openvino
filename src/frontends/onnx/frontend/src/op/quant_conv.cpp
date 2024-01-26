@@ -49,11 +49,11 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node>
                         make_ng_quant_conv(const Output<ngraph::Node>& data,
                                            const Output<ngraph::Node>& filters,
-                                           const Strides& strides,
-                                           const Strides& filter_dilations,
+                                           const ov::Strides& strides,
+                                           const ov::Strides& filter_dilations,
                                            const CoordinateDiff& padding_below,
                                            const CoordinateDiff& padding_above,
-                                           const Strides& data_dilations,
+                                           const ov::Strides& data_dilations,
                                            int groups,
                                            const OpScale& op_scale,
                                            const OpZeroPoint& op_zero_point,
@@ -125,9 +125,9 @@ namespace ngraph
                                             op_scale.output_scale,
                                             op_zero_point.output_zero_point,
                                             output_type,
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{}));
+                                            ov::AxisSet{},
+                                            ov::AxisSet{},
+                                            ov::AxisSet{}));
                                 }
                             }
                             std::size_t concatenation_axis = 1;
@@ -168,9 +168,9 @@ namespace ngraph
                                     op_scale.output_scale,
                                     op_zero_point.output_zero_point,
                                     output_type,
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{});
+                                    ov::AxisSet{},
+                                    ov::AxisSet{},
+                                    ov::AxisSet{});
                             }
                         }
                     }
@@ -213,9 +213,9 @@ namespace ngraph
                         "provided group attribute value must be a multiple of filter channels "
                         "count.");
 
-                    Strides strides = convpool::get_strides(node);
-                    Strides filter_dilations = convpool::get_dilations(node);
-                    Strides data_dilations = Strides(convpool::get_kernel_shape(node).size(), 1UL);
+                    ov::Strides strides = convpool::get_strides(node);
+                    ov::Strides filter_dilations = convpool::get_dilations(node);
+                    ov::Strides data_dilations = Strides(convpool::get_kernel_shape(node).size(), 1UL);
                     auto paddings = convpool::get_pads(node);
                     ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     CoordinateDiff& padding_below = paddings.first;

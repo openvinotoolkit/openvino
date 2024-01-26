@@ -56,12 +56,12 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/rt_info.hpp"
-#include "ngraph/shape.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/shape.hpp"
 
 // nGraph opsets
 #include "ngraph/opsets/opset.hpp"

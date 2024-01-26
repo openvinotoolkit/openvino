@@ -25,8 +25,9 @@ OutputVector build_dropout(const Node& node, bool training_mode) {
     const bool return_mask = node.get_outputs_size() > 1;
 
     if (return_mask) {
-        const auto mask = std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, Shape{}, {true}),
-                                                          std::make_shared<v3::ShapeOf>(input_data));
+        const auto mask =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, ov::Shape{}, {true}),
+                                            std::make_shared<v3::ShapeOf>(input_data));
         return {input_data, mask};
     } else {
         return {input_data};

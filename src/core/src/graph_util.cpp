@@ -609,19 +609,19 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
     dst_input.replace_source_output(new_node->output(0));  // Remove [0] (again), add [8], remove [1], add [9]
 }
 
-std::shared_ptr<ov::Node> make_zero(const element::Type& element_type, const Shape& shape) {
-    auto zero = ov::op::v0::Constant::create(element_type, Shape{}, {0.0});
+std::shared_ptr<ov::Node> make_zero(const element::Type& element_type, const ov::Shape& shape) {
+    auto zero = ov::op::v0::Constant::create(element_type, ov::Shape{}, {0.0});
     if (shape.size() > 0) {
         return std::make_shared<ov::op::v1::Broadcast>(
             zero,
-            ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape));
+            ov::op::v0::Constant::create(element::u64, ov::Shape{shape.size()}, shape));
     }
     return zero;
 }
 
 std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
                                                     const element::Type& element_type,
-                                                    const Shape& shape) {
+                                                    const ov::Shape& shape) {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
     return std::make_shared<ov::op::v0::Constant>(element_type, shape, cvals);
 }
@@ -704,7 +704,7 @@ size_t get_user_count(Node* node) {
     return count;
 }
 
-bool is_strided(const Strides& strides) {
+bool is_strided(const ov::Strides& strides) {
     return std::any_of(strides.begin(), strides.end(), [](size_t stride) {
         return stride != 1;
     });

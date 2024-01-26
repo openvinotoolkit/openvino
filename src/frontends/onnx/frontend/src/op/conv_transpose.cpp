@@ -28,8 +28,8 @@ namespace set_1 {
 namespace {
 ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
                                               const ov::Output<ov::Node>& filters,
-                                              const Strides& strides,
-                                              const Strides& dilations,
+                                              const ov::Strides& strides,
+                                              const ov::Strides& dilations,
                                               const CoordinateDiff& pads_begin,
                                               const CoordinateDiff& pads_end,
                                               const ov::op::PadType& auto_pad_type,
@@ -49,7 +49,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(element::i64, ov::Shape{output_shape.size()}, output_shape),
             strides,
             dilations,
             auto_pad_type,
@@ -59,8 +59,8 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
 
 ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
                                         const ov::Output<ov::Node>& filters,
-                                        const Strides& strides,
-                                        const Strides& dilations,
+                                        const ov::Strides& strides,
+                                        const ov::Strides& dilations,
                                         const CoordinateDiff& pads_begin,
                                         const CoordinateDiff& pads_end,
                                         const ov::op::PadType& auto_pad_type,
@@ -80,7 +80,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(element::i64, ov::Shape{output_shape.size()}, output_shape),
             strides,
             pads_begin,
             pads_end,
@@ -96,17 +96,17 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
     std::shared_ptr<ov::Node> bias_shape_node;
 
     if (conv_pshape.rank().is_static() && conv_pshape[1].is_static()) {
-        Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
+        ov::Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
         new_bias_shape[1] = conv_pshape[1].get_length();
 
-        bias_shape_node = v0::Constant::create(element::i64, Shape{new_bias_shape.size()}, new_bias_shape);
+        bias_shape_node = v0::Constant::create(element::i64, ov::Shape{new_bias_shape.size()}, new_bias_shape);
     } else {
         const auto conv_shape = std::make_shared<v3::ShapeOf>(conv);
         const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
         // Prepare new bias shape base: [1, 1, 1, 1, ... ]
-        const auto one_node = v0::Constant::create(element::i64, Shape{1}, {1});
-        const auto two_node = v0::Constant::create(element::i64, Shape{1}, {2});
+        const auto one_node = v0::Constant::create(element::i64, ov::Shape{1}, {1});
+        const auto two_node = v0::Constant::create(element::i64, ov::Shape{1}, {2});
         const auto remaining_shape_length = std::make_shared<v1::Subtract>(conv_rank, two_node);
         const auto remaining_bias_shape_ones = std::make_shared<v3::Broadcast>(one_node, remaining_shape_length);
 
@@ -139,7 +139,7 @@ OutputVector conv_transpose(const Node& node) {
     const auto& filters_pshape = filters.get_partial_shape();
 
     std::size_t num_spatial_dims = 0;
-    Strides strides, dilations;
+    ov::Strides strides, dilations;
     std::pair<CoordinateDiff, CoordinateDiff> paddings;
     ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 

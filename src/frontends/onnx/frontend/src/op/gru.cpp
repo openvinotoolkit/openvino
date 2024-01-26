@@ -55,7 +55,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
 
                 m_map[recurrent::OpInput::B] =
                     std::make_shared<v0::Constant>(el_type,
-                                                   Shape{num_directions, (gates_count + 1) * hidden_size},
+                                                   ov::Shape{num_directions, (gates_count + 1) * hidden_size},
                                                    0.f);
             }
         }

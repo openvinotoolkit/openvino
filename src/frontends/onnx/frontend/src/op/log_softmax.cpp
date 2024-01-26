@@ -39,7 +39,7 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = v0::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     case 1: {

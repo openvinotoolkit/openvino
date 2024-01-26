@@ -19,6 +19,9 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
+
+using ov::Shape;
+
 void dump(std::ostream& out, const void* _data, size_t _size) {
     auto flags = out.flags();
     const uint8_t* data = reinterpret_cast<const uint8_t*>(_data);

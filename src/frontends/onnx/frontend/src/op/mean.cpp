@@ -18,7 +18,7 @@ namespace op {
 namespace set_1 {
 OutputVector mean(const Node& node) {
     auto sum = variadic::make_ng_variadic_op<v1::Add>(node).front();
-    auto count = v0::Constant::create(sum.get_element_type(), Shape{}, {node.get_ng_inputs().size()});
+    auto count = v0::Constant::create(sum.get_element_type(), ov::Shape{}, {node.get_ng_inputs().size()});
 
     return {std::make_shared<v1::Divide>(sum, count)};
 }

@@ -110,7 +110,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             try {
                 ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
             } catch (const std::exception& e) {
-                OPENVINO_WARN << "ONNX Shape inference failed: " << e.what();
+                OPENVINO_WARN << "ONNX ov::Shape inference failed: " << e.what();
             }
 
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;

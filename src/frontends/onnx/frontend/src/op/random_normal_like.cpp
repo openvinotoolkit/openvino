@@ -32,8 +32,8 @@ OutputVector random_normal_like(const Node& node) {
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
-    auto scale_node = v0::Constant::create(target_type, Shape{1}, {scale});
-    auto mean_node = v0::Constant::create(target_type, Shape{1}, {mean});
+    auto scale_node = v0::Constant::create(target_type, ov::Shape{1}, {scale});
+    auto mean_node = v0::Constant::create(target_type, ov::Shape{1}, {mean});
 
     auto res = ov::frontend::make_random_normal(shape, target_type, mean_node, scale_node, seed);
     return res.first;

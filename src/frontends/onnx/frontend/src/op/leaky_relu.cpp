@@ -19,7 +19,7 @@ OutputVector leaky_relu(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
-    std::shared_ptr<ov::Node> alpha_node = v0::Constant::create(data.get_element_type(), Shape{1}, {alpha});
+    std::shared_ptr<ov::Node> alpha_node = v0::Constant::create(data.get_element_type(), ov::Shape{1}, {alpha});
     return {std::make_shared<v0::PRelu>(data, alpha_node)};
 }
 

@@ -26,7 +26,7 @@ OutputVector max_roi_pool(const Node& node) {
     const auto pooled_shape = node.get_attribute_value<std::vector<size_t>>("pooled_shape");
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0);
 
-    return {std::make_shared<v0::ROIPooling>(X, rois, Shape(pooled_shape), spatial_scale, "max")};
+    return {std::make_shared<v0::ROIPooling>(X, rois, ov::Shape(pooled_shape), spatial_scale, "max")};
 }
 }  // namespace set_1
 }  // namespace op

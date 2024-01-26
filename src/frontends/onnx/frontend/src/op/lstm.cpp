@@ -69,17 +69,25 @@ struct LSTMNgInputMap {
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
-        auto axes = v0::Constant::create(element::Type_t::i32, Shape{1}, {0});
+        auto axes = v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0});
         auto batch_size_node =
-            std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::Type_t::i32, Shape{1}, {0}), axes);
+            std::make_shared<v8::Gather>(shape_of_x,
+                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0}),
+                                         axes);
         auto seq_length_node =
-            std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::Type_t::i32, Shape{1}, {1}), axes);
+            std::make_shared<v8::Gather>(shape_of_x,
+                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {1}),
+                                         axes);
 
         auto shape_of_r = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_R]);
         auto num_directions_node =
-            std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::Type_t::i32, Shape{1}, {0}), axes);
+            std::make_shared<v8::Gather>(shape_of_r,
+                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {0}),
+                                         axes);
         auto hidden_size_node =
-            std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::Type_t::i32, Shape{1}, {2}), axes);
+            std::make_shared<v8::Gather>(shape_of_r,
+                                         v0::Constant::create(element::Type_t::i32, ov::Shape{1}, {2}),
+                                         axes);
 
         // ------ Optional inputs ------
         // `B` - The bias tensor for input gate.
@@ -96,13 +104,13 @@ struct LSTMNgInputMap {
                                                        1);
         } else {
             auto b_shape = std::make_shared<v0::Concat>(
-                OutputVector{
-                    num_directions_node,
-                    std::make_shared<v1::Multiply>(v0::Constant::create(element::Type_t::i64, Shape{1}, {gates_count}),
-                                                   hidden_size_node)},
+                OutputVector{num_directions_node,
+                             std::make_shared<v1::Multiply>(
+                                 v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {gates_count}),
+                                 hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 b_shape);
         }
         // `sequence_lens`- The lengths of the sequences in a batch.
@@ -122,7 +130,7 @@ struct LSTMNgInputMap {
             auto init_h_shape =
                 std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 init_h_shape);
         }
         // `initial_c` - The initial value of the cell.
@@ -134,7 +142,7 @@ struct LSTMNgInputMap {
             auto init_c_shape =
                 std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 init_c_shape);
         }
         // `P` - The weight tensor for peepholes.
@@ -150,11 +158,11 @@ struct LSTMNgInputMap {
             auto p_shape = std::make_shared<v0::Concat>(
                 OutputVector{num_directions_node,
                              std::make_shared<v1::Multiply>(
-                                 v0::Constant::create(element::Type_t::i64, Shape{1}, {P_gates_count}),
+                                 v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {P_gates_count}),
                                  hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_P] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 p_shape);
             m_input_map[LSTMInput::LSTM_INPUT_P].set_names({"P_blank"});
         }

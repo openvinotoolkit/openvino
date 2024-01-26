@@ -32,10 +32,10 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/enum_mask.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -258,7 +258,7 @@ NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv)
     if (ngraph::element::from<T>() != tv->get_element_type()) {
         OPENVINO_THROW("read_vector type must match Tensor type");
     }
-    size_t element_count = ngraph::shape_size(tv->get_shape());
+    size_t element_count = ov::shape_size(tv->get_shape());
     size_t size = element_count * sizeof(T);
     std::vector<T> rc(element_count);
     std::memcpy(rc.data(), tv->data(), size);
