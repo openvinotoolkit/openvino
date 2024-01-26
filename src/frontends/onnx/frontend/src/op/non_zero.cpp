@@ -15,7 +15,7 @@ namespace op {
 namespace set_1 {
 OutputVector non_zero(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<v3::NonZero>(data, element::i64)};
+    return {std::make_shared<v3::NonZero>(data, ov::element::i64)};
 }
 
 }  // namespace set_1

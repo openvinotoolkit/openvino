@@ -71,20 +71,16 @@ if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}},
+            {{0}, {ov::element::u8}},
+            {{1}, {ov::element::i8}},
         }),
-        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({
-            {{0}, {ngraph::element::u8, ngraph::element::i8}},
-            {{1}, {ngraph::element::i8}}
-        }),
-        PrecisionsRestriction::create<ov::opset1::GroupConvolution>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}}
-        }),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>(
+            {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::opset1::Multiply>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}},
+            {{0}, {ov::element::u8}},
+            {{1}, {ov::element::i8}},
         }),
     });
 
@@ -134,8 +130,8 @@ using namespace ov::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({
-        {{0}, {ngraph::element::u8}},
-        {{1}, {ngraph::element::i8}},
+        {{0}, {ov::element::u8}},
+        {{1}, {ov::element::i8}},
     }),
 });
 
@@ -170,7 +166,7 @@ lptManager.run_passes(nGraphFunc);
 return 0;
 }
 
-int asymmetric_quantization(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+int asymmetric_quantization(const std::vector<ov::element::Type>& defaultPrecisions) {
 std::shared_ptr<ov::Model> nGraphFunc;
 ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
@@ -198,8 +194,8 @@ using namespace ov::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({
-        {{0}, {ngraph::element::u8}},
-        {{1}, {ngraph::element::i8}},
+        {{0}, {ov::element::u8}},
+        {{1}, {ov::element::i8}},
     }),
 });
 

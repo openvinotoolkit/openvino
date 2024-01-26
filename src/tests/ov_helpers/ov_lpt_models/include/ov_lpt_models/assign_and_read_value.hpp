@@ -17,7 +17,7 @@ class AssignAndReadValueFunction {
 public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::PartialShape& inputShape,
-        const element::Type& inputPrecision,
+        const ov::element::Type& inputPrecision,
         const ov::element::Type precisionBeforeDequantization,
         const size_t opsetVersion,
         const bool FQAfterReadValue,
@@ -32,7 +32,7 @@ public:
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,
-        const element::Type& inputPrecision,
+        const ov::element::Type& inputPrecision,
         const ov::element::Type precisionBeforeDequantization,
         const size_t opsetVersion,
         const bool FQAfterReadValue,

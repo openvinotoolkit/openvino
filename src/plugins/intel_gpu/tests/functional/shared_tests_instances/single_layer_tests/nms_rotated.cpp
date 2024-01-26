@@ -52,7 +52,6 @@ TEST_P(NmsRotatedLayerTestGPU, CompareWithRefs) {
     run();
 };
 
-
 std::string NmsRotatedLayerTestGPU::getTestCaseName(const testing::TestParamInfo<NmsRotatedParamsGPU>& obj) {
     const auto& in_shapes = std::get<0>(obj.param);
 

@@ -53,15 +53,14 @@
 #include "ngraph/factory.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/specialize_function.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 // nGraph opsets
 #include "ngraph/opsets/opset.hpp"
