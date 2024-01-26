@@ -4,7 +4,6 @@
 
 #include "subgraph_softmax.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include <snippets/op/subgraph.hpp>
 
