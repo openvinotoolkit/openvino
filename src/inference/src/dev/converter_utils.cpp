@@ -152,7 +152,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
 std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const InferenceEngine::CNNNetwork& network,
                                                                    bool is_new_api) {
     OPENVINO_ASSERT(network.getFunction(),
-                    "CNNNetwork can be converted to OpenVINO Model only in case if it contains ngraph::Function");
+                    "CNNNetwork can be converted to OpenVINO Model only in case if it contains ov::Model");
     if (is_new_api)
         return network.getFunction();
 
