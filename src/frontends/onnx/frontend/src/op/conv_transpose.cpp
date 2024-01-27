@@ -26,15 +26,15 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace {
-Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
-                                          const Output<ov::Node>& filters,
-                                          const Strides& strides,
-                                          const Strides& dilations,
-                                          const CoordinateDiff& pads_begin,
-                                          const CoordinateDiff& pads_end,
-                                          const ov::op::PadType& auto_pad_type,
-                                          const std::vector<std::int64_t>& output_shape,
-                                          const std::vector<std::int64_t>& output_padding) {
+ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
+                                              const ov::Output<ov::Node>& filters,
+                                              const Strides& strides,
+                                              const Strides& dilations,
+                                              const CoordinateDiff& pads_begin,
+                                              const CoordinateDiff& pads_end,
+                                              const ov::op::PadType& auto_pad_type,
+                                              const std::vector<std::int64_t>& output_shape,
+                                              const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
@@ -49,7 +49,7 @@ Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape),
             strides,
             dilations,
             auto_pad_type,
@@ -57,15 +57,15 @@ Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
     }
 }
 
-Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
-                                    const Output<ov::Node>& filters,
-                                    const Strides& strides,
-                                    const Strides& dilations,
-                                    const CoordinateDiff& pads_begin,
-                                    const CoordinateDiff& pads_end,
-                                    const ov::op::PadType& auto_pad_type,
-                                    const std::vector<std::int64_t>& output_shape,
-                                    const std::vector<std::int64_t>& output_padding) {
+ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
+                                        const ov::Output<ov::Node>& filters,
+                                        const Strides& strides,
+                                        const Strides& dilations,
+                                        const CoordinateDiff& pads_begin,
+                                        const CoordinateDiff& pads_end,
+                                        const ov::op::PadType& auto_pad_type,
+                                        const std::vector<std::int64_t>& output_shape,
+                                        const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
@@ -80,7 +80,7 @@ Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape),
             strides,
             pads_begin,
             pads_end,
@@ -90,7 +90,7 @@ Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
     }
 }
 
-Output<ov::Node> get_prepared_bias(const Output<ov::Node>& bias, const Output<ov::Node>& conv) {
+ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const ov::Output<ov::Node>& conv) {
     // Prepare bias shape [1, C, 1, 1]
     const auto& conv_pshape = conv.get_partial_shape();
     std::shared_ptr<ov::Node> bias_shape_node;
@@ -99,14 +99,14 @@ Output<ov::Node> get_prepared_bias(const Output<ov::Node>& bias, const Output<ov
         Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
         new_bias_shape[1] = conv_pshape[1].get_length();
 
-        bias_shape_node = v0::Constant::create(element::i64, Shape{new_bias_shape.size()}, new_bias_shape);
+        bias_shape_node = v0::Constant::create(ov::element::i64, Shape{new_bias_shape.size()}, new_bias_shape);
     } else {
         const auto conv_shape = std::make_shared<v3::ShapeOf>(conv);
         const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
         // Prepare new bias shape base: [1, 1, 1, 1, ... ]
-        const auto one_node = v0::Constant::create(element::i64, Shape{1}, {1});
-        const auto two_node = v0::Constant::create(element::i64, Shape{1}, {2});
+        const auto one_node = v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        const auto two_node = v0::Constant::create(ov::element::i64, Shape{1}, {2});
         const auto remaining_shape_length = std::make_shared<v1::Subtract>(conv_rank, two_node);
         const auto remaining_bias_shape_ones = std::make_shared<v3::Broadcast>(one_node, remaining_shape_length);
 
@@ -176,7 +176,7 @@ OutputVector conv_transpose(const Node& node) {
 
     CHECK_VALID_NODE(node, groups >= 0, "Incorrect value of 'group' attribute: ", groups);
 
-    Output<ov::Node> conv_node;
+    ov::Output<ov::Node> conv_node;
 
     if (groups > 1) {
         filters = convpool::get_reshaped_filters(filters, groups);

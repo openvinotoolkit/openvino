@@ -38,7 +38,7 @@ std::vector<float> Tensor::get_data() const {
 template <>
 std::vector<ov::float16> Tensor::get_data() const {
     if (has_external_data()) {
-        return get_external_data<float16>();
+        return get_external_data<ov::float16>();
     }
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<ov::float16>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
@@ -62,7 +62,7 @@ std::vector<ov::float16> Tensor::get_data() const {
 template <>
 std::vector<ov::bfloat16> Tensor::get_data() const {
     if (has_external_data()) {
-        return get_external_data<bfloat16>();
+        return get_external_data<ov::bfloat16>();
     }
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<ov::bfloat16>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());

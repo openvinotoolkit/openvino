@@ -21,7 +21,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector global_lp_pool(const Node& node) {
-    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
+    const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const std::size_t channel_axis{1};
 
     const auto data_shape = data.get_partial_shape();
@@ -47,7 +47,7 @@ OutputVector global_lp_pool(const Node& node) {
         Shape output_shape(data_shape.rank().get_length(), 1);
         output_shape.at(0) = data_shape[0].get_length();
 
-        const auto reshape_pattern = v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape);
+        const auto reshape_pattern = v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape);
 
         slice = std::make_shared<v1::Reshape>(slice, reshape_pattern, false);
     }

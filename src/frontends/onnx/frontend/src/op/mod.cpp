@@ -17,8 +17,8 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector mod(const Node& node) {
-    Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
-    Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
+    ov::Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
+    ov::Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
 
     std::int64_t fmod = node.get_attribute_value<std::int64_t>("fmod", 0);
     OutputVector output;

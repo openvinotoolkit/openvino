@@ -10,7 +10,6 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -23,7 +22,7 @@ namespace op {
 namespace {
 
 OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
-                                     ParameterVector& body_inputs,
+                                     ov::ParameterVector& body_inputs,
                                      OutputVector& body_outputs,
                                      int64_t num_scan_inputs,
                                      const std::vector<int64_t>& scan_input_axes,
@@ -48,7 +47,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
-        const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
+        const auto axis_node = default_opset::Constant::create(ov::element::i64, Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             OPENVINO_SUPPRESS_DEPRECATED_START
@@ -71,7 +70,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
         const auto axis = scan_output_axes[i];
-        const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
+        const auto axis_node = default_opset::Constant::create(ov::element::i64, Shape{1}, {axis});
         body_outputs[out_idx] = std::make_shared<default_opset::Unsqueeze>(body_outputs[out_idx], axis_node);
     }
 

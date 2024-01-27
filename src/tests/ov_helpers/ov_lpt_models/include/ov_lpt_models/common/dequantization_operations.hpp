@@ -7,7 +7,7 @@
 #include "fake_quantize_on_data.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -159,4 +159,4 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

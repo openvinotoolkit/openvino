@@ -2,6 +2,7 @@ name: Windows (VS 2019, Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -54,6 +55,8 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
+      SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -62,7 +65,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       # TODO: specify version of compiler here
       SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_Release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
@@ -202,10 +205,21 @@ jobs:
         # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
-          
+
           cmake --build ${{ env.BUILD_DIR }} --parallel
-          
+
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: Upload openvino package
         uses: actions/upload-artifact@v3
@@ -446,7 +460,7 @@ jobs:
 
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
-          
+
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
