@@ -24,21 +24,6 @@ OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in
 OPENVINO_API
 int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
 
-/// \brief      Handle out of range axes in vector.
-///
-/// \param[in]  node_description  The name of node with requested axes.
-/// \param[in]  axes              The requested vector of axes.
-/// \param[in]  tensor_rank       The corresponding tensor rank.
-///
-/// \return     If any negative axis in vector, it counts from the last to the first
-///             axis, by adding tensor_rank to axis.
-///
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API
-std::vector<size_t> normalize_axes(const std::string& node_description,
-                                   const std::vector<int64_t>& axes,
-                                   const Rank& tensor_rank);
-
 /// \brief      Handle out of range axis.
 ///
 /// \param[in]  node_description   The node with requested axis.
@@ -89,16 +74,4 @@ int64_t normalize_axis(const std::string& node_description,
                        std::uint64_t tensor_rank,
                        std::int64_t axis_range_min,
                        std::int64_t axis_range_max);
-
-/// \brief      Handle out of range axes in vector.
-/// If any negative axis in vector, it counts from the last to the first axis,
-/// by adding tensor_rank to axis. Changes axes vector inplace.
-///
-/// \param[in]      node         The node with requested axes.
-/// \param[in]      tensor_rank  The corresponding tensor rank.
-/// \param[in,out]  axes         The requested vector of axes.
-///
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API
-void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
 }  // namespace ov

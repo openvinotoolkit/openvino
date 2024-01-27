@@ -875,16 +875,6 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
-void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    ov::util::normalize_axes(node, tensor_rank, axes);
-}
-
-std::vector<size_t> ov::normalize_axes(const std::string& node_description,
-                                       const std::vector<int64_t>& axes,
-                                       const Rank& tensor_rank) {
-    return ov::util::normalize_axes(node_description, axes, tensor_rank);
-}
-
 int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
     return ov::util::normalize_axis(node, axis, tensor_rank);
 }
