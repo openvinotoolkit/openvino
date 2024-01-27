@@ -909,10 +909,6 @@ int64_t ov::normalize_axis(const std::string& node_description,
     return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
-bool ov::evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape& pshape) {
-    return ov::util::evaluate_as_partial_shape(output, pshape);
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }

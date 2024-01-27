@@ -101,12 +101,4 @@ int64_t normalize_axis(const std::string& node_description,
 OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
-
-/// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would
-/// be represented as partial shape object using Dimension(min, max) for each element.
-/// \param output Node output pointing to the tensor for estimation.
-/// \param pshape Resulting estimation would be stored in this PartialShape.
-/// \return boolean status if value evaluation was successful.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
 }  // namespace ov
