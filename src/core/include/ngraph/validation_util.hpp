@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,32 +79,6 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                                                bool is_window_all_in_padding_allowed,
                                                bool ceil_mode = false,
                                                const Strides& window_dilation = Strides{});
-
-NGRAPH_API_DEPRECATED
-NGRAPH_API
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
-    const Node* node,
-    element::Type input_element_type,
-    element::Type gamma_element_type,
-    element::Type beta_element_type,
-    element::Type mean_element_type,
-    element::Type variance_element_type,
-    const ov::PartialShape& input_shape,
-    const ov::PartialShape& gamma_shape,
-    const ov::PartialShape& beta_shape,
-    const ov::PartialShape& mean_shape,
-    const ov::PartialShape& variance_shape);
-
-NGRAPH_API_DEPRECATED
-NGRAPH_API
-std::tuple<element::Type, ov::PartialShape, ov::PartialShape> infer_batch_norm_forward(
-    const Node* node,
-    element::Type input_element_type,
-    element::Type gamma_element_type,
-    element::Type beta_element_type,
-    const ov::PartialShape& input_shape,
-    const ov::PartialShape& gamma_shape,
-    const ov::PartialShape& beta_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
