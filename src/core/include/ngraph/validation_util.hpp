@@ -24,7 +24,6 @@
 namespace ngraph {
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
-using ov::has_no_labels;
 using ov::normalize_axes;
 using ov::normalize_axis;
 using ov::op::v0::Constant;

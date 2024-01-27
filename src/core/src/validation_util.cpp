@@ -921,10 +921,6 @@ std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Out
     return ov::util::get_constant_from_source(source);
 }
 
-bool ov::has_no_labels(const ov::TensorLabel& labels) {
-    return ov::util::has_no_labels(labels);
-}
-
 void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
     ov::util::generate_transpose_default_order(axes_order, length);
 }
