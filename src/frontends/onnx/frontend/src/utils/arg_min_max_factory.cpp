@@ -4,7 +4,6 @@
 
 #include "utils/arg_min_max_factory.hpp"
 
-#include "validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -13,6 +12,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;

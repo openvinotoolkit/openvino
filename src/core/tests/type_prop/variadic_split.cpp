@@ -8,10 +8,10 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "sequnce_generator.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ov;
