@@ -1135,6 +1135,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 /** @endcond */
 
 /**
+ * @deprecated Use ov::hint::enable_cpu_pinning
  * @brief The name for setting CPU affinity per thread option.
  * @ingroup ov_runtime_cpp_prop_api
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
