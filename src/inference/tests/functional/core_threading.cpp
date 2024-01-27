@@ -11,7 +11,6 @@
 #include <fstream>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
 #include <mutex>
 #include <thread>
 
@@ -63,7 +62,7 @@ public:
 TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> localConfig = {
-        {CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES}};
+        {ov::enable_profiling.name(), "YES"}};
 
     runParallel(
         [&]() {

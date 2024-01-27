@@ -27,7 +27,6 @@
 #include "ie_icore.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -298,7 +297,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
-    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+    if (name == ov::force_tbb_terminate.name()) {
         const auto flag = ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }

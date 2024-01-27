@@ -8,7 +8,6 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"

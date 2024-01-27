@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
 namespace InferenceEngine {

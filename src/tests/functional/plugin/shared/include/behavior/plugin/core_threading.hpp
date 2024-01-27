@@ -3,7 +3,6 @@
 //
 
 #include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
 #include <ie_extension.h>
 #include <cpp/ie_cnn_network.h>
 #include <cpp/ie_executable_network.hpp>
@@ -129,15 +128,6 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
     ie.SetConfig(config);
     runParallel([&] () {
         ie.GetConfig(target_device, configKey);
-        safePluginUnregister(ie, target_device);
-    });
-}
-
-// tested function: GetMetric, UnregisterPlugin
-TEST_P(CoreThreadingTests, smoke_GetMetric) {
-    InferenceEngine::Core ie;
-    runParallel([&] () {
-        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         safePluginUnregister(ie, target_device);
     });
 }

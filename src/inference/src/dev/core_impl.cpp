@@ -11,7 +11,6 @@
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
 #include "dev/iplugin_wrapper.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -1002,18 +1001,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
     std::vector<std::string> supported_config_keys = core_level_properties;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
-    try {
-        const auto supported_keys =
-            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
-        for (auto&& config_key : supported_keys) {
-            supported_config_keys.emplace_back(config_key);
-        }
-    } catch (ov::Exception&) {
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // try to search against OV API 2.0' mutable supported_properties
     try {

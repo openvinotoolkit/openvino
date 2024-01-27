@@ -9,7 +9,6 @@
 #include <memory>
 #include <tuple>
 #include <gtest/gtest.h>
-#include <ie_plugin_config.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include <cpp/ie_cnn_network.h>
 #include "gtest/gtest.h"
