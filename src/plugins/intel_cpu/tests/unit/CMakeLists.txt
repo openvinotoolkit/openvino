@@ -23,7 +23,8 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
-      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/avx_512_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
