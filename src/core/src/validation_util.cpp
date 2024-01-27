@@ -913,10 +913,6 @@ bool ov::evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialSh
     return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
-bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    return ov::util::default_label_evaluator(node, output_labels);
-}
-
 std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<Node>& source) {
     return ov::util::get_constant_from_source(source);
 }
