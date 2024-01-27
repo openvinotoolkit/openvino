@@ -21,7 +21,7 @@ const auto inputPrecisions = InputPrecisions{ov::element::f32, ov::element::i32,
 const std::vector<ov::op::v8::MatrixNms::SortResultType> sortResultType = {ov::op::v8::MatrixNms::SortResultType::CLASSID,
                                                                        ov::op::v8::MatrixNms::SortResultType::SCORE,
                                                                        ov::op::v8::MatrixNms::SortResultType::NONE};
-const std::vector<element::Type> outType = {element::i32, element::i64};
+const std::vector<ov::element::Type> outType = {ov::element::i32, ov::element::i64};
 const std::vector<TopKParams> topKParams = {TopKParams{-1, 5}, TopKParams{100, -1}};
 const std::vector<ThresholdParams> thresholdParams = {ThresholdParams{0.0f, 2.0f, 0.0f},
                                                       ThresholdParams{0.1f, 1.5f, 0.2f}};

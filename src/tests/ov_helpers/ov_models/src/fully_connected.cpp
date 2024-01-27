@@ -14,7 +14,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeFullyConnected(const ov::Output<Node>& in,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          const size_t outputSize,
                                          bool addBias,
                                          const ov::Shape& weightsShape,
