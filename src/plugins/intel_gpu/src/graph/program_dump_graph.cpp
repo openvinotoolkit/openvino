@@ -188,7 +188,7 @@ void dump_graph_init(std::ofstream& graph,
                 out += "\n" + std::to_string(i) + ": " + out_layout.to_string();
             }
             if (get_primitive_inst) {
-                out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout().get_partial_shape().to_string();
+                out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout(i).get_partial_shape().to_string();
             }
         }
 
