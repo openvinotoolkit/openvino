@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <array>
+
 #include "openvino/op/group_normalization.hpp"
 
 namespace ov {

@@ -6,7 +6,6 @@
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
-
 #include "utils.hpp"
 
 namespace ov {

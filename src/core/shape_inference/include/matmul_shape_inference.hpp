@@ -3,7 +3,6 @@
 //
 #pragma once
 #include "openvino/op/matmul.hpp"
-
 #include "utils.hpp"
 
 namespace ov {

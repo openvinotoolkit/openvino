@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/op/range.hpp"
-
 #include "utils.hpp"
 namespace ov {
 namespace op {
