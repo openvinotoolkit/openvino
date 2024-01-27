@@ -22,8 +22,6 @@
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
-using ov::evaluate_as_partial_shape;
-using ov::get_constant_from_source;
 using ov::normalize_axes;
 using ov::normalize_axis;
 using ov::op::v0::Constant;
@@ -164,5 +162,3 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
-
-using ngraph::get_constant_from_source;
