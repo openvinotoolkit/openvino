@@ -5,12 +5,14 @@
 #include "translate_session.hpp"
 
 #include "helper_ops/enter.hpp"
+#include "helper_ops/keep_in_graph_op.hpp"
 #include "helper_ops/loop_cond.hpp"
 #include "helper_ops/merge.hpp"
 #include "helper_ops/next_iteration.hpp"
 #include "helper_ops/switch.hpp"
 #include "input_model.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -406,6 +408,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     ov::ParameterVector params;
     ov::ResultVector results;
+    ov::SinkVector sinks;
     const auto& model_tf = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
     const auto& operation_places = model_tf->get_op_places();
@@ -566,6 +569,25 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    operation_name,
                                                                    "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
+            }
+
+            for (auto output : ov_outputs) {
+                auto node = output.port.get_node_shared_ptr();
+                // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,
+                // which we might need to remove from graph
+                if (ov::as_type_ptr<KeepInGraphOp>(node)) {
+                    sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(node));
+                } else {
+                    auto multi_subgraph = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+                    if (multi_subgraph) {
+                        for (const auto& body_model : multi_subgraph->get_functions()) {
+                            if (body_model->get_sinks().size()) {
+                                sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(multi_subgraph));
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type, ov_inputs)) {
             OutputVector indexed_ov_outputs;
@@ -756,8 +778,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (auto& loop_cond_op : loop_cond_ops) {
         fuse_loop_cond(loop_cond_op, ov_tensors_map, enter_ops);
     }
-
-    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, sinks, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,

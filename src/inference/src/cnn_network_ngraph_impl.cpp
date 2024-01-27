@@ -35,7 +35,6 @@ using namespace std;
 using namespace InferenceEngine;
 using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
-using ngraph::Function;
 
 void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node>& output,
                                                const std::string& outName,
@@ -124,7 +123,7 @@ ov::element::Type details::toLegacyType(const ov::element::Type& ngraph_type, bo
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<ov::Model>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
       _new_api(newAPI) {
     {
