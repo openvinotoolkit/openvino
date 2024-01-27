@@ -13,7 +13,7 @@ using namespace std;
 using namespace ov;
 
 TEST(attributes, avg_pool_op) {
-    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    ov::test::NodeBuilder::opset().insert<op::v1::AvgPool>();
     auto data = make_shared<op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
@@ -42,7 +42,7 @@ TEST(attributes, avg_pool_op) {
 }
 
 TEST(attributes, avg_pool_op_valid) {
-    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    ov::test::NodeBuilder::opset().insert<op::v1::AvgPool>();
     auto data = make_shared<op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
@@ -68,7 +68,7 @@ TEST(attributes, avg_pool_op_valid) {
 }
 
 TEST(attributes, avg_pool_v8_op) {
-    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    ov::test::NodeBuilder::opset().insert<op::v1::AvgPool>();
     const auto data = make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};

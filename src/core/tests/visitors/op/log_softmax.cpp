@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, logsoftmax_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v5::LogSoftmax>();
+    NodeBuilder::opset().insert<ov::op::v5::LogSoftmax>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 3});
 
     int64_t axis = 2;

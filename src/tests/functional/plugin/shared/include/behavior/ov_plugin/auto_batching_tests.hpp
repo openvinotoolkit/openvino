@@ -56,7 +56,7 @@ protected:
         ov::OutputVector outputs;
         std::vector<std::pair<std::shared_ptr<ov::Model>, ov::InferRequest>> irs;
         std::vector<ov::InferRequest> irs_ref;
-        std::vector<int> outElementsCount;
+        std::vector<size_t> outElementsCount;
 
         for (size_t i = 0; i < fn_ptrs.size(); ++i) {
             auto model = fn_ptrs[i];

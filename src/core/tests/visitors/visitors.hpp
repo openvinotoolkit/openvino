@@ -9,12 +9,12 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ngraph/factory.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -401,7 +401,7 @@ public:
     }
 
     std::shared_ptr<Node> create() {
-        std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
+        std::shared_ptr<Node> node(opset().create(m_node_type_info.name));
         node->visit_attributes(*this);
 
         if (m_inputs.size()) {
@@ -418,9 +418,8 @@ public:
     AttributeVisitor& get_node_loader() {
         return *this;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static ngraph::FactoryRegistry<Node>& get_ops();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    static OpSet& opset();
 
 protected:
     Node::type_info_t m_node_type_info;
