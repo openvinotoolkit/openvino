@@ -83,6 +83,9 @@ private:
          */
         void set_and_update(ov::AnyMap& config);
 
+        OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
+        void set_cache_dir_for_device(const std::string& dir, const std::string& name);
+
         std::string get_cache_dir() const;
 
         bool get_enable_mmap() const;
