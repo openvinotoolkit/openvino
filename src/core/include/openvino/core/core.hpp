@@ -34,7 +34,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/core/visibility.hpp"
 

@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "openvino/core/type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "validation_util.hpp"

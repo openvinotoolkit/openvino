@@ -18,7 +18,7 @@
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {

@@ -8,8 +8,6 @@
 
 #include "itt.hpp"
 #include "ngraph/validation_util.hpp"
-#include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 

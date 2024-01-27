@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"

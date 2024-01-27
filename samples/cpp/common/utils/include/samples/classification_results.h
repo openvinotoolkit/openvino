@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "openvino/openvino.hpp"
+#include "openvino/op/constant.hpp"
 
 /**
  * @class ClassificationResult
