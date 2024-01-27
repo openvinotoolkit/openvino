@@ -109,9 +109,4 @@ void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<in
 /// \return boolean status if value evaluation was successful.
 OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
-
-/// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
-/// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
 }  // namespace ov

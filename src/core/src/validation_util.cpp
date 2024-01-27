@@ -913,10 +913,6 @@ bool ov::evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialSh
     return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
-std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<Node>& source) {
-    return ov::util::get_constant_from_source(source);
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
