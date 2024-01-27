@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"

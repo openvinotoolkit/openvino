@@ -17,6 +17,7 @@
 
 using namespace ov;
 using namespace ov::op;
+using ov::CoordinateDiff;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 

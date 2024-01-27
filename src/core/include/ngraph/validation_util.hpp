@@ -16,12 +16,13 @@
 
 #include <tuple>
 
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
+using ov::CoordinateDiff;
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
 using ov::has_no_labels;
