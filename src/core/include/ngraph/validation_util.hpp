@@ -22,7 +22,6 @@
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
-using ov::normalize_axis;
 using ov::op::v0::Constant;
 
 namespace element {

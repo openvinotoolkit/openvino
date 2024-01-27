@@ -875,30 +875,6 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
-int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
-    return ov::util::normalize_axis(node, axis, tensor_rank);
-}
-
-int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
-    return ov::util::normalize_axis(node_description, axis, tensor_rank);
-}
-
-int64_t ov::normalize_axis(const Node* node,
-                           std::int64_t axis,
-                           std::uint64_t tensor_rank,
-                           std::int64_t axis_range_min,
-                           std::int64_t axis_range_max) {
-    return ov::util::normalize_axis(node, axis, tensor_rank, axis_range_min, axis_range_max);
-}
-
-int64_t ov::normalize_axis(const std::string& node_description,
-                           std::int64_t axis,
-                           std::uint64_t tensor_rank,
-                           std::int64_t axis_range_min,
-                           std::int64_t axis_range_max) {
-    return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }

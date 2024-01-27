@@ -4,7 +4,7 @@
 
 #include "utils/arg_min_max_factory.hpp"
 
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -64,10 +64,8 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
         // result = res_index - 1 = 3 - 1 = 2
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const int64_t normalized_axis =
-            ov::normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
 
         const auto axis_node = v0::Constant::create(ov::element::i64, Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<v1::Reverse>(m_input_node, axis_node, v1::Reverse::Mode::INDEX);
