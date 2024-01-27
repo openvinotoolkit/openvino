@@ -921,14 +921,6 @@ std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Out
     return ov::util::get_constant_from_source(source);
 }
 
-void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
-    ov::util::generate_transpose_default_order(axes_order, length);
-}
-
-bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return ov::util::is_valid_axes_order(axes_order, size);
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
