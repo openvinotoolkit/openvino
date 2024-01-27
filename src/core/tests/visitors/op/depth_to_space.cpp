@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, depth_to_space) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::DepthToSpace>();
+    NodeBuilder::opset().insert<ov::op::v0::DepthToSpace>();
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 8, 2, 2});
 
     const auto block_size = 2;

@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, random_uniform_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::RandomUniform>();
+    NodeBuilder::opset().insert<ov::op::v8::RandomUniform>();
     auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, vector<int64_t>{3, 2, 4});
     auto min_val = make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 0);
     auto max_val = make_shared<ov::op::v0::Constant>(element::f32, Shape{}, 1);

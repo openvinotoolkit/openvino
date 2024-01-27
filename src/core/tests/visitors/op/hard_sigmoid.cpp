@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, hardsigmoid_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::HardSigmoid>();
+    NodeBuilder::opset().insert<ov::op::v0::HardSigmoid>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5});
     const auto alpha = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     const auto beta = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});

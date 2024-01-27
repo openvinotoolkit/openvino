@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, mish_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v4::Mish>();
+    NodeBuilder::opset().insert<ov::op::v4::Mish>();
     const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 2});
 
     const auto mish = make_shared<ov::op::v4::Mish>(A);

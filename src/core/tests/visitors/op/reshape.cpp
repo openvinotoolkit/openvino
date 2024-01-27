@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, reshape_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Reshape>();
+    NodeBuilder::opset().insert<ov::op::v1::Reshape>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     auto pattern = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 

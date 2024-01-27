@@ -93,12 +93,12 @@ namespace ngraph
                                 // slice data
                                 data_lower_bounds[1] = group * data_group_size;
                                 data_upper_bounds[1] = (group + 1) * data_group_size;
-                                auto sliced_data = std::make_shared<ngraph::opset0::Slice>(
+                                auto sliced_data = std::make_shared<ov::opset0::Slice>(
                                     data, data_lower_bounds, data_upper_bounds);
                                 // slice filters
                                 filters_lower_bounds[0] = group * filters_group_size;
                                 filters_upper_bounds[0] = (group + 1) * filters_group_size;
-                                auto sliced_filters = std::make_shared<ngraph::opset0::Slice>(
+                                auto sliced_filters = std::make_shared<ov::opset0::Slice>(
                                     filters, filters_lower_bounds, filters_upper_bounds);
 
                                 if (bias.get_node())
@@ -110,7 +110,7 @@ namespace ngraph
                                 else
                                 {
                                     convolution_nodes.push_back(
-                                        std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                                        std::make_shared<ov::opset0::QuantizedConvolution>(
                                             sliced_data,
                                             sliced_filters,
                                             strides,
@@ -153,7 +153,7 @@ namespace ngraph
                             }
                             else
                             {
-                                return std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                                return std::make_shared<ov::opset0::QuantizedConvolution>(
                                     data,
                                     filters,
                                     strides,

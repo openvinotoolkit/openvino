@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, experimental_detectron_topkrois_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v6::ExperimentalDetectronTopKROIs>();
+    NodeBuilder::opset().insert<ov::op::v6::ExperimentalDetectronTopKROIs>();
     size_t num_rois = 1;
     auto input_rois = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     auto input_probs = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});

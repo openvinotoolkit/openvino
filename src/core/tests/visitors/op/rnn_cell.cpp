@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, rnn_cell_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::RNNCell>();
+    NodeBuilder::opset().insert<ov::op::v0::RNNCell>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 3});
@@ -46,7 +46,7 @@ TEST(attributes, rnn_cell_op_custom_attributes) {
 }
 
 TEST(attributes, rnn_cell_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::RNNCell>();
+    NodeBuilder::opset().insert<ov::op::v0::RNNCell>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 3});
@@ -67,7 +67,7 @@ TEST(attributes, rnn_cell_op_default_attributes) {
 }
 
 TEST(attributes, rnn_cell_op_default_attributes2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::RNNCell>();
+    NodeBuilder::opset().insert<ov::op::v0::RNNCell>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 3});

@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, reverse_sequence_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::ReverseSequence>();
+    NodeBuilder::opset().insert<ov::op::v0::ReverseSequence>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 2});
     auto seq_indices = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
 

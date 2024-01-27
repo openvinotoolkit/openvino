@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, variadic_split_op) {
-    NodeBuilder::get_ops().register_factory<op::v1::VariadicSplit>();
+    NodeBuilder::opset().insert<op::v1::VariadicSplit>();
     auto data = make_shared<op::v0::Parameter>(element::i32, Shape{200});
     auto axis = make_shared<op::v0::Parameter>(element::i32, Shape{1});
     auto split_lengths = make_shared<op::v0::Parameter>(element::i32, Shape{1});

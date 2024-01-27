@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, max_pool_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::MaxPool>();
+    NodeBuilder::opset().insert<ov::op::v1::MaxPool>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
@@ -37,7 +37,7 @@ TEST(attributes, max_pool_op) {
 }
 
 TEST(attributes, max_pool_v8_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::MaxPool>();
+    NodeBuilder::opset().insert<ov::op::v8::MaxPool>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};

@@ -23,7 +23,7 @@ TEST(attributes, tensor_iterator_lstm) {
     const size_t I = 8;   // Input size
     const size_t H = 32;  // Hidden size
 
-    NodeBuilder::get_ops().register_factory<ov::op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<ov::op::v0::TensorIterator>();
 
     auto SENT = make_shared<ov::op::v0::Parameter>(element::f32, Shape{N, L, I});
 
@@ -68,7 +68,7 @@ TEST(attributes, tensor_iterator_lstm) {
 }
 
 TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
-    NodeBuilder::get_ops().register_factory<op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<op::v0::TensorIterator>();
     // That which we iterate over
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
@@ -104,7 +104,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
 }
 
 TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
-    NodeBuilder::get_ops().register_factory<op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<op::v0::TensorIterator>();
     // That which we iterate over
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});

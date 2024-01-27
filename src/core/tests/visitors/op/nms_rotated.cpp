@@ -13,7 +13,7 @@ using ov::op::v0::Parameter;
 using ov::test::NodeBuilder;
 
 TEST(attributes, nms_rotated_v13_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v13::NMSRotated>();
+    NodeBuilder::opset().insert<ov::op::v13::NMSRotated>();
     auto boxes = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 5});
     auto scores = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 1});
     auto max_out = std::make_shared<Parameter>(ov::element::i32, Shape{});
@@ -31,7 +31,7 @@ TEST(attributes, nms_rotated_v13_default_attributes) {
 }
 
 TEST(attributes, nms_rotated_v13_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v13::NMSRotated>();
+    NodeBuilder::opset().insert<ov::op::v13::NMSRotated>();
     auto boxes = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 5});
     auto scores = std::make_shared<Parameter>(ov::element::f32, Shape{1, 1, 1});
     auto max_out = std::make_shared<Parameter>(ov::element::i32, Shape{});

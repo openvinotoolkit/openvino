@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 void static test_normalize_l2_attributes(float eps, op::EpsMode eps_mode) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::NormalizeL2>();
+    NodeBuilder::opset().insert<ov::op::v0::NormalizeL2>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4});
     const auto axes = make_shared<ov::op::v0::Constant>(element::i32, Shape{}, vector<int32_t>{1});
 

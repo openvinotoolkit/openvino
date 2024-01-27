@@ -13,6 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, constant_op) {
+    ov::test::NodeBuilder::opset().insert<ov::op::v0::Constant>();
     vector<float> data{5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f};
     auto k = make_shared<op::v0::Constant>(element::f32, Shape{2, 3}, data);
     NodeBuilder builder(k);
