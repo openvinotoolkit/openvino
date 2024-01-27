@@ -21,7 +21,6 @@
 #include <string>
 
 #include "ngraph/deprecated.hpp"
-#include "ngraph/version.hpp"
 
 #ifdef IN_OV_CORE_LIBRARY
 #    error("ngraph.hpp is for external use only")
@@ -49,19 +48,16 @@
 ///        recipes, for example auto-broadcast.
 
 #include "ngraph/evaluator.hpp"
-#include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/specialize_function.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 // nGraph opsets
 #include "ngraph/opsets/opset.hpp"
