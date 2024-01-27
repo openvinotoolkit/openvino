@@ -644,6 +644,22 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 }
             }
 #endif
+            // TODO: remove this block of code once GPU removes support of ov::cache_dir
+            // also, remove device_supports_cache_dir at all
+            {
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                if (device_supports_cache_dir(plugin)) {
+                    ov::AnyMap empty_map;
+                    auto cacheConfig = coreConfig.get_cache_config_for_device(plugin, empty_map);
+                    if (cacheConfig._cacheManager) {
+                        desc.defaultConfig[ov::cache_dir.name()] = cacheConfig._cacheDir;
+                    }
+                } else if (desc.defaultConfig.count(ov::cache_dir.name()) > 0) {
+                    // Remove "CACHE_DIR" from config if it is not supported by plugin
+                    desc.defaultConfig.erase(ov::cache_dir.name());
+                }
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            }
 
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
@@ -1322,6 +1338,21 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         allowNotImplemented([&]() {
             std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
             auto configCopy = config;
+            // TODO: remove once GPU remove explicit support of ov::cache_dir
+            {
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                if (device_supports_cache_dir(plugin.second)) {
+                    ov::AnyMap empty_map;
+                    auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
+                    if (cacheConfig._cacheManager) {
+                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
+                    }
+                } else if (configCopy.count(ov::cache_dir.name()) > 0) {
+                    // Remove "CACHE_DIR" from config if it is not supported by plugin
+                    configCopy.erase(ov::cache_dir.name());
+                }
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            }
             // Add device specific value to support device_name.device_id cases
             {
                 if (!parser.get_device_id().empty()) {
@@ -1370,6 +1401,16 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
     return plugin.supports_model_caching();
+}
+
+bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
+    try {
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    } catch (const InferenceEngine::NotImplemented&) {
+        return false;
+    } catch (const ov::NotImplemented&) {
+        return false;
+    }
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
