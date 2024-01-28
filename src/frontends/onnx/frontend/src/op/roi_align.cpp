@@ -16,7 +16,7 @@ namespace op {
 
 namespace set_1 {
 
-OutputVector roi_align(const Node& node) {
+ov::OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
@@ -45,7 +45,7 @@ OutputVector roi_align(const Node& node) {
 }
 }  // namespace set_1
 namespace set_16 {
-OutputVector roi_align(const Node& node) {
+ov::OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());

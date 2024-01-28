@@ -14,10 +14,10 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector concat(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector concat(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
-    OutputVector valid_inputs;
+    ov::OutputVector valid_inputs;
     std::copy_if(inputs.begin(), inputs.end(), std::back_inserter(valid_inputs), [](ov::Output<ov::Node>& in) -> bool {
         return !common::is_failsafe_node(in.get_node_shared_ptr());
     });

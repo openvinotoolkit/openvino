@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_9 {
-inline OutputVector acosh(const Node& node) {
+inline ov::OutputVector acosh(const Node& node) {
     return {std::make_shared<ov::op::v3::Acosh>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_9

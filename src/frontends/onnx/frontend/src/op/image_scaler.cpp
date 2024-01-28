@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector image_scaler(const Node& node) {
+ov::OutputVector image_scaler(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
 

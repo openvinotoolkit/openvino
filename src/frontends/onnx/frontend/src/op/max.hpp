@@ -15,14 +15,14 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector max(const Node& node) {
+inline ov::OutputVector max(const Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Maximum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
-inline OutputVector max(const Node& node) {
+inline ov::OutputVector max(const Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Maximum>(node);
 }
 

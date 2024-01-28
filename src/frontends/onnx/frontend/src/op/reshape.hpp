@@ -20,7 +20,7 @@ namespace set_1 {
 ///
 /// \return     OV node representing this operation.
 ///
-OutputVector reshape(const Node& node);
+ov::OutputVector reshape(const Node& node);
 
 }  // namespace set_1
 

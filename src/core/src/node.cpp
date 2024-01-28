@@ -535,7 +535,7 @@ const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shar
     return node;
 }
 
-const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
+const ov::NodeVector& ngraph::check_single_output_args(const ov::NodeVector& args) {
     for (size_t i = 0; i < args.size(); ++i) {
         ngraph::check_single_output_arg(args.at(i), i);
     }

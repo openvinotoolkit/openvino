@@ -46,9 +46,9 @@ struct GRUInputMap : public recurrent::OpInputMap {
                 //          [Rb_h],
                 //          // num_directions times
                 //       ]
-                m_map[recurrent::OpInput::B] =
-                    std::make_shared<v0::Concat>(OutputVector{wr_z_bias, wr_r_bias, split_bias.at(2), split_bias.at(5)},
-                                                 1);
+                m_map[recurrent::OpInput::B] = std::make_shared<v0::Concat>(
+                    ov::OutputVector{wr_z_bias, wr_r_bias, split_bias.at(2), split_bias.at(5)},
+                    1);
             } else {
                 const std::size_t hidden_size = m_map[recurrent::OpInput::R].get_shape().back();
                 const std::size_t num_directions = m_map[recurrent::OpInput::W].get_shape().front();
@@ -77,7 +77,7 @@ struct GRUAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-OutputVector gru(const Node& node) {
+ov::OutputVector gru(const Node& node) {
     constexpr std::size_t gates_count = 3;
     GRUInputMap input_map{node, gates_count};
     GRUAttributes attributes{node};

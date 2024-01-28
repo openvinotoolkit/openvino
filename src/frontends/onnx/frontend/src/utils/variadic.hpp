@@ -23,10 +23,10 @@ namespace variadic {
 /// \return OpenVINO node equivalent of the ONNX operation
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
-inline OutputVector make_ng_variadic_op(
+inline ov::OutputVector make_ng_variadic_op(
     const Node& node,
     const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastType::NUMPY) {
-    const OutputVector ng_inputs{node.get_ng_inputs()};
+    const ov::OutputVector ng_inputs{node.get_ng_inputs()};
 
     // Templated binary operation - Creates Add, Minimum, Maximum, etc.
     const auto binary_operation = [&auto_broadcast](const ov::Output<ov::Node>& arg0,

@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector equal(const Node& node) {
+inline ov::OutputVector equal(const Node& node) {
     return {std::make_shared<ov::op::v1::Equal>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 

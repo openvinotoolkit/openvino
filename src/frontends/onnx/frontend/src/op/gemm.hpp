@@ -13,12 +13,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector gemm(const Node& node);
+ov::OutputVector gemm(const Node& node);
 
 }  // namespace set_1
 
 namespace set_6 {
-OutputVector gemm(const Node& node);
+ov::OutputVector gemm(const Node& node);
 
 }  // namespace set_6
 

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector experimental_detectron_roi_feature_extractor(const Node& node) {
+ov::OutputVector experimental_detectron_roi_feature_extractor(const Node& node) {
     using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
     auto inputs = node.get_ng_inputs();

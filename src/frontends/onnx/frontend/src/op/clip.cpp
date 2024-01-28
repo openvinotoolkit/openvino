@@ -20,7 +20,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector clip(const Node& node) {
+ov::OutputVector clip(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const double max_value = node.get_attribute_value<double>("max", std::numeric_limits<double>::max());
@@ -72,8 +72,8 @@ std::shared_ptr<ov::op::v0::Constant> get_constant_max_of_type(ov::element::Type
 }
 }  // namespace
 
-OutputVector clip(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector clip(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
     const ov::Output<ov::Node> data = inputs.at(0);
     const ov::element::Type data_type = data.get_element_type();
     ov::Output<ov::Node> min;

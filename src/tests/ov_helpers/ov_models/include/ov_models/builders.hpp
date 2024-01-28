@@ -425,7 +425,7 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const bool allow_negative_pad = false);
 
 std::shared_ptr<ov::Node> makeLSTM(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh", "tanh"},
@@ -438,7 +438,7 @@ std::shared_ptr<ov::Node> makeLSTM(
     float WRB_range = 0.f);
 
 std::shared_ptr<ov::Node> makeGRU(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
@@ -451,7 +451,7 @@ std::shared_ptr<ov::Node> makeGRU(
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ov::Node> makeRNN(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},

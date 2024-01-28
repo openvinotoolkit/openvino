@@ -25,7 +25,7 @@ namespace set_13 {
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_sum(const Node& node);
+ov::OutputVector reduce_sum(const Node& node);
 }  // namespace set_13
 namespace set_1 {
 /// \brief      Compute the log sum of the input tensor's elements along the
@@ -40,7 +40,7 @@ namespace set_1 {
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_log_sum(const Node& node);
+ov::OutputVector reduce_log_sum(const Node& node);
 
 /// \brief      Compute the log sum exponent of the input tensor's elements along
 ///             the provided axes.
@@ -54,7 +54,7 @@ OutputVector reduce_log_sum(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_log_sum_exp(const Node& node);
+ov::OutputVector reduce_log_sum_exp(const Node& node);
 
 /// \brief      Compute the L1 norm of the input tensor's element along the provided
 ///             axes.
@@ -68,7 +68,7 @@ OutputVector reduce_log_sum_exp(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_l1(const Node& node);
+ov::OutputVector reduce_l1(const Node& node);
 
 /// \brief      Compute the L2 norm of the input tensor's element along the provided
 ///             axes.
@@ -82,7 +82,7 @@ OutputVector reduce_l1(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_l2(const Node& node);
+ov::OutputVector reduce_l2(const Node& node);
 
 /// \brief      Compute the maximum value of the input tensor's elements along the
 ///             provided axes.
@@ -96,7 +96,7 @@ OutputVector reduce_l2(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_max(const Node& node);
+ov::OutputVector reduce_max(const Node& node);
 
 /// \brief      Compute the mean value of the input tensor's elements along the
 ///             provided axes.
@@ -110,7 +110,7 @@ OutputVector reduce_max(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_mean(const Node& node);
+ov::OutputVector reduce_mean(const Node& node);
 
 /// \brief      Compute the minimum value of the input tensor's elements along the
 ///             provided axes.
@@ -124,7 +124,7 @@ OutputVector reduce_mean(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_min(const Node& node);
+ov::OutputVector reduce_min(const Node& node);
 
 /// \brief      Compute the product of the input tensor's elements along the
 ///             provided axes.
@@ -138,7 +138,7 @@ OutputVector reduce_min(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_prod(const Node& node);
+ov::OutputVector reduce_prod(const Node& node);
 
 /// \brief      Compute the sum of the input tensor's elements along the provided
 ///             axes.
@@ -152,7 +152,7 @@ OutputVector reduce_prod(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_sum(const Node& node);
+ov::OutputVector reduce_sum(const Node& node);
 
 /// \brief      Compute the sum square of the input tensor's element along the
 ///             provided axes.
@@ -166,7 +166,7 @@ OutputVector reduce_sum(const Node& node);
 ///
 /// \return     The OV node equivalent of the ONNX operation.
 ///
-OutputVector reduce_sum_square(const Node& node);
+ov::OutputVector reduce_sum_square(const Node& node);
 
 }  // namespace set_1
 

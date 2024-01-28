@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector cast(const Node& node);
+ov::OutputVector cast(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

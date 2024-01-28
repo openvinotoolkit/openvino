@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector blackmanwindow(const Node& node);
+ov::OutputVector blackmanwindow(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

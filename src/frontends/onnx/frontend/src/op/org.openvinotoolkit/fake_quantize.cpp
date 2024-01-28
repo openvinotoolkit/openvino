@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector fake_quantize(const Node& node) {
+ov::OutputVector fake_quantize(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto X = inputs.at(0);
     const auto input_low = inputs.at(1);

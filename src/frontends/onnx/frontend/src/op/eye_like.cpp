@@ -21,7 +21,7 @@ namespace detail {
 namespace {
 
 /// \brief Split a shape returned by a ShapeOf operation into two outputs: width and height.
-OutputVector get_shape_width_and_height(const ov::Output<ov::Node>& shape) {
+ov::OutputVector get_shape_width_and_height(const ov::Output<ov::Node>& shape) {
     const auto axis = v0::Constant::create(ov::element::i64, {1}, {0});
     const auto height = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i64, {1}, {0}), axis);
     const auto width = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i64, {1}, {1}), axis);
@@ -33,7 +33,7 @@ OutputVector get_shape_width_and_height(const ov::Output<ov::Node>& shape) {
 
 namespace set_1 {
 
-OutputVector eye_like(const Node& node) {
+ov::OutputVector eye_like(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
     const auto& input_rank = input.get_partial_shape().rank();

@@ -15,8 +15,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector gather(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
+inline ov::OutputVector gather(const Node& node) {
+    ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);
     auto axis = node.get_attribute_value<int64_t>("axis", 0);

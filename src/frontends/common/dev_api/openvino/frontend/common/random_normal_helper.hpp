@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 

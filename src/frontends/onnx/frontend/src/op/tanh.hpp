@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector tanh(const Node& node) {
+inline ov::OutputVector tanh(const Node& node) {
     return {std::make_shared<default_opset::Tanh>(node.get_ng_inputs().at(0))};
 }
 

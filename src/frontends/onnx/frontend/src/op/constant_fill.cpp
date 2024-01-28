@@ -19,7 +19,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector constant_fill(const Node& node) {
+ov::OutputVector constant_fill(const Node& node) {
     ov::Output<ov::Node> target_shape;
     const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
     const auto ng_type = onnx_to_ov_data_type(static_cast<TensorProto_DataType>(dtype));
@@ -34,7 +34,7 @@ OutputVector constant_fill(const Node& node) {
         if (node.has_attribute("extra_shape")) {
             const auto extra_shape_const =
                 node.get_attribute_as_constant<std::vector<int64_t>>("extra_shape", target_shape.get_element_type());
-            target_shape = std::make_shared<v0::Concat>(OutputVector{target_shape, extra_shape_const}, 0);
+            target_shape = std::make_shared<v0::Concat>(ov::OutputVector{target_shape, extra_shape_const}, 0);
         }
     } else  // use shape attribute as target shape
     {

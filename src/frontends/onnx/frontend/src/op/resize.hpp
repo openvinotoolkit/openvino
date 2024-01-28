@@ -13,12 +13,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector resize(const Node& node);
+ov::OutputVector resize(const Node& node);
 
 }  // namespace set_1
 
 namespace set_11 {
-OutputVector resize(const Node& node);
+ov::OutputVector resize(const Node& node);
 }
 
 }  // namespace op

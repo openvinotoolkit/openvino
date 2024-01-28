@@ -16,7 +16,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector random_uniform(const Node& node) {
+ov::OutputVector random_uniform(const Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
 
     const auto dtype =

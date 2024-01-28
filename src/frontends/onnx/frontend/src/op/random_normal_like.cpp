@@ -16,7 +16,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector random_normal_like(const Node& node) {
+ov::OutputVector random_normal_like(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
     ov::element::Type target_type;

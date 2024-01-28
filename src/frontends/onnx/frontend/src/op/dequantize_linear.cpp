@@ -24,7 +24,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
-std::shared_ptr<ov::Node> get_zero_point(const OutputVector& inputs) {
+std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& zero_point = inputs[2];
 
@@ -38,8 +38,8 @@ std::shared_ptr<ov::Node> get_zero_point(const OutputVector& inputs) {
 }
 }  // namespace detail
 namespace set_1 {
-OutputVector dequantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional input. Got: ",
@@ -136,11 +136,11 @@ std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }
 
-OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
-                               const ov::Output<ov::Node>& scale,
-                               const std::shared_ptr<ov::Node>& zero_point,
-                               int64_t axis,
-                               const Node& node) {
+ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
+                                   const ov::Output<ov::Node>& scale,
+                                   const std::shared_ptr<ov::Node>& zero_point,
+                                   int64_t axis,
+                                   const Node& node) {
     const auto& x_shape = x.get_partial_shape();
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
@@ -162,8 +162,8 @@ OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }
 }  // namespace detail
 
-OutputVector dequantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional "

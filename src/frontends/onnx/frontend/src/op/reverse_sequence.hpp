@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector reverse_sequence(const Node& node);
+ov::OutputVector reverse_sequence(const Node& node);
 
 }  // namespace set_1
 

@@ -32,12 +32,12 @@ public:
 
 protected:
     const ngraph::onnx_import::Node& m_context;
-    OutputVector m_inputs;
+    ov::OutputVector m_inputs;
 
 private:
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 };
-using CreatorFunction = std::function<OutputVector(const ngraph::onnx_import::Node&)>;
+using CreatorFunction = std::function<ov::OutputVector(const ngraph::onnx_import::Node&)>;
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
