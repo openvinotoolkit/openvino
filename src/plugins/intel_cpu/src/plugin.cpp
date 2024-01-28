@@ -386,11 +386,13 @@ bool Engine::is_legacy_api() const {
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
     if (name == ov::optimal_number_of_infer_requests) {
+        const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            engConfig.streams);  // ov::optimal_number_of_infer_requests has no negative values
+            streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
+        const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
-            engConfig.streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.threadBindingType;
         switch (affinity) {
@@ -407,7 +409,8 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
-        return decltype(ov::inference_num_threads)::value_type(engConfig.threads);
+        const auto threads = engConfig.streamExecutorConfig.get_threads();
+        return decltype(ov::inference_num_threads)::value_type(threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);

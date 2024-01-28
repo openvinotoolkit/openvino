@@ -148,7 +148,13 @@ public:
         int get_streams() {
             return _streams;
         }
+        int get_streams() const {
+            return _streams;
+        }
         int get_threads() {
+            return _threads;
+        }
+        int get_threads() const {
             return _threads;
         }
         int get_threads_per_stream() {
