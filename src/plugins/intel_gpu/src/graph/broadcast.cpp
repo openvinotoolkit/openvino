@@ -127,7 +127,7 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
 }
 
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     if (input_layout.is_dynamic())
         return;
     const auto& output_sizes = argument->broadcast_sizes;

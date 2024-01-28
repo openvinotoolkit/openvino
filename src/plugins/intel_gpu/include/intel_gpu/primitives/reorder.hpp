@@ -298,7 +298,7 @@ struct reorder : public primitive_base<reorder> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+    std::vector<input_info> get_dependencies() const override {
         if (mean.empty())
             return {};
         return {mean};

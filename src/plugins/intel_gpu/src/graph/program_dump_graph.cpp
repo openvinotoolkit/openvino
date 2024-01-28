@@ -179,14 +179,17 @@ void dump_graph_init(std::ofstream& graph,
             return out + invalid_layout_msg;
         }
 
-        auto out_layout = ptr->get_output_layout();
-        if (!out_layout.data_padding) {
-            out += " " +  out_layout.to_short_string();
-        } else {
-            out += " " + out_layout.to_string();
-        }
-        if (get_primitive_inst) {
-            out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout().get_partial_shape().to_string();
+        auto out_layouts = ptr->get_output_layouts();
+        for (size_t i = 0; i < out_layouts.size(); i++) {
+            auto& out_layout = out_layouts[i];
+            if (!out_layout.data_padding) {
+                out += "\n" + std::to_string(i) + ": " + out_layout.to_short_string();
+            } else {
+                out += "\n" + std::to_string(i) + ": " + out_layout.to_string();
+            }
+            if (get_primitive_inst) {
+                out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout(i).get_partial_shape().to_string();
+            }
         }
 
         return out;

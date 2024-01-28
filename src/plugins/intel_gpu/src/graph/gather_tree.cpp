@@ -63,7 +63,7 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const&
         }
     }
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
 
     const auto input_format = input_layout.format;
 

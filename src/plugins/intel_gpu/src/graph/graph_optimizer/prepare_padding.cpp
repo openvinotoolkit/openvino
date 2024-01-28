@@ -78,7 +78,7 @@ void prepare_padding::run(program& p) {
                 pad_u.spatial[1] = pe_y;
                 pad_u.spatial[2] = pe_z;
 
-                auto in_layout = prim_node.input().get_output_layout();
+                auto in_layout = prim_node.get_input_layout();
 
                 const auto& actual_lpad = in_layout.data_padding.lower_size();
                 const auto& actual_upad = in_layout.data_padding.upper_size();
@@ -98,7 +98,7 @@ void prepare_padding::run(program& p) {
 
                 auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
-                auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
+                auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
                                                                                prim->pad,
@@ -123,7 +123,7 @@ void prepare_padding::run(program& p) {
                 }
 
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
-                    needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
+                    needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
                                                                               prim->output_size,
                                                                               size,
                                                                               ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
@@ -132,7 +132,7 @@ void prepare_padding::run(program& p) {
                                                                               false,
                                                                               1);
                 else
-                    needed_padding = prim_node.input().get_output_layout().data_padding;
+                    needed_padding = prim_node.get_input_layout().data_padding;
 
                 add_required_padding(prim_node, needed_padding);
             }

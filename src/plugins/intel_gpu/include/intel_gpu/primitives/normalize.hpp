@@ -89,6 +89,6 @@ struct normalize : public primitive_base<normalize> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }
+    std::vector<input_info> get_dependencies() const override { return {scale_input}; }
 };
 }  // namespace cldnn
