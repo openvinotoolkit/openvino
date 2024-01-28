@@ -5,7 +5,6 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"

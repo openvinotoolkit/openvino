@@ -14,7 +14,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                  const element::Type& type,
+                                                  const ov::element::Type& type,
                                                   const std::vector<size_t>& filterSize,
                                                   const std::vector<size_t>& strides,
                                                   const std::vector<ptrdiff_t>& padsBegin,
@@ -48,7 +48,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
 
 std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
                                                   const ov::Output<Node>& weights,
-                                                  const element::Type& type,
+                                                  const ov::element::Type& type,
                                                   const std::vector<size_t>& strides,
                                                   const std::vector<ptrdiff_t>& padsBegin,
                                                   const std::vector<ptrdiff_t>& padsEnd,
@@ -88,7 +88,7 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
 
 std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
                                                   const ov::Output<Node>& outputShape,
-                                                  const element::Type& type,
+                                                  const ov::element::Type& type,
                                                   const std::vector<size_t>& filterSize,
                                                   const std::vector<size_t>& strides,
                                                   const std::vector<ptrdiff_t>& padsBegin,

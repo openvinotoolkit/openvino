@@ -8,13 +8,12 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/shuffle_channels.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
-    const element::Type inputPrecision,
+    const ov::element::Type inputPrecision,
     const PartialShape& inputShape,
     const builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
