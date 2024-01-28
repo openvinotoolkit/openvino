@@ -229,7 +229,7 @@ def test_available_devices(device):
 
 def test_get_property(device):
     core = Core()
-    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    conf = core.get_property(device, "SUPPORTED_PROPERTIES")
     assert "PERF_COUNT" in conf
 
 

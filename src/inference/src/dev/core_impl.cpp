@@ -920,7 +920,7 @@ bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     std::vector<std::string> devices;
-    const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+    const std::string propertyName = ov::available_devices.name();
 
     for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;

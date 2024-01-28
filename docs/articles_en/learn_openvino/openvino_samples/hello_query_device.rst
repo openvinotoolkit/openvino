@@ -81,15 +81,13 @@ For example:
 
          [ INFO ] Available devices:
          [ INFO ] CPU :
-         [ INFO ]        SUPPORTED_METRICS:
+         [ INFO ]        SUPPORTED_PROPERTIES:
          [ INFO ]                AVAILABLE_DEVICES:
          [ INFO ]                FULL_DEVICE_NAME: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
          [ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, FP16, INT8, BIN
          [ INFO ]                RANGE_FOR_ASYNC_INFER_REQUESTS: 1, 1, 1
          [ INFO ]                RANGE_FOR_STREAMS: 1, 8
          [ INFO ]                IMPORT_EXPORT_SUPPORT: True
-         [ INFO ]
-         [ INFO ]        SUPPORTED_CONFIG_KEYS (default values):
          [ INFO ]                CACHE_DIR:
          [ INFO ]                CPU_BIND_THREAD: NO
          [ INFO ]                CPU_THREADS_NUM: 0
@@ -112,14 +110,13 @@ For example:
          [ INFO ]
          [ INFO ] Available devices:
          [ INFO ] CPU
-         [ INFO ]        SUPPORTED_METRICS:
+         [ INFO ]        SUPPORTED_PROPERTIES:
          [ INFO ]                AVAILABLE_DEVICES : [  ]
          [ INFO ]                FULL_DEVICE_NAME : Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
          [ INFO ]                OPTIMIZATION_CAPABILITIES : [ FP32 FP16 INT8 BIN ]
          [ INFO ]                RANGE_FOR_ASYNC_INFER_REQUESTS : { 1, 1, 1 }
          [ INFO ]                RANGE_FOR_STREAMS : { 1, 8 }
          [ INFO ]                IMPORT_EXPORT_SUPPORT : true
-         [ INFO ]        SUPPORTED_CONFIG_KEYS (default values):
          [ INFO ]                CACHE_DIR : ""
          [ INFO ]                CPU_BIND_THREAD : NO
          [ INFO ]                CPU_THREADS_NUM : 0

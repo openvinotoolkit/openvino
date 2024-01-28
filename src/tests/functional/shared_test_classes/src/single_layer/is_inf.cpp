@@ -13,7 +13,7 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
     ElementType dataPrc;
     bool detectNegative, detectPositive;
     std::string targetName;
-    std::map<std::string, std::string> additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(inputShapes, detectNegative, detectPositive, dataPrc, targetName, additionalConfig) = obj.param;
     std::ostringstream result;
 
@@ -37,8 +37,7 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto &item : additionalConfig) {
-            if (item.second == InferenceEngine::PluginConfigParams::YES)
-                result << "_" << item.first << "=" << item.second;
+                result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
 
@@ -50,7 +49,7 @@ void IsInfLayerTest::SetUp() {
     ElementType dataPrc;
     bool detectNegative, detectPositive;
     std::string targetName;
-    std::map<std::string, std::string> additionalConfig;
+    ov:AnyMap additionalConfig;
     std::tie(shapes, detectNegative, detectPositive, dataPrc, targetDevice, additionalConfig) = this->GetParam();
 
     init_input_shapes(shapes);

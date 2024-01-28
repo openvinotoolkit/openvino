@@ -837,11 +837,6 @@ int main(int argc, char* argv[]) {
                 for (auto& item : devices_properties) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        if (item2.first == ov::supported_properties || item2.first == "SUPPORTED_CONFIG_KEYS)" ||
-                            item2.first == "SUPPORTED_METRICS")
-                            continue;
-                        OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
                     }
                 }

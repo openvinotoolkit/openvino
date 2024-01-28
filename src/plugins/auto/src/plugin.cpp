@@ -96,30 +96,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::AnyMap Plugin::pre_process_config(const ov::AnyMap& orig_config) const {
-    ov::AnyMap properties = orig_config;
-    for (auto& property : properties) {
-        // for model_priority, the values need to be converted
-        if (property.first == ov::hint::model_priority.name()) {
-            ov::Any converted_val{nullptr};
-            auto legacy_val = property.second.as<std::string>();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
-                converted_val = ov::hint::Priority::HIGH;
-            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
-                converted_val = ov::hint::Priority::MEDIUM;
-            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
-                converted_val = ov::hint::Priority::LOW;
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            } else {
-                converted_val = legacy_val;
-            }
-            property.second = std::move(converted_val);
-        }
-    }
-    return properties;
-}
-
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
                                                           const ov::AnyMap& properties) const {
     std::vector<DeviceInformation> meta_devices;
@@ -308,13 +284,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        return m_plugin_config.supported_ro_properties(get_device_name());
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return m_plugin_config.supported_rw_properties(get_device_name());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if (ov::supported_properties == name) {
+    if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
     } else if (name == ov::internal::supported_properties.name()) {
@@ -337,32 +307,12 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return capabilities;
     }
     auto val = m_plugin_config.get_property(name);
-    if (!is_new_api()) {
-        if (name == ov::hint::model_priority.name()) { // need to convert priority values to old API
-            ov::Any legacy_val{nullptr};
-            if (!val.empty()) {
-            switch (val.as<ov::hint::Priority>()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
-                case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
-                case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            default: OPENVINO_ASSERT(false, "Unsupported model priority value");
-            }
-        }
-        return legacy_val;
-        } else {
-            return val;
-        }
-    } else {
-        return val;
-    }
     return val;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    m_plugin_config.set_property(pre_process_config(properties));
+    m_plugin_config.set_property(properties);
 }
 
 // ! [plugin:create_plugin_engine]
@@ -410,7 +360,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
-    load_config.set_user_property(pre_process_config(properties));
+    load_config.set_user_property(properties);
     load_config.apply_user_properties();
     if (!work_mode_auto) {
         if (iter_config != properties.end() && iter_config->second.as<std::string>() != "THROUGHPUT") {

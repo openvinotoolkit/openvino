@@ -106,10 +106,10 @@ public:
 
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("EXECUTION_DEVICES"))).WillByDefault(Return("CPU"));
 
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
+        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_PROPERTIES")))
             .WillByDefault(Return("CPU"));
 
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
+        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_PROPERTIES")))
             .WillByDefault([](const std::string& name) {
                 std::vector<std::string> res_config;
                 res_config.emplace_back(ov::cache_dir.name());

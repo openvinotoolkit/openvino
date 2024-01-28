@@ -61,8 +61,7 @@ public:
 // tested function: SetConfig
 TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
-    std::map<std::string, std::string> localConfig = {
-        {ov::enable_profiling.name(), "YES"}};
+    std::map<std::string, std::string> localConfig = {{ov::enable_profiling.name(), "YES"}};
 
     runParallel(
         [&]() {

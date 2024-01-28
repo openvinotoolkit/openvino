@@ -211,7 +211,7 @@ for that property.
     indent = len(max(supported_properties, key=len))
 
     for property_key in supported_properties:
-        if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
+        if property_key not in ('SUPPORTED_PROPERTIES'):
             try:
                 property_val = core.get_property(device, property_key)
             except TypeError:

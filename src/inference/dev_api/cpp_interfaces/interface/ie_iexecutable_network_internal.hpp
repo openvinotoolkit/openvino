@@ -138,7 +138,7 @@ public:
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
-     * @param name A config key, can be found in ie_plugin_config.hpp
+     * @param name A config key, can be found in properties.hpp
      * @return A value of config corresponding to config key
      */
     virtual Parameter GetConfig(const std::string& name) const;

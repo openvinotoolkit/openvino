@@ -19,7 +19,6 @@
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "file_utils.h"
@@ -41,7 +40,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 
-using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
 using namespace std::placeholders;
 
@@ -298,8 +296,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     if (name == ov::force_tbb_terminate.name()) {
-        const auto flag = ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
-        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+        return ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
     }
 
     try {
