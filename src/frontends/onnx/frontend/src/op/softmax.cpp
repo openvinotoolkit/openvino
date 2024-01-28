@@ -14,7 +14,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data, const int64_t axis) {
+std::shared_ptr<ngraph::Node> onnx_softmax(const ov::Output<ngraph::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
@@ -25,7 +25,7 @@ std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data, cons
 
 namespace op {
 namespace set_1 {
-OutputVector softmax(const Node& node) {
+ov::OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
@@ -48,7 +48,7 @@ OutputVector softmax(const Node& node) {
 }
 }  // namespace set_1
 namespace set_11 {
-OutputVector softmax(const Node& node) {
+ov::OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
@@ -71,7 +71,7 @@ OutputVector softmax(const Node& node) {
 }
 }  // namespace set_11
 namespace set_13 {
-OutputVector softmax(const Node& node) {
+ov::OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
