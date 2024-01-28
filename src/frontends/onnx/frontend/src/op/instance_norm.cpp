@@ -20,17 +20,17 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector instance_norm(const Node& node) {
-    Output<ov::Node> data(node.get_ng_inputs().at(0));
-    Output<ov::Node> scale(node.get_ng_inputs().at(1));
-    Output<ov::Node> bias(node.get_ng_inputs().at(2));
-    const PartialShape& data_pshape = data.get_partial_shape();
-    const PartialShape& scale_pshape = scale.get_partial_shape();
-    const PartialShape& bias_pshape = bias.get_partial_shape();
+    ov::Output<ov::Node> data(node.get_ng_inputs().at(0));
+    ov::Output<ov::Node> scale(node.get_ng_inputs().at(1));
+    ov::Output<ov::Node> bias(node.get_ng_inputs().at(2));
+    const ov::PartialShape& data_pshape = data.get_partial_shape();
+    const ov::PartialShape& scale_pshape = scale.get_partial_shape();
+    const ov::PartialShape& bias_pshape = bias.get_partial_shape();
     const float epsilon{node.get_attribute_value<float>("epsilon", 1e-5f)};
 
-    element::Type result_et;
+    ov::element::Type result_et;
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), scale.get_element_type()),
                      "Element types for data and scale input do not match (data element type: ",
                      data.get_element_type(),
                      ", scale element type: ",
@@ -38,7 +38,7 @@ OutputVector instance_norm(const Node& node) {
                      ").");
 
     CHECK_VALID_NODE(node,
-                     element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
+                     ov::element::Type::merge(result_et, data.get_element_type(), bias.get_element_type()),
                      "Element types for data and bias input do not match (data element type: ",
                      data.get_element_type(),
                      ", bias element type: ",

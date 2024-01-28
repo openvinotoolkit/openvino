@@ -56,7 +56,7 @@ OutputVector loop(const Node& node) {
     }
 
     // optional inputs
-    Output<ov::Node> trip_count;
+    ov::Output<ov::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ov::op::util::is_null(ng_inputs.at(0)) ||
         (ov::op::util::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
@@ -68,7 +68,7 @@ OutputVector loop(const Node& node) {
         trip_count = ng_inputs.at(0);
     }
 
-    Output<ov::Node> termination_cond;                                 // true means that first interation should be run
+    ov::Output<ov::Node> termination_cond;                             // true means that first interation should be run
     if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
         termination_cond = v0::Constant::create(ov::element::boolean, {1}, {true});
@@ -120,7 +120,7 @@ OutputVector loop(const Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
+    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
     body_params.emplace(body_params.begin(),
                         body_inputs[0]);  // current iteration body input
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
