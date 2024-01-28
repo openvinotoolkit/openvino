@@ -73,6 +73,29 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     new_dep.first->users.push_back(this);
 }
 
+std::vector<layout> const program_node::get_input_layouts() const {
+    std::vector<layout> layouts;
+    for (size_t i = 0; i < dependencies.size(); i++) {
+        layouts.push_back(get_input_layout(i));
+    }
+    return layouts;
+}
+
+layout program_node::get_input_layout(size_t idx) const {
+    const auto& d = get_dependency_with_port(idx);
+    return d.first->get_output_layout(true, d.second);
+}
+
+ov::PartialShape program_node::get_input_pshape(size_t idx) const {
+    return get_input_layout(idx).get_partial_shape();
+}
+
+ov::PartialShape program_node::get_output_pshape(size_t idx) const {
+    if (!is_valid_output_layout(idx))
+        return calc_output_layouts()[idx].get_partial_shape();
+    return get_output_layout(idx).get_partial_shape();
+}
+
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
@@ -248,15 +271,22 @@ size_t program_node::get_user_index(const program_node& node) const {
             idx++;
     }
 
-    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid user node" + node.id() + " node");
 }
 
+int32_t program_node::get_dependency_output_port(const program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i].first == &node)
+            return dependencies[i].second;
+
+    OPENVINO_THROW("[GPU] Search invalid dependency output port" + node.id() + " node");
+}
 size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
 
-    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {

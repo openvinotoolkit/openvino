@@ -42,6 +42,11 @@ public:
     // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
+                                                          int32_t src_port,
+                                                          const layout& in_layout,
+                                                          const layout& out_layout);
+
+    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 

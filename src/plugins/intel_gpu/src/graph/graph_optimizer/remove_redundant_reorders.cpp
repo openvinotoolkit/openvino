@@ -157,7 +157,7 @@ void remove_redundant_reorders::run(program& p) {
         // fp32 -> reorder -> u8 -> reorder -> fp32
         // we can't fuse two reorder primitives as first one must do cast to u8 data type which changes the values
         if (!data_type_traits::is_floating_point(r_dep_node.get_output_layout().data_type) &&
-            data_type_traits::is_floating_point(r_dep_node.input().get_output_layout().data_type)) {
+            data_type_traits::is_floating_point(r_dep_node.get_input_layout().data_type)) {
             continue;
         }
 
@@ -470,7 +470,7 @@ void remove_redundant_reorders::run(program& p) {
         if (!quantize_opt && !convert_color_opt)
             continue;
 
-        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
+        auto same_data_type = node.get_input_layout().data_type == node.get_output_layout().data_type;
         if (!same_data_type && !convert_color_opt)
             continue;
 
