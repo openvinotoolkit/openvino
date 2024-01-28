@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector erf(const Node& node) {
+inline ov::OutputVector erf(const Node& node) {
     return {std::make_shared<ov::op::v0::Erf>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1

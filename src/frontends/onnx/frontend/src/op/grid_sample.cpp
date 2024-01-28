@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector grid_sample(const Node& node) {
+ov::OutputVector grid_sample(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto grid = node.get_ng_inputs().at(1);
 

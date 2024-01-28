@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector thresholded_relu(const Node& node);
+ov::OutputVector thresholded_relu(const Node& node);
 
 }  // namespace set_1
 

@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector tile(const Node& node) {
+ov::OutputVector tile(const Node& node) {
     auto input = node.get_ng_inputs().at(0);
     auto repeats = node.get_ng_inputs().at(1);
 

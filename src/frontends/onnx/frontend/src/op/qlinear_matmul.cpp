@@ -17,8 +17,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector qlinear_matmul(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector qlinear_matmul(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     const auto& a = inputs.at(0);
     const auto& a_scale = reshape::interpret_as_scalar(inputs.at(1));

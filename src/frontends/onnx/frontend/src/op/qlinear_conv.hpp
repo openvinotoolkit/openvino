@@ -22,7 +22,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX quantizied
 ///         convolution operation.
-OutputVector qlinear_conv(const Node& node);
+ov::OutputVector qlinear_conv(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

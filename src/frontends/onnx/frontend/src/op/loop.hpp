@@ -22,7 +22,7 @@ namespace set_1 {
 ///
 /// \return     Vector of nodes containting resulting OV nodes.
 ///
-OutputVector loop(const Node& node);
+ov::OutputVector loop(const Node& node);
 }  // namespace set_1
 
 }  // namespace op

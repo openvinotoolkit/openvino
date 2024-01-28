@@ -20,7 +20,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ov::Node> get_filter_zero_point(const OutputVector& inputs) {
+std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) {
     const auto& original_zero_point =
         (inputs.size() > 3) ? inputs.at(3) : v0::Constant::create(ov::element::i32, {}, {0});
 
@@ -45,8 +45,8 @@ std::shared_ptr<ov::Node> get_filter_zero_point(const OutputVector& inputs) {
 namespace op {
 namespace set_1 {
 
-OutputVector conv_integer(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv_integer(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     const auto& input = inputs.at(0);
     const auto& filter = inputs.at(1);

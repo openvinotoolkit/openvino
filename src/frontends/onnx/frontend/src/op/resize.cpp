@@ -112,7 +112,7 @@ InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
 }  // namespace
 
 namespace set_11 {
-OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const onnx_import::Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
     const auto inputs = node.get_ng_inputs();
@@ -133,7 +133,7 @@ OutputVector resize(const onnx_import::Node& node) {
 }  // namespace set_11
 
 namespace set_1 {
-OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const onnx_import::Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs.at(0);
     const auto& scales = inputs.at(1);

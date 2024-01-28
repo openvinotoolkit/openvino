@@ -17,8 +17,8 @@ namespace onnx_import {
 namespace op {
 namespace set_17 {
 
-OutputVector stft(const Node& node) {
-    const OutputVector ng_inputs{node.get_ng_inputs()};
+ov::OutputVector stft(const Node& node) {
+    const ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto signal = ng_inputs.at(0);
     const auto dft_length_provided = ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);

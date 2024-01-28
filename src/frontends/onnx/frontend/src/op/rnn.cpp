@@ -29,7 +29,7 @@ struct RNNAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-OutputVector rnn(const Node& node) {
+ov::OutputVector rnn(const Node& node) {
     constexpr std::size_t gates_count = 1;
     RNNInputMap input_map{node, gates_count};
     RNNAttributes attributes{node};

@@ -15,7 +15,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector adaptive_avg_pooling2d(const Node& node) {
+ov::OutputVector adaptive_avg_pooling2d(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto num_inputs = inputs.size();
 

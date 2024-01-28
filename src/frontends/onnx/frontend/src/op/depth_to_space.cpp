@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector depth_to_space(const Node& node) {
+ov::OutputVector depth_to_space(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto& shape = data.get_partial_shape();
     FRONT_END_GENERAL_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
@@ -29,7 +29,7 @@ OutputVector depth_to_space(const Node& node) {
         FRONT_END_GENERAL_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
 
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
-    return OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
+    return ov::OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
 }
 }  // namespace set_1
 

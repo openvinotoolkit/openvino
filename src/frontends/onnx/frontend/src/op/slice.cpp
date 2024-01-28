@@ -16,10 +16,10 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_10 {
-OutputVector slice(const Node& node) {
+ov::OutputVector slice(const Node& node) {
     using ov::op::util::is_null;
 
-    OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ng_inputs()};
     const auto& data = inputs.at(0);
     const auto& starts = inputs.at(1);
     const auto& ends = inputs.at(2);
@@ -47,7 +47,7 @@ OutputVector slice(const Node& node) {
 }  // namespace set_10
 
 namespace set_1 {
-OutputVector slice(const Node& node) {
+ov::OutputVector slice(const Node& node) {
     ov::Output<ngraph::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");

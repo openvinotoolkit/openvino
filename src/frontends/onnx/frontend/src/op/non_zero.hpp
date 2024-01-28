@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX NonZero
 ///         operation.
-OutputVector non_zero(const Node& node);
+ov::OutputVector non_zero(const Node& node);
 
 }  // namespace set_1
 

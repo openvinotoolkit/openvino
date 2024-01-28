@@ -14,12 +14,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector squeeze(const Node& node);
+ov::OutputVector squeeze(const Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector squeeze(const Node& node);
+ov::OutputVector squeeze(const Node& node);
 
 }  // namespace set_13
 

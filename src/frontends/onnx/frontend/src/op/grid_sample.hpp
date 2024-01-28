@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector grid_sample(const Node& node);
+ov::OutputVector grid_sample(const Node& node);
 
 }  // namespace set_1
 

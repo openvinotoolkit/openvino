@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector experimental_detectron_prior_grid_generator(const Node& node);
+ov::OutputVector experimental_detectron_prior_grid_generator(const Node& node);
 
 }  // namespace set_1
 

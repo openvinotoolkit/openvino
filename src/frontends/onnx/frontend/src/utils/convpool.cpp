@@ -173,7 +173,7 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
 
     const auto first_dim = std::make_shared<v1::Divide>(splitted_shape->output(0), groups_node);
     const auto new_filters_shape =
-        std::make_shared<v0::Concat>(OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
+        std::make_shared<v0::Concat>(ov::OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
 
     const auto reshaped_filters = std::make_shared<v1::Reshape>(filters, new_filters_shape, false);
 

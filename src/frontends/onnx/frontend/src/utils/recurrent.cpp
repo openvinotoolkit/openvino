@@ -59,7 +59,7 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
         m_map[OpInput::B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
     } else {
         auto b_shape = std::make_shared<v0::Concat>(
-            OutputVector{
+            ov::OutputVector{
                 num_directions_node,
                 std::make_shared<v1::Multiply>(v0::Constant::create(ov::element::Type_t::i64, Shape{1}, {gates_count}),
                                                hidden_size_node)},
@@ -78,7 +78,7 @@ OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
         m_map[OpInput::INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
     } else {
         auto init_h_shape =
-            std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
+            std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
         m_map[OpInput::INIT_H] =
             std::make_shared<v3::Broadcast>(v0::Constant::create(m_map[OpInput::X].get_element_type(), Shape{}, {0}),
                                             init_h_shape);

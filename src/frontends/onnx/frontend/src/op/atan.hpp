@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector atan(const Node& node) {
+inline ov::OutputVector atan(const Node& node) {
     return {std::make_shared<ov::op::v0::Atan>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1

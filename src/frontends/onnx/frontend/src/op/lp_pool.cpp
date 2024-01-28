@@ -20,7 +20,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector global_lp_pool(const Node& node) {
+ov::OutputVector global_lp_pool(const Node& node) {
     const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const std::size_t channel_axis{1};
 
@@ -35,7 +35,7 @@ OutputVector global_lp_pool(const Node& node) {
 
     CHECK_VALID_NODE(node, p_norm >= 0, "Only positive (including zero) values are supported for 'p' attribute.");
 
-    OutputVector slices = ov::op::util::split(data, channels_count, channel_axis);
+    ov::OutputVector slices = ov::op::util::split(data, channels_count, channel_axis);
 
     for (auto& slice : slices) {
         // all dimensions except spatial/feature

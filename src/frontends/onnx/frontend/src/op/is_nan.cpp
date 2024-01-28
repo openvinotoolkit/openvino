@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector is_nan(const Node& node) {
+ov::OutputVector is_nan(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     return {std::make_shared<v10::IsNaN>(data)};
 }

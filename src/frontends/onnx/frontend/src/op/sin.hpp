@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector sin(const Node& node) {
+inline ov::OutputVector sin(const Node& node) {
     return {std::make_shared<default_opset::Sin>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1

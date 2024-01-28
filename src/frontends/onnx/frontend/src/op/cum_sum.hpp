@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector cum_sum(const Node& node);
+ov::OutputVector cum_sum(const Node& node);
 
 }  // namespace set_1
 

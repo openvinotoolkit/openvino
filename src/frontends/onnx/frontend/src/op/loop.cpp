@@ -39,10 +39,10 @@ bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Nod
 }
 }  // namespace
 
-OutputVector loop(const Node& node) {
+ov::OutputVector loop(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
 
-    const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
+    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
@@ -75,7 +75,7 @@ OutputVector loop(const Node& node) {
     } else if (ov::op::util::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                ov::as_type_ptr<v0::Constant>(ng_inputs.at(1).get_node_shared_ptr())->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
-        OutputVector node_outputs;
+        ov::OutputVector node_outputs;
         // final values
         for (const auto& dep : loop_carried_dependencies) {
             node_outputs.push_back(dep);
@@ -136,7 +136,7 @@ OutputVector loop(const Node& node) {
     auto body_outputs_it = std::next(body_outputs.begin(), 1);
 
     // Set-up loop carried dependencies and final output values
-    OutputVector final_values;
+    ov::OutputVector final_values;
     for (const auto& dep : loop_carried_dependencies) {
         loop->set_merged_input(*body_inputs_it++, dep, *body_outputs_it);
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
@@ -157,14 +157,14 @@ OutputVector loop(const Node& node) {
     }
 
     // Set-up scan outputs
-    OutputVector scan_outputs;
+    ov::OutputVector scan_outputs;
     for (; body_outputs_it != body_outputs.end(); body_outputs_it++) {
         // start=0, stride=1, part_size=1, end=-1, axis=0
         scan_outputs.push_back(loop->get_concatenated_slices(*body_outputs_it, 0, 1, 1, -1, concat_axis));
     }
     loop->validate_and_infer_types();
 
-    OutputVector node_outputs;
+    ov::OutputVector node_outputs;
     for (const auto& v : final_values) {
         node_outputs.push_back(v);
     }

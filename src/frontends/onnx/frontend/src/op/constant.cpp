@@ -107,7 +107,7 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const Sh
 }  // namespace
 
 namespace set_1 {
-OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const onnx_import::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
@@ -115,7 +115,7 @@ OutputVector constant(const onnx_import::Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const onnx_import::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
                             "The Constant op expects exactly one attribute."

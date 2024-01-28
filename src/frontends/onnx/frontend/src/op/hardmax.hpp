@@ -13,11 +13,11 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector hardmax(const Node& node);
+ov::OutputVector hardmax(const Node& node);
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector hardmax(const Node& node);
+ov::OutputVector hardmax(const Node& node);
 }  // namespace set_13
 }  // namespace op
 

@@ -13,11 +13,11 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector elu(const Node& node) {
+ov::OutputVector elu(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1);
 
-    return OutputVector{std::make_shared<v0::Elu>(data, alpha)};
+    return ov::OutputVector{std::make_shared<v0::Elu>(data, alpha)};
 }
 
 }  // namespace set_1

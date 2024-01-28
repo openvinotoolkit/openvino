@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector generate_proposals(const Node& node);
+ov::OutputVector generate_proposals(const Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

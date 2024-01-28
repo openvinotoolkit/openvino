@@ -15,8 +15,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector reshape(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
+ov::OutputVector reshape(const Node& node) {
+    ov::OutputVector ng_inputs{node.get_ng_inputs()};
     const auto data = ng_inputs.at(0);
 
     ov::Output<ov::Node> pattern;
