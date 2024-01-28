@@ -35,9 +35,8 @@ using namespace std;
 using namespace InferenceEngine;
 using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
-using ngraph::Function;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
+void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
@@ -109,22 +108,22 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
-ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
+ov::element::Type details::toLegacyType(const ov::element::Type& ngraph_type, bool input) {
     if (input) {
-        return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
+        return ngraph_type == ov::element::f16 ? ov::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
-            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
-            return ngraph::element::i32;
-        } else if (ngraph_type != ngraph::element::f32) {
-            return ngraph::element::f32;
+        if (ngraph_type == ov::element::i64 || ngraph_type == ov::element::u64 || ngraph_type == ov::element::i32 ||
+            ngraph_type == ov::element::u32) {
+            return ov::element::i32;
+        } else if (ngraph_type != ov::element::f32) {
+            return ov::element::f32;
         }
     }
 
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<ov::Model>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
       _new_api(newAPI) {
     {
@@ -297,7 +296,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
+void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ngraph::Node>& output) {
     auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
@@ -339,7 +338,7 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     try {
         if (inputShapes.empty())
@@ -364,7 +363,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
             return OK;
 
         // save original parameters shape
-        std::map<std::string, ngraph::PartialShape> originalInputShapes;
+        std::map<std::string, ov::PartialShape> originalInputShapes;
         for (const auto& param : params) {
             originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
         }
@@ -397,9 +396,9 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, ov::PartialShape> shapes;
     for (const auto& shape : inputShapes)
-        shapes[shape.first] = ngraph::PartialShape(shape.second);
+        shapes[shape.first] = ov::PartialShape(shape.second);
     return reshape(shapes, responseDesc);
 }
 
@@ -456,7 +455,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
 }  // namespace
 #endif
 
-void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
+void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();

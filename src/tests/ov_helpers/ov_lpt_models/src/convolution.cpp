@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
@@ -20,7 +19,7 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -28,10 +27,10 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
     const ov::element::Type netPrecision,
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
     std::shared_ptr<ov::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const bool transposeOnData,
     const bool transposeOnInputLow,
     const bool transposeOnInputHigh,
@@ -112,10 +111,11 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
         ov::CoordinateDiff{ 0, 0 },
         ov::CoordinateDiff{ 0, 0 },
         ov::Strides{ 1, 1 });
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
     convolution->set_friendly_name("output");
     auto& rtInfo = convolution->get_rt_info();
     rtInfo["Variant::std::string"] = "convolution";
@@ -127,8 +127,8 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
 std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
     const ov::Shape& inputShape,
     ov::element::Type precision,
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-    ngraph::builder::subgraph::DequantizationOperations dequantization,
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    ov::builder::subgraph::DequantizationOperations dequantization,
     bool isCorrect) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     const auto deq = makeDequantization(input, dequantization);
@@ -165,8 +165,8 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
 std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
     const ov::PartialShape& inputShape,
     ov::element::Type precision,
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
     bool isCorrect) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fqOnData = fakeQuantizeOnData.empty() ?
@@ -207,10 +207,10 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
 std::shared_ptr<ov::Model> ConvolutionFunction::getReferenceWithIncorrectWeights(
     const ov::Shape& inputShape,
     ov::element::Type inputPrecision,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore,
     ov::element::Type weightsPrecision,
     std::vector<float> weightsValues,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -230,18 +230,19 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReferenceWithIncorrectWeights
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
-    auto convolutionOriginal = ov::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
 
@@ -253,11 +254,11 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
     const ov::element::Type netPrecision,
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ov::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ov::element::Type precisionAfterDequantization) {
     auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     auto dequantizationBeforeStructure = dequantizationBefore;
@@ -306,10 +307,11 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
         ov::CoordinateDiff{ 0, 0 },
         ov::Strides{ 1, 1 });
 
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
 
     if (!dequantizationAfter.empty()) {
         ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution,
@@ -330,9 +332,9 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
 std::shared_ptr<ov::Model> ConvolutionFunction::get(
     const ov::Shape& inputShape,
     const ov::element::Type precision,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+    const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& weightsValues,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
     const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     input->set_friendly_name("input");
@@ -369,18 +371,19 @@ std::shared_ptr<ov::Model> ConvolutionFunction::get(
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    auto convolutionOriginal = ov::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(parentOnData, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    const std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    const std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     convolution->set_friendly_name("convolution");
 
     for (const auto& r : restrictions) {
@@ -396,4 +399,4 @@ std::shared_ptr<ov::Model> ConvolutionFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

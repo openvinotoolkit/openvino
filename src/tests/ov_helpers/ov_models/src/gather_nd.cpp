@@ -15,7 +15,7 @@ namespace builder {
 
 std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
                                    const ov::Shape& indicesShape,
-                                   const element::Type& indicesType,
+                                   const ov::element::Type& indicesType,
                                    const std::size_t batchDims) {
     const auto indices = [&] {
         const auto& dataShape = dataNode.get_shape();
@@ -26,7 +26,7 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
         const auto maxDim = *std::max_element(begin(dataShape), end(dataShape));
 
         auto indicesValues =
-            NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
+            NGraphFunctions::Utils::generateVector<ov::element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
         auto indicesData = indicesValues.data();
         for (int i = 0; i < indicesCount; i++) {
             for (int dim = 0; dim < sliceRank; dim++) {
@@ -45,7 +45,7 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
 
 std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
                                     const ov::Shape& indicesShape,
-                                    const element::Type& indicesType,
+                                    const ov::element::Type& indicesType,
                                     const std::size_t batchDims) {
     const auto indices = [&] {
         const auto& dataShape = dataNode.get_shape();
@@ -56,7 +56,7 @@ std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
         const auto maxDim = *std::max_element(begin(dataShape), end(dataShape));
 
         auto indicesValues =
-            NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
+            NGraphFunctions::Utils::generateVector<ov::element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
         auto indicesData = indicesValues.data();
         for (int i = 0; i < indicesCount; i++) {
             for (int dim = 0; dim < sliceRank; dim++) {

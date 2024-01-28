@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "openvino/core/graph_util.hpp"
 
@@ -124,7 +123,7 @@ bool is_post_dominated(Node* X, Node* Y);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant);
+bool is_equal_to_const_value(const std::string& const_value, const ov::Output<Node>& reduce_constant);
 
 // input nodes are cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
@@ -156,15 +155,17 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_zero(const element::Type& element_type, const Shape& shape);
+std::shared_ptr<Node> make_zero(const ov::element::Type& element_type, const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_constant_from_string(std::string val, const element::Type& element_type, const Shape& shape);
+std::shared_ptr<Node> make_constant_from_string(std::string val,
+                                                const ov::element::Type& element_type,
+                                                const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_zero(const Output<Node>& reduce_constant);
+bool is_zero(const ov::Output<Node>& reduce_constant);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -182,7 +183,7 @@ NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_one(const Output<Node>& reduce_constant);
+bool is_one(const ov::Output<Node>& reduce_constant);
 
 // Returns true if `node` is live in the graph i.e. a result op
 // transitively uses this `node`
@@ -205,7 +206,7 @@ bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-void plot_graph(std::shared_ptr<Function> f,
+void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
                 std::function<void(const Node& node, std::vector<std::string>& attributes)> = nullptr);
 
@@ -213,19 +214,19 @@ void plot_graph(std::shared_ptr<Function> f,
 ///         of `src`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<Input<Node>> get_inputs_from(Node& src, Node& dst);
+std::vector<ov::Input<Node>> get_inputs_from(Node& src, Node& dst);
 /// \return A vector containing a handle for each output of src that is connected to an input
 ///         of `dst`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<Output<Node>> get_outputs_to(Node& src, Node& dst);
+std::vector<ov::Output<Node>> get_outputs_to(Node& src, Node& dst);
 
 /// Checks the func for graph cycles starting from results going backwards, then from parameters
 /// going forward.
 /// It returns true if a cycle is found and the first cycle encountered.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
+bool check_for_cycles(const ov::Model* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
 }  // namespace ngraph
 
 using ngraph::replace_node;

@@ -28,14 +28,14 @@ public:
     class Actual {
     public:
         std::vector<float> constantValue;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         std::vector<float> constantValue;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -64,7 +64,7 @@ public:
         const auto params = TestTransformationParams(testValues.params)
             .setDefaultPrecisions(defaultPrecisions);
 
-        actualFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::AssignAndReadValueFunction::getOriginal(
             inputShape,
             precision,
             precisionBeforeDequantization,
@@ -77,7 +77,7 @@ public:
         transformer.add<ov::pass::low_precision::AssignAndReadValueTransformation, ov::op::v6::Assign>(actualFunction, params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getReference(
+        referenceFunction = ov::builder::subgraph::AssignAndReadValueFunction::getReference(
                 inputShape,
                 precision,
                 precisionBeforeDequantization,

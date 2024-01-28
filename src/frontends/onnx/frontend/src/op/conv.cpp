@@ -23,14 +23,17 @@ namespace op {
 namespace set_1 {
 namespace detail {
 
-std::shared_ptr<ov::Node> add_bias(const Output<ov::Node>& ng_conv, const Output<ov::Node>& bias) {
+std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov::Output<ov::Node>& bias) {
     const auto conv_shape = std::make_shared<v3::ShapeOf>(ng_conv);
     const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
     return {std::make_shared<v1::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-OutputVector conv(const Node& node, Output<ov::Node> data, Output<ov::Node> filters, Output<ov::Node> bias) {
+OutputVector conv(const Node& node,
+                  ov::Output<ov::Node> data,
+                  ov::Output<ov::Node> filters,
+                  ov::Output<ov::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
