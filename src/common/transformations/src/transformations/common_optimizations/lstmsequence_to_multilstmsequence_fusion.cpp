@@ -29,7 +29,6 @@ bool is_equal_cells(const std::shared_ptr<ov::op::v5::LSTMSequence>& lstm_1,
 std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry& cp_from,
                                                           ov::pass::NodeRegistry& cp_to,
                                                           const std::shared_ptr<ov::op::v5::LSTMSequence>& current_lstm,
-                                                          ov::OutputVector& x_to_concat,
                                                           ov::OutputVector& weights_to_concat,
                                                           ov::OutputVector& recurrence_weights_to_concat,
                                                           ov::OutputVector& biases_to_concat,
@@ -57,13 +56,10 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
         if (!prev_lstm_ptr) {
             break;
         }
-
-        auto in_X = current->input(0);
-        x_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(in_X.get_source_output(), axis_1));
         h_outputs_to_redirect[lstm_count] = current->output(0);
-        weights_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(current->input_value(4), axis_1));
-        recurrence_weights_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(current->input_value(5), axis_1));
-        biases_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(current->input_value(6), axis_1));
+        weights_to_concat.push_back(cp_to.add(current->input_value(4).get_node_shared_ptr()));
+        recurrence_weights_to_concat.push_back(cp_to.add(current->input_value(5).get_node_shared_ptr()));
+        biases_to_concat.push_back(cp_to.add(current->input_value(6).get_node_shared_ptr()));
 
         if (prev_lstm_ptr && is_equal_cells(prev_lstm_ptr, current)) {
             current = prev_lstm_ptr;
@@ -72,7 +68,6 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
             break;
         }
     }
-    reverse(x_to_concat.begin(), x_to_concat.end());
     reverse(weights_to_concat.begin(), weights_to_concat.end());
     reverse(recurrence_weights_to_concat.begin(), recurrence_weights_to_concat.end());
     reverse(biases_to_concat.begin(), biases_to_concat.end());
@@ -83,7 +78,6 @@ std::shared_ptr<ov::op::v5::LSTMSequence> find_lstm_chain(ov::pass::NodeRegistry
 bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      const std::shared_ptr<ov::op::v5::LSTMSequence>& first_cell,
                      const std::shared_ptr<ov::op::v5::LSTMSequence>& last_cell,
-                     const ov::OutputVector& x_to_concat,
                      const ov::OutputVector& weights_to_concat,
                      const ov::OutputVector& recurrence_weights_to_concat,
                      const ov::OutputVector& biases_to_concat,
@@ -91,8 +85,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      int lstm_count,
                      const std::shared_ptr<ov::Node>& axis_0,
                      const std::shared_ptr<ov::Node>& axis_1) {
-    const auto X_in = cp_to.make<ov::op::v0::Concat>(x_to_concat, 1);
-    const auto X_in_squeezed = cp_to.make<ov::op::v0::Squeeze>(X_in->output(0), axis_0);
+    const auto X_in = cp_to.add(first_cell->input_value(0).get_node_shared_ptr());
     const auto Ht_in = cp_to.add(last_cell->input_value(1).get_node_shared_ptr());
     const auto Ct_in = cp_to.add(last_cell->input_value(2).get_node_shared_ptr());
     const auto seq_len = cp_to.add(last_cell->input_value(3).get_node_shared_ptr());
@@ -105,7 +98,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     const auto& batch_dimension = cp_to.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape_node, zero, axis_0));
     std::shared_ptr<ov::Node> multi_lstm;
     if (std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(first_cell)) {
-        multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in_squeezed,
+        multi_lstm = cp_to.make<ov::op::v13::MultiLSTMSequence>(X_in,
                                                                 Ht_in,
                                                                 Ct_in,
                                                                 seq_len,
@@ -123,17 +116,15 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     }
     if (!h_outputs_to_redirect.empty()) {
         auto squeeze_Y = cp_to.make<ov::op::v0::Squeeze>(multi_lstm->output(0), axis_1);
-        auto split = cp_to.make<ov::op::v1::Split>(squeeze_Y, axis_1, lstm_count);
+        auto split = cp_to.make<ov::op::v1::Split>(squeeze_Y->output(0), axis_1, lstm_count);
 
         for (auto it : h_outputs_to_redirect) {
             auto Hi = split->output(lstm_count - it.first);
             auto friendly_name = it.second.get_node_shared_ptr()->get_friendly_name();
             if (it.first == 1) {
-                Hi = multi_lstm->output(1);
+                Hi = multi_lstm->output(0);
             }
-            //auto squeeze = cp_to.make<ov::op::v0::Squeeze>(Hi, axis_1);
             it.second.replace(Hi);
-            //squeeze->set_friendly_name(friendly_name);
         }
     }
 
@@ -166,7 +157,6 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         }
 
         int lstm_count;
-        ov::OutputVector x_to_concat;
         ov::OutputVector weights_to_concat;
         ov::OutputVector recurrence_weights_to_concat;
         ov::OutputVector biases_to_concat;
@@ -174,11 +164,10 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         auto axis_0 = copy_to.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 0);
         auto axis_1 = copy_to.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 1);
 
-        // detect LSTMSequence chain (LSTM->Squeeze->LSTM->Squeeze->..)
+        // detect LSTMSequence chain (LSTM->Squeeze->LSTM->Squeeze->...)
         auto first_cell = find_lstm_chain(copy_from,
                                           copy_to,
                                           current_lstm,
-                                          x_to_concat,
                                           weights_to_concat,
                                           recurrence_weights_to_concat,
                                           biases_to_concat,
@@ -196,7 +185,6 @@ ov::pass::LSTMSequenceToMultiLSTMSequenceFusion::LSTMSequenceToMultiLSTMSequence
         auto res = create_sequence(copy_to,
                                    first_cell,
                                    current_lstm,
-                                   x_to_concat,
                                    weights_to_concat,
                                    recurrence_weights_to_concat,
                                    biases_to_concat,

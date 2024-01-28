@@ -149,7 +149,7 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
     expected_in_ranks.insert(expected_in_ranks.end(), 1 + num_state_nodes, Rank(3));
     expected_in_ranks.insert(expected_in_ranks.end(), {1, 3, 3, 2});
 
-    //rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
+    // rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
 
     const auto& x_pshape = input_shapes[0];
     const auto& ht_pshape = input_shapes[1];
@@ -182,7 +182,7 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
     }
 
     if (r_pshape.rank().is_static()) {
-        //NODE_VALIDATION_CHECK(op,
+        // NODE_VALIDATION_CHECK(op,
         //                      DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
         //                      "Dimension `hidden_size` is not matched between inputs.");
     }
@@ -220,7 +220,7 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
         if (w_pshape.rank().is_static()) {
-            //NODE_VALIDATION_CHECK(op,
+            // NODE_VALIDATION_CHECK(op,
             //                      w_pshape[1].compatible(merged_hidden_size * num_gates),
             //                      "Second dimension of W input shape is required to be compatible with ",
             //                      merged_hidden_size * num_gates,
@@ -230,7 +230,7 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
         }
 
         if (r_pshape.rank().is_static()) {
-            //NODE_VALIDATION_CHECK(op,
+            // NODE_VALIDATION_CHECK(op,
             //                      r_pshape[1].compatible(merged_hidden_size * num_gates),
             //                      "Second dimension of R input shape is required to be compatible with ",
             //                      merged_hidden_size * num_gates,
@@ -240,8 +240,8 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
         }
 
         if (b_pshape.rank().is_static()) {
-            const auto bias_dim_multiplier = linear_before_reset ? (num_gates + 1) : num_gates;
-            //NODE_VALIDATION_CHECK(op,
+            // const auto bias_dim_multiplier = linear_before_reset ? (num_gates + 1) : num_gates;
+            // NODE_VALIDATION_CHECK(op,
             //                      b_pshape[1].compatible(merged_hidden_size * bias_dim_multiplier),
             //                      "Second dimension of B input shape is required to be compatible with ",
             //                      merged_hidden_size * bias_dim_multiplier,
@@ -253,7 +253,7 @@ std::vector<TRShape> seq_base_shape_infer(const TBase* op,
         const size_t w_idx = 2 + num_state_nodes;
         for (size_t i = w_idx; i < w_idx + 2; ++i) {
             if (input_shapes[i].rank().is_static() && input_shapes[i][0].is_static()) {
-                //NODE_VALIDATION_CHECK(
+                // NODE_VALIDATION_CHECK(
                 //    op,
                 //    DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1] / num_gates),
                 //    "Dimension `hidden_size` is not matched between inputs.");

@@ -105,7 +105,6 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         ParameterVector params = {X, H, C, W, R, B, X_2, H_2, C_2, W_2, R_2, B_2};
         model = std::make_shared<Model>(NodeVector{abs}, params);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        manager.register_pass<ov::pass::VisualizeTree>(std::string("/home/pwysocki/") + "multi.svg");
     }
 
     {
@@ -128,6 +127,16 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
         auto unR = std::make_shared<op::v0::Unsqueeze>(R, axis_0);
         auto unB = std::make_shared<op::v0::Unsqueeze>(B, axis_0);
 
+        NodeVector unW_to_concat;
+        NodeVector unR_to_concat;
+        NodeVector unB_to_concat;
+        unW_to_concat.push_back(unW);
+        unR_to_concat.push_back(unR);
+        unB_to_concat.push_back(unB);
+        auto unW_concat = std::make_shared<op::v0::Concat>(unW_to_concat, 1);
+        auto unR_concat = std::make_shared<op::v0::Concat>(unR_to_concat, 1);
+        auto unB_concat = std::make_shared<op::v0::Concat>(unB_to_concat, 1);
+
         OutputVector in_X;
         OutputVector in_A;
         for (size_t i = 0; i < cells_cnt; ++i) {
@@ -142,23 +151,20 @@ TEST_P(LSTMSequenceFusionTestSuite, SubgraphFusedToMultiLSTMSequence) {
                                                          unH,
                                                          unC,
                                                          seq_len,
-                                                         unW,
-                                                         unR,
-                                                         unB,
+                                                         unW_concat,
+                                                         unR_concat,
+                                                         unB_concat,
                                                          sequences_count,
                                                          hidden_size,
                                                          op::RecurrentSequenceDirection::FORWARD);
-        auto abs = std::make_shared<op::v0::Abs>(multi_lstm_sequence->output(0));
-        //std::cout << "THREE\n";
+        auto multi_squeezed = std::make_shared<op::v0::Squeeze>(multi_lstm_sequence->output(0), axis_1);
+        auto abs = std::make_shared<op::v0::Abs>(multi_squeezed->output(0));
         model_ref = std::make_shared<Model>(NodeVector{abs}, ParameterVector{X, H, C, W, R, B, A});
-        pass::VisualizeTree(std::string("/home/pwysocki/") + "model_ref.svg").run_on_model(model_ref);
         manager.register_pass<ov::pass::LSTMSequenceToMultiLSTMSequenceFusion>();
-        //std::cout << "FOUR\n";
     }
 
-    //comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    //comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    //comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 INSTANTIATE_TEST_SUITE_P(LSTMSequenceToMultiLSTMSequenceFusion,
