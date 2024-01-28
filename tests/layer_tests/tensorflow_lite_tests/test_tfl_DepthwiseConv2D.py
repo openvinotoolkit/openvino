@@ -1,16 +1,16 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random	
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'shape': [1, 22, 22, 8], 'ksize': [3, 3, 8, 2], 'strides': [1, 2, 2, 1], 'padding': 'SAME',
-     'dilations': [1, 1]},
-    {'shape': [1, 22, 22, 9], 'ksize': [3, 3, 9, 1], 'strides': [1, 1, 1, 1], 'padding': 'SAME',
-     'dilations': [1, 1]},
+    {'shape': [random.randint(1, 30) for _ in range(4)], 'ksize': [random.randint(1, 10) for _ in range(4)], 'strides': [random.randint(1, 10) for _ in range(4)], 'padding': random.choice(['SAME',0]),
+     'dilations': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 24) for _ in range(4)], 'ksize': [random.randint(1, 10) for _ in range(4)], 'strides': [random.randint(1, 10) for _ in range(4)], 'padding': random.choice(['SAME',0]),
+     'dilations': [random.randint(1, 10) for _ in range(2)]},
 ]
 
 

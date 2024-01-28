@@ -1,6 +1,6 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
@@ -10,10 +10,10 @@ test_ops = [
 ]
 
 test_params = [
-    {'shape': [1, 22, 22, 8], 'ksize': [3, 3], 'strides': 2, 'padding': 'SAME'},
-    {'shape': [1, 22, 22, 8], 'ksize': [3, 3], 'strides': (2, 1), 'padding': 'SAME'},
-    {'shape': [1, 22, 22, 8], 'ksize': [3, 3], 'strides': 2, 'padding': 'VALID'},
-    {'shape': [1, 22, 22, 8], 'ksize': [3, 3], 'strides': (3, 4), 'padding': 'VALID'},
+    {'shape': [random.randint(1, 30) for _ in range(4)], 'ksize': [random.randint(1, 30) for _ in range(2)], 'strides': random.randint(1,4), 'padding': 'SAME'},
+    {'shape': [random.randint(1, 30) for _ in range(4)], 'ksize': [random.randint(1, 30) for _ in range(2)], 'strides': (random.randint(1, 10) for _ in range(2)), 'padding': 'SAME'},
+    {'shape': [random.randint(1, 30) for _ in range(4)], 'ksize': [random.randint(1, 30) for _ in range(2)], 'strides': random.randint(1,4), 'padding': 'VALID'},
+    {'shape': [random.randint(1, 30) for _ in range(4)], 'ksize': [random.randint(1, 30) for _ in range(2)], 'strides': (random.randint(1, 10) for _ in range(2)), 'padding': 'VALID'},
 ]
 
 test_data = parametrize_tests(test_ops, test_params)

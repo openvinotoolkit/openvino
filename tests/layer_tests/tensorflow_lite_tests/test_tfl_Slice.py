@@ -3,16 +3,16 @@ import string
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
     # OV doesn't support string format
     # {'shape': [12, 2, 2, 5], 'begin': [0, 0, 0, 0], 'size': [8, 2, 2, 3], 'dtype': tf.string},
-    {'shape': [12, 2, 2, 5], 'begin': [1, 0, 1, 0], 'size': [11, 2, 1, 5], 'dtype': np.float32},
-    {'shape': [1, 4, 4, 4], 'begin': [0, 1, 0, 0], 'size': [1, -1, 1, 1], 'dtype': np.float32},
-    {'shape': [6, 2, 2, 2, 5], 'begin': [0, 0, 0, 0, 0], 'size': [4, 2, 2, 2, 3], 'dtype': np.int32},
-    {'shape': [2, 3], 'begin': [1, 0], 'size': [-1, -1], 'dtype': np.int64},
+    {'shape': [random.randint(2, 15) for _ in range(5)], 'begin': [random.randint(0, 5) for _ in range(4)], 'size': [random.randint(1, 15) for _ in range(4)], 'dtype': np.float32},
+    {'shape': [random.randint(1, 5) for _ in range(4)], 'begin': [random.randint(0, 5) for _ in range(4)], 'size': [random.randint(-1, 5) for _ in range(4)], 'dtype': np.float32},
+    {'shape': [random.randint(1, 6) for _ in range(5)], 'begin': [random.randint(1, 5) for _ in range(5)], 'size': [random.randint(1, 5) for _ in range(5)], 'dtype': np.int32},
+    {'shape': [random.randint(1, 5) for _ in range(2)], 'begin': [1, 0], 'size': [-1, -1], 'dtype': np.int64},
 ]
 
 

@@ -41,7 +41,7 @@ class TestTFLiteAddNLayerTest(TFLiteLayerTest):
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", sorted(test_params, key=lambda x: len(x['shape'])))
+    @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_add_n(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

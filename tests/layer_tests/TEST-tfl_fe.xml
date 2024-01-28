@@ -1,0 +1,2209 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="18" skipped="0" tests="22" time="87.176" timestamp="2024-01-25T15:14:25.219462" hostname="chaitanyasai-HP-ProBook-440-G5"><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [7, 10], 'indices_shape': [7, 1], 'batch_dims': 0} ]" time="21.703" /><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [7, 10], 'indices_shape': [7, 1], 'batch_dims': 0} ]" time="21.699" /><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="1.162"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f4f0&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndffck2r_1'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd7c48835b0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="1.161"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c7593370&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndxxbkm8cr'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f36c72bb5b0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.012"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c7593400&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_nd3lrc2sdq'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730dadfc0&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.013"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f580&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_ndt0vskx7l'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827f99fc0&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.103"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c75936d0&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_ndhxd6bt2e'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730dae7a0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.106"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f850&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_ndzdy6avir'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827f9a7a0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.013"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c75930a0&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_nd2etj924l'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730dae830&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.013"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f220&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndqfeja2be'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827f9a830&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [7, 10], 'indices_shape': [7, 1], 'batch_dims': 0} ]" time="0.382" /><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [7, 10], 'indices_shape': [7, 1], 'batch_dims': 0} ]" time="0.400" /><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [8, 7], 'indices_shape': [10, 7], 'batch_dims': 0} ]" time="0.027"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [10,7] and params shape: [8,7] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [8,7], [10,7].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c7593490&gt;
+params = {'batch_dims': 0, 'indices_shape': [10, 7], 'shape': [8, 7]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_nd8vzco2x3'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730dae680&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(8, 7) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(10, 7) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [10,7] and params shape: [8,7] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [8,7], [10,7].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP32 - params:{'shape': [8, 7], 'indices_shape': [10, 7], 'batch_dims': 0} ]" time="0.026"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [10,7] and params shape: [8,7] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [8,7], [10,7].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f610&gt;
+params = {'batch_dims': 0, 'indices_shape': [10, 7], 'shape': [8, 7]}
+ie_device = 'GPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_nd4vge878z'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd814075990&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(8, 7) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(10, 7) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [10,7] and params shape: [8,7] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [8,7], [10,7].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP16 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.117"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c7593a30&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'GPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_ndsv0qnket'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730cf01f0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:GPU - precision:FP16 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.136"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4fbb0&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'GPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/GPU_test_gather_ndr9o2vvat'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827ef01f0&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.013"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c75926b0&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'CPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_nd4uquycee'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730cf08b0&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [4, 6], 'indices_shape': [3, 4], 'batch_dims': 0} ]" time="0.014"><failure message="ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4e830&gt;
+params = {'batch_dims': 0, 'indices_shape': [3, 4], 'shape': [4, 6]}
+ie_device = 'CPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndcstx7p9r'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827ef08b0&gt;
+node_def = name: "GatherND"
+op: "GatherNd"
+attr {
+  key: "Tparams"
+  value {
+    type: DT_FLOAT
+  }
+}
+attr {
+  key: "Tindices"
+  value {
+    type: DT_INT64
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Input_x:0' shape=(4, 6) dtype=float32&gt;, &lt;tf.Tensor 'Const:0' shape=(3, 4) dtype=int64&gt;]
+control_inputs = []
+op_def = name: "GatherNd"
+input_arg {
+  name: "params"
+  type_attr: "Tparams"
+}
+input_arg {
+  name: "indices"
+  type_attr: "Tin... type: "type"
+  allowed_values {
+    list {
+      type: DT_INT16
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: indices.shape[-1] must be &lt;= params.rank, but saw indices shape: [3,4] and params shape: [4,6] for '{{node GatherND}} = GatherNd[Tindices=DT_INT64, Tparams=DT_FLOAT](Input_x, Const)' with input shapes: [4,6], [3,4].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [9, 10, 1], 'indices_shape': [1, 8], 'batch_dims': 1} ]" time="0.090"><failure message="ValueError: Cannot reshape a tensor with 8 elements to shape [9,8] (72 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [1,8], [2] and with input tensors computed as partial shapes: input[1] = [9,8].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c75932e0&gt;
+params = {'batch_dims': 1, 'indices_shape': [1, 8], 'shape': [9, 10, 1]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_nd6mxm_fo3'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f3730cf0a60&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(1, 8) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(2,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 8 elements to shape [9,8] (72 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [1,8], [2] and with input tensors computed as partial shapes: input[1] = [9,8].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP16 - params:{'shape': [9, 10, 1], 'indices_shape': [1, 8], 'batch_dims': 1} ]" time="0.092"><failure message="ValueError: Cannot reshape a tensor with 8 elements to shape [9,8] (72 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [1,8], [2] and with input tensors computed as partial shapes: input[1] = [9,8].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f460&gt;
+params = {'batch_dims': 1, 'indices_shape': [1, 8], 'shape': [9, 10, 1]}
+ie_device = 'CPU', precision = 'FP16'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndfuypn7iv'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd827ef0a60&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(1, 8) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(2,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 8 elements to shape [9,8] (72 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [1,8], [2] and with input tensors computed as partial shapes: input[1] = [9,8].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.091"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7f36c7593010&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'CPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndk81ld6fs'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7f36c72bb880&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase classname="tensorflow_lite_tests.test_tfl_GatherND.TestTFLiteGatherLayerTest" name="test_gather_nd[ ie_device:CPU - precision:FP32 - params:{'shape': [5, 8, 1], 'indices_shape': [7, 4, 9], 'batch_dims': 1} ]" time="0.093"><failure message="ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].">self = &lt;test_tfl_GatherND.TestTFLiteGatherLayerTest object at 0x7fd7c4b4f190&gt;
+params = {'batch_dims': 1, 'indices_shape': [7, 4, 9], 'shape': [5, 8, 1]}
+ie_device = 'CPU', precision = 'FP32'
+temp_dir = '/home/chaitanyasai/Desktop/G_Soc/openvino/tests/layer_tests/common/out/CPU_test_gather_ndr_8qgken'
+
+    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.nightly
+    def test_gather_nd(self, params, ie_device, precision, temp_dir):
+&gt;       self._test(ie_device, precision, temp_dir, params)
+
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/layer_tests/common/tflite_layer_test_class.py:77: in _test
+    model = self.make_model(params)
+tests/layer_tests/tensorflow_lite_tests/test_tfl_GatherND.py:43: in make_model
+    tf.gather_nd(placeholder, constant, name=output_name, batch_dims=params['batch_dims'])
+../../../.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py:153: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+graph = &lt;tensorflow.python.framework.ops.Graph object at 0x7fd8140b4310&gt;
+node_def = name: "GatherND/Reshape_2"
+op: "Reshape"
+attr {
+  key: "T"
+  value {
+    type: DT_INT64
+  }
+}
+attr {
+  key: "Tshape"
+  value {
+    type: DT_INT32
+  }
+}
+
+inputs = [&lt;tf.Tensor 'Const:0' shape=(7, 4, 9) dtype=int64&gt;, &lt;tf.Tensor 'GatherND/concat_2:0' shape=(3,) dtype=int32&gt;]
+control_inputs = []
+op_def = name: "Reshape"
+input_arg {
+  name: "tensor"
+  type_attr: "T"
+}
+input_arg {
+  name: "shape"
+  type_attr: "Tshape"
+}
+ou...ult_value {
+    type: DT_INT32
+  }
+  allowed_values {
+    list {
+      type: DT_INT32
+      type: DT_INT64
+    }
+  }
+}
+
+extract_traceback = True
+
+    @tf_export("__internal__.create_c_op", v1=[])
+    @traceback_utils.filter_traceback
+    def _create_c_op(graph,
+                     node_def,
+                     inputs,
+                     control_inputs,
+                     op_def=None,
+                     extract_traceback=True):
+      """Creates a TF_Operation.
+    
+      Args:
+        graph: a `Graph`.
+        node_def: `node_def_pb2.NodeDef` for the operation to create.
+        inputs: A flattened list of `Tensor`s. This function handles grouping
+          tensors into lists as per attributes in the `node_def`.
+        control_inputs: A list of `Operation`s to set as control dependencies.
+        op_def: Optional. `op_def_pb2.OpDef` for the operation to create. If not
+          specified, is looked up from the `graph` using `node_def.op`.
+        extract_traceback: if True, extract the current Python traceback to the
+          TF_Operation.
+    
+      Returns:
+        A wrapped TF_Operation*.
+      """
+      if op_def is None:
+        op_def = graph.op_def_for_type(node_def.op)  # pylint: disable=protected-access
+      # TODO(skyewm): op_def_library.apply_op() flattens the incoming inputs.
+      # Refactor so we don't have to do this here.
+      inputs = _reconstruct_sequence_inputs(op_def, inputs, node_def.attr)
+      # pylint: disable=protected-access
+      with graph._c_graph.get() as c_graph:
+        op_desc = pywrap_tf_session.TF_NewOperation(c_graph,
+                                                    compat.as_str(node_def.op),
+                                                    compat.as_str(node_def.name))
+      if node_def.device:
+        pywrap_tf_session.TF_SetDevice(op_desc, compat.as_str(node_def.device))
+      # Add inputs
+      for op_input in inputs:
+        if isinstance(op_input, (list, tuple)):
+          pywrap_tf_session.TF_AddInputList(op_desc,
+                                            [t._as_tf_output() for t in op_input])
+        else:
+          pywrap_tf_session.TF_AddInput(op_desc, op_input._as_tf_output())
+    
+      # Add control inputs
+      for control_input in control_inputs:
+        pywrap_tf_session.TF_AddControlInput(op_desc, control_input._c_op)
+      # pylint: enable=protected-access
+    
+      # Add attrs
+      for name, attr_value in node_def.attr.items():
+        serialized = attr_value.SerializeToString()
+        # TODO(skyewm): this creates and deletes a new TF_Status for every attr.
+        # It might be worth creating a convenient way to re-use the same status.
+        pywrap_tf_session.TF_SetAttrValueProto(op_desc, compat.as_str(name),
+                                               serialized)
+    
+      try:
+        c_op = pywrap_tf_session.TF_FinishOperation(op_desc)
+      except errors.InvalidArgumentError as e:
+        # Convert to ValueError for backwards compatibility.
+&gt;       raise ValueError(e.message)
+E       ValueError: Cannot reshape a tensor with 252 elements to shape [5,4,9] (180 elements) for '{{node GatherND/Reshape_2}} = Reshape[T=DT_INT64, Tshape=DT_INT32](Const, GatherND/concat_2)' with input shapes: [7,4,9], [3] and with input tensors computed as partial shapes: input[1] = [5,4,9].
+
+../../../.local/lib/python3.10/site-packages/tensorflow/python/framework/ops.py:1020: ValueError</failure></testcase><testcase time="0.003" /><testcase time="0.004" /></testsuite></testsuites>

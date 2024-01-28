@@ -1,14 +1,14 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'dtype': np.float32, 'negative_delta': False},
-    {'dtype': np.int32, 'negative_delta': True},
+    {'dtype': np.float32, 'negative_delta': random.choice([False,True])},
+    {'dtype': np.int32, 'negative_delta': random.choice([False,True])},
 ]
 
 

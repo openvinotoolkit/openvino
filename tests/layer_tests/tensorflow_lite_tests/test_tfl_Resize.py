@@ -1,6 +1,6 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
@@ -10,13 +10,13 @@ test_ops = [
 ]
 
 test_params = [
-    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': True, 'half_pixel_centers': False},
-    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': False},
-    {'shape': [1, 3, 4, 3], 'size': [1, 1], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': random.choice([True,False]), 'half_pixel_centers': False},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': False, 'half_pixel_centers': random.choice([True,False])},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': False, 'half_pixel_centers': random.choice([True,False])},  # accuracy failure
 
-    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': True, 'half_pixel_centers': False},
-    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': False},
-    {'shape': [1, 3, 4, 3], 'size': [10, 10], 'align_corners': False, 'half_pixel_centers': True},  # accuracy failure
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': True, 'half_pixel_centers': random.choice([True,False])},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': False, 'half_pixel_centers': random.choice([True,False])},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'size': [random.randint(1, 10) for _ in range(2)], 'align_corners': False, 'half_pixel_centers': random.choice([True,False])},  # accuracy failure
 ]
 
 test_data = parametrize_tests(test_ops, test_params)

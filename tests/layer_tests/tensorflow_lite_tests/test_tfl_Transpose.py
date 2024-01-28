@@ -1,12 +1,12 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [2, 3], 'perm': [1, 0], 'conjugate': False},
-    {'shape': [2, 3, 5], 'perm': [2, 0, 1], 'conjugate': True},
-    {'shape': [2, 3, 5, 10], 'perm': [1, 2, 3, 0], 'conjugate': False},
+    {'shape': [random.randint(1, 4) for _ in range(2)], 'perm': [random.randint(1, 4) for _ in range(2)], 'conjugate': random.choice([True, False])},
+    {'shape': [random.randint(1, 4) for _ in range(3)], 'perm': [random.randint(1, 4) for _ in range(3)], 'conjugate': random.choice([True, False])},
+    {'shape': [random.randint(1,2), random.randint(1,3), random.randint(1,5), random.randint(1,10)], 'perm': [random.randint(1,2), random.randint(1,2), random.randint(1,3), random.randint(0,1)], 'conjugate': random.choice([True, False])},
 ]
 
 

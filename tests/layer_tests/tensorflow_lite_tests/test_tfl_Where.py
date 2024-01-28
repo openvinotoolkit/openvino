@@ -3,13 +3,13 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-
+import random
 np.random.seed(42)
 
 test_params = [
-    {'shape': [10]},
-    {'shape': [1, 2, 3, 4]},
-    {'shape': [8, 7, 6, 5, 4, 3, 2, 1]}
+    {'shape': [random.randint(1, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(8)]}
 ]
 
 

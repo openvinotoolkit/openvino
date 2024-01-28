@@ -1,13 +1,13 @@
 import platform
-
+import random
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [96, 1, 512], 'fft_length': [1, 512], 'reshape_to': [96, 257]},
-    {'shape': [5, 1, 16], 'fft_length': [1, 16], 'reshape_to': [5, 9]},
+    {'shape': [random.randint(1, 512) for _ in range(3)], 'fft_length': [random.randint(1, 512) for _ in range(2)], 'reshape_to': [random.randint(1, 258) for _ in range(2)]},
+    {'shape': [random.randint(1, 16) for _ in range(3)], 'fft_length': [random.randint(1, 16) for _ in range(2)], 'reshape_to': [random.randint(1, 10) for _ in range(2)]},
 ]
 
 

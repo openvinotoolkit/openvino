@@ -4,14 +4,14 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'shape': [15]},
-    {'shape': [1]}
+    {'shape': [random.randint(1,18)]},
+    {'shape': [random.randint(0,3)]}
 ]
 
 

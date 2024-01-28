@@ -2,12 +2,12 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-
+import random
 test_params = [
-    {'shape': [2], 'k': 2, 'sorted': True},
-    {'shape': [2, 3], 'k': 1, 'sorted': False},
-    {'shape': [2, 3, 5], 'k': 2, 'sorted': True},
-    {'shape': [2, 3, 5, 10], 'k': 9, 'sorted': False},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'k': random.randint(1,2), 'sorted': random.choice([True, False])},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'k': random.randint(0,1), 'sorted': random.choice([True, False])},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'k': random.randint(1,2), 'sorted': random.choice([True, False])},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'k': random.randint(1,9), 'sorted': random.choice([True, False])},
 ]
 
 

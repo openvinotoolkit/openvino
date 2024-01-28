@@ -1,16 +1,16 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'shape': [1, 10], 'indices_shape': [1, 5]},
-    {'shape': [2, 3, 5, 5], 'indices_shape': [4, 5]},
-    {'shape': [1, 5, 5], 'indices_shape': [2, 4, 5]},
-    {'shape': [1, 5, 5], 'indices_shape': [2, 4, 5, 6]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'indices_shape': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'indices_shape': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'indices_shape': [random.randint(1, 10) for _ in range(3)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'indices_shape': [random.randint(1, 10) for _ in range(4)]},
 ]
 
 
@@ -32,7 +32,7 @@ class TestTFLiteGatherLayerTest(TFLiteLayerTest):
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_params)
+    @pytest.mark.parametrize("params", sorted(test_params, key=lambda x: len(x['shape'])))
     @pytest.mark.nightly
     def test_gather(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

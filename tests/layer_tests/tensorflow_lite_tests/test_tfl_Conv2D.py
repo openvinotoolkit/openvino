@@ -1,16 +1,16 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'shape': [1, 22, 22, 8], 'ksize': [32, 3, 4, 4], 'strides': 2, 'padding': 'SAME', 'dilations': [1, 1, 1, 1]},
-    {'shape': [1, 22, 22, 9], 'ksize': [32, 3, 3, 3], 'strides': (2, 1), 'padding': 'SAME', 'dilations': [1, 2, 2, 1]},
-    {'shape': [1, 22, 22, 8], 'ksize': [1, 3, 4, 4], 'strides': 2, 'padding': 'VALID', 'dilations': [1, 1, 1, 1]},
-    {'shape': [1, 22, 22, 3], 'ksize': [1, 3, 3, 3], 'strides': (3, 4), 'padding': 'VALID', 'dilations': [1, 2, 2, 1]},
+    {'shape': [random.randint(1, 22) for _ in range(4)], 'ksize': [random.randint(1, 32) for _ in range(4)], 'strides': random.randint(0,2), 'padding': 'SAME', 'dilations': [1, 1, 1, 1]},
+    {'shape': [random.randint(1, 22) for _ in range(4)], 'ksize': [random.randint(1, 32) for _ in range(4)], 'strides': (random.randint(1, 10) for _ in range(4)), 'padding': 'SAME', 'dilations': [random.randint(1, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 22) for _ in range(4)], 'ksize': [random.randint(1, 32) for _ in range(4)], 'strides': random.randint(1,2), 'padding': 'VALID', 'dilations': [1, 1, 1, 1]},
+    {'shape': [random.randint(1, 22) for _ in range(4)], 'ksize': [random.randint(1, 32) for _ in range(4)], 'strides': (random.randint(1, 10) for _ in range(2)), 'padding': 'VALID', 'dilations': [random.randint(1, 10) for _ in range(4)]},
 ]
 
 

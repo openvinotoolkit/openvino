@@ -1,15 +1,15 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shapes': [[1, 3], [1, 7]], 'axis': -1},
-    {'shapes': [[1, 3, 10], [1, 3, 56], [1, 3, 2]], 'axis': -1},
-    {'shapes': [[1, 3, 10, 17], [1, 3, 10, 1], [1, 3, 10, 5], [1, 3, 10, 3]], 'axis': -1},
-    {'shapes': [[2, 7], [2, 8]], 'axis': 1},
-    {'shapes': [[1, 3, 10], [1, 2, 10], [1, 5, 10]], 'axis': 1},
-    {'shapes': [[1, 3, 10, 17], [1, 10, 10, 17], [1, 12, 10, 17], [1, 1, 10, 17]], 'axis': 1},
+    {'shapes': [[random.randint(1, 4) for _ in range(2)], [random.randint(1, 4) for _ in range(2)]], 'axis': random.choice([-1,1])},
+    {'shapes': [[random.randint(1, 30) for _ in range(3)], [random.randint(1, 30) for _ in range(3)], [random.randint(1, 30) for _ in range(3)]], 'axis': random.choice([-1,1])},
+    {'shapes': [[random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)]], 'axis': random.choice([-1,1])},
+    {'shapes': [[random.randint(1, 30) for _ in range(2)], [random.randint(1, 30) for _ in range(2)]], 'axis': random.choice([-1,1])},
+    {'shapes': [[random.randint(1, 4) for _ in range(3)], [random.randint(1, 30) for _ in range(3)], [random.randint(1, 30) for _ in range(3)]], 'axis': random.choice([-1,1])},
+    {'shapes': [[random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)], [random.randint(1, 30) for _ in range(4)]], 'axis': random.choice([-1,1])},
 ]
 
 

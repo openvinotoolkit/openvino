@@ -1,12 +1,12 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape_x': [40, 37], 'shape_y': [37, 37]},
-    {'shape_x': [5, 5], 'shape_y': [4, 5]},
-    {'shape_x': [1, 5, 5], 'shape_y': [4, 5]},
+    {'shape_x': [random.randint(1, 40) for _ in range(2)], 'shape_y': [random.randint(1, 40) for _ in range(2)]},
+    {'shape_x': [random.randint(1, 10) for _ in range(2)], 'shape_y': [random.randint(1, 10) for _ in range(2)]},
+    {'shape_x': [random.randint(1, 10) for _ in range(3)], 'shape_y': [random.randint(1, 10) for _ in range(2)]},
 ]
 
 

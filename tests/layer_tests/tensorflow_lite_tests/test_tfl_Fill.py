@@ -1,12 +1,12 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [2, 3], 'value': 1, 'kwargs_to_prepare_input': 'int32_positive'},
-    {'shape': [2, 3, 3, 4], 'value': -1, 'kwargs_to_prepare_input': 'int32_positive'},
-    {'shape': [1], 'value': 0, 'kwargs_to_prepare_input': 'int32_positive'}
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'value': random.randint(1,3), 'kwargs_to_prepare_input': 'int32_positive'},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'value': random.randint(-2,-1), 'kwargs_to_prepare_input': 'int32_positive'},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'value': random.randint(-2,0), 'kwargs_to_prepare_input': 'int32_positive'}
 ]
 
 

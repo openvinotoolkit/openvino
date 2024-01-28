@@ -1,15 +1,15 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import additional_test_params
 from common.utils.tflite_utils import parametrize_tests
 
 test_params = [
-    {'shape': [1]},
-    {'shape': [1, 22]},
-    {'shape': [1, 1, 8]},
-    {'shape': [1, 22, 22, 8]},
+    {'shape': [random.randint(1, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)]}
 ]
 
 test_data = parametrize_tests(test_params, additional_test_params[0])

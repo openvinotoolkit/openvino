@@ -1,20 +1,20 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [12, 2, 2, 5], 'dtype': np.int32, 'strides': [2, 1, 3, 1], 'begin': [0, 0, 0, 0], 'end': [12, 2, 2, 5],
-     'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': 4},
-    {'shape': [12, 2, 2, 5], 'dtype': np.float32, 'strides': None, 'begin': [0, 0, 0, 0], 'end': [12, 2, 2, 5],
-     'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': None},
-    {'shape': [12, 2, 2, 5], 'dtype': np.float32, 'strides': None, 'begin': [1, 0, 1, 0], 'end': [8, 2, 2, 3],
-     'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': 4},
-    {'shape': [12, 2, 2, 5], 'dtype': np.int64, 'strides': [1], 'begin': [0], 'end': [1],
-     'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
-    {'shape': [12, 2, 2, 5], 'dtype': bool, 'strides': [1], 'begin': [0], 'end': [1],
-     'begin_mask': 8, 'end_mask': 3, 'shrink_axis_mask': None},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'dtype': np.int32, 'strides': [random.randint(1, 10) for _ in range(4)], 'begin': [random.randint(1, 10) for _ in range(4)], 'end': [random.randint(1, 20) for _ in range(4)],
+     'begin_mask': None, 'end_mask': None, 'shrink_axis_mask': random.randint(1,4)},
+    {'shape': [random.randint(1, 15) for _ in range(4)], 'dtype': np.float32, 'strides': None, 'begin': [random.randint(0, 10) for _ in range(4)], 'end': [random.randint(1, 15) for _ in range(4)],
+     'begin_mask': random.choice([None,8]), 'end_mask': random.choice([None,3]), 'shrink_axis_mask': None},
+    {'shape': [random.randint(1, 15) for _ in range(4)], 'dtype': np.float32, 'strides': None, 'begin': [random.randint(0, 10) for _ in range(4)], 'end': [random.randint(1, 10) for _ in range(4)],
+     'begin_mask': random.choice([None,8]), 'end_mask': random.choice([None,3]), 'shrink_axis_mask': random.randint(1,4)},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'dtype': np.int64, 'strides': [random.randint(1, 10) for _ in range(1)], 'begin': [random.randint(0, 10) for _ in range(1)], 'end': [random.randint(1, 10) for _ in range(1)],
+     'begin_mask': random.choice([None,8]), 'end_mask': random.choice([None,3]), 'shrink_axis_mask': None},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'dtype': bool, 'strides': [random.randint(1, 10) for _ in range(1)], 'begin': [random.randint(1, 10) for _ in range(4)], 'end': [random.randint(1, 10) for _ in range(1)],
+     'begin_mask': random.choice([None,8]), 'end_mask': random.choice([None,3]), 'shrink_axis_mask': None},
 ]
 
 

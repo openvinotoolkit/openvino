@@ -1,25 +1,25 @@
 import platform
-
+import random
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [4], 'segment_ids': [0, 0, 1, 1]},
-    {'shape': [4], 'segment_ids': [0, 1, 2, 2]},
-    {'shape': [4], 'segment_ids': [0, 1, 2, 3]},
-    {'shape': [4], 'segment_ids': [0, 0, 0, 0]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
 
-    {'shape': [4, 4], 'segment_ids': [0, 0, 1, 1]},
-    {'shape': [4, 4], 'segment_ids': [0, 1, 2, 2]},
-    {'shape': [4, 4], 'segment_ids': [0, 1, 2, 3]},
-    {'shape': [4, 4], 'segment_ids': [0, 0, 0, 0]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
 
-    {'shape': [4, 3, 2], 'segment_ids': [0, 0, 0, 0]},
-    {'shape': [4, 3, 2], 'segment_ids': [0, 0, 1, 1]},
-    {'shape': [4, 3, 2], 'segment_ids': [0, 1, 2, 2]},
-    {'shape': [4, 3, 2], 'segment_ids': [0, 1, 2, 3]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'segment_ids': [random.randint(0, 10) for _ in range(4)]},
 ]
 
 

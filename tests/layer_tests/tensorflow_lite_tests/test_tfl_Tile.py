@@ -1,12 +1,15 @@
 import pytest
 import tensorflow as tf
 
+import random
+
 from common.tflite_layer_test_class import TFLiteLayerTest
 
+
 test_params = [
-    {'shape': [2], 'multiples': [2]},
-    {'shape': [2, 3], 'multiples': [1, 2]},
-    {'shape': [2, 3, 1], 'multiples': [5, 1, 3]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'multiples': [random.randint(1, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'multiples': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'multiples': [random.randint(1, 10) for _ in range(3)]},
 ]
 
 

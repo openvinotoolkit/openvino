@@ -5,15 +5,15 @@ from functools import partial
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
 
 test_params = [
-    {'shape': [1, 4], 'new_shape': [1, 4]},
-    {'shape': [1, 4], 'new_shape': [4, 1]},
-    {'shape': [1, 4], 'new_shape': [2, 2]},
+    {'shape': [random.randint(1, 5) for _ in range(2)], 'new_shape': [random.randint(1, 5) for _ in range(2)]},
+    {'shape': [random.randint(1, 5) for _ in range(2)], 'new_shape': [random.randint(1, 5) for _ in range(2)]},
+    {'shape': [random.randint(1, 5) for _ in range(2)], 'new_shape': [random.randint(1, 5) for _ in range(2)]},
 ]
 
 

@@ -1,7 +1,7 @@
 import itertools
 import os
 import warnings
-
+import random
 import numpy as np
 import tensorflow as tf
 
@@ -138,6 +138,7 @@ def get_tensors_from_graph(graph, ops: list):
 
 
 def parametrize_tests(lhs, rhs):
+    random.seed(0)
     test_data = list(itertools.product(lhs, rhs))
     for i, (parameters, shapes) in enumerate(test_data):
         parameters.update(shapes)

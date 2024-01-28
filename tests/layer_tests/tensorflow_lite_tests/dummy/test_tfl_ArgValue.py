@@ -6,17 +6,12 @@ from common.utils.tflite_utils import additional_test_params
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'MEAN', 'op_func': tf.math.reduce_mean},
-    {'op_name': 'REDUCE_ALL', 'op_func': tf.math.reduce_all, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'REDUCE_ANY', 'op_func': tf.math.reduce_any, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'REDUCE_MAX', 'op_func': tf.math.reduce_max},
-    {'op_name': 'REDUCE_MIN', 'op_func': tf.math.reduce_min},
-    {'op_name': 'REDUCE_PROD', 'op_func': tf.math.reduce_prod, 'kwargs_to_prepare_input': 'short_range'},
-    {'op_name': 'SUM', 'op_func': tf.math.reduce_sum},
+    {'op_name': 'ARG_MAX', 'op_func': tf.math.argmax},
+    {'op_name': 'ARG_MIN', 'op_func': tf.math.argmin},
 ]
 
 test_params = [
-    {'shape': [random.randint(1, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 4) for _ in range(4)]},
     {'shape': [random.randint(1, 10) for _ in range(2)]}
 ]
 
@@ -24,9 +19,9 @@ test_data = parametrize_tests(test_ops, test_params)
 test_data = parametrize_tests(test_data, additional_test_params[0])
 
 
-class TestTFLiteReduceLayerTest(TFLiteLayerTest):
+class TestTFLiteArgValueLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
-    outputs = ["ReduceOperation"]
+    outputs = ["ArgValue"]
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'axis'})) == 4, \
@@ -42,5 +37,5 @@ class TestTFLiteReduceLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_reduce(self, params, ie_device, precision, temp_dir):
+    def test_arg_value(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

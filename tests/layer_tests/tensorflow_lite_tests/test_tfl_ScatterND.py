@@ -1,29 +1,29 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.int32, 'updates_shape': [4],
-     'shape_shape': [1], 'shape_value': [8]},
-    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.int64, 'updates_shape': [4],
-     'shape_shape': [1], 'shape_value': [8]},
-    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.float32, 'updates_shape': [4],
-     'shape_shape': [1], 'shape_value': [8]},
-    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': bool, 'updates_shape': [4],
-     'shape_shape': [1], 'shape_value': [8]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [random.randint(1, 10) for _ in range(4)], 'updates_dtype': np.int32, 'updates_shape': [random.randint(1, 10) for _ in range(1)],
+     'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(1)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [random.randint(1, 10) for _ in range(4)], 'updates_dtype': np.int64, 'updates_shape': [random.randint(1, 10) for _ in range(1)],
+     'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(1)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [random.randint(1, 10) for _ in range(4)], 'updates_dtype': np.float32, 'updates_shape': [random.randint(1, 10) for _ in range(1)],
+     'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(1)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [random.randint(1, 10) for _ in range(4)], 'updates_dtype': bool, 'updates_shape': [random.randint(1, 10) for _ in range(1)],
+     'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(1)]},
 
-    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.int32,
-     'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
-    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.int64,
-     'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
-    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.float32,
-     'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
-    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': bool,
-     'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'updates_dtype': np.int32,
+     'updates_shape': [random.randint(1, 10) for _ in range(2)], 'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(3)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'updates_dtype': np.int64,
+     'updates_shape': [random.randint(1, 10) for _ in range(2)], 'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(3)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'updates_dtype': np.float32,
+     'updates_shape': [random.randint(1, 10) for _ in range(2)], 'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(3)]},
+    {'indices_shape': [random.randint(1, 10) for _ in range(2)], 'indices_value': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'updates_dtype': bool,
+     'updates_shape': [random.randint(1, 10) for _ in range(2)], 'shape_shape': [random.randint(1, 10) for _ in range(1)], 'shape_value': [random.randint(1, 10) for _ in range(3)]},
 ]
 
 

@@ -4,18 +4,18 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
 test_params = [
-    {'shape': [3, 4, 3], 'axis': 0},
-    {'shape': [3, 4, 3], 'axis': -1},
-    {'shape': [3, 4, 3, 5], 'axis': -2},
-    {'shape': [3, 4, 3, 5], 'axis': 2},
-    {'shape': [1], 'axis': -1},
-    {'shape': [1], 'axis': 0}
+    {'shape': [random.randint(1, 4) for _ in range(3)], 'axis': random.randint(1,2)},
+    {'shape': [random.randint(1, 4) for _ in range(3)], 'axis': random.randint(-2,-1)},
+    {'shape': [random.randint(1,3), random.randint(1,4), random.randint(1,3), random.randint(1,5)], 'axis': random.randint(-2,-1)},
+    {'shape': [random.randint(1, 5) for _ in range(4)], 'axis': random.randint(1,3)},
+    {'shape': [random.randint(1, 3) for _ in range(1)], 'axis': random.randint(-2,-1)},
+    {'shape': [random.randint(1, 3) for _ in range(1)], 'axis': random.randint(0,1)}
 ]
 
 

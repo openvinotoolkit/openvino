@@ -1,18 +1,18 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [2, 3], 'padding_matrix': [[1, 1], [2, 1]], 'mode': 'REFLECT'},
-    {'shape': [2, 3], 'padding_matrix': [[1, 1], [1, 1]], 'mode': 'REFLECT'},
-    {'shape': [2, 3], 'padding_matrix': [[1, 1], [2, 1]], 'mode': 'SYMMETRIC'},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'padding_matrix': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'padding_matrix': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'padding_matrix': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
 
-    {'shape': [3], 'padding_matrix': [[0, 2]], 'mode': 'SYMMETRIC'},
-    {'shape': [3], 'padding_matrix': [[0, 2]], 'mode': 'REFLECT'},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'padding_matrix': [[random.randint(0, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'padding_matrix': [[random.randint(0, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
 
-    {'shape': [3, 2, 4, 5], 'padding_matrix': [[1, 1], [2, 2], [1, 1], [1, 1]], 'mode': 'SYMMETRIC'},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'padding_matrix': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'mode': random.choice(['REFLECT', 'SYMMETRIC'])},
 ]
 
 

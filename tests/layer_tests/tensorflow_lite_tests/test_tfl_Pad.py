@@ -1,32 +1,32 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'op_name': 'PAD', 'shape': [1, 1, 2, 1, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0], [1, 0]]},
-    {'op_name': 'PAD', 'shape': [2, 1, 1, 1, 1], 'paddings': [[0, 1], [0, 0], [0, 0], [2, 3], [1, 0]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(5)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(5)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]]},
 
-    {'op_name': 'PAD', 'shape': [1, 1, 2, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0]]},
-    {'op_name': 'PAD', 'shape': [1, 1, 2, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]]},
 
-    {'op_name': 'PAD', 'shape': [1, 2], 'paddings': [[0, 1], [2, 1]]},
-    {'op_name': 'PAD', 'shape': [1, 2], 'paddings': [[2, 3], [0, 1]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1,3), random.randint(1,2)], 'paddings': [[random.randint(1,2), random.randint(1,2)], [random.randint(1,2), random.randint(1,2)]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(2)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]]},
 
-    {'op_name': 'PAD', 'shape': [1], 'paddings': [[1, 2]]},
+    {'op_name': 'PAD', 'shape': [random.randint(1, 10) for _ in range(1)], 'paddings': [[random.randint(1, 10) for _ in range(2)]]},
 
-    {'op_name': 'PADV2', 'shape': [1, 1, 2, 1, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0], [1, 0]],
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]],
      'constant_value': -1},
-    {'op_name': 'PADV2', 'shape': [2, 1, 1, 1, 1], 'paddings': [[0, 1], [0, 0], [0, 0], [2, 3], [1, 0]],
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]],
      'constant_value': 1},
 
-    {'op_name': 'PADV2', 'shape': [1, 1, 2, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0]], 'constant_value': -1},
-    {'op_name': 'PADV2', 'shape': [1, 1, 2, 1], 'paddings': [[0, 0], [0, 1], [2, 3], [0, 0]], 'constant_value': 1},
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'constant_value': -1},
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(4)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'constant_value': 1},
 
-    {'op_name': 'PADV2', 'shape': [1, 2], 'paddings': [[0, 1], [2, 1]], 'constant_value': 1},
-    {'op_name': 'PADV2', 'shape': [1, 2], 'paddings': [[2, 3], [0, 1]], 'constant_value': -1},
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(2)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'constant_value': 1},
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(2)], 'paddings': [[random.randint(1, 10) for _ in range(2)], [random.randint(1, 10) for _ in range(2)]], 'constant_value': -1},
 
-    {'op_name': 'PADV2', 'shape': [1], 'paddings': [[1, 2]], 'constant_value': -1},
+    {'op_name': 'PADV2', 'shape': [random.randint(1, 10) for _ in range(1)], 'paddings': [[random.randint(1, 10) for _ in range(2)]], 'constant_value': -1},
 
 ]
 

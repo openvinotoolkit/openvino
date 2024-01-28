@@ -1,16 +1,16 @@
 import pytest
 import tensorflow as tf
 import numpy as np
-
+import random	
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [2], 'axis': [0]},
-    {'shape': [2, 2], 'axis': [2]},
-    {'shape': [2, 2], 'axis': [0, 2]},
-    {'shape': [5, 2, 2, 2], 'axis': [1]},
-    {'shape': [5, 2, 2, 2], 'axis': [1, 1]},
-    {'shape': [5, 2, 2, 2], 'axis': [-1, -2, -3]},
+    {'shape': [random.randint(1, 10) for _ in range(1)], 'axis': [random.randint(0, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'axis': [random.randint(1, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'axis': [random.randint(0, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'axis': [random.randint(1, 10) for _ in range(1)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'axis': [random.randint(1, 10) for _ in range(2)]},
+    {'shape': [random.randint(1, 10) for _ in range(4)], 'axis': [random.randint(-3,-1) for _ in range(3)]},
 ]
 
 

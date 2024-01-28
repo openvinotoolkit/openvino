@@ -1,18 +1,18 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 test_params = [
-    {'shape': [5, 1], 'indices_shape': [1, 1], 'batch_dims': 0},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'indices_shape': [random.randint(1, 10) for _ in range(2)], 'batch_dims': random.randint(0,2)},
 
-    {'shape': [5, 5], 'indices_shape': [2, 1], 'batch_dims': 0},
-    {'shape': [5, 5], 'indices_shape': [2, 2], 'batch_dims': 0},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'indices_shape': [random.randint(1, 10) for _ in range(2)], 'batch_dims': random.randint(0,2)},
+    {'shape': [random.randint(1, 10) for _ in range(2)], 'indices_shape': [random.randint(1, 10) for _ in range(2)], 'batch_dims': random.randint(0,2)},
     #
-    {'shape': [3, 5, 10], 'indices_shape': [3, 2], 'batch_dims': 1},
-    {'shape': [5, 5, 10], 'indices_shape': [2, 3], 'batch_dims': 0},
-    {'shape': [4, 5, 10], 'indices_shape': [2, 10, 1], 'batch_dims': 2},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'indices_shape': [random.randint(1, 10) for _ in range(2)], 'batch_dims': random.randint(1,2)},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'indices_shape': [random.randint(1, 10) for _ in range(2)], 'batch_dims': random.randint(0,2)},
+    {'shape': [random.randint(1, 10) for _ in range(3)], 'indices_shape': [random.randint(1, 10) for _ in range(3)], 'batch_dims': random.randint(1,2)},
     ]
 
 

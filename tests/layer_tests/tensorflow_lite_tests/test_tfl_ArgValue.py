@@ -1,6 +1,6 @@
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import additional_test_params
 from common.utils.tflite_utils import parametrize_tests
@@ -11,8 +11,8 @@ test_ops = [
 ]
 
 test_params = [
-    {'shape': [2, 10, 10, 3]},
-    {'shape': [2, 10]}
+    {'shape': [random.randint(1, 4) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)]}
 ]
 
 test_data = parametrize_tests(test_ops, test_params)
@@ -35,7 +35,7 @@ class TestTFLiteArgValueLayerTest(TFLiteLayerTest):
             net = sess.graph_def
         return net
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", sorted(test_data, key=lambda x: len(x['shape'])))
     @pytest.mark.nightly
     def test_arg_value(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

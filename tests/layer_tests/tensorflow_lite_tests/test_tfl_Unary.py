@@ -5,7 +5,7 @@ from functools import partial
 import numpy as np
 import pytest
 import tensorflow as tf
-
+import random
 from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
@@ -44,8 +44,8 @@ test_ops = [
 ]
 
 test_params = [
-    {'shape': [2, 10, 10, 3]},
-    {'shape': [2, 10]}
+    {'shape': [random.randint(1, 10) for _ in range(4)]},
+    {'shape': [random.randint(1, 10) for _ in range(2)]}
 ]
 
 test_data = parametrize_tests(test_ops, test_params)
