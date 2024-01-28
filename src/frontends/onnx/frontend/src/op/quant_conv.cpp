@@ -79,7 +79,7 @@ namespace ngraph
 
                             std::size_t data_group_size{n_data_channels / groups};
                             std::size_t filters_group_size{n_filters_channels / groups};
-                            OutputVector convolution_nodes;
+                            ov::OutputVector convolution_nodes;
 
                             // initial bounds for splice
                             std::vector<std::size_t> data_lower_bounds(data.get_shape().size());
@@ -177,9 +177,9 @@ namespace ngraph
 
                 } // namespace
 
-                OutputVector quant_conv(const Node& node)
+                ov::OutputVector quant_conv(const Node& node)
                 {
-                    const OutputVector& inputs = node.get_ng_inputs();
+                    const ov::OutputVector& inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
                     auto filters = inputs.at(3);
 

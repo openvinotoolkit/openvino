@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector expand(const Node& node) {
+ov::OutputVector expand(const Node& node) {
     const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const ov::Output<ov::Node> shape{node.get_ng_inputs().at(1)};
 
