@@ -25,7 +25,7 @@ void ReorgYoloLayerTest::SetUp() {
     size_t stride;
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, stride, netPrecision, targetDevice) = this->GetParam();
-    auto param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, inputShape);
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
     auto reorg_yolo = std::make_shared<ov::op::v0::ReorgYolo>(param, stride);
     function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(reorg_yolo), ov::ParameterVector{param}, "ReorgYolo");
 }
