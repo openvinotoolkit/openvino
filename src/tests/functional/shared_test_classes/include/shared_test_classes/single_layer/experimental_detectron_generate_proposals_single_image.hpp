@@ -26,7 +26,7 @@ class ExperimentalDetectronGenerateProposalsSingleImageLayerTest :
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj);

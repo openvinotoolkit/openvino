@@ -15,6 +15,7 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "lstm_elt_inst.h"
 #include "strided_slice_inst.h"
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
@@ -80,6 +81,21 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
         do_runtime_buffer_fusing = false;
     }
+
+    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
+    size_t concat_axis_index = concat_axis < 0 ? concat_axis + concat_params.get_output_layout().get_rank() : concat_axis;
+    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
+    // If static padding exists in non dyn_pad axis, returns false to avoid optimized out.
+    if (concat_node.is_dynamic()) {
+        for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
+            if (j != concat_axis_index) {
+                if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
+                    || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
+                    return false;
+            }
+        }
+    }
+
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -105,9 +121,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     // Otherwise, use explicit concat instead.
     auto output_format = concat_params.get_output_layout().format;
     auto output_datatype = concat_params.get_output_layout().data_type;
-    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
 
-    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
     auto lower_padd_in_axis = concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
                                   pred_params[0].get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);

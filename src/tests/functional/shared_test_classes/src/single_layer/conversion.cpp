@@ -50,7 +50,7 @@ void ConversionLayerTest::SetUp() {
         const auto like = std::make_shared<ov::op::v0::Constant>(targetPrc, ov::Shape{1});
         conversion = std::make_shared<ov::op::v1::ConvertLike>(params.front(), like);
     }
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conversion)};
-    function = std::make_shared<ngraph::Function>(results, params, "Conversion");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conversion)};
+    function = std::make_shared<ov::Model>(results, params, "Conversion");
 }
 }  // namespace LayerTestsDefinitions

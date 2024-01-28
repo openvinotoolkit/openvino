@@ -270,5 +270,14 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckLogLevel) {
     }
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPUExecutionDevice) {
+    ov::Core ie;
+    ov::Any value;
+    ov::CompiledModel compiledModel;
+
+    ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::execution_devices));
+    ASSERT_EQ(value.as<std::string>(), "CPU");
+}
 
 } // namespace

@@ -79,7 +79,7 @@ namespace LayerTestsDefinitions {
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1},
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
@@ -102,14 +102,14 @@ namespace LayerTestsDefinitions {
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
 
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
-                std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
-                ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
+                std::vector<ov::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
+                ov::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
                 auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
+                ov::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
                                              std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
                                              std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "lstm_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "lstm_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -120,7 +120,7 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[1]);
@@ -129,7 +129,7 @@ namespace LayerTestsDefinitions {
                 tensor_iterator->get_iter_value(results[2]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1),
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1),
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
@@ -150,15 +150,15 @@ namespace LayerTestsDefinitions {
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
 
-                std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+                std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
-                ngraph::OutputVector out_vector = {squeeze, body_params[1]};
+                ov::OutputVector out_vector = {squeeze, body_params[1]};
                 auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                          {}, {}, clip, false);
                 auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gru_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
+                ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
                                              std::make_shared<ov::op::v0::Result>(unsqueeze)};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "gru_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "gru_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -169,14 +169,14 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
             case ngraph::helpers::TensorIteratorBody::RNN: {
@@ -196,14 +196,14 @@ namespace LayerTestsDefinitions {
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
-                std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+                std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
-                ngraph::OutputVector out_vector = {squeeze, body_params[1]};
+                ov::OutputVector out_vector = {squeeze, body_params[1]};
                 auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(rnn_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell),
+                ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell),
                                              std::make_shared<ov::op::v0::Result>(unsqueeze)};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "rnn_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "rnn_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -214,19 +214,19 @@ namespace LayerTestsDefinitions {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, sequence_axis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, sequence_axis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
         }
         if (should_decompose) {
-            ngraph::pass::Manager m;
+            ov::pass::Manager m;
             m.register_pass<ov::pass::UnrollTensorIterator>();
             m.run_passes(function);
         }

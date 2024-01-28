@@ -8,13 +8,12 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/shuffle_channels.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
-    const element::Type inputPrecision,
+    const ov::element::Type inputPrecision,
     const PartialShape& inputShape,
     const builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
@@ -36,7 +35,7 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+    const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
     const std::int64_t axis,
     const std::int64_t group) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
@@ -56,11 +55,11 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getReference(
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& deqBefore,
+    const ov::builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
     const std::int64_t group,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& deqAfter) {
+    const ov::builder::subgraph::DequantizationOperations& deqAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     const auto dequantizationBefore = makeDequantization(input, deqBefore);
 
@@ -80,4 +79,4 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
