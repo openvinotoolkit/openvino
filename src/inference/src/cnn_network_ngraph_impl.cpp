@@ -500,7 +500,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -518,7 +518,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -536,7 +536,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         std::stringstream binBuf;
         ov::pass::Manager manager;
         using namespace ov::pass;
