@@ -37,7 +37,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector pad(const Node& node) {
+ov::OutputVector pad(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
 
     const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
@@ -62,7 +62,7 @@ OutputVector pad(const Node& node) {
 
 }  // namespace set_1
 namespace set_11 {
-OutputVector pad(const Node& node) {
+ov::OutputVector pad(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
@@ -87,7 +87,7 @@ OutputVector pad(const Node& node) {
         padding_begin = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_begin_values);
         padding_end = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_end_values);
     } else {
-        OutputVector padding = ov::op::util::split(pads, 2, 0);
+        ov::OutputVector padding = ov::op::util::split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);

@@ -35,7 +35,6 @@ using namespace std;
 using namespace InferenceEngine;
 using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
-using ngraph::Function;
 
 void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node>& output,
                                                const std::string& outName,
@@ -124,7 +123,7 @@ ov::element::Type details::toLegacyType(const ov::element::Type& ngraph_type, bo
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<ov::Model>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
       _new_api(newAPI) {
     {
@@ -501,7 +500,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -519,7 +518,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         ov::pass::Manager manager;
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
@@ -537,7 +536,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+        std::map<std::string, ov::OpSet> custom_opsets;
         std::stringstream binBuf;
         ov::pass::Manager manager;
         using namespace ov::pass;
