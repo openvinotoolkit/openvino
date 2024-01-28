@@ -55,7 +55,7 @@ normalize_inst::typed_primitive_inst(network& network, normalize_node const& nod
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.get_tensor();
     auto scale_feature_size = scale_size.feature[0];
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto input_feature_size = input_layout.feature();
 
     if (scale_feature_size != 1) {
