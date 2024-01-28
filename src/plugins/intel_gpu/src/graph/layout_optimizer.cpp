@@ -22,6 +22,7 @@
 #include "fully_connected_inst.h"
 #include "non_max_suppression_inst.h"
 #include "eltwise_inst.h"
+#include "rope_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include "one_hot_inst.h"
@@ -1537,6 +1538,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         preferred_impl = _forcing_map.at(node.id()).second;
     } else if (node.is_type<condition>()) {
         preferred_impl = impl_types::common;
+    } else if (node.is_type<rope>()) {
+        preferred_impl = impl_types::ocl;
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();
