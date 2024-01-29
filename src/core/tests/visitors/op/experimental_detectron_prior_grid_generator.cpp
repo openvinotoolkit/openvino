@@ -18,7 +18,7 @@ using ExperimentalGenerator = ov::op::v6::ExperimentalDetectronPriorGridGenerato
 using Attrs = ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 TEST(attributes, detectron_prior_grid_generator) {
-    NodeBuilder::get_ops().register_factory<ExperimentalGenerator>();
+    NodeBuilder::opset().insert<ExperimentalGenerator>();
 
     Attrs attrs;
     attrs.flatten = true;
