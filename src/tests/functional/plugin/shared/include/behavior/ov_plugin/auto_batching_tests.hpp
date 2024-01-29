@@ -86,7 +86,7 @@ protected:
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output);
                 outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), size_t(1),
+                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
                                         std::multiplies<size_t>()));
 
                 auto inf_req = compiled_model.create_infer_request();
