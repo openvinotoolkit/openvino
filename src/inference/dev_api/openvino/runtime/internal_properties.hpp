@@ -88,10 +88,4 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
     "COMPILED_MODEL_RUNTIME_PROPERTIES_SUPPORTED"};
 
 }  // namespace internal
-OPENVINO_DEPRECATED(
-    "This property is deprecated and will be removed soon. Use ov::internal::caching_properties instead of it.")
-constexpr auto caching_properties = internal::caching_properties;
-OPENVINO_DEPRECATED(
-    "This property is deprecated and will be removed soon. Use ov::internal::exclusive_async_requests instead of it.")
-constexpr auto exclusive_async_requests = internal::exclusive_async_requests;
 }  // namespace ov
