@@ -419,12 +419,11 @@ int get_model_prefer_threads(const int num_streams,
         config.modelPreferThreads = 4;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
-                config.modelPreferThreads = 16;
+                config.modelPreferThreads = 8;
             }
-        } else if ((networkToleranceForLowCache.ratio_mem_limited_deconvs != ov::MemBandwidthPressure::ALL) &&
-                   ((networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) ||
-                    (networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) ||
-                    (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::NONE))) {
+        } else if ((networkToleranceForLowCache.max_mem_tolerance < ov::MemBandwidthPressure::LIMITED) &&
+                   ((networkToleranceForLowCache.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED) ||
+                    (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
             config.modelPreferThreads = 8;
         }
 #elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
@@ -475,7 +474,9 @@ int get_model_prefer_threads(const int num_streams,
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
 #ifdef __APPLE__
             if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
-                model_prefer = proc_type_table[0][ALL_PROC];
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
+                                   ? proc_type_table[0][MAIN_CORE_PROC]
+                                   : proc_type_table[0][ALL_PROC];
             }
 #else
             bool llm_related = has_matmul_with_compressed_weights(model);

@@ -35,7 +35,7 @@ private:
     std::shared_ptr<ov::Node> make_topk_subgraph(ov::op::v11::TopK::Mode mode) const;
 
     const std::int64_t m_keep_dims;
-    Output<ov::Node> m_input_node;
+    ov::Output<ov::Node> m_input_node;
     std::int64_t m_axis;
     std::int64_t m_select_last_index;
 };

@@ -12,7 +12,6 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -71,7 +70,7 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
                                                                        dequantizations[3]);
     auto B = ov::opset1::Constant::create(inputPrecision, inputWeightsShapes[2], {1});
     auto max_seq_length = inputActivationsShapes[0][1].get_max_length();
-    auto seq_lengths = ov::opset1::Constant::create(element::i32, Shape{1}, {max_seq_length});
+    auto seq_lengths = ov::opset1::Constant::create(ov::element::i32, Shape{1}, {max_seq_length});
 
     std::shared_ptr<ov::op::util::RNNCellBase> rnn_layer;
     switch (type) {

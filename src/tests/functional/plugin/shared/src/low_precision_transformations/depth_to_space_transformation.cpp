@@ -15,7 +15,6 @@
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"

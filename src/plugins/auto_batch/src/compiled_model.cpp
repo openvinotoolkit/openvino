@@ -195,15 +195,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return num_request;
         } else if (name == ov::model_name.name()) {
             return m_compiled_model_without_batch->get_property(name);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-            return std::vector<std::string>{ov::optimal_number_of_infer_requests.name(),
-                                            METRIC_KEY(SUPPORTED_METRICS),
-                                            ov::model_name.name(),
-                                            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                            ov::execution_devices.name()};
-        } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-            return std::vector<std::string>{ov::auto_batch_timeout.name()};
         } else if (name == ov::execution_devices) {
             return m_compiled_model_without_batch->get_property(name);
         } else if (name == ov::loaded_from_cache) {
@@ -211,11 +202,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         } else if (name == ov::supported_properties) {
             return std::vector<ov::PropertyName>{
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_METRICS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_CONFIG_KEYS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
             return time_out;
@@ -239,7 +228,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {

@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
@@ -112,10 +111,11 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
         ov::CoordinateDiff{ 0, 0 },
         ov::CoordinateDiff{ 0, 0 },
         ov::Strides{ 1, 1 });
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
     convolution->set_friendly_name("output");
     auto& rtInfo = convolution->get_rt_info();
     rtInfo["Variant::std::string"] = "convolution";
@@ -230,18 +230,19 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReferenceWithIncorrectWeights
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
-    auto convolutionOriginal = ov::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
 
@@ -306,10 +307,11 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
         ov::CoordinateDiff{ 0, 0 },
         ov::Strides{ 1, 1 });
 
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
 
     if (!dequantizationAfter.empty()) {
         ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution,
@@ -369,18 +371,19 @@ std::shared_ptr<ov::Model> ConvolutionFunction::get(
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    auto convolutionOriginal = ov::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(parentOnData, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    const std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    const std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     convolution->set_friendly_name("convolution");
 
     for (const auto& r : restrictions) {

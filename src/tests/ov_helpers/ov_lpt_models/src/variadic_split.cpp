@@ -7,7 +7,6 @@
 
 #include "ov_lpt_models/variadic_split.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
@@ -24,8 +23,9 @@ namespace subgraph {
         const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
         const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
-        const auto constantAxis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-        const auto constantLengths = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ splitLengths.size() }, splitLengths);
+        const auto constantAxis = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, splitedAxis);
+        const auto constantLengths =
+            std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{splitLengths.size()}, splitLengths);
         const std::shared_ptr<Node> variadicSplit = std::make_shared<ov::opset1::VariadicSplit>(dequantizationOp, constantAxis, constantLengths);
 
         ov::ResultVector results;
@@ -54,8 +54,9 @@ std::shared_ptr<ov::Model> VariadicSplitFunction::getOriginal(
             fakeQuantize.outputLowValues,
             fakeQuantize.outputHighValues);
 
-    const auto constantAxis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const auto constantLengths = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ splitLengths.size() }, splitLengths);
+    const auto constantAxis = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, splitedAxis);
+    const auto constantLengths =
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{splitLengths.size()}, splitLengths);
     const std::shared_ptr<Node> variadicSplit =
         std::make_shared<ov::opset1::VariadicSplit>(fakeQuantize.empty() ? input : fq, constantAxis, constantLengths);
 
@@ -78,8 +79,9 @@ std::shared_ptr<ov::Model> VariadicSplitFunction::getReference(
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    const auto constantAxis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const auto constantLengths = std::make_shared<ov::opset1::Constant>(element::i64, Shape{ splitLengths.size() }, splitLengths);
+    const auto constantAxis = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, splitedAxis);
+    const auto constantLengths =
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{splitLengths.size()}, splitLengths);
     const auto variadicSplit = std::make_shared<ov::opset1::VariadicSplit>(deqBefore, constantAxis, constantLengths);
 
     ov::ResultVector results;
