@@ -67,11 +67,8 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
         } else {
-            if (axes_rank.is_static() && axes_rank.get_length() <= 1) {
-                std::vector<ov::Dimension> data_dims;
-                for (int64_t i = 0; i < data_rank.get_min_length() - 1; ++i)
-                    data_dims.push_back(ov::Dimension::dynamic());
-                output_shapes.push_back(ov::PartialShape(data_dims));
+            if (data_rank.is_static() && axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
+                output_shapes.push_back(ov::PartialShape::dynamic(data_rank.get_length() - 1));
             } else {
                 output_shapes.push_back(ov::PartialShape::dynamic());
             }
