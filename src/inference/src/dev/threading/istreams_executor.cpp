@@ -71,7 +71,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             default:
                 OPENVINO_THROW("Unsupported affinity type");
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {

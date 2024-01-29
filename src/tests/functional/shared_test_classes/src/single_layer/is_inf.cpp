@@ -49,7 +49,7 @@ void IsInfLayerTest::SetUp() {
     ElementType dataPrc;
     bool detectNegative, detectPositive;
     std::string targetName;
-    ov:AnyMap additionalConfig;
+    ov::AnyMap additionalConfig;
     std::tie(shapes, detectNegative, detectPositive, dataPrc, targetDevice, additionalConfig) = this->GetParam();
 
     init_input_shapes(shapes);
