@@ -644,7 +644,9 @@ jobs:
       - name: checkout action
         uses: actions/checkout@v4
         with:
-          sparse-checkout: .github/actions/setup_python
+          sparse-checkout: |
+            .github/actions/setup_python
+            install_build_dependencies.sh
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./.github/actions/setup_python
@@ -677,6 +679,9 @@ jobs:
       #
       # Dependencies
       #
+      - name: Install build dependencies
+        run: |
+          ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install python dependencies
         run: |
