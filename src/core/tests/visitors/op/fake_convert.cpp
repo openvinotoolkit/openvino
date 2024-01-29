@@ -14,7 +14,7 @@ using ov::test::NodeBuilder;
 
 TEST(attributes, fake_convert_v13_attributes_default) {
     using ov::op::v13::FakeConvert;
-    NodeBuilder::get_ops().register_factory<FakeConvert>();
+    NodeBuilder::opset().insert<FakeConvert>();
     const auto data = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{2, 3, 8, 6});
     const auto scale = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});
     const auto shift = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});
@@ -31,7 +31,7 @@ TEST(attributes, fake_convert_v13_attributes_default) {
 
 TEST(attributes, fake_convert_v13_attributes_custom) {
     using ov::op::v13::FakeConvert;
-    NodeBuilder::get_ops().register_factory<FakeConvert>();
+    NodeBuilder::opset().insert<FakeConvert>();
     const auto data = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{2, 3, 8, 6});
     const auto scale = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});
     const auto shift = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});

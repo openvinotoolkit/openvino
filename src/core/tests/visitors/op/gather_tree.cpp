@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gather_tree_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::GatherTree>();
+    NodeBuilder::opset().insert<ov::op::v1::GatherTree>();
 
     auto step_ids = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
     auto parent_idx = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});

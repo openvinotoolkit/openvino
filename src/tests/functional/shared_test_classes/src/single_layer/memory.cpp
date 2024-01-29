@@ -110,12 +110,12 @@ void MemoryTest::Infer() {
     inferRequest.Infer();
 }
 
-std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
     using namespace ngraph;
     function->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-    auto refInputsTypes = std::vector<element::Type>(inputs.size());
+    auto refInputsTypes = std::vector<ov::element::Type>(inputs.size());
     ov::TensorVector inputTensors;
     for (auto& input : inputs) {
         const auto& dataSize = input->byteSize();
@@ -140,7 +140,7 @@ std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::Cal
     ov::TensorVector outputTensors(outInfo.size());
     function->evaluate(outputTensors, inputTensors, eval_context);
 
-    std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
     for (size_t idx = 0; idx < outInfo.size(); ++idx) {
         outputs[idx].first = outputTensors[idx].get_element_type();
         outputs[idx].second.resize(outputTensors[idx].get_byte_size());
@@ -162,7 +162,7 @@ void MemoryTest::CreateTIFunc() {
     auto add = std::make_shared<Add>(X, Y);
     auto res = std::make_shared<Result>(add);
     auto Iter_res = std::make_shared<Result>(Iter);
-    auto body = std::make_shared<Function>(OutputVector{res, Iter_res}, ParameterVector{X, Y, Iter});
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{res, Iter_res}, ov::ParameterVector{X, Y, Iter});
 
     // TI construction
     auto tensor_iterator = std::make_shared<TensorIterator>();
@@ -175,7 +175,7 @@ void MemoryTest::CreateTIFunc() {
     auto output = tensor_iterator->get_iter_value(res, -1);
     auto output_iter = tensor_iterator->get_concatenated_slices(Iter_res, 0, 1, 1, -1, 0);
     function =
-        std::make_shared<Function>(OutputVector{output, output_iter}, ParameterVector{param, iter_count}, "PureTI");
+        std::make_shared<ov::Model>(ov::OutputVector{output, output_iter}, ov::ParameterVector{param, iter_count}, "PureTI");
 }
 
 void MemoryTest::CreateCommonFunc() {
@@ -188,7 +188,7 @@ void MemoryTest::CreateCommonFunc() {
     auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
     auto res = std::make_shared<ov::op::v0::Result>(add);
-    function = std::make_shared<Function>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
+    function = std::make_shared<ov::Model>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {
