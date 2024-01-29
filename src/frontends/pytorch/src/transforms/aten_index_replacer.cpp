@@ -171,10 +171,10 @@ AtenIndexToSelect::AtenIndexToSelect() {
             cum_adv_index = rg.make<v0::Convert>(cum_adv_index, element::i32);
             auto multiplier = input_dims->output(advanced_ids[adv_idx_count - 1]);
             for (int i = static_cast<int>(adv_idx_count) - 2; i > -1; i--) {
-                auto m_idx = rg.make<v0::Convert>(masked_indicies[i], element::i32);
+                auto input_id = advanced_ids[i];
+                auto m_idx = rg.make<v0::Convert>(masked_indicies[input_id], element::i32);
                 auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
                 cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
-                auto input_id = advanced_ids[i];
                 multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
             }
             std::shared_ptr<Node> gather = rg.make<v8::Gather>(flatten_input, cum_adv_index, zero);
