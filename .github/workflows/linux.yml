@@ -656,15 +656,13 @@ jobs:
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Fetch setup_python action
+      - name: checkout action
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
+          sparse-checkout: .github/actions/setup_python
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: .github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
