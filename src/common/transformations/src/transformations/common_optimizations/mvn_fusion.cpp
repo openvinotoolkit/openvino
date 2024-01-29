@@ -179,11 +179,9 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             nodes_to_copy_info.push_back(pattern_to_output.at(sub2).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.count(reuseSub1OrNot)) {
-            auto cast = pattern_to_output.at(reuseSub1OrNot).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Convert>(cast)) {
-                nodes_to_copy_info.push_back(cast);
-            }
+        if (pattern_to_output.count(optionalConvert)) {
+            auto cast = pattern_to_output.at(optionalConvert).get_node_shared_ptr();
+            nodes_to_copy_info.push_back(cast);
         }
 
         if (pattern_to_output.count(div_alt)) {
