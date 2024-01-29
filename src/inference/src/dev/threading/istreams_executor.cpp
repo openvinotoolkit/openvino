@@ -71,6 +71,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             default:
                 OPENVINO_THROW("Unsupported affinity type");
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
@@ -207,6 +208,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         };
         OPENVINO_SUPPRESS_DEPRECATED_END
         return properties;
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (key == ov::affinity) {
         switch (_threadBindingType) {
         case IStreamsExecutor::ThreadBindingType::NONE:
@@ -218,6 +220,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
             return ov::Affinity::HYBRID_AWARE;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (key == ov::num_streams) {
         return decltype(ov::num_streams)::value_type{_streams};
         OPENVINO_SUPPRESS_DEPRECATED_START

@@ -19,9 +19,9 @@ the community.
 
 You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
-independently. 
+independently.
 
-**Table of contents:** 
+**Table of contents:**
 
 - `Image classification <#image-classification>`__
 - `Install required packages <#install-required-packages>`__
@@ -74,10 +74,11 @@ Install required packages
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.1 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -92,15 +93,15 @@ Import libraries
     import os
     from urllib.request import urlretrieve
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-    
+
     import tensorflow_hub as hub
     import tensorflow as tf
     import PIL
     import numpy as np
     import matplotlib.pyplot as plt
-    
+
     import openvino as ov
-    
+
     tf.get_logger().setLevel("ERROR")
 
 .. code:: ipython3
@@ -124,8 +125,8 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
 .. parsed-literal::
 
-    2023-12-06 23:12:55.307954: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2023-12-06 23:12:55.308138: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-01-25 23:15:55.944757: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-01-25 23:15:55.944938: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Download a single image to try the model on
@@ -194,16 +195,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -322,6 +323,10 @@ Install required packages
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -331,9 +336,9 @@ Install required packages
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     from urllib.request import urlretrieve
     from pathlib import Path
-    
+
     import openvino as ov
-    
+
     import tensorflow_hub as hub
     import tensorflow as tf
     import cv2
@@ -344,10 +349,10 @@ Install required packages
 
     CONTENT_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/2/26/YellowLabradorLooking_new.jpg"
     CONTENT_IMAGE_PATH = "./data/YellowLabradorLooking_new.jpg"
-    
+
     STYLE_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/b/b4/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
     STYLE_IMAGE_PATH = "./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
-    
+
     MODEL_URL = "https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2"
     MODEL_PATH = "./models/arbitrary-image-stylization-v1-256.xml"
 
@@ -398,16 +403,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 

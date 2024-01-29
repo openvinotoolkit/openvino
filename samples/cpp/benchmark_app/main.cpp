@@ -495,9 +495,11 @@ int main(int argc, char* argv[]) {
             };
 
             auto set_nthreads_pin = [&](const std::string& str) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config[property.first] = property.second;

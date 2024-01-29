@@ -128,7 +128,9 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
         if (get_device_name() == "MULTI") {
             auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
             if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
                 // setting tput as the default performance mode if
