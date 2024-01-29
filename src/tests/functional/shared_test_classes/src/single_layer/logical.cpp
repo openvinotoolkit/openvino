@@ -76,7 +76,7 @@ void LogicalLayerTest::SetUp() {
         }
         logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
     } else {
-        logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ov::Node>(), logicalOpType);
+        logicalNode = ngraph::builder::makeLogical(inputs[0], ov::Output<ov::Node>(), logicalOpType);
     }
 
     function = std::make_shared<ov::Model>(logicalNode, inputs, "Logical");

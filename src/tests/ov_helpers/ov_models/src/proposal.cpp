@@ -16,7 +16,7 @@ namespace builder {
 std::shared_ptr<Node> makeProposal(const ov::Output<Node>& class_probs,
                                    const ov::Output<Node>& class_logits,
                                    const std::vector<float>& image_info,
-                                   const element::Type& type,
+                                   const ov::element::Type& type,
                                    size_t base_size,
                                    size_t pre_nms_topn,
                                    size_t post_nms_topn,

@@ -19,13 +19,13 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
-OutputVector batch_norm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector batch_norm(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
-    Output<ov::Node> mean;
-    Output<ov::Node> var;
+    ov::Output<ov::Node> mean;
+    ov::Output<ov::Node> var;
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
 
@@ -55,8 +55,8 @@ OutputVector batch_norm(const Node& node) {
 
 namespace set_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
-OutputVector batch_norm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector batch_norm(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
