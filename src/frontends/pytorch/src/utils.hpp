@@ -86,6 +86,12 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
+// helper ops
+Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask,
+                         const Output<Node>& value);
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {
