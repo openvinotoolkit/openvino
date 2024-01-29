@@ -47,6 +47,9 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
+        params.input0_order = primitive->input0_order;
+        params.input1_order = primitive->input1_order;
+        params.output_order = primitive->output_order;
 
         bool is_quantized = true;
         for (auto& input : impl_param.input_layouts)

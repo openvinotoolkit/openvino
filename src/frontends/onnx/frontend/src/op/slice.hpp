@@ -14,12 +14,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_10 {
-OutputVector slice(const Node& node);
+ov::OutputVector slice(const Node& node);
 
 }  // namespace set_10
 
 namespace set_1 {
-OutputVector slice(const Node& node);
+ov::OutputVector slice(const Node& node);
 
 }  // namespace set_1
 

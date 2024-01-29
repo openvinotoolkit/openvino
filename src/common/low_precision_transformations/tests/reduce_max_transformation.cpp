@@ -25,7 +25,7 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ReduceMaxTransformation : public ReduceTransformation<ov::op::v1::ReduceMax> {
     void SetUp() override {

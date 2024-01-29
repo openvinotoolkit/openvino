@@ -4,15 +4,14 @@
 
 #include "plugin.h"
 
-#include "itt.h"
 #include "internal_properties.hpp"
+#include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-
+#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "performance_heuristics.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
@@ -212,7 +211,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
         const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                                    ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT,
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
@@ -699,8 +698,11 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::available_devices.name()),
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
+                                                    RO_property(ov::execution_devices.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::type.name()),
+                                                    RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
@@ -762,6 +764,24 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
+    } else if (name == ov::device::type) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+    } else if (name == ov::device::architecture) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return decltype(ov::device::architecture)::value_type{"intel64"};
+#elif defined(OPENVINO_ARCH_X86)
+        return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
+#endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

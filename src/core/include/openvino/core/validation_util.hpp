@@ -11,27 +11,6 @@
 
 namespace ov {
 
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API
-PartialShape infer_convolution_forward(const Node* node,
-                                       const PartialShape& data_batch_shape,
-                                       const Strides& data_dilation,
-                                       const CoordinateDiff& data_padding_below,
-                                       const CoordinateDiff& data_padding_above,
-                                       const PartialShape& filters_shape,
-                                       const Strides& filter_strides,
-                                       const Strides& filter_dilation);
-
-OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
-OPENVINO_API
-void infer_auto_padding(const Shape& image_shape,
-                        const Shape& filter_shape,
-                        const Strides& filter_strides,
-                        const Strides& filter_dilations,
-                        const op::PadType pad_type,
-                        CoordinateDiff& padding_above,
-                        CoordinateDiff& padding_below);
-
 /// \brief      Handle out of range axis.
 ///
 /// \param[in]  node         The node with requested axis.

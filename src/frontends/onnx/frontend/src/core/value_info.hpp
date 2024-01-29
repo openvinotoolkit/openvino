@@ -41,17 +41,17 @@ public:
     const std::string& get_name() const {
         return m_value_info_proto->name();
     }
-    const PartialShape& get_shape() const {
+    const ov::PartialShape& get_shape() const {
         return m_partial_shape;
     }
-    const element::Type& get_element_type() const {
+    const ov::element::Type& get_element_type() const {
         if (m_value_info_proto->type().tensor_type().has_elem_type()) {
             return common::get_ov_element_type(m_value_info_proto->type().tensor_type().elem_type());
         }
         return ov::element::dynamic;
     }
 
-    std::shared_ptr<ov::Node> get_ov_node(ParameterVector& parameters,
+    std::shared_ptr<ov::Node> get_ov_node(ov::ParameterVector& parameters,
                                           const std::map<std::string, Tensor>& initializers) const {
         const auto it = initializers.find(get_name());
         if (it != std::end(initializers)) {
@@ -75,7 +75,7 @@ protected:
 
 private:
     const ONNX_NAMESPACE::ValueInfoProto* m_value_info_proto;
-    PartialShape m_partial_shape = PartialShape::dynamic();
+    ov::PartialShape m_partial_shape = ov::PartialShape::dynamic();
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {

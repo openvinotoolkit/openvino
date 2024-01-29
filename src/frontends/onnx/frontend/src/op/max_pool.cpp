@@ -4,18 +4,18 @@
 
 #include "op/max_pool.hpp"
 
-#include <memory>
-
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/util/log.hpp"
 #include "utils/pooling_factory.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector max_pool(const Node& node) {
+ov::OutputVector max_pool(const Node& node) {
     if (node.get_outputs_size() > 1) {
         OPENVINO_WARN << "MaxPool: Indices output is not supported and was ignored";
     }
@@ -27,7 +27,7 @@ OutputVector max_pool(const Node& node) {
 }  // namespace set_1
 
 namespace set_8 {
-OutputVector max_pool(const Node& node) {
+ov::OutputVector max_pool(const Node& node) {
     return pooling::PoolingFactory(node).make_max_pool_with_indices();
 }
 }  // namespace set_8
