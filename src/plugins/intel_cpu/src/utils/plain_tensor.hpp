@@ -96,6 +96,7 @@ struct PlainTensor {
     std::shared_ptr<uint8_t> m_ptr;
     size_t m_capacity = 0;
     size_t m_element_size = 0;
+    size_t m_offset = 0;
     ov::element::Type_t m_dt = ov::element::Type_t::undefined;
     MemoryPtr m_mem;        // hold memory ptr reference
 
@@ -140,6 +141,7 @@ struct PlainTensor {
         m_dt = other.m_dt;
         m_element_size = other.m_element_size;
         m_capacity = other.m_capacity;
+        m_offset = other.m_offset;
         return *this;
     }
 
@@ -219,7 +221,8 @@ struct PlainTensor {
             i_src++;
         }
         sub_tensor.m_rank = i_dst;  // index may imply squeeze
-        sub_tensor.m_ptr = std::shared_ptr<uint8_t>((m_ptr.get() + off * m_element_size), [](uint8_t*) {});
+        sub_tensor.m_ptr = m_ptr;
+        sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
         sub_tensor.m_element_size = m_element_size;
         return sub_tensor;
@@ -252,7 +255,8 @@ struct PlainTensor {
         }
 
         auto off = start * m_strides[axis];
-        sub_tensor.m_ptr = std::shared_ptr<uint8_t>(m_ptr.get() + off * m_element_size, [] (uint8_t* ) {});
+        sub_tensor.m_ptr = m_ptr;
+        sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
         sub_tensor.m_element_size = m_element_size;
 
@@ -290,7 +294,7 @@ struct PlainTensor {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
-        new_tensor_view.resize(target_shape, m_element_size, m_dt, static_cast<void*>(m_ptr.get()));
+        new_tensor_view.resize(target_shape, m_element_size, m_dt, static_cast<void*>(m_ptr.get() + m_element_size * m_offset));
         return new_tensor_view;
     }
 
@@ -299,10 +303,11 @@ struct PlainTensor {
         assert(order.size() == m_rank);
         new_tensor_view.m_capacity = 0;
         // not hold memory reference
-        new_tensor_view.m_ptr = std::shared_ptr<uint8_t>(m_ptr.get(), [] (uint8_t* ) {});;
+        new_tensor_view.m_ptr = m_ptr;
         new_tensor_view.m_rank = m_rank;
         new_tensor_view.m_dt = m_dt;
         new_tensor_view.m_element_size = m_element_size;
+        new_tensor_view.m_offset = m_offset;
         auto it_order = order.begin();
         // also should check order has no repeat element
         for (size_t i = 0; i < m_rank; i++) {
@@ -345,6 +350,7 @@ struct PlainTensor {
                     #endif
                 });
                 m_capacity = capacity_new;
+                m_offset = 0;
             }
         } else {
             // m_capacity is zero to indicate that we don't own the memory
@@ -360,7 +366,7 @@ struct PlainTensor {
 
     template <typename DT>
     DT* data() const {
-        return reinterpret_cast<DT*>(m_ptr.get());
+        return reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
@@ -378,7 +384,7 @@ struct PlainTensor {
             }
             off += m_strides[i] * coordinate;
         }
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
 
     // the following is used for fast access
@@ -389,7 +395,7 @@ struct PlainTensor {
             off = dim0;
         else
             off = m_strides[0] * dim0;
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
     template <typename DT>
     DT& at(size_t dim0, size_t dim1, bool last_dim_stride_is_one = true) const {
@@ -398,7 +404,7 @@ struct PlainTensor {
             off = m_strides[0] * dim0 + dim1;
         else
             off = m_strides[0] * dim0 + m_strides[1] * dim1;
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
     template <typename DT>
     DT& at(size_t dim0, size_t dim1, size_t dim2, bool last_dim_stride_is_one = true) const {
@@ -407,7 +413,7 @@ struct PlainTensor {
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2;
         else
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2];
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
     template <typename DT>
     DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, bool last_dim_stride_is_one = true) const {
@@ -416,7 +422,7 @@ struct PlainTensor {
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3;
         else
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3];
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
     template <typename DT>
     DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, size_t dim4, bool last_dim_stride_is_one = true) const {
@@ -425,14 +431,14 @@ struct PlainTensor {
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4;
         else
             off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4 * m_strides[4];
-        return (reinterpret_cast<DT*>(m_ptr.get() + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
 
     template <typename DT>
     PlainTensor& operator=(const DT& value) {
         // assign every element to value
         std::vector<size_t> index(m_rank, 0);
-        auto* dst = reinterpret_cast<DT*>(m_ptr.get());
+        auto* dst = reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
         while (1) {
             size_t off = 0;
             for (int i = m_rank - 1; i >= 0; i--) {
@@ -526,17 +532,17 @@ struct PlainTensor {
             // display current element if we still have buget
             if (cur_row_lines_left > 0) {
                 if (m_dt == ov::element::Type_t::f32)
-                    ss << reinterpret_cast<float*>(m_ptr.get())[i] << ",";
+                    ss << (data<float>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::bf16)
-                    ss << reinterpret_cast<bfloat16*>(m_ptr.get())[i] << ",";
+                    ss << (data<bfloat16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::f16)
-                    ss << reinterpret_cast<float16*>(m_ptr.get())[i] << ",";
+                    ss << (data<float16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i32)
-                    ss << reinterpret_cast<int32_t*>(m_ptr.get())[i] << ",";
+                    ss << (data<int32_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i8)
-                    ss << static_cast<int32_t>(reinterpret_cast<int8_t*>(m_ptr.get())[i]) << ",";
+                    ss << (data<int8_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::u8)
-                    ss << static_cast<int32_t>(reinterpret_cast<uint8_t*>(m_ptr.get())[i]) << ",";
+                    ss << (data<uint8_t>())[i] << ",";
                 else
                     ss << "?,";
                 cur_line_elecnt++;

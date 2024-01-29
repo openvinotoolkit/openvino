@@ -11,9 +11,6 @@
 #include "utils/plain_tensor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
-
-using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov {
 namespace intel_cpu {
@@ -198,6 +195,14 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     auto L0 = pastkv.size(2);
     auto S = pastkv.size(3);
     if (pastkv.get_precision() == element::u8) {
+        auto dequant_u8 = [] (uint8_t* a, float* b, size_t n, float scale, float zp) {
+            for (size_t i = 0; i < n; ++i) {
+                float tmp = a[i];
+                tmp = (tmp - zp) * scale;
+                b[i] = tmp;
+            }
+        };
+
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
         parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
@@ -240,6 +245,24 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     Memory external_mem(get_engine(), state_desc, m_state->data());
 
     if (dense_internal_desc->getPrecision() == element::u8) {
+        auto quant_u8 = [] (uint8_t* a, float* b, size_t n, float& scale, float& zp) {
+            size_t i = 0;
+            float max = -FLT_MAX;
+            float min = FLT_MAX;
+            for (; i < n; i++) {
+                float tmp = b[i];
+                max = std::max(max, tmp);
+                min = std::min(min, tmp);
+            }
+            scale = (max - min) / 255;
+            zp = -min / scale;
+
+            i = 0;
+            for (; i < n; i++) {
+                float tmp = b[i];
+                a[i] = static_cast<uint8_t>(tmp / scale + zp);
+            }
+        };
         PlainTensor external, internal;
         auto&& actual_internal_order = m_dense_internal_desc->getOrder();
         external.resize(external_mem.getStaticDims(), state_desc->getPrecision().size(), state_desc->getPrecision(), m_state->data());
