@@ -174,7 +174,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
                 matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
-        //todo: Remove after fp16_compression is copyable
+        ///todo: CVS-130863 Remove after fp16_compression is copyable
         if (ov::fp16_compression_is_disabled(matmul))
             disable_fp16_compression(fc);
         new_ops.push_back(fc);

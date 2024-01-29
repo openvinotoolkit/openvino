@@ -10,9 +10,8 @@
 #include <functional>
 
 #include <ie_core.hpp>
-#include <ngraph/function.hpp>
-#include <exec_graph_info.hpp>
-
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/core/model.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -93,7 +92,7 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
             matmulPrecision = getExecValue(node->get_rt_info(), ov::exec_model_info::RUNTIME_PRECISION);
         }
     }
-    OPENVINO_ASSERT(!matmulPrecision.empty());
+    ASSERT_TRUE(!matmulPrecision.empty());
     if (disableLoweringPrecision)
         ASSERT_EQ(matmulPrecision, "f32");
     else

@@ -195,6 +195,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
+        copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
         if (assign_cvt_k_node)
             assign_cvt_k_node->set_arguments({new_node->output(1)});
