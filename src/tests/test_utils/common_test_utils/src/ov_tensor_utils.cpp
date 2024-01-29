@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/constant.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "precomp.hpp"
 
 namespace ov {
