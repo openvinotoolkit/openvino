@@ -15,8 +15,8 @@
 #include "ie_network_reader.hpp"
 #include "iplugin_wrapper.hpp"
 #include "itt.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -174,15 +174,6 @@ ov::Any ov::CoreImpl::GetConfig(const std::string& deviceName, const std::string
 
 std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
     return get_available_devices();
-}
-
-/**
- * @brief Registers the extension in a Core object
- *        Such extensions can be used for both CNNNetwork readers and device plugins
- */
-void ov::CoreImpl::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-    AddExtensionUnsafe(extension);
 }
 
 bool ov::CoreImpl::DeviceSupportsModelCaching(const std::string& deviceName) const {

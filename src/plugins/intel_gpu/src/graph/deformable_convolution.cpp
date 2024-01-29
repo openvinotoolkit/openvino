@@ -53,7 +53,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_interp)
 layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param) {
     auto desc = node.get_primitive();
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
 
     auto kernel_size = desc->kernel_size;
     auto input_type = input_layout.data_type;

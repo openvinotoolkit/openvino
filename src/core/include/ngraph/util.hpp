@@ -31,11 +31,10 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/enum_mask.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -206,15 +205,15 @@ AxisVector get_default_order(size_t rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Rank& rank);
+AxisVector get_default_order(const ov::Rank& rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Shape& shape);
+AxisVector get_default_order(const ov::Shape& shape);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const PartialShape& shape);
+AxisVector get_default_order(const ov::PartialShape& shape);
 
 /// \brief Function to query parsed version information of the version of ngraph which
 /// contains this function. Version information strictly follows Semantic Versioning
@@ -255,7 +254,7 @@ NGRAPH_API_DEPRECATED T double_to_int(double x, double float_to_int_converter(do
 
 template <typename T>
 NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv) {
-    if (ngraph::element::from<T>() != tv->get_element_type()) {
+    if (ov::element::from<T>() != tv->get_element_type()) {
         OPENVINO_THROW("read_vector type must match Tensor type");
     }
     size_t element_count = ngraph::shape_size(tv->get_shape());
@@ -265,8 +264,8 @@ NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv)
     return rc;
 }
 
-template <class T, ngraph::element::Type_t ET>
-NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ngraph::element_type_traits<ET>::value_type* data,
+template <class T, ov::element::Type_t ET>
+NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ov::element_type_traits<ET>::value_type* data,
                                                     size_t size) {
     std::vector<T> result(size);
     for (size_t i = 0; i < size; i++) {
@@ -283,5 +282,5 @@ std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ov::Tensor> tv
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv);
+std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END

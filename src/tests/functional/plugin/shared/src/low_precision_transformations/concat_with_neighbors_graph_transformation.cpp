@@ -10,7 +10,6 @@
 #include <string>
 
 #include "transformations/init_node_info.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,7 +35,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 
     init_input_shapes({ inputShape, inputShape, inputShape });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
         inputShape,
         { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },

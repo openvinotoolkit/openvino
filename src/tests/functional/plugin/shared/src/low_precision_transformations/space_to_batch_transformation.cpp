@@ -31,7 +31,7 @@ void SpaceToBatchTransformation::SetUp() {
 
     init_input_shapes(param.input_shape);
 
-    function = ngraph::builder::subgraph::SpaceToBatchFunction::get(
+    function = ov::builder::subgraph::SpaceToBatchFunction::get(
         param.input_shape,
         input_type,
         param.fake_quantize,

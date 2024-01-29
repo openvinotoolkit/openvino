@@ -99,7 +99,7 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 }
 
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
 
     if (input_layout.is_dynamic())
         return;

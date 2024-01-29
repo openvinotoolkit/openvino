@@ -7,17 +7,16 @@
 #include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/builders.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
     const ov::Shape& inputShape,
     const ov::element::Type inputPrecision,
     const std::shared_ptr<ov::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights) {
+    const ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("Input");
     weights->set_friendly_name("Weights");
@@ -47,4 +46,4 @@ std::shared_ptr<ov::Model> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

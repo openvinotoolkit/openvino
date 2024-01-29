@@ -8,6 +8,7 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
+#include "emitters/utils.hpp"
 #include <node.h>
 
 #include <set>
@@ -167,7 +168,7 @@ private:
         // share their broadcast property
         // TODO: enforce through data structure
         const auto it = entry_map_.find(key); // search an entry for a key
-        OPENVINO_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
+        OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
         const auto &te = (*it).second;
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;

@@ -21,9 +21,9 @@ class MoveFakeQuantizeTransformationParam {
 public:
     size_t concatInputsCount;
     std::string operation;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string layerName;
     std::string expectedKernelType;
     std::int64_t axis;
