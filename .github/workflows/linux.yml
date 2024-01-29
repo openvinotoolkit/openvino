@@ -664,6 +664,12 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           ref: 'master'
 
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
       - name: Download OpenVINO Developer package
         uses: actions/download-artifact@v3
         with:
@@ -672,6 +678,10 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+
           pushd ${INSTALL_DIR}
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
@@ -693,9 +703,10 @@ jobs:
 
       - name: Build tokenizers wheel
         run: |
+          source ${INSTALL_DIR}/setupvars.sh
           python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
         env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=ON -DOpenVINODeveloperPackage_DIR=${OPENVINO_DEVELOPER_PACKAGE}/cmake'
+          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=ON -DOpenVINODeveloperPackage_DIR=${OPENVINO_DEVELOPER_PACKAGE}'
           CMAKE_GENERATOR: 'Unix Makefiles'
 
       #
