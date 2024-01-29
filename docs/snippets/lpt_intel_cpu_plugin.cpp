@@ -52,12 +52,12 @@ if (useLpt) {
 
 if (useLpt) {
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ov::Node> &node) -> bool {
         return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
     });
 
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ov::Node> &node) -> bool {
         return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
     });
 }
@@ -95,16 +95,16 @@ if (useLpt) {
     lptManager.register_pass<ov::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
-    lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ov::Node>& node) -> bool {
         if (const auto multiply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
             return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(multiply);
         }
         return false;
     });
-    lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ov::Node>& node) -> bool {
         return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
     });
-    lptManager.get_pass_config()->set_callback<MultiplyToGroupConvolutionTransformation>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<MultiplyToGroupConvolutionTransformation>([](const std::shared_ptr<const ov::Node>& node) -> bool {
         return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
     });
 
@@ -177,7 +177,7 @@ using namespace ov::pass::low_precision;
 ov::pass::Manager lptManager;
 
 lptManager.register_pass<ov::pass::low_precision::LowPrecision>();
-lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ov::Node>& node) -> bool {
     return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
 });
 lptManager.run_passes(nGraphFunc);
