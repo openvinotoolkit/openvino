@@ -41,7 +41,7 @@ using namespace ov;
 #endif
 
 template<typename T>
-static void attn_acc_value(float* out, float weight, T* v, size_t S, float scale, float zp) {
+static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
@@ -65,12 +65,12 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float scale
     }
 }
 
-static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float scale, float zp) {
+static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
-    weight *= scale;
+    weight *= *scale;
 #if defined(HAVE_AVX512F)
     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
-    auto v_zp = _mm512_set1_ps(zp);
+    auto v_zp = _mm512_set1_ps(*zp);
     for (; i + 4 * vec_len_f32_avx512 <= S; i += 4* vec_len_f32_avx512) {
         auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i));
         auto v1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512));
@@ -142,7 +142,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
     }
 #elif defined(HAVE_AVX2)
     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
-    auto v_zp = _mm256_set1_ps(zp);
+    auto v_zp = _mm256_set1_ps(*zp);
     for (; i + 4 * vec_len_f32_avx2 <= S; i += 4* vec_len_f32_avx2) {
         auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i));
         auto v1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2));
@@ -214,7 +214,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
     }
 #endif
     for (; i < S; i++) {
-        out[i] += weight * (v[i] - zp);
+        out[i] += weight * (v[i] - *zp);
     }
 }
 
@@ -721,8 +721,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 buf_attn_w.at<float>(b, h_group, 0, pv),
                                 v,
                                 S,
-                                p[0],
-                                p[1]);
+                                p + 0,
+                                p + 1);
                     parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
                 }
             } else {
@@ -736,8 +736,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                         buf_attn_w.at<float>(b, h, pq, pv),
                                         v,
                                         S,
-                                        p[0],
-                                        p[1]);
+                                        p + 0,
+                                        p + 1);
                         }
                     }
                     parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);

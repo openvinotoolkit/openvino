@@ -76,6 +76,7 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
@@ -661,6 +662,8 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::ScaledDotProductAttentionDecomposition);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::ConvertConvertLike);
     postLPTPassManager.run_passes(model);
 }
 
