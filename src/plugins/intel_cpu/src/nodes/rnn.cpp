@@ -455,6 +455,8 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
     S = statesCount(cell_type);
     SC = rnnCellBase->get_hidden_size();
     N = {getInputShapeAtPort(0).getMinDims()[0], getInputShapeAtPort(0).getMaxDims()[0]};
+    if (!is_cell)
+        N_SEQ = {getInputShapeAtPort(sIdx).getMinDims()[0], getInputShapeAtPort(sIdx).getMaxDims()[0]};
 
     const auto& rtInfo = op->get_rt_info();
 
@@ -696,7 +698,7 @@ void RNN::fillSequenceDesc() {
     const Shape shapeNDSC {{N.minVal, D, SC}, {N.maxVal, D, SC}};
     Shape shapeNTSC {{N.minVal, T.minVal, SC}, {N.maxVal, T.maxVal, SC}};
     const Shape shapeNTDC {{N.minVal, T.minVal, DC}, {N.maxVal, T.maxVal, DC}};
-    const Shape TShape {VectorDims{N.minVal}, VectorDims{N.maxVal}};
+    const Shape TShape {VectorDims{N_SEQ.minVal}, VectorDims{N_SEQ.maxVal}};
     const Shape WShape {D, G * SC, DC};
     const Shape RShape {D, G * SC, SC};
     const Shape BShape {D, Gb * SC};

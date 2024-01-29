@@ -339,7 +339,6 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {10}, {3}, {5}, {10}, {5} } } },          // Target shapes
 };
 
-
 namespace dynamicShapesBatchSwitch {
   const int input_size = 240;
   const int seq_length = 1;
@@ -453,6 +452,30 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::Values(cpuParamsBatchSizeOne),
                                ::testing::Values(additionalConfig[1])),
             LSTMSequenceCPUTest::getTestCaseName);
+
+// Odd but valid use case
+std::vector<InputShape> mixedDynamicStaticBatch {
+    {{ {2, 3}, 5, 10},                         // Dynamic shape 0
+     { {2, 5, 10}, {2, 5, 10}, {2, 5, 10} } }, // Target shapes
+    {{ {2, 3}, 1, 1},                          // Dynamic shape 1
+      { {2, 1, 1}, {2, 1, 1}, {2, 1, 1} } },   // Target shapes
+    {{ {2, 3}, 1, 1},                          // Dynamic shape 2
+      { {2, 1, 1}, {2, 1, 1}, {2, 1, 1} } },   // Target shapes
+    { {2},                                     // Static shape 3
+      { {2}, {2}, {2} } }                      // Target shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_mixedDynamicStaticBatch, LSTMSequenceCPUTest,
+            ::testing::Combine(::testing::Values(mixedDynamicStaticBatch),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParams),
+                               ::testing::Values(ov::AnyMap{})),
+            LSTMSequenceCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov
