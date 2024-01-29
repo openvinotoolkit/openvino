@@ -42,7 +42,7 @@ jobs:
           if [ "$(id -u)" -eq 0 ]; then
             echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
           else
-            sudo echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+            sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
           fi
 
       - name: Download OpenVINO package
