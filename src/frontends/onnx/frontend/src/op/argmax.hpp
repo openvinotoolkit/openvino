@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMax operation.
-OutputVector argmax(const Node& node);
+ov::OutputVector argmax(const Node& node);
 
 }  // namespace set_1
 
@@ -30,7 +30,7 @@ namespace set_12 {
 ///
 /// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMax operation.
-OutputVector argmax(const Node& node);
+ov::OutputVector argmax(const Node& node);
 
 }  // namespace set_12
 
