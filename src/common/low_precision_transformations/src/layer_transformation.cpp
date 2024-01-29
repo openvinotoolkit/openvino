@@ -397,11 +397,11 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
     TransformationContext &context,
     const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
-    const bool updatePrecision,
+    const bool updateOutputPrecision,
     const bool moveSubtract) const {
     const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
         dequantization,
-        updatePrecision,
+        updateOutputPrecision,
         moveSubtract,
         defaultPrecisions);
     updateOutput(context, result.lastDequantization, result.newOperation);
