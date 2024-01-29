@@ -45,10 +45,10 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_strided_slice_basic(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         self._test(*self.create_strided_slice_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_squeeze_data = [
         dict(input_shape=[1, 5], begin_value=[0, 0], end_value=[1, 5], strides_value=[1, 1], begin_mask=0,
@@ -84,10 +84,10 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize('params', test_squeeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_squeeze(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, use_old_api):
+                                                temp_dir, use_new_frontend):
         self._test(*self.create_strided_slice_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_unsqueeze_data = [
         dict(input_shape=[1, 5], begin_value=[0, 0], end_value=[1, 5], strides_value=[1, 1], begin_mask=0,
@@ -114,10 +114,10 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize('params', test_unsqueeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_unsqueeze(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, use_new_frontend, use_old_api):
+                                                  temp_dir, use_new_frontend):
         self._test(*self.create_strided_slice_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 class TestComplexStridedSlice(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -222,8 +222,8 @@ class TestComplexStridedSlice(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_strided_slice(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         self._test(
             *self.create_complex_strided_slice_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            use_new_frontend=use_new_frontend)

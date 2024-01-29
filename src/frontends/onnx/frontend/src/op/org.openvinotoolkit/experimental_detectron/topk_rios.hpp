@@ -7,15 +7,13 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/experimental_detectron_topkrois.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector experimental_detectron_topk_rois(const Node& node);
+ov::OutputVector experimental_detectron_topk_rois(const Node& node);
 
 }  // namespace set_1
 

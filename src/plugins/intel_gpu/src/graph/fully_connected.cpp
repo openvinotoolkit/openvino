@@ -97,8 +97,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto input_pshape = input_layout.get_partial_shape();
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
-    auto output_type = input_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_types[0])
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
@@ -139,8 +139,8 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto output_type = input_layout.data_type;
-    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {

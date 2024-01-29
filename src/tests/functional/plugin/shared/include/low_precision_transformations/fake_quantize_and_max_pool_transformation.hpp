@@ -13,11 +13,11 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
-    ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeAndMaxPoolTransformationParams;
+    ov::builder::subgraph::FakeQuantizeOnData> FakeQuantizeAndMaxPoolTransformationParams;
 
 class FakeQuantizeAndMaxPoolTransformation :
     public testing::WithParamInterface<FakeQuantizeAndMaxPoolTransformationParams>,

@@ -32,36 +32,24 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
     if (consumers.size() != 1)
         return false;
 
+    OPENVINO_ASSERT(convert_expr->get_loop_ids() == load_expr->get_loop_ids(),
+                "The pair of Load and Convert expressions must be in the same loops!");
+
+    const auto& parent_source = load_expr->get_input_port_connector(0)->get_source();
+    const auto parent_output = parent_source.get_expr()->get_node()->output(parent_source.get_index());
     std::shared_ptr<ov::Node> load_convert = nullptr;
     if (ov::is_type<snippets::op::ConvertSaturation>(convert)) {
-        load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(load->input_value(0),
-                                                                              convert->get_destination_type(),
+        load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(parent_output, convert->get_destination_type(),
                                                                               load->get_count(), load->get_offset());
     } else if (ov::is_type<snippets::op::ConvertTruncation>(convert)) {
-        load_convert = std::make_shared<ov::intel_cpu::LoadConvertTruncation>(load->input_value(0),
-                                                                              convert->get_destination_type(),
+        load_convert = std::make_shared<ov::intel_cpu::LoadConvertTruncation>(parent_output, convert->get_destination_type(),
                                                                               load->get_count(), load->get_offset());
     } else {
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
     }
 
-    const auto out_port = convert_expr->get_output_port(0);
-    const auto convert_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(load_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    const auto load_convert_expr = linear_ir.create_expression(load_convert, { load_expr->get_input_port_connector(0) });
-    const auto convert_expr_it = convert_it;
-    const auto insertion_pos = std::next(convert_it);
-    convert_it = linear_ir.insert(insertion_pos, load_convert_expr);
+    convert_it = linear_ir.replace_with_node({load_expr, convert_expr}, load_convert);
 
-    const auto& load_loop_ids = load_expr->get_loop_ids();
-    load_convert_expr->set_loop_ids(load_loop_ids);
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    loop_manager->update_loops_port(load_loop_ids, load_expr->get_input_port(0), {load_convert_expr->get_input_port(0)}, true);
-    loop_manager->update_loops_port(load_loop_ids, convert_expr->get_output_port(0), {load_convert_expr->get_output_port(0)}, false);
-
-    linear_ir.erase(std::find(linear_ir.cbegin(), convert_expr_it, load_expr));
-    linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(convert_consumers, load_convert_expr->get_output_port_connector(0));
     return true;
 }
 
@@ -69,7 +57,6 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
                                                                    snippets::lowered::LinearIR::constExprIt& convert_it) {
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
-    const auto& input_connector = convert_expr->get_input_port_connector(0);
     const auto& output_connector = convert_expr->get_output_port_connector(0);
     if (convert->get_input_element_type(0) != ov::element::f32 && convert->get_input_element_type(0) != ov::element::i32)
         return false;
@@ -84,36 +71,24 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
     if (!store)
         return false;
 
+    OPENVINO_ASSERT(convert_expr->get_loop_ids() == store_expr->get_loop_ids(),
+                    "The pair of Convert and Store expressions must be in the same loops!");
+
+    const auto& parent_source = convert_expr->get_input_port_connector(0)->get_source();
+    const auto parent_output = parent_source.get_expr()->get_node()->output(parent_source.get_index());
     std::shared_ptr<ov::Node> store_convert = nullptr;
     if (ov::is_type<snippets::op::ConvertSaturation>(convert)) {
-        store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(convert->input_value(0),
-                                                                                convert->get_destination_type(),
+        store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(parent_output, convert->get_destination_type(),
                                                                                 store->get_count(), store->get_offset());
     } else if (ov::is_type<snippets::op::ConvertTruncation>(convert)) {
-        store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(convert->input_value(0),
-                                                                                convert->get_destination_type(),
+        store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(parent_output, convert->get_destination_type(),
                                                                                 store->get_count(), store->get_offset());
     } else {
         OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
     }
 
-    const auto out_port = store_expr->get_output_port(0);
-    const auto store_consumers = out_port.get_connected_ports();
-    snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(store_convert->output(0), out_port.get_descriptor_ptr()->clone());
-    const auto store_convert_expr = linear_ir.create_expression(store_convert, { input_connector });
-    const auto convert_expr_it = convert_it;
-    const auto insertion_pos = std::next(convert_it);
-    convert_it = linear_ir.insert(insertion_pos, store_convert_expr);
+    convert_it = linear_ir.replace_with_node({convert_expr, store_expr}, store_convert);
 
-    const auto& convert_loop_ids = convert_expr->get_loop_ids();
-    store_convert_expr->set_loop_ids(convert_loop_ids);
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    loop_manager->update_loops_port(convert_loop_ids, convert_expr->get_input_port(0), {store_convert_expr->get_input_port(0)}, true);
-    loop_manager->update_loops_port(convert_loop_ids, store_expr->get_output_port(0), {store_convert_expr->get_output_port(0)}, false);
-
-    linear_ir.erase(std::find(convert_expr_it, linear_ir.cend(), store_expr));
-    linear_ir.erase(convert_expr_it);
-    linear_ir.replace_input(store_consumers, store_convert_expr->get_output_port_connector(0));
     return true;
 }
 

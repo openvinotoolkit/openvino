@@ -52,8 +52,7 @@ class TestTopKV2(CommonTFLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 126314, 122716')
-    def test_topk_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                           use_old_api):
+    def test_topk_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_topk_v2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

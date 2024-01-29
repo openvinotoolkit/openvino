@@ -1745,8 +1745,9 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             }
         }
 
-        int peer_port = peerNode->getChildEdgeAt(childIdx)->getInputNum();
-        peerNode->getChildEdgeAt(childIdx)->drop();
+        auto peerEdge = peerNode->getChildEdgeAt(childIdx);
+        const int peer_port = peerEdge->getInputNum();
+        graph.RemoveEdge(peerEdge);
 
         int childPort = 1;
         auto* mergedConvNode = dynamic_cast<Convolution*>(mergedConv.get());

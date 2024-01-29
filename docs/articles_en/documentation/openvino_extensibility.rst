@@ -194,5 +194,5 @@ See Also
 
 * :doc:`OpenVINO Transformations <openvino_docs_transformations>`
 * :doc:`Using OpenVINO Runtime Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Hello Shape Infer SSD sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+* :doc:`Hello Shape Infer SSD sample <openvino_sample_hello_reshape_ssd>`
 

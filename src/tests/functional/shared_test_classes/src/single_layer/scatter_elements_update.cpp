@@ -52,18 +52,18 @@ void ScatterElementsUpdateLayerTest::SetUp() {
     std::tie(inShape, indicesShape, axis) = shapeDescript;
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
-    ngraph::ParameterVector paramVector;
-    auto inputParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(inShape));
+    ov::ParameterVector paramVector;
+    auto inputParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(inShape));
     paramVector.push_back(inputParams);
-    auto updateParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ngraph::Shape(indicesShape));
+    auto updateParams = std::make_shared<ov::op::v0::Parameter>(inPrc, ov::Shape(indicesShape));
     paramVector.push_back(updateParams);
 
     auto indicesNode = std::make_shared<ov::op::v0::Constant>(idxPrc, ov::Shape(indicesShape), indicesValue);
     auto axis_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{axis});
     auto s2d = std::make_shared<ov::op::v3::ScatterElementsUpdate>(paramVector[0], indicesNode, paramVector[1], axis_node);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(s2d)};
-    function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterElementsUpdate");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(s2d)};
+    function = std::make_shared<ov::Model>(results, paramVector, "ScatterElementsUpdate");
 }
 
 std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::TestParamInfo<scatterElementsUpdate12ParamsTuple> &obj) {

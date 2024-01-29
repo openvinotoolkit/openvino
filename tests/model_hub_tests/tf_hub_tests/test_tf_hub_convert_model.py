@@ -133,16 +133,22 @@ class TestTFHubConvertModel(TestConvertModel):
                              get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
+        assert mark is None or mark == 'skip' or mark == 'xfail', \
+            "Incorrect test case: {}, {}".format(model_name, model_link)
         if mark == 'skip':
             pytest.skip(reason)
+        elif mark == 'xfail':
+            pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
+        assert mark is None or mark == 'skip' or mark == 'xfail', \
+            "Incorrect test case: {}, {}".format(model_name, model_link)
         if mark == 'skip':
             pytest.skip(reason)
+        elif mark == 'xfail':
+            pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)

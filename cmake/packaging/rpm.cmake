@@ -276,7 +276,6 @@ macro(ov_cpack_settings)
         ov_rpm_add_rpmlint_suppression("${python_component}"
             # all directories
             "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/openvino/*"
-            "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/ngraph/*"
             )
     endif()
 

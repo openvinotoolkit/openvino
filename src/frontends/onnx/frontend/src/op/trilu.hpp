@@ -12,7 +12,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector trilu(const Node& node);
+ov::OutputVector trilu(const Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

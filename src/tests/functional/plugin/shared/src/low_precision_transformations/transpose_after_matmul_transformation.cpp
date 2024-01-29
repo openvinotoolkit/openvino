@@ -9,7 +9,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,8 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::TestParamInfo<TransposeAfterMatMulTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
@@ -31,25 +30,28 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << toString(params) <<
-        (perTensor ? "_perTensor" : "_perChannel") <<
+    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+           (perTensor ? "_perTensor" : "_perChannel") <<
         (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
     return result.str();
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
+    abs_threshold = 0.6;
+    ov::element::Type precision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
+    init_input_shapes({ inputShape, inputShape });
+
+    function = ov::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -15,12 +15,9 @@ using namespace ngraph;
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple <
-    element::Type,
-    PartialShape,
-    std::string,
-    ngraph::builder::subgraph::DequantizationOperations,
-    bool> FuseConvertTransformationParams;
+typedef std::
+    tuple<ov::element::Type, ov::PartialShape, std::string, ov::builder::subgraph::DequantizationOperations, bool>
+        FuseConvertTransformationParams;
 
 class FuseConvertTransformation :
         public testing::WithParamInterface<FuseConvertTransformationParams>,

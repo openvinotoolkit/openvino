@@ -6,14 +6,13 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -41,7 +40,7 @@ std::shared_ptr<ov::Model> FuseSubtractToFakeQuantizeFunction::get(
     const DequantizationOperations& dequantization2) {
     const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
 
-    const auto axis = std::make_shared<ov::opset1::Constant>(element::i64, Shape{}, 1ul);
+    const auto axis = std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{}, 1ul);
     const std::shared_ptr<Node> split = std::make_shared<ov::opset1::Split>(input, axis, 2ul);
 
     const auto fakeQuantize = makeFakeQuantize(split->output(0), ov::element::f32, fqOnData);
@@ -63,4 +62,4 @@ std::shared_ptr<ov::Model> FuseSubtractToFakeQuantizeFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
