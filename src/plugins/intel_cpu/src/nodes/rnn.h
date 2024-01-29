@@ -122,6 +122,7 @@ private:
     };
     // Internal attributes
     Interval N;     /**< Batch value */
+    Interval N_SEQ; /**< Batch value of the 'sequence_length' input */
     Interval T;     /**< Sequence value */
     size_t DC = 0;  /**< Input data channel size */
     size_t SC = 0;  /**< State channel size value */
