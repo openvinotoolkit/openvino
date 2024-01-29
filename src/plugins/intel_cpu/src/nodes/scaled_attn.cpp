@@ -1033,7 +1033,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     OPENVINO_ASSERT(B == B_state, "beam idx batch: ", B, " is not equal to batch of state: ", B_state);
     OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
-    if (is_reset || B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
+    bool need_redefine = true;
+    if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
 
         auto new_hidden_state_k = std::make_shared<Memory>(getEngine(), mem_desc);
@@ -1057,17 +1058,37 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
         hidden_state_v = new_hidden_state_v;
         beam_table_k = new_beam_table_k;
         beam_table_v = new_beam_table_v;
+    }  else if (is_reset) {
+        // when reset and not resize, just reset the desc
+        need_redefine = false;
+        auto size = m_k_state->hidden_state_max_size();
+        auto max_l = size / B;
+        VectorDims strides(2);
+        strides[0] = max_l;
+        strides[1] = 1;
+        std::vector<size_t> new_shape{B, (L0 + L1)};
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
+            Shape(new_shape),
+            new_shape,
+            VectorDims{0, 1},
+            0,
+            VectorDims{},
+            strides);
+        hidden_state_k->redefineDesc(mem_desc);
+        hidden_state_v->redefineDesc(mem_desc);
     }
-    std::vector<size_t> new_shape{B, (L0 + L1)};
-    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
-        Shape(new_shape),
-        new_shape,
-        VectorDims{0, 1},
-        0,
-        VectorDims{},
-        hidden_state_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
-    hidden_state_k->redefineDesc(mem_desc);
-    hidden_state_v->redefineDesc(mem_desc);
+    if (need_redefine) {
+        std::vector<size_t> new_shape{B, (L0 + L1)};
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
+            Shape(new_shape),
+            new_shape,
+            VectorDims{0, 1},
+            0,
+            VectorDims{},
+            hidden_state_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
+        hidden_state_k->redefineDesc(mem_desc);
+        hidden_state_v->redefineDesc(mem_desc);
+    }
 
     if (!beam_table_k) {
         beam_table_k.reset(hidden_state_k);
@@ -1153,7 +1174,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
     ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
-    if (is_reset || B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
+    bool need_redefine = true;
+    if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = {B, H, (L0 + L1) * 2, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(reverse(new_shape)),
@@ -1204,17 +1226,48 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             m_k_state->set_scale_zp(new_scale_zp_k);
             m_v_state->set_scale_zp(new_scale_zp_v);
         }
+    } else if (is_reset) {
+        // when reset and not resize, just reset the desc
+        need_redefine = false;
+        auto size = m_k_state->internal_state_max_size();
+        auto max_l = size / (B * H * S);
+        VectorDims strides(4);
+        strides[0] = H * max_l * S;
+        strides[1] = max_l * S;
+        strides[2] = S;
+        strides[3] = 1;
+        auto new_shape = {B, H, (L0 + L1), S};
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
+            Shape(reverse(new_shape)),
+            new_shape,
+            order,
+            0,
+            VectorDims{},
+            strides);
+        internal_mem_k->redefineDesc(mem_desc);
+        internal_mem_v->redefineDesc(mem_desc);
+        if (kvcache_precision == ov::element::u8) {
+            auto& old_scale_zp_k = m_k_state->get_scale_zp();
+            auto& old_scale_zp_v = m_v_state->get_scale_zp();
+            // only dim0, dim1 need change
+            old_scale_zp_k.m_strides[0] = H * max_l * 2;
+            old_scale_zp_k.m_strides[1] = max_l * 2;
+            old_scale_zp_v.m_strides[0] = H * max_l * 2;
+            old_scale_zp_v.m_strides[1] = max_l * 2;
+        }
     }
-    auto new_shape = {B, H, (L0 + L1), S};
-    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-        Shape(reverse(new_shape)),
-        new_shape,
-        order,
-        0,
-        VectorDims{},
-        internal_mem_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
-    internal_mem_k->redefineDesc(mem_desc);
-    internal_mem_v->redefineDesc(mem_desc);
+    if (need_redefine) {
+        auto new_shape = {B, H, (L0 + L1), S};
+        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
+            Shape(reverse(new_shape)),
+            new_shape,
+            order,
+            0,
+            VectorDims{},
+            internal_mem_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
+        internal_mem_k->redefineDesc(mem_desc);
+        internal_mem_v->redefineDesc(mem_desc);
+    }
 
     if (!past_k) {
         past_k.reset(internal_mem_k);
