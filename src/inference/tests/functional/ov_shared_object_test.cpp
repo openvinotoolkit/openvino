@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/util/file_util.hpp>
 #include <gtest/gtest.h>
+
+#include <openvino/util/file_util.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
