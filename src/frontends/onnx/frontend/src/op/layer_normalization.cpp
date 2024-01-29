@@ -38,7 +38,7 @@ ov::OutputVector layer_normalization(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node,
-                     num_inputs >= 2 && num_inputs <= 3,
+                     num_inputs == 2 || num_inputs == 3,
                      "LayerNormalization expects 2 or 3 input tensors. Got: ", num_inputs);
 
     const auto& X = inputs.at(0);
