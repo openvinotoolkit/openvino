@@ -11,7 +11,10 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -58,25 +61,37 @@ OutputVector translate_lookup_table_find_op(const NodeContext& node) {
     auto default_value_shape = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{1});
     default_value = make_shared<v1::Reshape>(default_value, default_value_shape, false);
     all_values = make_shared<v0::Concat>(OutputVector{all_values, default_value}, 0);
-    auto key_for_default_value = make_shared<v3::ShapeOf>(all_keys, element::i64)->output(0);
-    key_for_default_value = make_shared<v0::Convert>(key_for_default_value, key_type);
-    all_keys = make_shared<v0::Concat>(OutputVector{all_keys, key_for_default_value}, 0);
+    auto num_keys = make_shared<v3::ShapeOf>(all_keys, element::i64)->output(0);
+    auto scalar_shape = make_shared<v0::Constant>(element::i32, Shape{0}, vector<int32_t>{});
+    num_keys = make_shared<v1::Reshape>(num_keys, scalar_shape, false);
+    num_keys = make_shared<v0::Convert>(num_keys, key_type);
 
     // compute mask which keys are not valid and for which default value must be used
     auto unsqueeze_axis = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{-1});
     auto unsqueeze_keys = make_shared<v0::Unsqueeze>(keys, unsqueeze_axis);
     auto equal_mask = make_shared<v1::Equal>(all_keys, unsqueeze_keys)->output(0);
-    equal_mask = make_shared<v1::ReduceLogicalOr>(equal_mask, unsqueeze_axis, false);
+    auto reduce_equal_mask = make_shared<v1::ReduceLogicalOr>(equal_mask, unsqueeze_axis, false);
 
-    // TODO: ... mapping is needed
+    // map keys to new keys from range [0, n], n index will be for out-of-range keys
+    // 1. generate mask-01 of shape [keys_shape, len(all_keys)],
+    // where 0 - not found key, 1 - found key
+    auto const_zero = make_shared<v0::Constant>(key_type, Shape{}, 0);
+    auto const_one = make_shared<v0::Constant>(key_type, Shape{}, 1);
+    auto mask01 = make_shared<v1::Select>(equal_mask, const_one, const_zero);
+    // 2. generate a range [0, n-1] that will be multiplied to mask for computation of new keys
+    auto new_all_keys = make_shared<v4::Range>(const_zero, num_keys, const_one, key_type);
+    // 3. compute new keys
+    auto reduce_axis = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{-1});
+    auto new_keys = make_shared<v1::Multiply>(mask01, new_all_keys)->output(0);
+    new_keys = make_shared<v1::ReduceMax>(new_keys, reduce_axis, false);
 
     // replace invalid keys with key_for_default_value
-    keys = make_shared<v1::Select>(equal_mask, keys, key_for_default_value);
+    new_keys = make_shared<v1::Select>(reduce_equal_mask, new_keys, num_keys);
 
     // at this point all keys are sorted and are from the range [0, n]
     // and keys are also mapped to this range
     auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{0});
-    auto lookup_values = make_shared<v8::Gather>(all_values, keys, gather_axis);
+    auto lookup_values = make_shared<v8::Gather>(all_values, new_keys, gather_axis);
     set_node_name(node.get_name(), lookup_values);
 
     return {lookup_values};
