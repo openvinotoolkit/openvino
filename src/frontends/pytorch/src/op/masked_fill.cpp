@@ -3,20 +3,12 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
-
-using namespace ov::op;
 
 OutputVector translate_masked_fill(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
