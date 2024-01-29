@@ -427,7 +427,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsFinite", 1, is_finite);
     REGISTER_OPERATOR("IsInf", 1, is_inf);
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
-    REGISTER_OPERATOR("LayerNormalization", 17, layer_normalization);
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_normalization);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
