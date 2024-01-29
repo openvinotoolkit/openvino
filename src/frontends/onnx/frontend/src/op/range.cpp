@@ -15,13 +15,13 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector range(const Node& node) {
+ov::OutputVector range(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     CHECK_VALID_NODE(node, inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
 
-    Output<ov::Node> start{inputs[0]};
-    Output<ov::Node> stop{inputs[1]};
-    Output<ov::Node> step{inputs[2]};
+    ov::Output<ov::Node> start{inputs[0]};
+    ov::Output<ov::Node> stop{inputs[1]};
+    ov::Output<ov::Node> step{inputs[2]};
 
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
 

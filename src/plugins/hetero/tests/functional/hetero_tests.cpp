@@ -162,6 +162,21 @@ std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_sub
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_independent_parameter(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{bs, 3, 2, 2});
+    param1->set_friendly_name("input1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param2->set_friendly_name("input2");
+    auto const_value = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
+    const_value->set_friendly_name("const_val");
+    auto add = std::make_shared<ov::op::v1::Add>(param1, const_value);
+    add->set_friendly_name("add");
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
+}
+
 // Mock plugins
 
 class MockCompiledModel : public ov::ICompiledModel {

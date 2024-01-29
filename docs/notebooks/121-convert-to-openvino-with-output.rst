@@ -1,47 +1,50 @@
-OpenVINO™ model conversion API
-==============================
+OpenVINO™ Model conversion
+==========================
 
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR).
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `OpenVINO IR format <#openvino-ir-format>`__
--  `IR preparation with Python conversion API and Model Optimizer
-   command-line
-   tool <#ir-preparation-with-python-conversion-api-and-model-optimizer-command-line-tool>`__
 -  `Fetching example models <#fetching-example-models>`__
--  `Basic conversion <#basic-conversion>`__
--  `Model conversion parameters <#model-conversion-parameters>`__
+-  `Conversion <#conversion>`__
 
    -  `Setting Input Shapes <#setting-input-shapes>`__
+   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
+   -  `Convert Models from memory <#convert-models-from-memory>`__
+
+-  `Migration from Legacy conversion
+   API <#migration-from-legacy-conversion-api>`__
+
+   -  `Specifying Layout <#specifying-layout>`__
+   -  `Changing Model Layout <#changing-model-layout>`__
+   -  `Specifying Mean and Scale
+      Values <#specifying-mean-and-scale-values>`__
+   -  `Reversing Input Channels <#reversing-input-channels>`__
    -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
-   -  `Embedding Preprocessing
-      Computation <#embedding-preprocessing-computation>`__
-
-      -  `Specifying Layout <#specifying-layout>`__
-      -  `Changing Model Layout <#changing-model-layout>`__
-      -  `Specifying Mean and Scale
-         Values <#specifying-mean-and-scale-values>`__
-      -  `Reversing Input Channels <#reversing-input-channels>`__
-
-   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp>`__
-
--  `Convert Models Represented as Python
-   Objects <#convert-models-represented-as-python-objects>`__
 
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
+    %pip install --upgrade pip
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino-dev>=2023.1.0" "requests" "tqdm" "transformers[onnx]>=4.21.1" "torch" "torchvision"
+    "openvino-dev>=2023.2.0" "requests" "tqdm" "transformers[onnx]>=4.21.1" "torch" "torchvision" "tensorflow_hub" "tensorflow"
 
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.2 which is incompatible.
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (23.3.2)
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -60,17 +63,16 @@ and biases from the trained model. The resulting IR contains two files:
 an ``.xml`` file, containing information about network topology, and a
 ``.bin`` file, containing the weights and biases binary data.
 
-IR preparation with Python conversion API and Model Optimizer command-line tool
--------------------------------------------------------------------------------
-
-
-
 There are two ways to convert a model from the original framework format
-to OpenVINO IR: Python conversion API and Model Optimizer command-line
-tool. You can choose one of them based on whichever is most convenient
-for you. There should not be any differences in the results of model
-conversion if the same set of parameters is used. For more details,
-refer to `Model
+to OpenVINO IR: Python conversion API and OVC command-line tool. You can
+choose one of them based on whichever is most convenient for you.
+
+OpenVINO conversion API supports next model formats: ``PyTorch``,
+``TensorFlow``, ``TensorFlow Lite``, ``ONNX``, and ``PaddlePaddle``.
+These model formats can be read, compiled, and converted to OpenVINO IR,
+either automatically or explicitly.
+
+For more details, refer to `Model
 Preparation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 documentation.
 
@@ -642,11 +644,19 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2023-12-06 23:09:08.345195: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-06 23:09:08.379671: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-25 23:11:32.267646: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-01-25 23:11:32.303561: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-06 23:09:09.007347: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:223: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+
+
+.. parsed-literal::
+
+    2024-01-25 23:11:32.956586: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:246: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -872,7 +882,7 @@ Convert PyTorch model to ONNX format:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             torch.onnx.export(
-                model=pytorch_model, args=torch.randn(1, 3, 780, 520), f=ONNX_CV_MODEL_PATH
+                model=pytorch_model, args=torch.randn(1, 3, 224, 224), f=ONNX_CV_MODEL_PATH
             )
         print(f"ONNX model exported to {ONNX_CV_MODEL_PATH}")
 
@@ -882,12 +892,12 @@ Convert PyTorch model to ONNX format:
     ONNX model exported to model/resnet.onnx
 
 
-Basic conversion
-----------------
+Conversion
+----------
 
 
 
-To convert a model to OpenVINO IR, use the following command:
+To convert a model to OpenVINO IR, use the following API:
 
 .. code:: ipython3
 
@@ -937,36 +947,20 @@ To convert a model to OpenVINO IR, use the following command:
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
 
-Model conversion parameters
----------------------------
+.. parsed-literal::
+
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument "compress_to_fp16" or set it to false "compress_to_fp16=False".
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
 
 
+.. parsed-literal::
 
-Both Python conversion API and Model Optimizer command-line tool provide
-the following capabilities: \* overriding original input shapes for
-model conversion with ``input`` and ``input_shape`` parameters. `Setting
-Input Shapes
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
-\* cutting off unwanted parts of a model (such as unsupported operations
-and training sub-graphs) using the ``input`` and ``output`` parameters
-to define new inputs and outputs of the converted model. `Cutting Off
-Parts of a Model
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
-\* inserting additional input pre-processing sub-graphs into the
-converted model by using the ``mean_values``, ``scales_values``,
-``layout``, and other parameters. `Embedding Preprocessing Computation
-article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
-\* compressing the model weights (for example, weights for convolutions
-and matrix multiplications) to FP16 data type using ``compress_to_fp16``
-compression parameter. `Compression of a Model to FP16
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html>`__.
+    [ SUCCESS ] XML file: model/distilbert.xml
+    [ SUCCESS ] BIN file: model/distilbert.bin
 
-If the out-of-the-box conversion (only the ``input_model`` parameter is
-specified) is not successful, it may be required to use the parameters
-mentioned above to override input shapes and cut the model.
 
 Setting Input Shapes
-~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 
 
@@ -974,13 +968,12 @@ Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
 to change from one inference request to another, it is recommended to
 set up static shapes (when all dimensions are fully defined) for the
-inputs. Doing it at this stage, instead of during inference in runtime,
-can be beneficial in terms of performance and memory consumption. To set
-up static shapes, model conversion API provides the ``input`` and
-``input_shape`` parameters.
+inputs. Doing so at the model preparation stage, not at runtime, can be
+beneficial in terms of performance and memory consumption.
 
-For more information refer to `Setting Input Shapes
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
+For more information refer to `Setting Input
+Shapes <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model.html>`__
+documentation.
 
 .. code:: ipython3
 
@@ -1047,14 +1040,6 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
         ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])]
     )
 
-The input_shape parameter allows overriding original input shapes to
-ones compatible with a given model. Dynamic shapes, i.e. with dynamic
-dimensions, can be replaced in the original model with static shapes for
-the converted model, and vice versa. The dynamic dimension can be marked
-in the model conversion API parameter as ``-1`` or ``?``. For example,
-launch model conversion for the ONNX Bert model and specify a dynamic
-sequence length dimension for inputs:
-
 .. code:: ipython3
 
     # Model Optimizer CLI
@@ -1072,14 +1057,21 @@ sequence length dimension for inputs:
 
 .. parsed-literal::
 
-    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument "compress_to_fp16" or set it to false "compress_to_fp16=False".
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
 
+
+.. parsed-literal::
+
+    [ SUCCESS ] XML file: model/distilbert.xml
+    [ SUCCESS ] BIN file: model/distilbert.bin
+
+
+The ``input`` parameter allows overriding original input shapes if it is
+supported by the model topology. Shapes with dynamic dimensions in the
+original model can be replaced with static shapes for the converted
+model, and vice versa. The dynamic dimension can be marked in model
+conversion API parameter as ``-1`` or ``?`` when using ``ovc``:
 
 .. code:: ipython3
 
@@ -1093,12 +1085,38 @@ sequence length dimension for inputs:
         input_shape=[[1, -1], [1, -1]],
     )
 
+.. code:: ipython3
+
+    ! ovc model/distilbert.onnx --input "input_ids[1,?],attention_mask[1,?]" --output_model model/distilbert.xml
+
+
+.. parsed-literal::
+
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument "compress_to_fp16" or set it to false "compress_to_fp16=False".
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+
+
+.. parsed-literal::
+
+    [ SUCCESS ] XML file: model/distilbert.xml
+    [ SUCCESS ] BIN file: model/distilbert.bin
+
+
 To optimize memory consumption for models with undefined dimensions in
 runtime, model conversion API provides the capability to define
-boundaries of dimensions. The boundaries of undefined dimensions can be
-specified with ellipsis. For example, launch model conversion for the
-ONNX Bert model and specify a boundary for the sequence length
-dimension:
+boundaries of dimensions. The boundaries of undefined dimension can be
+specified with ellipsis in the command line or with
+``openvino.Dimension`` class in Python. For example, launch model
+conversion for the ONNX Bert model and specify a boundary for the
+sequence length dimension:
 
 .. code:: ipython3
 
@@ -1138,31 +1156,6 @@ dimension:
         input_shape=[[1, "10..128"], [1, "10..128"]],
     )
 
-Cutting Off Parts of a Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-The following examples show when model cutting is useful or even
-required:
-
--  A model has pre- or post-processing parts that cannot be translated
-   to existing OpenVINO operations.
--  A model has a training part that is convenient to be kept in the
-   model but not used during inference.
--  A model is too complex to be converted at once because it contains
-   many unsupported operations that cannot be easily implemented as
-   custom layers.
--  A problem occurs with model conversion or inference in OpenVINO
-   Runtime. To identify the issue, limit the conversion scope by an
-   iterative search for problematic areas in the model.
--  A single custom layer or a combination of custom layers is isolated
-   for debugging purposes.
-
-For a more detailed description, refer to the `Cutting Off Parts of a
-Model
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
-
 .. code:: ipython3
 
     # Model Optimizer CLI
@@ -1185,13 +1178,36 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
 .. parsed-literal::
 
-    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument "compress_to_fp16" or set it to false "compress_to_fp16=False".
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
+
+
+.. parsed-literal::
+
+    [ SUCCESS ] XML file: model/distilbert.xml
+    [ SUCCESS ] BIN file: model/distilbert.bin
+
+
+Compressing a Model to FP16
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+By default model weights compressed to FP16 format when saving OpenVINO
+model to IR. This saves up to 2x storage space for the model file and in
+most cases doesn’t sacrifice model accuracy. Weight compression can be
+disabled by setting ``compress_to_fp16`` flag to ``False``:
+
+.. code:: ipython3
+
+    import openvino as ov
+
+    ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
+    ov.save_model(ov_model, MODEL_DIRECTORY_PATH / 'distilbert.xml', compress_to_fp16=False)
+
+.. code:: ipython3
+
+    ! ovc model/distilbert.onnx --output_model model/distilbert.xml --compress_to_fp16=False
 
 
 .. parsed-literal::
@@ -1204,13 +1220,35 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
 .. parsed-literal::
 
-    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.3/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/121-convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: model/distilbert.xml
+    [ SUCCESS ] BIN file: model/distilbert.bin
+
+
+Convert Models from memory
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+Model conversion API supports passing original framework Python object
+directly. More details can be found in
+`PyTorch <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__,
+`TensorFlow <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__,
+`PaddlePaddle <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+frameworks conversion guides.
+
+.. code:: ipython3
+
+    import openvino as ov
+    import torch
+
+    example_input = torch.rand(1, 3, 224, 224)
+
+    ov_model = ov.convert_model(pytorch_model, example_input=example_input, input=example_input.shape)
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 .. code:: ipython3
@@ -1228,23 +1266,35 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
         input=["/distilbert/embeddings/LayerNorm/Add_1", "attention_mask"],
     )
 
-Embedding Preprocessing Computation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. parsed-literal::
+
+    2024-01-25 23:11:51.061555: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-01-25 23:11:51.061587: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-01-25 23:11:51.061592: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-01-25 23:11:51.061773: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-01-25 23:11:51.061789: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-01-25 23:11:51.061793: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+
+
+Migration from Legacy conversion API
+------------------------------------
 
 
 
-Input data for inference can be different from the training dataset and
-requires additional preprocessing before inference. To accelerate the
-whole pipeline, including preprocessing and inference, model conversion
-API provides special parameters such as ``mean_values``,
-``scale_values``, ``reverse_input_channels``, and ``layout``. Based on
-these parameters, model conversion API generates OpenVINO IR with
-additionally inserted sub-graphs to perform the defined preprocessing.
-This preprocessing block can perform mean-scale normalization of input
-data, reverting data along channel dimension, and changing the data
-layout. For more information on preprocessing, refer to the `Embedding
-Preprocessing Computation
-article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
+In the 2023.1 OpenVINO release OpenVINO Model Conversion API was
+introduced with the corresponding Python API: ``openvino.convert_model``
+method. ``ovc`` and ``openvino.convert_model`` represent a lightweight
+alternative of ``mo`` and ``openvino.tools.mo.convert_model`` which are
+considered legacy API now. ``mo.convert_model()`` provides a wide range
+of preprocessing parameters. Most of these parameters have analogs in
+OVC or can be replaced with functionality from ``ov.PrePostProcessor``
+class. Refer to `Optimize Preprocessing
+notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/118-optimize-preprocessing/118-optimize-preprocessing.ipynb>`__
+for more information about `Preprocessing
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Overview.html>`__.
+Here is the migration guide from legacy model preprocessing to
+Preprocessing API.
 
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
@@ -1260,7 +1310,7 @@ overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.ht
 To specify the layout, you can use the layout option followed by the
 layout value.
 
-The following command specifies the ``NCHW`` layout for a Pytorch
+The following example specifies the ``NCHW`` layout for a Pytorch
 Resnet50 model that was exported to the ONNX format:
 
 .. code:: ipython3
@@ -1302,9 +1352,13 @@ Changing Model Layout
 
 
 
-Changing the model layout may be necessary if it differs from the one
-presented by input data. Use either ``layout`` or ``source_layout`` with
-``target_layout`` to change the layout.
+Transposing of matrices/tensors is a typical operation in Deep Learning
+- you may have a BMP image ``640x480``, which is an array of
+``{480, 640, 3}`` elements, but Deep Learning model can require input
+with shape ``{1, 3, 480, 640}``.
+
+Conversion can be done implicitly, using the layout of a user’s tensor
+and the layout of an original model:
 
 .. code:: ipython3
 
@@ -1356,7 +1410,7 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 
 .. code:: ipython3
 
-    # Python conversion API
+    # Legacy Model Optimizer API
     from openvino.tools import mo
 
 
@@ -1372,11 +1426,12 @@ Specifying Mean and Scale Values
 
 
 
-Model conversion API has the following parameters to specify the values:
-``mean_values``, ``scale_values``, ``scale``. Using these parameters,
-model conversion API embeds the corresponding preprocessing block for
-mean-value normalization of the input data and optimizes this block so
-that the preprocessing takes negligible time for inference.
+Using Preprocessing API ``mean`` and ``scale`` values can be set. Using
+these API, model embeds the corresponding preprocessing block for
+mean-value normalization of the input data and optimizes this block.
+Refer to `Optimize Preprocessing
+notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/118-optimize-preprocessing/118-optimize-preprocessing.ipynb>`__
+for more examples.
 
 .. code:: ipython3
 
@@ -1427,14 +1482,16 @@ that the preprocessing takes negligible time for inference.
 
 .. code:: ipython3
 
-    # Python conversion API
+    # Legacy Model Optimizer API
     from openvino.tools import mo
 
 
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, mean_values=[123, 117, 104], scale=255)
 
     ov_model = mo.convert_model(
-        ONNX_CV_MODEL_PATH, mean_values=[123, 117, 104], scale_values=[255, 255, 255]
+        ONNX_CV_MODEL_PATH,
+        mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
+        scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
     )
 
 Reversing Input Channels
@@ -1476,14 +1533,14 @@ the color channels before inference.
 
 .. code:: ipython3
 
-    # Python conversion API
+    # Legacy Model Optimizer API
     from openvino.tools import mo
 
 
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
-Compressing a Model to FP16
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cutting Off Parts of a Model
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
