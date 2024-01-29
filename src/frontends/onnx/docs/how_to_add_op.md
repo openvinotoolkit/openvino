@@ -9,7 +9,6 @@ The declaration in `.hpp` can look like:
 ```cpp
 #pragma once
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {

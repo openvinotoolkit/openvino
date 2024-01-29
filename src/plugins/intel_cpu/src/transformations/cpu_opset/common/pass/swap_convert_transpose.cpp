@@ -10,8 +10,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose");
-
 ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
     MATCHER_SCOPE(SwapConvertTranspose);
     ov::element::TypeVector param_precisions{ ov::element::i8, ov::element::u8 };

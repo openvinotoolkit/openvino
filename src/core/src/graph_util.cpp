@@ -448,7 +448,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }
 
 std::list<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                                 RawNodeOutputMap& output_map) {
+                                                 ov::RawNodeOutputMap& output_map) {
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
     std::list<std::shared_ptr<Node>> cloned_nodes;

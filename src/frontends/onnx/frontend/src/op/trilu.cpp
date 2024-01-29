@@ -76,7 +76,7 @@ ov::OutputVector trilu(const Node& node) {
         std::make_shared<default_opset::Range>(zero, M, one, ov::element::i64),
         zero);
     // create 2D tensor with shape [N, 1] and values [[k], [k + 1], ..., [N + k - 1]]
-    std::shared_ptr<ngraph::Node> vertical_range;
+    std::shared_ptr<ov::Node> vertical_range;
     if (is_k_available) {
         vertical_range = std::make_shared<default_opset::Range>(inputs[1],
                                                                 std::make_shared<default_opset::Add>(N, inputs[1]),
@@ -88,7 +88,7 @@ ov::OutputVector trilu(const Node& node) {
     vertical_range = std::make_shared<default_opset::Unsqueeze>(vertical_range, one);
 
     const bool upper = node.get_attribute_value<int64_t>("upper", 1) == 1;
-    std::shared_ptr<ngraph::Node> mask;
+    std::shared_ptr<ov::Node> mask;
     if (upper) {
         mask = std::make_shared<default_opset::GreaterEqual>(horizontal_range, vertical_range);
     } else {

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "op/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 

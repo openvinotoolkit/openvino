@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/node.hpp"
+#include "ngraph/deprecated.hpp"
 #include "openvino/core/graph_util.hpp"
 
 namespace ov {
@@ -53,17 +53,19 @@ using ov::replace_output_update_name;
 using ov::topological_sort;
 using ov::traverse_nodes;
 
+using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
+
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-ov::NodeVector find_common_args(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
+ov::NodeVector find_common_args(std::shared_ptr<ov::Node> target, std::shared_ptr<ov::Node> replacement);
 
 /// Topological sort of just nodes
 template <typename T>
-NGRAPH_API_DEPRECATED std::vector<std::shared_ptr<Node>> subgraph_topological_sort(T nodes) {
-    std::stack<Node*, std::vector<Node*>> nodes_to_do;
-    std::unordered_set<Node*> nodes_done;
-    std::unordered_set<Node*> nodes_to_emit;
-    std::vector<std::shared_ptr<Node>> result;
+NGRAPH_API_DEPRECATED std::vector<std::shared_ptr<ov::Node>> subgraph_topological_sort(T nodes) {
+    std::stack<ov::Node*, std::vector<ov::Node*>> nodes_to_do;
+    std::unordered_set<ov::Node*> nodes_done;
+    std::unordered_set<ov::Node*> nodes_to_emit;
+    std::vector<std::shared_ptr<ov::Node>> result;
 
     for (auto& node : nodes) {
         nodes_to_emit.insert(node.get());
@@ -72,19 +74,19 @@ NGRAPH_API_DEPRECATED std::vector<std::shared_ptr<Node>> subgraph_topological_so
     // NB: Some centos versions implement std::list::size() by counting elements
     size_t nodes_remaining = nodes_to_emit.size();
     while (nodes_to_do.size() > 0 && nodes_remaining > 0) {
-        Node* node = nodes_to_do.top();
+        ov::Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
-                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                ov::Node* dep = node->get_input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0 && nodes_to_emit.count(node) != 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
                 }
             }
             for (auto& depptr : node->get_control_dependencies()) {
-                Node* dep = depptr.get();
+                ov::Node* dep = depptr.get();
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
@@ -119,53 +121,53 @@ NGRAPH_API_DEPRECATED void validate_nodes_and_infer_types(const T& nodes) {
 // Check if all paths from X to a result go through Y
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_post_dominated(Node* X, Node* Y);
+bool is_post_dominated(ov::Node* X, ov::Node* Y);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_equal_to_const_value(const std::string& const_value, const ov::Output<Node>& reduce_constant);
-
-// input nodes are cloned and returned
-// NodeMap input may contain default node mapping i.e. pre-cloned nodes
-// NodeMap output (by reference) fully maps input and cloned nodes
-NGRAPH_API_DEPRECATED
-NGRAPH_API
-std::vector<std::shared_ptr<ngraph::Node>> clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
-                                                       NodeMap& node_map);
+bool is_equal_to_const_value(const std::string& const_value, const ov::Output<ov::Node>& reduce_constant);
 
 // input nodes are cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned nodes
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::list<std::shared_ptr<ngraph::Node>> clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
-                                                     RawNodeOutputMap& node_map);
+std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                                                   NodeMap& node_map);
+
+// input nodes are cloned and returned
+// NodeMap input may contain default node mapping i.e. pre-cloned nodes
+// NodeMap output (by reference) fully maps input and cloned nodes
+NGRAPH_API_DEPRECATED
+NGRAPH_API
+std::list<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                                                 ov::RawNodeOutputMap& node_map);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
 std::pair<std::shared_ptr<op::v0::Result>, std::shared_ptr<op::v0::Parameter>> insert_result_parameter_split(
-    const std::shared_ptr<Node>& src_node,
-    const std::shared_ptr<Node>& dst_node);
+    const std::shared_ptr<ov::Node>& src_node,
+    const std::shared_ptr<ov::Node>& dst_node);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-void insert_new_node_between(const std::shared_ptr<Node>& src_node,
-                             const std::shared_ptr<Node>& dst_node,
-                             const std::shared_ptr<Node>& new_node);
+void insert_new_node_between(const std::shared_ptr<ov::Node>& src_node,
+                             const std::shared_ptr<ov::Node>& dst_node,
+                             const std::shared_ptr<ov::Node>& new_node);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_zero(const ov::element::Type& element_type, const ov::Shape& shape);
+std::shared_ptr<ov::Node> make_zero(const ov::element::Type& element_type, const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::shared_ptr<Node> make_constant_from_string(std::string val,
-                                                const ov::element::Type& element_type,
-                                                const ov::Shape& shape);
+std::shared_ptr<ov::Node> make_constant_from_string(std::string val,
+                                                    const ov::element::Type& element_type,
+                                                    const ov::Shape& shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_zero(const ov::Output<Node>& reduce_constant);
+bool is_zero(const ov::Output<ov::Node>& reduce_constant);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -183,43 +185,43 @@ ov::NodeVector extract_subgraph(const ov::NodeVector& results, const ov::NodeVec
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_one(const ov::Output<Node>& reduce_constant);
+bool is_one(const ov::Output<ov::Node>& reduce_constant);
 
 // Returns true if `node` is live in the graph i.e. a result op
 // transitively uses this `node`
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_used(Node* node);
+bool is_used(ov::Node* node);
 
 // Returns count of `node` users that are still live in the graph
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-size_t get_user_count(Node* node);
+size_t get_user_count(ov::Node* node);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_strided(const Strides& strides);
+bool is_strided(const ov::Strides& strides);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_ranks);
+bool is_valid_rank(const std::shared_ptr<ov::Node>& node, std::vector<size_t> valid_ranks);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
 void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
-                std::function<void(const Node& node, std::vector<std::string>& attributes)> = nullptr);
+                std::function<void(const ov::Node& node, std::vector<std::string>& attributes)> = nullptr);
 
 /// \return A vector containing handles for each input of dst that is connected to an output
 ///         of `src`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<ov::Input<Node>> get_inputs_from(Node& src, Node& dst);
+std::vector<ov::Input<ov::Node>> get_inputs_from(ov::Node& src, ov::Node& dst);
 /// \return A vector containing a handle for each output of src that is connected to an input
 ///         of `dst`.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-std::vector<ov::Output<Node>> get_outputs_to(Node& src, Node& dst);
+std::vector<ov::Output<ov::Node>> get_outputs_to(ov::Node& src, ov::Node& dst);
 
 /// Checks the func for graph cycles starting from results going backwards, then from parameters
 /// going forward.
