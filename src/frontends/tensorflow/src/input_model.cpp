@@ -220,7 +220,7 @@ void InputModel::InputModelTFImpl::load_places() {
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
-            std::vector<std::string> names = {op_name};
+            std::vector<std::string> names = {op_name  + ":0"};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
 
             // In Model Optimizer user can refer to model inputs by a name of Placeholder
