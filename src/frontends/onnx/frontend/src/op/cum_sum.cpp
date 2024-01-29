@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector cum_sum(const Node& node) {
+ov::OutputVector cum_sum(const Node& node) {
     auto inputs = node.get_ng_inputs();
     auto data = inputs.at(0);
     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);
@@ -27,9 +27,9 @@ OutputVector cum_sum(const Node& node) {
         const auto& axis_shape = inputs.at(1).get_partial_shape();
         axis = axis_shape.is_dynamic() ? inputs.at(1) : ngraph::onnx_import::reshape::interpret_as_scalar(inputs.at(1));
     } else {
-        axis = v0::Constant::create(element::i64, Shape{}, {0});  // default
+        axis = v0::Constant::create(ov::element::i64, Shape{}, {0});  // default
     }
-    return OutputVector{std::make_shared<v0::CumSum>(data, axis, exclusive, reverse)};
+    return ov::OutputVector{std::make_shared<v0::CumSum>(data, axis, exclusive, reverse)};
 }
 
 }  // namespace set_1

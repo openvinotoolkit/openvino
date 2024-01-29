@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector unsqueeze(const Node& node) {
+ov::OutputVector unsqueeze(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes", {});
     return {std::make_shared<default_opset::Unsqueeze>(data, axes_node)};
@@ -24,7 +24,7 @@ OutputVector unsqueeze(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector unsqueeze(const Node& node) {
+ov::OutputVector unsqueeze(const Node& node) {
     auto inputs = node.get_ng_inputs();
     return {std::make_shared<default_opset::Unsqueeze>(inputs.at(0), inputs.at(1))};
 }

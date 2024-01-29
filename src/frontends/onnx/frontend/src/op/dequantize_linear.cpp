@@ -24,12 +24,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
-std::shared_ptr<ov::Node> get_zero_point(const OutputVector& inputs) {
+std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& zero_point = inputs[2];
 
-        if (zero_point.get_element_type() != element::f32) {
-            return std::make_shared<v0::Convert>(zero_point, element::f32);
+        if (zero_point.get_element_type() != ov::element::f32) {
+            return std::make_shared<v0::Convert>(zero_point, ov::element::f32);
         }
 
         return zero_point.get_node_shared_ptr();
@@ -38,8 +38,8 @@ std::shared_ptr<ov::Node> get_zero_point(const OutputVector& inputs) {
 }
 }  // namespace detail
 namespace set_1 {
-OutputVector dequantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional input. Got: ",
@@ -49,9 +49,9 @@ OutputVector dequantize_linear(const Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = detail::get_zero_point(inputs);
 
-    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
+    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
 
-    const auto converted_x = std::make_shared<v0::Convert>(x, element::f32);
+    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
 
     if (zero_point) {
         common::validate_scalar_input("Zero point", zero_point);
@@ -131,16 +131,16 @@ std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
         target_dims.push_back(1);
     }
 
-    const auto target_shape = v0::Constant::create(element::i64, Shape{target_dims.size()}, target_dims);
+    const auto target_shape = v0::Constant::create(ov::element::i64, Shape{target_dims.size()}, target_dims);
 
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }
 
-OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
-                               const ov::Output<ov::Node>& scale,
-                               const std::shared_ptr<ov::Node>& zero_point,
-                               int64_t axis,
-                               const Node& node) {
+ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
+                                   const ov::Output<ov::Node>& scale,
+                                   const std::shared_ptr<ov::Node>& zero_point,
+                                   int64_t axis,
+                                   const Node& node) {
     const auto& x_shape = x.get_partial_shape();
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
@@ -149,7 +149,7 @@ OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
-    const auto converted_x = std::make_shared<v0::Convert>(x, element::f32);
+    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
 
     if (zero_point) {
         validate_zero_point(zero_point, x, axis);
@@ -162,8 +162,8 @@ OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }
 }  // namespace detail
 
-OutputVector dequantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const Node& node) {
+    const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional "

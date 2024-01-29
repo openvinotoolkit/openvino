@@ -321,7 +321,7 @@ void MatrixNmsLayerTest::SetUp() {
     }
     auto nms = std::make_shared<ov::op::v8::MatrixNms>(params[0], params[1], m_attrs);
 
-    function = std::make_shared<Function>(nms, params, "MatrixNMS");
+    function = std::make_shared<ov::Model>(nms, params, "MatrixNMS");
 }
 
 } // namespace subgraph

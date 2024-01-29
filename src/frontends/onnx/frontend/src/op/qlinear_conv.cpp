@@ -22,8 +22,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector qlinear_conv(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector qlinear_conv(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     auto x = inputs.at(0);
     auto x_scale = inputs.at(1);
@@ -37,12 +37,12 @@ OutputVector qlinear_conv(const Node& node) {
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,
-                                          std::make_shared<v0::Convert>(x_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
                                           1,
                                           node)[0];
     w = set_13::detail::dequantize_linear(w,
                                           w_scale,
-                                          std::make_shared<v0::Convert>(w_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
                                           1,
                                           node)[0];
 
