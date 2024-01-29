@@ -23,8 +23,12 @@ class TestLookupTableFindOps(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_lookup_table_find_net(self, keys_shape, keys_type, values_type,
+    def create_lookup_table_find_net(self, hash_table_type, keys_shape, keys_type, values_type,
                                      all_keys, all_values, default_value, invalid_key):
+        hash_table_op = tf.raw_ops.HashTable if hash_table_type == 0 else tf.raw_ops.HashTableV2
+        import_table_op = tf.raw_ops.LookupTableImport if hash_table_type == 0 else tf.raw_ops.LookupTableImportV2
+        lookup_table_op = tf.raw_ops.LookupTableFind if hash_table_type == 0 else tf.raw_ops.LookupTableFindV2
+
         self.keys_type = keys_type
         self.all_keys = all_keys
         self.invalid_key = invalid_key
@@ -35,13 +39,13 @@ class TestLookupTableFindOps(CommonTFLayerTest):
             all_keys = tf.constant(all_keys, dtype=keys_type)
             all_values = tf.constant(all_values, dtype=values_type)
             default_value = tf.constant(default_value, dtype=values_type)
-            hash_table = tf.raw_ops.HashTableV2(key_dtype=keys_type, value_dtype=values_type)
-            import_hash_table = tf.raw_ops.LookupTableImportV2(table_handle=hash_table, keys=all_keys,
-                                                               values=all_values)
+            hash_table = hash_table_op(key_dtype=keys_type, value_dtype=values_type)
+            import_hash_table = import_table_op(table_handle=hash_table, keys=all_keys,
+                                                values=all_values)
             with tf.control_dependencies([import_hash_table]):
-                tf.raw_ops.LookupTableFindV2(table_handle=hash_table, keys=keys,
-                                             default_value=default_value,
-                                             name='LookupTableFindV2')
+                lookup_table_op(table_handle=hash_table, keys=keys,
+                                default_value=default_value,
+                                name='LookupTableFind')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -64,12 +68,14 @@ class TestLookupTableFindOps(CommonTFLayerTest):
             marks=pytest.mark.skip(reason='130688: Gather string support needed'))
     ]
 
+    @pytest.mark.parametrize("hash_table_type", [0, 1])
     @pytest.mark.parametrize("keys_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_lookup_table_find(self, keys_shape, params, ie_device, precision, ir_version, temp_dir,
+    def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
                                use_new_frontend):
-        self._test(*self.create_lookup_table_find_net(keys_shape=keys_shape, **params),
+        self._test(*self.create_lookup_table_find_net(hash_table_type=hash_table_type,
+                                                      keys_shape=keys_shape, **params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
