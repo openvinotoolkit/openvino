@@ -30,6 +30,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/branch.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -482,6 +483,29 @@ TEST(pattern, matcher) {
         auto label_dynamic_type = make_shared<pattern::op::Label>(element::dynamic, PartialShape{Dimension::dynamic()});
         ASSERT_TRUE(sm.match(label_dynamic_type, vector_param));
     }
+}
+
+TEST(pattern, matching_optional) {
+    Shape shape{};
+    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto b = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto c = std::make_shared<op::v1::Add>(a, b);
+    auto d = std::make_shared<op::v1::Add>(a, b);
+
+    TestMatcher n;
+
+    // Check Optional pattern
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Relu>(c)));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
+    ASSERT_FALSE(
+        n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Result>(c)));
+
+    const auto predicate = [](const Output<Node>& output) {
+        return false;
+    };
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d, predicate),
+                         std::make_shared<op::v0::Abs>(c)));
 }
 
 TEST(pattern, mean) {
