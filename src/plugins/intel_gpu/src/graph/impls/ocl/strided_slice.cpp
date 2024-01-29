@@ -180,9 +180,9 @@ public:
                         begin--;
                         end--;
                     } else if (begin_org != -1) {  // If begin is -1 with negative stride, clamping begin is already expected value
-                        if (is_clamp_begin)
+                        if (is_clamp_begin && begin_org >= 0)
                             begin--;
-                        if (is_clamp_end)
+                        if (is_clamp_end && end_org >= 0)
                             end--;
                     }
                 }
