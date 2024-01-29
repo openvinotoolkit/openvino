@@ -1,3 +1,4 @@
-numpy>=1.16.6
+numpy>=1.16.6; sys_platform != "darwin" or platform_machine != "arm64"
+numpy>=1.21.0; sys_platform == "darwin" and platform_machine == "arm64"
 openvino-telemetry>=2023.2.1
 packaging
