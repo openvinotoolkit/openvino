@@ -4068,8 +4068,7 @@ TEST(eval, invalid_shape) {
 TEST(eval, evaluate_gather_string_1D_single_val_equal_size) {
     std::vector<std::string> input_values = {"Abc", "xyz", "..."};
     std::vector<std::string> out_expected{"xyz"};
-
-    std::vector<int32_t> indices_val{1, 3};
+    std::vector<int32_t> indices_val{1};
 
     const auto data_shape = Shape{input_values.size()};
     const auto exp_out_shape = Shape{out_expected.size()};
