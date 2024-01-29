@@ -105,39 +105,13 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
-    OV_PLUGIN_CALL_STATEMENT({
-        if (ov::supported_properties == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const InferenceEngine::Exception&) {
-                std::vector<ov::PropertyName> supported_properties;
-                return supported_properties;
-            }
-        }
-
-        if (ov::device::capabilities.name() == name) {
-            try {
-                return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ov::Exception&) {
-                std::vector<std::string> device_capabilites;
-                if (supports_model_caching())
-                    device_capabilites.emplace_back("EXPORT_IMPORT");
-                // if device has ov::device::capabilities::EXPORT_IMPORT it means always true
-                return device_capabilites;
-            }
-        }
-        return {m_ptr->get_property(name, arguments), {m_so}};
-    });
+    OV_PLUGIN_CALL_STATEMENT({ return {m_ptr->get_property(name, arguments), {m_so}}; });
 }
 
 bool ov::Plugin::supports_model_caching() const {
     bool supported(false);
-
     supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
-                util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
-
-    if (supported) {
-        supported = util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
-    }
+                util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
+                util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
     return supported;
 }

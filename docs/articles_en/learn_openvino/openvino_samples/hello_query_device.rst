@@ -89,11 +89,11 @@ For example:
          [ INFO ]                RANGE_FOR_STREAMS: 1, 8
          [ INFO ]                IMPORT_EXPORT_SUPPORT: True
          [ INFO ]                CACHE_DIR:
-         [ INFO ]                CPU_BIND_THREAD: NO
-         [ INFO ]                CPU_THREADS_NUM: 0
-         [ INFO ]                CPU_THROUGHPUT_STREAMS: 1
+         [ INFO ]                ENABLE_CPU_PINNING: NO
+         [ INFO ]                INFERENCE_NUM_THREADS: 0
+         [ INFO ]                NUM_STREAMS: 1
          [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT:
-         [ INFO ]                ENFORCE_BF16: NO
+         [ INFO ]                INFERENCE_PRECISION_HINT: f32
          [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS: NO
          [ INFO ]                PERFORMANCE_HINT:
          [ INFO ]                PERFORMANCE_HINT_NUM_REQUESTS: 0
@@ -118,11 +118,11 @@ For example:
          [ INFO ]                RANGE_FOR_STREAMS : { 1, 8 }
          [ INFO ]                IMPORT_EXPORT_SUPPORT : true
          [ INFO ]                CACHE_DIR : ""
-         [ INFO ]                CPU_BIND_THREAD : NO
-         [ INFO ]                CPU_THREADS_NUM : 0
-         [ INFO ]                CPU_THROUGHPUT_STREAMS : 1
+         [ INFO ]                ENABLE_CPU_PINNING : NO
+         [ INFO ]                INFERENCE_NUM_THREADS : 0
+         [ INFO ]                NUM_STREAMS : 1
          [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT : ""
-         [ INFO ]                ENFORCE_BF16 : NO
+         [ INFO ]                INFERENCE_PRECISION_HINT : f32
          [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS : NO
          [ INFO ]                PERFORMANCE_HINT : ""
          [ INFO ]                PERFORMANCE_HINT_NUM_REQUESTS : 0

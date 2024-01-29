@@ -183,16 +183,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                ". Expected only non negative numbers");
             }
             _small_core_offset = val_i;
-        } else if (key == ov::hint::enable_hyper_threading) {
-            bool enabled;
-            try {
-                enabled = value.as<bool>();
-            } catch (const std::exception&) {
-                OPENVINO_THROW("Wrong value for property key ",
-                               ov::hint::enable_hyper_threading.name(),
-                               ". Expected only true or false");
-            }
-            _enable_hyper_thread = enabled;
         } else {
             OPENVINO_THROW("Wrong value for property key ", key);
         }
@@ -212,7 +202,6 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             ov::threading::threads_per_stream_big.name(),
             ov::threading::threads_per_stream_small.name(),
             ov::threading::small_core_offset.name(),
-            ov::hint::enable_hyper_threading.name(),
             ov::internal::threads_per_stream.name(),
             ov::affinity.name(),
         };

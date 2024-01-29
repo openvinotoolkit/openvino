@@ -11,13 +11,11 @@
 #endif
 
 int main() {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     //! [part0]
     ov::Core core;
     // Load GPU Extensions
     core.set_property("GPU", {{ "CONFIG_FILE", "<path_to_the_xml_file>" }});
     //! [part0]
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return 0;
 }
