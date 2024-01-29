@@ -98,7 +98,7 @@ void validate_scalar_input(const char* input_name,
 }
 
 template <typename T>
-OutputVector handle_opset6_binary_op(const Node& node) {
+ov::OutputVector handle_opset6_binary_op(const Node& node) {
     const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
     ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
@@ -117,7 +117,7 @@ OutputVector handle_opset6_binary_op(const Node& node) {
                                                  Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
                                                  std::vector<int64_t>(lhs_rank - axis - rhs_rank, 1));
                 auto rhs_shape = std::make_shared<v0::ShapeOf>(rhs_node);
-                auto new_shape = std::make_shared<v0::Concat>(OutputVector{rhs_shape, ones}, 0);
+                auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
                 rhs_node = std::make_shared<v1::Reshape>(rhs_node, new_shape, false);
             }
         } else {
@@ -127,11 +127,11 @@ OutputVector handle_opset6_binary_op(const Node& node) {
     return {std::make_shared<T>(lhs_node, rhs_node)};
 }
 
-template OutputVector handle_opset6_binary_op<v1::Add>(const Node& node);
-template OutputVector handle_opset6_binary_op<v1::Divide>(const Node& node);
-template OutputVector handle_opset6_binary_op<v1::Multiply>(const Node& node);
-template OutputVector handle_opset6_binary_op<v1::Subtract>(const Node& node);
-template OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Add>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Divide>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Multiply>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Subtract>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 

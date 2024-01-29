@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, tile_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Tile>();
+    NodeBuilder::opset().insert<ov::op::v0::Tile>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     const auto repeats = make_shared<ov::op::v0::Constant>(element::i64, Shape{4});
 

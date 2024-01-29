@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, lrn_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::LRN>();
+    NodeBuilder::opset().insert<ov::op::v0::LRN>();
     const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     const auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 

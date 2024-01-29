@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector size(const Node& node);
+ov::OutputVector size(const Node& node);
 
 }  // namespace set_1
 
