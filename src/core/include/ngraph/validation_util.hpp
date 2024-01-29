@@ -16,10 +16,19 @@
 
 #include <tuple>
 
+#include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/deprecated.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/shape.hpp"
+#include "openvino/core/enum_mask.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 using ov::evaluate_as_partial_shape;

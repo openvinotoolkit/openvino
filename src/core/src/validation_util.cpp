@@ -15,6 +15,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/util/common_util.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
 
@@ -183,10 +184,10 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                       ".");
 
                 if (ceil_mode) {
-                    output_shape[i] =
-                        ceil_div(static_cast<size_t>(data_padded_dilated_dim) - static_cast<size_t>(window_dilated_dim),
-                                 window_strides[i]) +
-                        1;
+                    output_shape[i] = ov::util::ceil_div(static_cast<size_t>(data_padded_dilated_dim) -
+                                                             static_cast<size_t>(window_dilated_dim),
+                                                         window_strides[i]) +
+                                      1;
                 } else {
                     output_shape[i] =
                         ((static_cast<size_t>(data_padded_dilated_dim) - static_cast<size_t>(window_dilated_dim)) /

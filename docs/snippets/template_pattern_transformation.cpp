@@ -5,6 +5,7 @@
 #include "template_pattern_transformation.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
