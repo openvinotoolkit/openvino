@@ -224,7 +224,7 @@ To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-GNA plugin natively supports stateful models. For more details on such models, refer to the :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`.
+GNA plugin natively supports stateful models. For more details on such models, refer to the :doc:`Stateful models <openvino_docs_OV_UG_stateful_models_intro>`.
 
 .. note:: 
 
