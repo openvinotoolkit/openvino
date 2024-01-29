@@ -139,8 +139,8 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation

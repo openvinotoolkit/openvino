@@ -32,23 +32,21 @@ This tutorial consists of the following steps
 -  Preparing the PyTorch model
 -  Download and prepare data
 -  Check inference with the PyTorch model
--  Convert to ONNX format
--  Convert ONNX Model to OpenVINO Intermediate Representation
+-  Convert Model to OpenVINO Intermediate Representation
 -  Verify inference with the converted model
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
    -  `Install necessary packages <#install-necessary-packages>`__
    -  `Imports and Settings <#imports-and-settings>`__
 
--  `Export to ONNX <#export-to-onnx>`__
--  `Convert ONNX to OpenVINO Intermediate
-   Representation <#convert-onnx-to-openvino-intermediate-representation>`__
+-  `Convert model to OpenVINO Intermediate
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Verify Model Inference <#verify-model-inference>`__
 
@@ -64,8 +62,13 @@ Install necessary packages
 
 .. code:: ipython3
 
-    !pip install -q "openvino>=2023.1.0"
-    !pip install -q fvcore --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.3.0" fvcore --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Imports and Settings
 ~~~~~~~~~~~~~~~~~~~~
@@ -84,7 +87,7 @@ Imports and Settings
     from typing import Any, List, Dict
     from IPython.display import Video
     import openvino as ov
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -108,15 +111,15 @@ each action. Read more about the dataset and the paper
     MODEL_NAME = "slowfast_r50"
     MODEL_REPOSITORY = "facebookresearch/pytorchvideo"
     DEVICE = "cpu"
-    
+
     # load the pretrained model from the repository
     model = torch.hub.load(
         repo_or_dir=MODEL_REPOSITORY, model=MODEL_NAME, pretrained=True, skip_validation=True
     )
-    
+
     # set the device to allocate tensors to. for example, "cpu" or "cuda"
     model.to(DEVICE)
-    
+
     # set the model to eval mode
     model.eval()
 
@@ -468,13 +471,13 @@ mapping to a dict for later use.
         "https://dl.fbaipublicfiles.com/pyslowfast/dataset/class_names/kinetics_classnames.json"
     )
     CLASSNAMES_FILE = "kinetics_classnames.json"
-    
+
     download_file(url=CLASSNAMES_SOURCE, directory=DATA_DIR, show_progress=True)
-    
+
     # load from json
     with open(DATA_DIR / CLASSNAMES_FILE, "r") as f:
         kinetics_classnames = json.load(f)
-    
+
     # load dict of id to class label mapping
     kinetics_id_to_classname = {}
     for k, v in kinetics_classnames.items():
@@ -495,7 +498,7 @@ the downloaded video.
     VIDEO_SOURCE = "https://dl.fbaipublicfiles.com/pytorchvideo/projects/archery.mp4"
     VIDEO_NAME = "archery.mp4"
     VIDEO_PATH = DATA_DIR / VIDEO_NAME
-    
+
     download_file(url=VIDEO_SOURCE, directory=DATA_DIR, show_progress=True)
     Video(VIDEO_PATH, embed=True)
 
@@ -547,8 +550,8 @@ helper functions to implement the preprocessing steps.
             new_width = int(math.floor((float(width) / height) * size))
         scaled = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
         return scaled.astype(np.float32)
-    
-    
+
+
     def center_crop(size: int, frame: np.ndarray) -> np.ndarray:
         """
         Center crop the input frame to size.
@@ -561,8 +564,8 @@ helper functions to implement the preprocessing steps.
         assert cropped.shape[0] == size, "Image height not cropped properly"
         assert cropped.shape[1] == size, "Image width not cropped properly"
         return cropped
-    
-    
+
+
     def normalize(array: np.ndarray, mean: List[float], std: List[float]) -> np.ndarray:
         """
         Normalize a given array by subtracting the mean and dividing the std.
@@ -575,8 +578,8 @@ helper functions to implement the preprocessing steps.
         array = array - mean
         array = array / std
         return array
-    
-    
+
+
     def pack_pathway_output(frames: np.ndarray, alpha: int = 4) -> List[np.ndarray]:
         """
         Prepare output as a list of arrays, each corresponding
@@ -591,8 +594,8 @@ helper functions to implement the preprocessing steps.
         )
         frame_list = [slow_pathway, fast_pathway]
         return frame_list
-    
-    
+
+
     def process_inputs(
         frames: List[np.ndarray],
         num_frames: int,
@@ -658,7 +661,7 @@ model.
         inputs = process_inputs(
             frames=frames, num_frames=num_frames, crop_size=crop_size, mean=mean, std=std
         )
-    
+
         if isinstance(model, ov.CompiledModel):
             # openvino compiled model
             output_blob = model.output(0)
@@ -667,17 +670,17 @@ model.
             # pytorch model
             predictions = model([torch.from_numpy(inp) for inp in inputs])
             predictions = predictions.detach().cpu().numpy()
-    
+
         def softmax(x):
             return (np.exp(x) / np.exp(x).sum(axis=None))
-    
+
         # apply activation
         predictions = softmax(predictions)
-    
+
         # top k predicted class IDs
         topk = 5
         pred_classes = np.argsort(-1 * predictions, axis=1)[:, :topk]
-    
+
         # Map the predicted classes to the label names
         pred_class_names = [id_to_label_mapping[int(i)] for i in pred_classes[0]]
         return pred_class_names
@@ -693,7 +696,7 @@ inference using the same. The top 5 predictions can be seen below.
     MEAN = [0.45, 0.45, 0.45]
     STD = [0.225, 0.225, 0.225]
     TOP_K = 5
-    
+
     predictions = run_inference(
         model=model,
         video_path=str(VIDEO_PATH),
@@ -705,7 +708,7 @@ inference using the same. The top 5 predictions can be seen below.
         mean=MEAN,
         std=STD,
     )
-    
+
     print(f"Predicted labels: {', '.join(predictions)}")
 
 
@@ -714,50 +717,38 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX
---------------
+Convert model to OpenVINO Intermediate Representation
+-----------------------------------------------------
 
 
 
 Now that we have obtained our trained model and checked inference with
-it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
-format, an open format for representing machine learning models, so that
-we can use model conversion API to convert it to OpenVINO Intermediate
-Representation format(IR). This can be later used to run inference using
-the OpenVINO Runtime. Note that although the OpenVINO Runtime supports
-running ONNX models directly, converting to IR format enables us to take
-advantage of OpenVINO’s optimization features including model
-quantization.
+it, we export the PyTorch model to OpenVINO IR format. In this format,
+the network is represented using two files: an ``xml`` file describing
+the network architecture and an accompanying binary file that stores
+constant values such as convolution weights in a binary format. We can
+use model conversion API for converting into IR format as follows. The
+``ov.convert_model`` method returns an ``ov.Model`` object that can
+either be compiled and inferred or serialized.
 
 .. code:: ipython3
 
-    ONNX_MODEL_PATH = MODEL_DIR / "slowfast-r50.onnx"
+    class ModelWrapper(torch.nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+
+        def forward(self, input):
+            return model(list(input))
+
+
     dummy_input = [torch.randn((1, 3, 8, 256, 256)), torch.randn([1, 3, 32, 256, 256])]
-    torch.onnx.export(
-        model=model,
-        args=dummy_input,
-        f=ONNX_MODEL_PATH,
-        export_params=True,
-    )
 
-Convert ONNX to OpenVINO Intermediate Representation
-----------------------------------------------------
-
-
-
-Now that our ONNX model is ready, we can convert it to IR format. In
-this format, the network is represented using two files: an ``xml`` file
-describing the network architecture and an accompanying binary file that
-stores constant values such as convolution weights in a binary format.
-We can use model conversion API for converting into IR format as
-follows. The ``ov.convert_model`` method returns an ``ov.Model`` object
-that can either be compiled and inferred or serialized.
-
-.. code:: ipython3
-
-    model = ov.convert_model(ONNX_MODEL_PATH)
+    model = ov.convert_model(ModelWrapper(model), example_input=(dummy_input,))
     IR_PATH = MODEL_DIR / "slowfast-r50.xml"
-    
+
+
+
     # serialize model for saving IR
     ov.save_model(model=model, output_model=str(IR_PATH), compress_to_fp16=False)
 
@@ -770,7 +761,7 @@ using the ``weights`` parameter.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
@@ -784,14 +775,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 

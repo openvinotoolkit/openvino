@@ -52,6 +52,8 @@
 260-pix2struct-docvqa
 261-fast-segment-anything
 268-table-question-answering
+277-amused-lightweight-text-to-image
+280-depth-anything
 305-tensorflow-quantization-aware-training
 401-object-detection
 404-style-transfer

@@ -7,15 +7,15 @@ Overview
 This tutorial will be divided in 2 parts: 1. Create a simple inference
 pipeline with a pre-trained model using the OpenVINO™ IR format. 2.
 Conduct `post-training
-quantization <https://docs.openvino.ai/latest/ptq_introduction.html>`__
+quantization <https://docs.openvino.ai/2023.3/ptq_introduction.html>`__
 on a pre-trained model using Hugging Face Optimum and benchmark
 performance.
 
 Feel free to use the notebook outline in Jupyter or your IDE for easy
 navigation.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Introduction <#introduction>`__
 
@@ -23,7 +23,7 @@ navigation.
    -  `Model <#model>`__
 
 -  `Part 1: Inference pipeline with
-   OpenVINO <#part--inference-pipeline-with-openvino>`__
+   OpenVINO <#part-1-inference-pipeline-with-openvino>`__
 
    -  `Install prerequisites <#install-prerequisites>`__
    -  `Imports <#imports>`__
@@ -34,7 +34,7 @@ navigation.
    -  `Inference on new input <#inference-on-new-input>`__
 
 -  `Part 2: OpenVINO post-training quantization with HuggingFace
-   Optimum <#part--openvino-post-training-quantization-with-huggingface-optimum>`__
+   Optimum <#part-2-openvino-post-training-quantization-with-huggingface-optimum>`__
 
    -  `Define constants and
       functions <#define-constants-and-functions>`__
@@ -131,12 +131,27 @@ OpenVINO support - HuggingFace Evaluate to benchmark results
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.1 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.1 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.1 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.2 which is incompatible.
+    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 4.25.2 which is incompatible.
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -164,10 +179,14 @@ equivalent to ``AutoModelForSequenceClassification`` from Transformers
 
 .. parsed-literal::
 
-    2023-12-07 00:07:02.218482: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-07 00:07:02.252471: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-26 00:06:51.225761: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-01-26 00:06:51.259890: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-07 00:07:02.836089: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-01-26 00:06:51.896752: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -261,13 +280,39 @@ Download resources
 .. parsed-literal::
 
     Framework not specified. Using pt to export to ONNX.
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+      return self.fget.__get__(instance, owner)()
+
+
+.. parsed-literal::
+
     Some weights of the model checkpoint at huggingface/CodeBERTa-language-id were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+
+
+.. parsed-literal::
+
     Using the export variant default. Available variants are:
         - default: The default ONNX variant.
-    Using framework PyTorch: 1.13.1+cpu
+
+
+.. parsed-literal::
+
+    Using framework PyTorch: 2.1.2+cpu
+
+
+.. parsed-literal::
+
     Overriding 1 configuration item(s)
+
+
+.. parsed-literal::
+
     	- use_cache -> False
 
 
@@ -279,12 +324,16 @@ Download resources
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
     Compiling the model to AUTO ...
 
 
 .. parsed-literal::
 
-    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
+    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
 
 
 Create inference pipeline
@@ -295,6 +344,12 @@ Create inference pipeline
 .. code:: ipython3
 
     code_classification_pipe = pipeline("text-classification", model=model, tokenizer=tokenizer)
+
+
+.. parsed-literal::
+
+    device must be of type <class 'str'> but got <class 'torch.device'> instead
+
 
 Inference on new input
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -330,7 +385,7 @@ In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
 results in a smaller model size and faster inference at the cost of a
 potential marginal performance degradation. `Learn
-more <https://docs.openvino.ai/latest/ptq_introduction.html>`__.
+more <https://docs.openvino.ai/2023.3/ptq_introduction.html>`__.
 
 The HuggingFace Optimum library supports post-training quantization for
 OpenVINO. `Learn
@@ -427,6 +482,14 @@ NOTE: Uncomment the method below to download and use the full dataset
     # )
 
 
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1429: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
+    You can avoid this message in future by passing the argument `trust_remote_code=True`.
+    Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
+      warnings.warn(
+
+
 
 .. parsed-literal::
 
@@ -452,60 +515,276 @@ dataset to quantize and save the model
 
 .. parsed-literal::
 
-    INFO:nncf:Not adding activation input quantizer for operation: 12 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[token_type_embeddings]/embedding_0
-    INFO:nncf:Not adding activation input quantizer for operation: 11 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[word_embeddings]/embedding_0
-    INFO:nncf:Not adding activation input quantizer for operation: 3 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/ne_0
-    INFO:nncf:Not adding activation input quantizer for operation: 4 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/int_0
-    INFO:nncf:Not adding activation input quantizer for operation: 5 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/cumsum_0
-    INFO:nncf:Not adding activation input quantizer for operation: 13 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___2
-    INFO:nncf:Not adding activation input quantizer for operation: 6 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/type_as_0
-    INFO:nncf:Not adding activation input quantizer for operation: 7 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 8 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__mul___0
-    INFO:nncf:Not adding activation input quantizer for operation: 9 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/long_0
-    INFO:nncf:Not adding activation input quantizer for operation: 10 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___1
-    INFO:nncf:Not adding activation input quantizer for operation: 14 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[position_embeddings]/embedding_0
-    INFO:nncf:Not adding activation input quantizer for operation: 15 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__iadd___0
-    INFO:nncf:Not adding activation input quantizer for operation: 16 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 17 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/Dropout[dropout]/dropout_0
-    INFO:nncf:Not adding activation input quantizer for operation: 30 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 33 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 39 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 40 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 45 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 46 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 59 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 62 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 68 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 69 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 74 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 75 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 88 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 91 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 97 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 98 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 103 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 104 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 117 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 120 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 126 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 127 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 132 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 133 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 146 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 149 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 155 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 156 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 161 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 162 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 175 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 178 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 184 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 185 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
-    INFO:nncf:Not adding activation input quantizer for operation: 190 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaOutput[output]/__add___0
-    INFO:nncf:Not adding activation input quantizer for operation: 191 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+    INFO:nncf:Not adding activation input quantizer for operation: 15 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[token_type_embeddings]/embedding_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 14 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[word_embeddings]/embedding_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 6 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/ne_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 7 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/int_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 8 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/cumsum_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 16 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___2
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 9 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/type_as_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 10 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 11 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__mul___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 12 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/long_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 13 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__add___1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 17 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFEmbedding[position_embeddings]/embedding_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 18 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/__iadd___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 19 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 20 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEmbeddings[embeddings]/Dropout[dropout]/dropout_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 33 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 36 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 42 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 43 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 48 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 49 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[0]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 62 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 65 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 71 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 72 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 77 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 78 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[1]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 91 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 94 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 100 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 101 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 106 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 107 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[2]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 120 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 123 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 129 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 130 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 135 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 136 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[3]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 149 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 152 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 158 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 159 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 164 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 165 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[4]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 178 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfAttention[self]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 181 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfAttention[self]/matmul_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 187 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 188 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaAttention[attention]/RobertaSelfOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 193 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaOutput[output]/__add___0
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 194 RobertaForSequenceClassification/RobertaModel[roberta]/RobertaEncoder[encoder]/ModuleList[layer]/RobertaLayer[5]/RobertaOutput[output]/NNCFLayerNorm[LayerNorm]/layer_norm_0
+
+
+.. parsed-literal::
+
     INFO:nncf:Collecting tensor statistics |█               | 33 / 300
+
+
+.. parsed-literal::
+
     INFO:nncf:Collecting tensor statistics |███             | 66 / 300
+
+
+.. parsed-literal::
+
     INFO:nncf:Collecting tensor statistics |█████           | 99 / 300
+
+
+.. parsed-literal::
+
     INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
 
 
@@ -523,6 +802,10 @@ dataset to quantize and save the model
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
@@ -536,9 +819,21 @@ dataset to quantize and save the model
 
 .. parsed-literal::
 
-    Using framework PyTorch: 1.13.1+cpu
+    Using framework PyTorch: 2.1.2+cpu
+
+
+.. parsed-literal::
+
     Overriding 1 configuration item(s)
+
+
+.. parsed-literal::
+
     	- use_cache -> False
+
+
+.. parsed-literal::
+
     Configuration saved in model/CodeBERTa-language-id-quantized/openvino_config.json
 
 
@@ -559,7 +854,11 @@ model is already in the OpenVINO format.
 .. parsed-literal::
 
     Compiling the model to AUTO ...
-    Setting OpenVINO CACHE_DIR to model/CodeBERTa-language-id-quantized/model_cache
+
+
+.. parsed-literal::
+
+    device must be of type <class 'str'> but got <class 'torch.device'> instead
 
 
 Inference on new input using quantized model
@@ -583,7 +882,7 @@ Inference on new input using quantized model
       df['speed'] = df.distance / df.time
     
     Predicted label: python
-    Predicted score: 0.81
+    Predicted score: 0.83
 
 
 Load evaluation set
@@ -599,6 +898,15 @@ NOTE: Uncomment the method below to download and use the full dataset
     validation_sample = get_dataset_sample(dataset_split="validation", num_samples=120)
     
     # validation_sample = load_dataset(DATASET_NAME, split="validation")
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1429: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
+    You can avoid this message in future by passing the argument `trust_remote_code=True`.
+    Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
+      warnings.warn(
+
 
 Evaluate model
 ~~~~~~~~~~~~~~
@@ -700,16 +1008,16 @@ displayed.
         <tr>
           <th>base</th>
           <td>1.0</td>
-          <td>2.045702</td>
-          <td>58.659569</td>
-          <td>0.017048</td>
+          <td>2.007112</td>
+          <td>59.787391</td>
+          <td>0.016726</td>
         </tr>
         <tr>
           <th>quantized</th>
           <td>1.0</td>
-          <td>2.602893</td>
-          <td>46.102553</td>
-          <td>0.021691</td>
+          <td>2.864346</td>
+          <td>41.894385</td>
+          <td>0.023870</td>
         </tr>
       </tbody>
     </table>
@@ -720,7 +1028,7 @@ displayed.
 Additional resources
 --------------------
 
-- `Grammatical Error Correction
+ - `Grammatical Error Correction
 with
 OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
 - `Quantize a Hugging Face Question-Answering Model with
