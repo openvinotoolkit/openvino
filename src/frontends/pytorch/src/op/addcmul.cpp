@@ -38,7 +38,7 @@ OutputVector translate_addcmul_fx(const NodeContext& context) {
     Output<Node> value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
     if (context.has_attribute("value")) {
         value = context.get_input("value");
-    }    
+    }
     return addcmul_common(context, value);
 };
 
