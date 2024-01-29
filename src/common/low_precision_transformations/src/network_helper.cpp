@@ -1476,7 +1476,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         dequantization.subtract :
         dequantization.data;
 
-    auto newOperation = operation->clone_with_new_inputs(inputs);
+    const auto newOperation = operation->clone_with_new_inputs(inputs);
     newOperation->set_friendly_name(operation->get_friendly_name());
     ov::copy_runtime_info(operation, newOperation);
 
