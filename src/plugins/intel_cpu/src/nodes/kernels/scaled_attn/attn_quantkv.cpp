@@ -16,7 +16,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
 #include "common.hpp"
-#include "attn_quant.hpp"
+#include "attn_quantkv.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -66,7 +66,7 @@ static void quant_u8(uint8_t* a, T* b, size_t n, float& scale, float& zp) {
         auto v0 = mm512_uni_loadu_ps(b + i);
         v0_max = _mm512_max_ps(v0_max, v0);
         v0_min = _mm512_min_ps(v0_min, v0);
-        i += vec_len_avx512;
+        i += vec_len_f32_avx512;
     }
     v0_max = _mm512_max_ps(v0_max, v1_max);
     v0_min = _mm512_min_ps(v0_min, v1_min);
@@ -112,7 +112,7 @@ static void quant_u8(uint8_t* a, T* b, size_t n, float& scale, float& zp) {
         auto v0 = mm256_uni_loadu_ps(b + i);
         v0_max = _mm256_max_ps(v0_max, v0);
         v0_min = _mm256_min_ps(v0_min, v0);
-        i += vec_len_avx2;
+        i += vec_len_f32_avx2;
     }
     v0_max = _mm256_max_ps(v0_max, v1_max);
     v0_min = _mm256_min_ps(v0_min, v1_min);
@@ -163,12 +163,12 @@ static void quant_u8(uint8_t* a, T* b, size_t n, float& scale, float& zp) {
 #endif
     for (; i < n; i++) {
         float tmp = b[i];
-        a[i] = static_cast<uint8_t>(tmp / scale + zp);
+        a[i] = static_cast<uint8_t>(std::round(tmp / scale + zp));
     }
 }
 
 template <typename T, typename T2>
-static void attn_quant_kernel(const ov::intel_cpu::PlainTensor& k_input,
+static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_input,
                               const ov::intel_cpu::PlainTensor& v_input,
                               const ov::intel_cpu::PlainTensor& past_k_output,
                               const ov::intel_cpu::PlainTensor& past_v_output,
@@ -191,18 +191,18 @@ static void attn_quant_kernel(const ov::intel_cpu::PlainTensor& k_input,
     });
 }
 
-void attn_quant(const ov::intel_cpu::PlainTensor& k_input,
-                const ov::intel_cpu::PlainTensor& v_input,
-                const ov::intel_cpu::PlainTensor& past_k_output,
-                const ov::intel_cpu::PlainTensor& past_v_output,
-                const ov::intel_cpu::PlainTensor& past_k_scale_zp,
-                const ov::intel_cpu::PlainTensor& past_v_scale_zp) {
+void attn_quantkv(const ov::intel_cpu::PlainTensor& k_input,
+                  const ov::intel_cpu::PlainTensor& v_input,
+                  const ov::intel_cpu::PlainTensor& past_k_output,
+                  const ov::intel_cpu::PlainTensor& past_v_output,
+                  const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                  const ov::intel_cpu::PlainTensor& past_v_scale_zp) {
     if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::u8) {
-        attn_quant_kernel<float, uint8_t>(k_input, v_input, past_k_output, past_v_output, past_k_scale_zp, past_v_scale_zp);
+        attn_quant_mt<float, uint8_t>(k_input, v_input, past_k_output, past_v_output, past_k_scale_zp, past_v_scale_zp);
     } else if (k_input.get_precision() == ov::element::bf16 && past_k_output.get_precision() == ov::element::u8) {
-        attn_quant_kernel<ov::bfloat16, uint8_t>(k_input, v_input, past_k_output, past_v_output, past_k_scale_zp, past_v_scale_zp);
+        attn_quant_mt<ov::bfloat16, uint8_t>(k_input, v_input, past_k_output, past_v_output, past_k_scale_zp, past_v_scale_zp);
     } else {
-        OPENVINO_THROW("unsupport src type: ", k_input.get_precision(), ", dst type: ", past_k_output.get_precision(), " in attn_quant");
+        OPENVINO_THROW("unsupport src type: ", k_input.get_precision(), ", dst type: ", past_k_output.get_precision(), " in attn_quantkv");
     }
 }
 }  // namespace XARCH

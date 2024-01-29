@@ -27,7 +27,7 @@
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/attn_quant.hpp"
+#include "kernels/scaled_attn/attn_quantkv.hpp"
 
 #include <algorithm>
 #include <string>
@@ -938,7 +938,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         new_internal_mem_k->redefineDesc(mem_desc);
         new_internal_mem_v->redefineDesc(mem_desc);
         if (kvcache_precision == ov::element::u8) {
-            attn_quant(cur_k, cur_v,
+            attn_quantkv(cur_k, cur_v,
                 new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1),
                 m_k_state->get_scale_zp().slice(2, L0, L0 + L1), m_v_state->get_scale_zp().slice(2, L0, L0 + L1));
         } else {
@@ -1288,7 +1288,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             init_k = init_k.permute(order);
             init_v = init_v.permute(order);
             if (kvcache_precision == ov::element::u8) {
-                attn_quant(init_k, init_v, past_k, past_v, m_k_state->get_scale_zp(), m_v_state->get_scale_zp());
+                attn_quantkv(init_k, init_v, past_k, past_v, m_k_state->get_scale_zp(), m_v_state->get_scale_zp());
             } else {
                 attn_memcpy(init_k, init_v, past_k, past_v);
             }
@@ -1296,7 +1296,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     }
 
     if (kvcache_precision == ov::element::u8) {
-        attn_quant(cur_k, cur_v,
+        attn_quantkv(cur_k, cur_v,
             past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1),
             m_k_state->get_scale_zp().slice(2, L0, L0 + L1), m_v_state->get_scale_zp().slice(2, L0, L0 + L1));
     } else {
