@@ -9,6 +9,7 @@ import os
 import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
@@ -97,13 +98,13 @@ class PytorchLayerTest:
                 print(em.graph_module.code)
 
                 try:
-                    gm = make_fx(em)(*inputs)
+                    gm = make_fx(em)(*torch_inputs)
                 except:
-                    gm = make_fx(em, tracing_mode='symbolic')(*inputs)
+                    gm = make_fx(em, tracing_mode='symbolic')(*torch_inputs)
 
                 input_shapes = []
                 input_types = []
-                for input_data in inputs:
+                for input_data in torch_inputs:
                     input_types.append(input_data.type())
                     input_shapes.append(input_data.size())
 

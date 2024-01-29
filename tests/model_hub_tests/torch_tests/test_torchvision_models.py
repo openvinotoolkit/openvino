@@ -108,6 +108,12 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "trace"
         self.run(model_name, None, ie_device)
 
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7"])
+    @pytest.mark.precommit
+    def test_convert_model_precommit_export(self, model_name, ie_device):
+        self.mode = "export"
+        self.run(model_name, None, ie_device)
+
     @pytest.mark.parametrize("name",
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly

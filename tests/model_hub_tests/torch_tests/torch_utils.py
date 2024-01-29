@@ -64,19 +64,22 @@ class TestTorchConvertModel(TestConvertModel):
     def convert_model_impl(self, model_obj):
         if hasattr(self, "mode") and self.mode == "export":
             from torch.fx.experimental.proxy_tensor import make_fx
+            from torch.export import export
+            from packaging import version
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
             graph = export(model_obj, self.example)
             if version.parse(torch.__version__) >= version.parse("2.2"):
                 graph = graph.run_decompositions()
 
             try:
-                gm = make_fx(graph)(*inputs)
+                gm = make_fx(graph)(*self.example)
             except:
-                gm = make_fx(graph, tracing_mode='symbolic')(*inputs)
+                gm = make_fx(graph, tracing_mode='symbolic')(*self.example)
 
             input_shapes = []
             input_types = []
-            for input_data in inputs:
+            for input_data in self.example:
                 input_types.append(input_data.type())
                 input_shapes.append(input_data.size())
 
