@@ -698,13 +698,6 @@ h2 {
     opacity: 0.5;
   }
 
-  .diagonal {
-    position:   relative;
-    background:  linear-gradient(to right top, #000000 0%,#000000 46.9%,#ffffff 47%,#ffffff 51%,#000000 51.1%,#000000 100%) !important;
-    background-color: transparent;
-    background-color: none !important;
-  }
-
   .th-sw-plugin {
     color: white;
   }

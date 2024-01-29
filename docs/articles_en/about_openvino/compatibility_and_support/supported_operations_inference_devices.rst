@@ -4,14 +4,22 @@ Supported Operations - by Inference Devices
 ===========================================
 
 
-This page lists operations supported by OpenVINO inference devices. The table presents general information,
+This page presents operations supported by OpenVINO inference devices. The table presents general information,
 for a more detailed and most recent listing of operations that are implemented and tested:
 
-.. button-link:: _static/download/operation_conformance_table_files/opset_report_omz_static.html
+
+.. button-link:: _static/download/conformance_reports/opset_report_omz_static.html
    :color: primary
    :outline:
 
-   See the full conformance report table
+   See the full conformance report table (static)
+
+.. button-link:: _static/download/conformance_reports/opset_report_omz_dynamic.html
+   :color: primary
+   :outline:
+
+   See the full conformance report table (dynamic)
+
 
 
 =================================  ===============  ==============  ==================
@@ -163,7 +171,7 @@ for a more detailed and most recent listing of operations that are implemented a
  Upsampling                         Not Supported    Supported       Not Supported
 =================================  ===============  ==============  ==================
 
-|   `*` - support is limited to the specific parameters. Refer to "Known Layer Limitations" section for the device :doc:`from the list of supported <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
+|   `*` - support is limited to the specific parameters.
 |   `**` - support is implemented via :doc:`Extensibility mechanism <openvino_docs_Extensibility_UG_Intro>`.
 |   `***` - supports NCDHW layout.
 |   `****` - support is implemented via runtime reference.
