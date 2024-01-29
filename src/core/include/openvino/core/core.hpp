@@ -57,3 +57,4 @@
 
 // type
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
