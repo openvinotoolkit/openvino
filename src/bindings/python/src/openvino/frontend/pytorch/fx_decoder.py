@@ -33,7 +33,6 @@ class TorchFXPythonDecoder (Decoder):
             self._nodes = list(pt_module.graph.nodes)
             self._inputs = []
             self._outputs = []
-            print(pt_module.code)
             for i in range(len(self._nodes)):
                 if self._nodes[i].op == 'placeholder':
                     self._inputs.append(i)
