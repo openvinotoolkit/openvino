@@ -6,15 +6,17 @@
 
 #include "openvino/opsets/opset10.hpp"
 
+using namespace ov::op;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector is_finite(const Node& node) {
+ov::OutputVector is_finite(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<ov::opset10::IsFinite>(data)};
+    return {std::make_shared<v10::IsFinite>(data)};
 }
 
 }  // namespace set_1

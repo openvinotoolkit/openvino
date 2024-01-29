@@ -99,7 +99,13 @@ class TestTransformersModel(TestTorchConvertModel):
         self.cuda_available, self.gptq_postinit = None, None
 
     def load_model(self, name, type):
+        import torch
+        name_suffix = ''
         from transformers import AutoConfig
+        if name.find(':') != -1:
+            name_suffix = name[name.find(':') + 1:]
+            name = name[:name.find(':')]
+
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -163,6 +169,41 @@ class TestTransformersModel(TestTorchConvertModel):
             processor = AutoProcessor.from_pretrained(name)
             model = AutoModel.from_pretrained(name, **model_kwargs)
             example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
+        elif 'clap' in mi.tags:
+            from transformers import AutoModel
+            model = AutoModel.from_pretrained(name)
+            
+            import torch
+            example_inputs_map = {
+                'audio_model': {'input_features': torch.randn([1, 1, 1001, 64], dtype=torch.float32)},
+                'audio_projection': {'hidden_states': torch.randn([1, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
+        elif 'git' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForCausalLM
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForCausalLM.from_pretrained(name)
+            import torch
+            example = {'pixel_values': torch.randn(*(1, 3, 224, 224), dtype=torch.float32), 
+                       'input_ids': torch.randint(1, 100, size=(1, 13), dtype=torch.int64)}
+        elif 'blip-2' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
+
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForVisualQuestionAnswering.from_pretrained(name)
+
+            example = dict(processor(images=self.image, return_tensors="pt"))
+            import torch
+            example_inputs_map = {
+                'vision_model' :  {'pixel_values': torch.randn([1, 3, 224, 224], dtype=torch.float32)},
+                'qformer': {'query_embeds' : torch.randn([1, 32, 768], dtype=torch.float32), 
+                            'encoder_hidden_states' : torch.randn([1, 257, 1408], dtype=torch.float32),
+                            'encoder_attention_mask' : torch.ones([1, 257], dtype=torch.int64)},
+                'language_projection': {'input' : torch.randn([1, 32, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
@@ -257,6 +298,7 @@ class TestTransformersModel(TestTorchConvertModel):
         elif 'speecht5' in mi.tags:
             from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
             from datasets import load_dataset
+
             processor = SpeechT5Processor.from_pretrained(name)
             model = SpeechT5ForTextToSpeech.from_pretrained(name)
 
@@ -264,7 +306,7 @@ class TestTransformersModel(TestTorchConvertModel):
             # load xvector containing speaker's voice characteristics from a dataset
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-            
+
             example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
             class DecoratorModelForSeq2SeqLM(torch.nn.Module):
                 def __init__(self, model):

@@ -50,7 +50,11 @@ void ocl_event::set_ocl_callback() {
 
 void ocl_event::wait_impl() {
     if (_event.get() != nullptr) {
-        _event.wait();
+        try {
+            _event.wait();
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
@@ -59,8 +63,12 @@ void ocl_event::set_impl() {
 }
 
 bool ocl_event::is_set_impl() {
-    if (_event.get() != nullptr) {
-        return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+    try {
+        if (_event.get() != nullptr) {
+            return _event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
 }
@@ -94,8 +102,12 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         cl_ulong start;
         cl_ulong end;
 
-        _event.getProfilingInfo(period.start, &start);
-        _event.getProfilingInfo(period.stop, &end);
+        try {
+            _event.getProfilingInfo(period.start, &start);
+            _event.getProfilingInfo(period.stop, &end);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
 
         info.push_back(get_profiling_interval(period.stage, start, end));
     }
@@ -105,7 +117,11 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
 
 void ocl_events::wait_impl() {
     if (_last_ocl_event.get() != nullptr) {
-        _last_ocl_event.wait();
+        try {
+            _last_ocl_event.wait();
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 
@@ -114,8 +130,12 @@ void ocl_events::set_impl() {
 }
 
 bool ocl_events::is_set_impl() {
-    if (_last_ocl_event.get() != nullptr) {
-        return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+    try {
+        if (_last_ocl_event.get() != nullptr) {
+            return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
+        }
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
     return true;
 }
@@ -134,8 +154,12 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         for (auto& period : profiling_periods) {
             cl_ulong ev_start;
             cl_ulong ev_end;
-            be->_event.getProfilingInfo(period.start, &ev_start);
-            be->_event.getProfilingInfo(period.stop, &ev_end);
+            try {
+                be->_event.getProfilingInfo(period.start, &ev_start);
+                be->_event.getProfilingInfo(period.stop, &ev_end);
+            } catch (cl::Error const& err) {
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+            }
             auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
                                               static_cast<unsigned long long>(ev_end));
 

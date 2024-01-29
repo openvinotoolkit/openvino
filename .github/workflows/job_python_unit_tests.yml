@@ -68,7 +68,7 @@ jobs:
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
 
       - name: Fetch setup_python action
         uses: actions/checkout@v4
@@ -121,7 +121,7 @@ jobs:
       # Tests
       #
 
-      - name: Python API 2.0 Tests
+      - name: Python API Tests
         # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
         run: |
           # for 'template' extension
@@ -249,7 +249,7 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

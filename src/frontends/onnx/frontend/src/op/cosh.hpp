@@ -7,14 +7,13 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/output_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector cosh(const Node& node);
+ov::OutputVector cosh(const Node& node);
 }
 }  // namespace op
 }  // namespace onnx_import

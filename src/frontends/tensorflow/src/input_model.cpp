@@ -295,8 +295,9 @@ void InputModel::InputModelTFImpl::load_places() {
             auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
-                                                              std::vector<std::string>{output_name});
-            m_tensor_places[output_name] = output_place;
+                                                              std::vector<std::string>{output_name + ":0"});
+            // TODO: Create tensor places for each ouput port, ticket-129464
+            m_tensor_places[output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }
         return;

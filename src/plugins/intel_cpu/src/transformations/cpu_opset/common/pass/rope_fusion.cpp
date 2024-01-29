@@ -6,13 +6,15 @@
 
 #include <cstdint>
 #include <limits>
-#include <openvino/core/rt_info.hpp>
+
+#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -55,7 +57,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // [x1, x2]*cos + [-x2, x1]*sin
     auto result = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -99,7 +101,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -159,7 +161,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto x = makePattern(ov::Rank(4));
     auto rope = makePattern<RoPENode>({x, cos_tab, sin_tab});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -191,7 +193,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         register_new_node(rope_node);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rope, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -207,7 +209,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     auto x_emb = makePattern<RoPENode>({x, {}, {}}) | makePattern<RoPENode>({x, {}, {}, {}});
     auto result = makePattern<opset1::Concat>({x_emb, y}, {{"axis", -1}});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -235,7 +237,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         register_new_node(rope_node);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -256,7 +258,7 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto x = makePattern<opset1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
     auto result = makePattern<RoPENode>({x, {}, {}}) | makePattern<RoPENode>({x, {}, {}, {}});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -285,17 +287,17 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         register_new_node(rope_node);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
 // remove stridedslice from 0 to int32_max with stride 1
 ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
     MATCHER_SCOPE(EliminateStridedSlice);
-    auto data = ov::pass::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto begin = ov::pass::pattern::wrap_type<opset1::Constant>(ngraph::pattern::type_matches(ov::element::i32));
-    auto end = ov::pass::pattern::wrap_type<opset1::Constant>(ngraph::pattern::type_matches(ov::element::i32));
-    auto stride = ov::pass::pattern::wrap_type<opset1::Constant>(ngraph::pattern::type_matches(ov::element::i32));
+    auto data = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto begin = ov::pass::pattern::wrap_type<opset1::Constant>(ov::pass::pattern::type_matches(ov::element::i32));
+    auto end = ov::pass::pattern::wrap_type<opset1::Constant>(ov::pass::pattern::type_matches(ov::element::i32));
+    auto stride = ov::pass::pattern::wrap_type<opset1::Constant>(ov::pass::pattern::type_matches(ov::element::i32));
 
     auto strided_slice =
         ov::pass::pattern::wrap_type<opset1::StridedSlice>({data, begin, end, stride}, [](const Output<Node>& value) {
@@ -357,12 +359,12 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
             return true;
         });
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto root = m.get_match_root();
         return replace_output_update_name(root->output(0), root->input_value(0));
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(strided_slice, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(strided_slice, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -429,7 +431,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
     auto result = permute_Transpose_1213;
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -461,7 +463,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -549,7 +551,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
 
     auto result = cat_Concat_505;
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -590,7 +592,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -693,7 +695,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto result = add_Add_597;
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -734,6 +736,6 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }

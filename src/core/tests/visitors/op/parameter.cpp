@@ -10,7 +10,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, parameter_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::Parameter>();
+    NodeBuilder::opset().insert<ov::op::v0::Parameter>();
     auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
 
     NodeBuilder builder(parameter);

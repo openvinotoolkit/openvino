@@ -9,10 +9,9 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -26,10 +25,10 @@ std::shared_ptr<Node> createConvolution(
     const size_t inputChannels = inputShape[1];
     const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
     const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
-        std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
+        std::make_shared<ov::opset1::Constant>(ov::element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
         precision,
         255,
-        { outputChannels, 1, 1, 1 },
+        {outputChannels, 1, 1, 1},
         std::vector<float>(outputChannels, -1.27f),
         std::vector<float>(outputChannels, 1.27f),
         std::vector<float>(outputChannels, -1.27f),
@@ -54,7 +53,7 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     // -1 - no Convolution, 2 - on both branches
     const int convoutionBranch,
     // -1 - no FakeQuantize, 2 - on both branches
@@ -187,9 +186,9 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getReference(
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -232,4 +231,4 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

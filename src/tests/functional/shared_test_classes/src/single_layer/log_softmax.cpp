@@ -43,8 +43,8 @@ void LogSoftmaxLayerTest::SetUp() {
 
     const auto logSoftmax = std::make_shared<ov::op::v5::LogSoftmax>(params.at(0), axis);
 
-    const ngraph::ResultVector results {std::make_shared<ov::op::v0::Result>(logSoftmax)};
+    const ov::ResultVector results {std::make_shared<ov::op::v0::Result>(logSoftmax)};
 
-    function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
+    function = std::make_shared<ov::Model>(results, params, "logSoftmax");
 }
 }  // namespace LayerTestsDefinitions

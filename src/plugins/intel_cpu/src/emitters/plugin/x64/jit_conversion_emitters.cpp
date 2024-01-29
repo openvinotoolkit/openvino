@@ -31,9 +31,9 @@ void jit_convert_emitter::validate_types() const {
     };
 
     if (!is_supported_type(input_type))
-        OPENVINO_THROW("Unsupported input type: ", input_type.get_type_name());
+        OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
     if (!is_supported_type(output_type))
-        OPENVINO_THROW("Unsupported output type: ", output_type.get_type_name());
+        OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", output_type.get_type_name());
 }
 
 size_t jit_convert_emitter::get_inputs_num() const { return 1; }
@@ -50,7 +50,7 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t> &in_vec_idxs, c
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
     if (!uni_vcvtneps2bf16)
-        OPENVINO_THROW("Converter from float to bf16 isn't initialized!");
+        OV_CPU_JIT_EMITTER_THROW("Converter from float to bf16 isn't initialized!");
 
     uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
 }
@@ -75,7 +75,7 @@ void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -120,7 +120,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             h->uni_vpmovzxbd(vmm_dst, vmm_src);
             break;
         default:
-            OPENVINO_THROW("Unsupported input data type");
+            OV_CPU_JIT_EMITTER_THROW("Unsupported input data type");
     }
 
     switch (output_type) {
@@ -159,7 +159,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             }
             break;
         default:
-           OPENVINO_THROW("Unsupported output data type");
+           OV_CPU_JIT_EMITTER_THROW("Unsupported output data type");
     }
 }
 
@@ -204,7 +204,7 @@ void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -246,7 +246,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             h->uni_vpmovzxbd(vmm_dst, vmm_src);
             break;
         default:
-           OPENVINO_THROW("Unsupported input data type");
+           OV_CPU_JIT_EMITTER_THROW("Unsupported input data type");
     }
 
     switch (output_type) {
@@ -286,7 +286,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             }
             break;
         default:
-            OPENVINO_THROW("Unsupported output data type");
+            OV_CPU_JIT_EMITTER_THROW("Unsupported output data type");
     }
 }
 

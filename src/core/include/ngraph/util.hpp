@@ -32,12 +32,11 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/enum_mask.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 class Node;
@@ -46,10 +45,7 @@ namespace ngraph {
 using ov::EnumMask;
 using ov::Node;
 class stopwatch;
-
-namespace runtime {
 class Tensor;
-}  // namespace runtime
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 template <typename T>
@@ -210,15 +206,15 @@ AxisVector get_default_order(size_t rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Rank& rank);
+AxisVector get_default_order(const ov::Rank& rank);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const Shape& shape);
+AxisVector get_default_order(const ov::Shape& shape);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-AxisVector get_default_order(const PartialShape& shape);
+AxisVector get_default_order(const ov::PartialShape& shape);
 
 /// \brief Function to query parsed version information of the version of ngraph which
 /// contains this function. Version information strictly follows Semantic Versioning
@@ -258,19 +254,19 @@ NGRAPH_API_DEPRECATED T double_to_int(double x, double float_to_int_converter(do
 }  // end namespace ngraph
 
 template <typename T>
-NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
-    if (ngraph::element::from<T>() != tv->get_element_type()) {
+NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv) {
+    if (ov::element::from<T>() != tv->get_element_type()) {
         OPENVINO_THROW("read_vector type must match Tensor type");
     }
     size_t element_count = ngraph::shape_size(tv->get_shape());
     size_t size = element_count * sizeof(T);
     std::vector<T> rc(element_count);
-    tv->read(rc.data(), size);
+    std::memcpy(rc.data(), tv->data(), size);
     return rc;
 }
 
-template <class T, ngraph::element::Type_t ET>
-NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ngraph::element_type_traits<ET>::value_type* data,
+template <class T, ov::element::Type_t ET>
+NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ov::element_type_traits<ET>::value_type* data,
                                                     size_t size) {
     std::vector<T> result(size);
     for (size_t i = 0; i < size; i++) {
@@ -278,78 +274,14 @@ NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ngraph::element_typ
     }
     return result;
 }
-template <typename T>
-NGRAPH_API_DEPRECATED std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor) {
-    NGRAPH_CHECK(tensor != nullptr, "Invalid Tensor received, can't read the data from a null pointer.");
-
-    switch (tensor->get_element_type()) {
-    case ngraph::element::Type_t::boolean: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::boolean>();
-        return array_2_vector<T, ngraph::element::Type_t::boolean>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::bf16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::bf16>();
-        return array_2_vector<T, ngraph::element::Type_t::bf16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f16>();
-        return array_2_vector<T, ngraph::element::Type_t::f16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f32>();
-        return array_2_vector<T, ngraph::element::Type_t::f32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::f64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::f64>();
-        return array_2_vector<T, ngraph::element::Type_t::f64>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i8: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i8>();
-        return array_2_vector<T, ngraph::element::Type_t::i8>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i16>();
-        return array_2_vector<T, ngraph::element::Type_t::i16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i32>();
-        return array_2_vector<T, ngraph::element::Type_t::i32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::i64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::i64>();
-        return array_2_vector<T, ngraph::element::Type_t::i64>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u1:
-        NGRAPH_CHECK(false, "u1 element type is unsupported");
-        break;
-    case ngraph::element::Type_t::u8: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u8>();
-        return array_2_vector<T, ngraph::element::Type_t::u8>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u16: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u16>();
-        return array_2_vector<T, ngraph::element::Type_t::u16>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u32: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u32>();
-        return array_2_vector<T, ngraph::element::Type_t::u32>(p, tensor->get_element_count());
-    }
-    case ngraph::element::Type_t::u64: {
-        auto p = tensor->get_data_ptr<ngraph::element::Type_t::u64>();
-        return array_2_vector<T, ngraph::element::Type_t::u64>(p, tensor->get_element_count());
-    }
-    default:
-        NGRAPH_UNREACHABLE("unsupported element type");
-    }
-}
 
 NGRAPH_API_DEPRECATED
-std::vector<float> NGRAPH_API read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv);
+std::vector<float> NGRAPH_API read_float_vector(std::shared_ptr<ov::Tensor> tv);
 
 NGRAPH_API_DEPRECATED
-std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ngraph::runtime::Tensor> tv);
+std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ov::Tensor> tv);
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv);
+std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END

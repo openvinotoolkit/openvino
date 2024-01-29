@@ -8,8 +8,8 @@
 
 #include <vector>
 
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "tensor.hpp"
 
 namespace ngraph {
@@ -26,7 +26,7 @@ public:
         if (m_shape == Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
-            // In nGraph a scalar is represented with Shape{} and thus this replacement.
+            // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
             m_shape = Shape{};
         }
     }
@@ -53,8 +53,8 @@ public:
         return m_indices;
     }
 
-    const element::Type& get_ng_type() const {
-        return m_values.get_ng_type();
+    const ov::element::Type& get_ov_type() const {
+        return m_values.get_ov_type();
     }
 
 private:

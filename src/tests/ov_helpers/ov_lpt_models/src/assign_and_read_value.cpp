@@ -9,7 +9,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/assign_base.hpp"
 
@@ -18,9 +17,12 @@
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
+
+using ov::op::util::Variable;
+using ov::op::util::VariableInfo;
 
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
         const ov::PartialShape& inputShape,
@@ -29,7 +31,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
         const size_t opsetVersion,
         const bool FQAfterReadValue,
         const std::vector<float>& constantValue,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+        const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     const auto defaultConstant = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.get_shape(), constantValue);
     const auto variable = std::make_shared<Variable>(VariableInfo{inputShape.get_shape(), inputPrecision, "id"});
@@ -43,16 +45,15 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
     }
     std::shared_ptr<Node> lastNode = readValue;
     if (FQAfterReadValue) {
-        lastNode = builder::subgraph::makeFakeQuantize(
-                lastNode,
-                element::f32,
-                FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
+        lastNode = builder::subgraph::makeFakeQuantize(lastNode,
+                                                       ov::element::f32,
+                                                       FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     }
     const auto add = std::make_shared<ov::opset1::Add>(lastNode, input);
     const auto FQAfterAdd = builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            add,
-            element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
+        add,
+        ov::element::f32,
+        FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
     auto deqStructure = dequantization;
     deqStructure.multiply.outPrecision = inputPrecision;
     const auto dequantizationOp = makeDequantization(FQAfterAdd, deqStructure);
@@ -73,7 +74,7 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+        const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const size_t opsetVersion) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto defaultConstant = std::make_shared<ov::opset1::Constant>(precision, inputShape.get_shape(), std::vector<float>{0});
@@ -87,10 +88,9 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
         throw std::runtime_error("Unknown opset version");
     }
     std::shared_ptr<Node> lastNode = readValue;
-    lastNode = builder::subgraph::makeFakeQuantize(
-            lastNode,
-            element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
+    lastNode = builder::subgraph::makeFakeQuantize(lastNode,
+                                                   ov::element::f32,
+                                                   FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     const auto add = std::make_shared<ov::opset1::Add>(lastNode, input);
     const auto FQAfterAdd = fakeQuantize.empty() ? nullptr :
                               ov::test::utils::make_fake_quantize(
@@ -118,13 +118,13 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
 
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
     const ov::PartialShape& inputShape,
-    const element::Type& inputPrecision,
+    const ov::element::Type& inputPrecision,
     const ov::element::Type precisionBeforeDequantization,
     const size_t opsetVersion,
     const bool FQAfterReadValue,
     const std::vector<float>& constantValue,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     auto constantPrecision = precisionBeforeDequantization;
     if (constantValue != std::vector<float>{0}) {
@@ -155,15 +155,21 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
 
     if (FQAfterReadValue) {
         lastNode = builder::subgraph::makeFakeQuantizeTypeRelaxed(
-                lastNode,
-                element::f32,
-                FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f / dequantizationAfter.multiply.values[0]}, {0}, {2.55f}, inputPrecision});
+            lastNode,
+            ov::element::f32,
+            FakeQuantizeOnData{256ul,
+                               Shape{},
+                               {0},
+                               {2.55f / dequantizationAfter.multiply.values[0]},
+                               {0},
+                               {2.55f},
+                               inputPrecision});
     }
     const auto add = std::make_shared<ov::opset1::Add>(lastNode, input);
     const auto FQAfterAdd = builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            add,
-            element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
+        add,
+        ov::element::f32,
+        FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
 
     auto deqStructureBefore = dequantizationBefore;
     deqStructureBefore.multiply.outPrecision = inputPrecision;
@@ -184,4 +190,4 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

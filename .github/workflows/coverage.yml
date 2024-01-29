@@ -41,8 +41,6 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
-          # For running Python API tests
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
           # For running ONNX frontend unit tests
