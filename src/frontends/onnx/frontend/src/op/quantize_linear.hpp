@@ -7,25 +7,25 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
-std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
-                                                 const Output<ngraph::Node>& y_zero_point,
-                                                 const Output<ngraph::Node>& data);
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
+                                             const ov::Output<ov::Node>& y_zero_point,
+                                             const ov::Output<ov::Node>& data);
 }
 namespace set_1 {
-OutputVector quantize_linear(const Node& node);
+ov::OutputVector quantize_linear(const Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
 
-OutputVector quantize_linear(const Node& node);
+ov::OutputVector quantize_linear(const Node& node);
 
 }  // namespace set_13
 

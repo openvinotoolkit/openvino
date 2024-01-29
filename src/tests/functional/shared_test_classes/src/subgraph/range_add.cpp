@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/range_add.hpp"
 
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {

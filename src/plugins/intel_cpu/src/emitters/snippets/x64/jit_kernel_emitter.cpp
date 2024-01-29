@@ -27,9 +27,9 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_container_emitter(h, isa), reg_indexes_idx(abi_param1.getIdx()), reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-    OPENVINO_ASSERT(kernel != nullptr, "jit_kernel_emitter invoked with invalid op argument");
-    OPENVINO_ASSERT(!kernel->region.empty(), "jit_kernel_emitter invoked with empty body");
-    OPENVINO_ASSERT(kernel->compile_params != nullptr, "jit_kernel_emitter invoked with op::Kernel that contains no compile_params");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
+    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "invoked with empty body");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel->compile_params != nullptr, "invoked with op::Kernel that contains no compile_params");
 
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
@@ -62,14 +62,14 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
-                OPENVINO_THROW("Kernel detected unsupported io_type");
+                OV_CPU_JIT_EMITTER_THROW("detected unsupported io_type");
             }
         }
         const auto& shape = desc->get_shape();
         const auto& layout = desc->get_layout();
-        OPENVINO_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
+        OV_CPU_JIT_EMITTER_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
         const auto max_dim = *std::max_element(layout.begin(), layout.end());
-        OPENVINO_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
+        OV_CPU_JIT_EMITTER_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
         io_shapes.push_back(shape);
         io_data_layouts.push_back(layout);
         io_data_sizes.push_back(etype.size());
@@ -135,12 +135,12 @@ void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vec
 }
 
 void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OPENVINO_ASSERT(in.empty(), "jit_kernel_emitter got invalid number of inputs. Expected 0, got ", in.size());
-    OPENVINO_ASSERT(out.empty(), "jit_kernel_emitter got invalid number of outputs. Expected 0, got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "got invalid number of inputs. Expected 0, got ", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "got invalid number of outputs. Expected 0, got ", out.size());
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
-    OPENVINO_ASSERT(data_ptr_regs_idx.size() == num_params,
-                    "jit_kernel_emitter: number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
-                    " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
+    OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
+                              "number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
+                              " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
 }
 
 void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,

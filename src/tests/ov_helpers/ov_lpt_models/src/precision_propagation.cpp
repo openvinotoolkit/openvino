@@ -11,14 +11,13 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -124,10 +123,12 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getOriginalWithNeighbor
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
         const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
-            std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(ov::shape_size(shape), 1.f)),
+            std::make_shared<ov::opset1::Constant>(ov::element::f32,
+                                                   shape,
+                                                   std::vector<float>(ov::shape_size(shape), 1.f)),
             precision,
             255,
-            { outputChannels, 1, 1, 1 },
+            {outputChannels, 1, 1, 1},
             std::vector<float>(outputChannels, -1.27f),
             std::vector<float>(outputChannels, 1.27f),
             std::vector<float>(outputChannels, -1.27f),
@@ -234,21 +235,24 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
 
         {
             const auto shape = Shape{ 1, inputChannels, 1, 1 };
-            std::shared_ptr<Node> subtractConst = std::make_shared<ov::opset1::Constant>(
-                element::u8,
-                shape,
-                std::vector<float>(ov::shape_size(shape), 128.f));
+            std::shared_ptr<Node> subtractConst =
+                std::make_shared<ov::opset1::Constant>(ov::element::u8,
+                                                       shape,
+                                                       std::vector<float>(ov::shape_size(shape), 128.f));
 
             auto subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-                std::vector<element::Type>{element::f32, element::f32},
-                std::vector<element::Type>{ element::f32 },
-                ov::op::TemporaryReplaceOutputType(result2, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                std::vector<ov::element::Type>{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(result2, ov::element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(subtractConst, ov::element::f32).get());
             result2 = subtract;
         }
 
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-        const auto fakeQuantizeOnWeights = std::make_shared<ov::opset1::Constant>(element::i8, shape, std::vector<float>(ov::shape_size(shape), 100.f));
+        const auto fakeQuantizeOnWeights =
+            std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                   shape,
+                                                   std::vector<float>(ov::shape_size(shape), 100.f));
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
         result2 = std::make_shared<ov::opset1::Convolution>(
@@ -281,7 +285,7 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     return function;
 }
 
-std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel) {
+std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
     const std::vector<size_t> stride = { 1, 1 };
     const std::vector<size_t> padBegin = { 0, 0 };
     const std::vector<size_t> padEnd = { 0, 0 };
@@ -300,4 +304,4 @@ std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const Output<Nod
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

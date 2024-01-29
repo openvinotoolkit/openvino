@@ -947,9 +947,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
 }
 
 std::shared_ptr<ov::Model> ov::Model::clone() const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::clone_model(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
+    return ov::clone_ov_model(*this, node_map);
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {

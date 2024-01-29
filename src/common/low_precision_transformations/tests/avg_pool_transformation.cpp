@@ -26,15 +26,15 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -59,7 +59,7 @@ public:
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
         std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
-        actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(precision,
+        actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
                                                                                  testValues.actual.inputPrecision,
                                                                                  shape,
                                                                                  addFakeQuantize,
@@ -72,7 +72,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::AvgPoolFunction::getReference(precision,
+            ov::builder::subgraph::AvgPoolFunction::getReference(precision,
                                                                      testValues.expected.inputPrecision,
                                                                      shape,
                                                                      addFakeQuantize,
