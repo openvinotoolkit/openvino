@@ -32,7 +32,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_17 {
+namespace set_1 {
 
 ov::OutputVector layer_normalization(const Node& node) {
     const auto inputs = node.get_ng_inputs();
@@ -95,7 +95,7 @@ ov::OutputVector layer_normalization(const Node& node) {
     return ov::OutputVector{Y, Mean, InvStdDev};
 }
 
-}  // namespace set_17
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
