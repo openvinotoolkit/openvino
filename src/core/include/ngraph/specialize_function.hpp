@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "ngraph/deprecated.hpp"
-#include "ngraph/ngraph_visibility.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -106,7 +105,7 @@ namespace ngraph {
 ///       parameter_shapes[i] can be created.
 ///
 NGRAPH_API_DEPRECATED
-NGRAPH_API
+OPENVINO_API
 std::shared_ptr<ov::Model> specialize_function(std::shared_ptr<ov::Model> f,
                                                const std::vector<ov::element::Type>& parameter_element_types,
                                                const std::vector<ov::PartialShape>& parameter_shapes,

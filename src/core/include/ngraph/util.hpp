@@ -67,22 +67,22 @@ NGRAPH_API_DEPRECATED std::string vector_to_string(const T& v) {
     return os.str();
 }
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 size_t hash_combine(const std::vector<size_t>& list);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 void dump(std::ostream& out, const void*, size_t);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 std::string to_lower(const std::string& s);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 std::string to_upper(const std::string& s);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 std::string trim(const std::string& s);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
@@ -94,7 +94,7 @@ NGRAPH_API_DEPRECATED std::string locale_string(T x) {
     return ss.str();
 }
 
-class NGRAPH_API NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") stopwatch {
+class OPENVINO_API NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") stopwatch {
 public:
     void start() {
         if (m_active == false) {
@@ -154,17 +154,17 @@ NGRAPH_API_DEPRECATED T parse_string(const std::string& s) {
 /// template specializations for float and double to handle INFINITY, -INFINITY
 /// and NaN values.
 template <>
-NGRAPH_API_DEPRECATED NGRAPH_API float parse_string<float>(const std::string& s);
+NGRAPH_API_DEPRECATED OPENVINO_API float parse_string<float>(const std::string& s);
 template <>
-NGRAPH_API_DEPRECATED NGRAPH_API double parse_string<double>(const std::string& s);
+NGRAPH_API_DEPRECATED OPENVINO_API double parse_string<double>(const std::string& s);
 
 /// template specializations for int8_t and uint8_t to handle the fact that default
 /// implementation ends up treating values as characters so that the number "0" turns into
 /// the parsed value 48, which is it's ASCII value
 template <>
-NGRAPH_API_DEPRECATED NGRAPH_API int8_t parse_string<int8_t>(const std::string& s);
+NGRAPH_API_DEPRECATED OPENVINO_API int8_t parse_string<int8_t>(const std::string& s);
 template <>
-NGRAPH_API_DEPRECATED NGRAPH_API uint8_t parse_string<uint8_t>(const std::string& s);
+NGRAPH_API_DEPRECATED OPENVINO_API uint8_t parse_string<uint8_t>(const std::string& s);
 
 /// Parses a list of strings containing literals of the underlying type.
 template <typename T>
@@ -188,30 +188,30 @@ NGRAPH_API_DEPRECATED T subtract_or_zero(T x, T y) {
     return y > x ? 0 : x - y;
 }
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 void* ngraph_malloc(size_t size);
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 void ngraph_free(void*);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 size_t round_up(size_t size, size_t alignment);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 AxisVector get_default_order(size_t rank);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 AxisVector get_default_order(const ov::Rank& rank);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 AxisVector get_default_order(const ov::Shape& shape);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 AxisVector get_default_order(const ov::PartialShape& shape);
 
@@ -226,7 +226,7 @@ AxisVector get_default_order(const ov::PartialShape& shape);
 /// the patch version number.
 ///
 /// \note Throws a runtime_error if there is an error during parsing
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra);
 
@@ -275,12 +275,12 @@ NGRAPH_API_DEPRECATED std::vector<T> array_2_vector(typename ov::element_type_tr
 }
 
 NGRAPH_API_DEPRECATED
-std::vector<float> NGRAPH_API read_float_vector(std::shared_ptr<ov::Tensor> tv);
+std::vector<float> OPENVINO_API read_float_vector(std::shared_ptr<ov::Tensor> tv);
 
 NGRAPH_API_DEPRECATED
-std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ov::Tensor> tv);
+std::vector<int64_t> OPENVINO_API read_index_vector(std::shared_ptr<ov::Tensor> tv);
 
-NGRAPH_API
+OPENVINO_API
 NGRAPH_API_DEPRECATED
 std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END
