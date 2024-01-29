@@ -59,28 +59,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             _threads = val_i;
         } else if (key == ov::internal::threads_per_stream) {
             _threads_per_stream = static_cast<int>(value.as<size_t>());
-        } else if (key == ov::affinity) {
-            ov::Affinity affinity = value.as<ov::Affinity>();
-            switch (affinity) {
-            case ov::Affinity::NONE:
-                _threadBindingType = ThreadBindingType::NONE;
-                break;
-            case ov::Affinity::CORE: {
-#if (defined(__APPLE__) || defined(_WIN32))
-                _threadBindingType = ThreadBindingType::NUMA;
-#else
-                _threadBindingType = ThreadBindingType::CORES;
-#endif
-            } break;
-            case ov::Affinity::NUMA:
-                _threadBindingType = ThreadBindingType::NUMA;
-                break;
-            case ov::Affinity::HYBRID_AWARE:
-                _threadBindingType = ThreadBindingType::HYBRID_AWARE;
-                break;
-            default:
-                OPENVINO_THROW("Unsupported affinity type");
-            }
         } else {
             OPENVINO_THROW("Wrong value for property key ", key);
         }
@@ -93,20 +71,8 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             ov::num_streams.name(),
             ov::inference_num_threads.name(),
             ov::internal::threads_per_stream.name(),
-            ov::affinity.name(),
         };
         return properties;
-    } else if (key == ov::affinity) {
-        switch (_threadBindingType) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
     } else if (key == ov::num_streams) {
         return decltype(ov::num_streams)::value_type{_streams};
     } else if (key == ov::inference_num_threads) {

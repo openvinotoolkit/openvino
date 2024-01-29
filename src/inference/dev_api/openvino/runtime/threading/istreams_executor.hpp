@@ -178,9 +178,6 @@ public:
         int get_thread_binding_offset() {
             return _threadBindingOffset;
         }
-        void set_name(std::string name) {
-            _name = name;
-        }
         bool compare(Config config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&

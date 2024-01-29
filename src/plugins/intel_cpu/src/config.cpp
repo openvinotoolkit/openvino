@@ -67,52 +67,26 @@ void Config::applyDebugCapsProperties() {
 #endif
 
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
+    const auto streamExecutorConfigKeys =
+        streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
-        if (key == ov::num_streams.name()) {
-            ov::Any value = val.as<std::string>();
-            auto streams_value = value.as<ov::streams::Num>();
-            if (streams_value.num >= 0) {
-                streams = streams_value.num;
-                streamsChanged = true;
-            } else if (streams_value == ov::streams::NUMA) {
-                latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
-            } else if (streams_value == ov::streams::AUTO) {
-                hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
-                changedHintPerfMode = true;
-            } else {
-                OPENVINO_THROW("Wrong value for property key ",
-                               key,
-                               ". Expected non negative numbers (#streams) or ",
-                               "ov::streams::NUMA|ov::streams::AUTO, Got: ",
-                               val.as<std::string>());
-            }
-        } else if (key == ov::inference_num_threads.name()) {
-            ov::Any value = val.as<std::string>();
-            int threads_value;
-            try {
-                threads_value = value.as<int>();
-            } catch (const std::exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               key,
-                               ". Expected only positive numbers (#threads)");
-            }
-            if (threads_value < 0) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               key,
-                               ". Expected only positive numbers (#threads)");
-            }
-            threads = threads_value;
-        } else if (key == ov::internal::threads_per_stream.name()) {
-            try {
-                threadsPerStream = val.as<int>();
-            } catch (const std::exception&) {
-                OPENVINO_THROW("Wrong value ", val.as<std::string>(), "for property key ", key);
+        if (streamExecutorConfigKeys.end() !=
+            std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
+            streamExecutorConfig.set_property(key, val.as<std::string>());
+            streams = streamExecutorConfig.get_streams();
+            threads = streamExecutorConfig.get_threads();
+            threadsPerStream = streamExecutorConfig.get_threads_per_stream();
+            if (key == ov::num_streams.name()) {
+                ov::Any value = val.as<std::string>();
+                auto streams_value = value.as<ov::streams::Num>();
+                if (streams_value == ov::streams::NUMA) {
+                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
+                } else if (streams_value == ov::streams::AUTO) {
+                    hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
+                    changedHintPerfMode = true;
+                }
             }
         } else if (key == ov::affinity.name()) {
             try {
