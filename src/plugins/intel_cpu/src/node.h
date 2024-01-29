@@ -172,6 +172,10 @@ public:
     void remove();
 
     void addParentEdge(const EdgePtr& edge) {
+        assert(std::none_of(parentEdges.begin(), parentEdges.end(),
+                            [&edge](const EdgeWeakPtr& _edge){
+                                return _edge.lock()->getOutputNum() == edge->getOutputNum();
+                            }));
         parentEdges.insert(std::upper_bound(parentEdges.begin(), parentEdges.end(), edge,
                                             [](const EdgeWeakPtr& lhs, const EdgeWeakPtr& rhs) {
                                                 return lhs.lock()->getOutputNum() < rhs.lock()->getOutputNum();

@@ -33,16 +33,6 @@ public:
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    // void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
-    //     this->input = input.clone();
-    //     inputShapes.clear();
-    //     inputShapes.push_back(this->input->getShape());
-
-    //     this->output = output.clone();
-    //     outputShapes.clear();
-    //     outputShapes.push_back(this->output->getShape());
-    // }
-
     void setSrcPermutation(const std::vector<int> & src_perm) {
         this->src_permutation = src_perm;
     }

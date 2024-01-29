@@ -904,7 +904,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
                                             + "_" + std::to_string(edgeMem->getSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
+                                            + "_" + std::to_string(*edgeMem->getDataAs<uint64_t>());
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {

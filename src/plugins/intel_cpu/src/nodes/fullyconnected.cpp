@@ -304,7 +304,7 @@ void FullyConnected::prepackMLASWeight() {
         if (weightCache != nullptr) {
             std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
             const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->getSize()) +
-                                            "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
+                                            "_" + std::to_string(*weightsMem->getDataAs<uint64_t>());
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {

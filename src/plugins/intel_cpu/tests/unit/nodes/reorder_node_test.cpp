@@ -135,7 +135,6 @@ public:
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
-        // reorderNode->setDescs(inputDesc, outputDesc);
         std::array<std::shared_ptr<ov::intel_cpu::Node>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();

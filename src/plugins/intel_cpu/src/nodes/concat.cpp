@@ -349,7 +349,7 @@ void Concat::prepareParams() {
         // in this case, inputs are also small 1d vector and single thread naive impl is faster
         canOptimize1DCase = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+            const auto& srcMemPtr = getSrcMemoryAtPort(i);
             const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
             const auto& inputShape = srcMemDesc->getBlockDims();
             const auto& strides = srcMemDesc->getStrides();
