@@ -162,4 +162,3 @@ Additional Resources
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
 * `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
 * `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/python>`__
-* `POT-specific sample with sparse resnet-50 generation <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/prune_and_quantize>`__

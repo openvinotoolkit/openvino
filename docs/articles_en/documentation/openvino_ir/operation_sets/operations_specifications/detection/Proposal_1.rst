@@ -5,7 +5,7 @@ Proposal
 
 
 .. meta::
-  :description: Learn about Proposal-1 - an object detection operation, 
+  :description: Learn about Proposal-1 - an object detection operation,
                 which can be performed on three required input tensors.
 
 **Versioned name**: *Proposal-1*
@@ -134,8 +134,8 @@ Proposal
 
   * **Description**: *framework* specifies how the box coordinates are calculated.
   * **Range of values**:
-  
-    * "" (empty string) - calculate box coordinates like in Caffe
+
+    * "" (empty string) - calculate box coordinates
     * *tensorflow* - calculate box coordinates like in the TensorFlow* Object Detection API models
   * **Type**: string
   * **Default value**: "" (empty string)
