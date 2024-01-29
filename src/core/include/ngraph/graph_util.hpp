@@ -24,8 +24,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/deprecated.hpp"
 #include "openvino/core/graph_util.hpp"
 
 namespace ov {
