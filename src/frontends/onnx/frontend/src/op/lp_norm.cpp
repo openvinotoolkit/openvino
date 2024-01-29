@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector lp_norm(const Node& node) {
+ov::OutputVector lp_norm(const Node& node) {
     const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const auto data_shape = data.get_partial_shape();
     const auto data_rank = data_shape.rank();

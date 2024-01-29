@@ -21,16 +21,16 @@ namespace op {
 
 namespace {
 
-OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
-                                     ov::ParameterVector& body_inputs,
-                                     OutputVector& body_outputs,
-                                     int64_t num_scan_inputs,
-                                     const std::vector<int64_t>& scan_input_axes,
-                                     const std::vector<int64_t>& scan_input_directions,
-                                     const std::vector<int64_t>& scan_output_axes,
-                                     const std::vector<int64_t>& scan_output_directions,
-                                     int64_t in_offset = 0,
-                                     const std::string& node_description = "") {
+ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
+                                         ov::ParameterVector& body_inputs,
+                                         ov::OutputVector& body_outputs,
+                                         int64_t num_scan_inputs,
+                                         const std::vector<int64_t>& scan_input_axes,
+                                         const std::vector<int64_t>& scan_input_directions,
+                                         const std::vector<int64_t>& scan_output_axes,
+                                         const std::vector<int64_t>& scan_output_directions,
+                                         int64_t in_offset = 0,
+                                         const std::string& node_description = "") {
     const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
     const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
@@ -91,7 +91,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     }
 
     // Set Scan (TensorIterator) outputs
-    OutputVector outputs;
+    ov::OutputVector outputs;
     for (size_t i = 0; i < num_initial_values; ++i) {
         // Back edge for state input/output
         tensor_iterator->set_merged_input(body_inputs[i], node_inputs[i + in_offset], body_outputs[i]);
@@ -112,10 +112,10 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     return outputs;
 }
 
-OutputVector import_onnx_scan(const Node& node,
-                              int64_t default_axis,
-                              int64_t in_offset,
-                              std::string&& in_directions_attr_name) {
+ov::OutputVector import_onnx_scan(const Node& node,
+                                  int64_t default_axis,
+                                  int64_t in_offset,
+                                  std::string&& in_directions_attr_name) {
     const auto& node_inputs = node.get_ng_inputs();
 
     const auto& subgraphs = node.get_subgraphs();
@@ -156,7 +156,7 @@ OutputVector import_onnx_scan(const Node& node,
 
 namespace set_1 {
 
-OutputVector scan(const Node& node) {
+ov::OutputVector scan(const Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
     OPENVINO_ASSERT(ov::op::util::is_null(node.get_ng_inputs().at(0)),
@@ -169,7 +169,7 @@ OutputVector scan(const Node& node) {
 
 namespace set_9 {
 
-OutputVector scan(const Node& node) {
+ov::OutputVector scan(const Node& node) {
     // Since ONNX Scan-9 the optional `sequence_lens input` was removed,
     // new attributes to specify input/output axes and directions were added.
     return import_onnx_scan(node, 0, 0, "scan_input_directions");
