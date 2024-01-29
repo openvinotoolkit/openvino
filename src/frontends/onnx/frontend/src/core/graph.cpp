@@ -28,11 +28,11 @@ using namespace ov;
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
-bool common_node_for_all_outputs(const OutputVector& outputs) {
+bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     const auto first_out_node = outputs.at(0).get_node();
     bool ret = std::all_of(std::next(std::begin(outputs)),
                            std::end(outputs),
-                           [first_out_node](const OutputVector::value_type& output) {
+                           [first_out_node](const ov::OutputVector::value_type& output) {
                                return output.get_node() == first_out_node;
                            });
     return ret;
@@ -46,14 +46,14 @@ OperatorsBridge register_extensions(OperatorsBridge& bridge,
             bridge.overwrite_operator(
                 common_conv_ext->get_op_type(),
                 "",
-                [common_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                [common_conv_ext](const ngraph::onnx_import::Node& node) -> ov::OutputVector {
                     return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                 });
         } else if (const auto onnx_conv_ext =
                        std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
             bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
                                       onnx_conv_ext->get_domain(),
-                                      [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                                      [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> ov::OutputVector {
                                           return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                                       });
         }
@@ -199,7 +199,7 @@ void Graph::convert_to_ov_nodes() {
                 subgraph->convert();
             }
         }
-        OutputVector ov_nodes{make_ov_nodes(node)};
+        ov::OutputVector ov_nodes{make_ov_nodes(node)};
         ++completed;
         m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
@@ -257,7 +257,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
+ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
     std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
         const auto& subgraphs = onnx_node.get_subgraphs();
@@ -292,7 +292,7 @@ void Graph::decode_to_framework_nodes() {
             op_statistics[node_proto.op_type()]++;
         }
         const Node node{node_proto, this};
-        OutputVector ov_nodes{make_framework_nodes(node)};
+        ov::OutputVector ov_nodes{make_framework_nodes(node)};
         set_friendly_names(node, ov_nodes);
         // Iterate over the number of outputs for given node in graph.
         // Some of them may be optional and trimmed. See:
@@ -341,8 +341,8 @@ Output<ov::Node> Graph::get_ov_node_from_cache(const std::string& name) {
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-OutputVector Graph::get_ov_outputs() {
-    OutputVector results;
+ov::OutputVector Graph::get_ov_outputs() {
+    ov::OutputVector results;
     for (const auto& output : m_model->get_graph().output()) {
         const auto& ov_output = get_ov_node_from_cache(output.name());
         if (!ov::op::util::is_null(ov_output))  // ignore optional outputs
@@ -353,8 +353,8 @@ OutputVector Graph::get_ov_outputs() {
     return results;
 }
 
-OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
-    OutputVector ov_subgraph_outputs;
+ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
+    ov::OutputVector ov_subgraph_outputs;
     std::string error_message;
     if (m_model->is_operator_available(onnx_node.op_type(), onnx_node.domain())) {
         const auto ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
@@ -406,7 +406,7 @@ OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
     return ov_subgraph_outputs;
 }
 
-void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ov_subgraph_outputs) const {
+void Graph::set_friendly_names(const Node& onnx_node, const ov::OutputVector& ov_subgraph_outputs) const {
     if (std::all_of(std::begin(ov_subgraph_outputs), std::end(ov_subgraph_outputs), common::is_optimized_out)) {
         for (size_t i = 0; i < ov_subgraph_outputs.size(); ++i) {
             ov_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(static_cast<int>(i))});
@@ -489,7 +489,7 @@ std::shared_ptr<ov::Model> Subgraph::convert() {
 }
 
 const std::vector<Output<ov::Node>> Subgraph::get_inputs_from_parent() const {
-    OutputVector result;
+    ov::OutputVector result;
     for (const auto& name : m_inputs_from_parent) {
         result.push_back(m_parent_graph->get_ov_node_from_cache(name));
     }

@@ -18,9 +18,9 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX input node describing operation.
 ///
-/// \return     OutputVector containing Tensor with shape:
+/// \return     ov::OutputVector containing Tensor with shape:
 ///             [N, C * blocksize * blocksize, H / blocksize, W / blocksize]
-OutputVector space_to_depth(const Node& node);
+ov::OutputVector space_to_depth(const Node& node);
 }  // namespace set_1
 
 }  // namespace op
