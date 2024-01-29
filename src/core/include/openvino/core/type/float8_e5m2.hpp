@@ -155,3 +155,66 @@ float8_e5m2 float8_e5m2::operator/=(const T& other) {
 #    pragma warning(pop)
 #endif
 }  // namespace ov
+
+namespace std {
+template <>
+class numeric_limits<ov::float8_e5m2> {
+public:
+    static constexpr bool is_specialized = true;
+    static constexpr ov::float8_e5m2 min() noexcept {
+        return ov::float8_e5m2::from_bits(0b00000100);  // minimum positive normalized value
+    }
+    static constexpr ov::float8_e5m2 max() noexcept {
+        return ov::float8_e5m2::from_bits(0b01111011);
+    }
+    static constexpr ov::float8_e5m2 lowest() noexcept {
+        return ov::float8_e5m2::from_bits(0b11111011);
+    }
+    static constexpr int digits = 3;
+    static constexpr int digits10 = 0;
+
+    static constexpr bool is_signed = true;
+    static constexpr bool is_integer = false;
+    static constexpr bool is_exact = false;
+
+    static constexpr int radix = 2;
+
+    static constexpr ov::float8_e5m2 epsilon() noexcept {
+        return ov::float8_e5m2::from_bits(0b00000001);
+    }
+    static constexpr ov::float8_e5m2 round_error() noexcept {
+        return ov::float8_e5m2::from_bits(0b00111000);
+    }
+
+    static constexpr int min_exponent = -13;
+    static constexpr int min_exponent10 = -4;
+    static constexpr int max_exponent = 16;
+    static constexpr int max_exponent10 = 4;
+
+    static constexpr bool has_infinity = true;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = true;
+
+    static constexpr float_denorm_style has_denorm = denorm_present;
+    static constexpr bool has_denorm_loss = false;
+
+    static constexpr ov::float8_e5m2 infinity() noexcept {
+        return ov::float8_e5m2::from_bits(0b01111100);
+    }
+    static constexpr ov::float8_e5m2 quiet_NaN() noexcept {
+        return ov::float8_e5m2::from_bits(0b01111111);
+    }
+    static constexpr ov::float8_e5m2 signaling_NaN() noexcept {
+        return ov::float8_e5m2::from_bits(0b01111101);
+    }
+    static constexpr ov::float8_e5m2 denorm_min() noexcept {
+        return ov::float8_e5m2::from_bits(0b00000001);  // minimum positive denormalized value
+    }
+    static constexpr bool is_iec559 = false;
+    static constexpr bool is_bounded = false;
+    static constexpr bool is_modulo = false;
+    static constexpr bool traps = false;
+    static constexpr bool tinyness_before = false;
+    static constexpr float_round_style round_style = round_to_nearest;
+};
+}  // namespace std
