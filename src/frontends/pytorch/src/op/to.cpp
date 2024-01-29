@@ -68,9 +68,7 @@ OutputVector translate_to(const NodeContext& context) {
     // stages. (e.g. transformations passes)
 
     // memory_format sets the desired memory format of returned Tensor.
-    // memory format should not be set on the frontend level
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(memory_format_idx),
-                                  "aten::to translation do not support memory_format attribute");
+    // memory format is ignored since it changes strides of a tensor. In openvino strides are always contigious
     auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
     auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
     Output<Node> cast;
