@@ -77,7 +77,6 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
     std::vector<size_t> advanced_ids;
     std::vector<bool> is_masked_bool;
     OutputVector masked_indicies;
-    std::cout << "Index data: " << data << std::endl;
     // for case when index is bool e.g. x[x>0], replace index with non_zero
     for (size_t i = 0; i < ids.size(); i++) {
         // skip dimensions where index is None
@@ -94,7 +93,6 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
         if (is_none) {
             masked_indicies.push_back(ids[i]);
             is_masked_bool.push_back(false);
-            std::cout << "Index None" << std::endl;
             continue;
         }
         auto id_dtype = ids[i].get_element_type();
@@ -109,7 +107,6 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
             masked_indicies.push_back(ids[i]);
             is_masked_bool.push_back(false);
         }
-        std::cout << "Index " << i << " not None " << ids[i] << std::endl;
         advanced_ids.push_back(i);
     }
 
@@ -150,7 +147,6 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
     auto multiplier = input_dims->output(advanced_ids.back());
     for (int i = static_cast<int>(adv_idx_count) - 2; i > -1; i--) {
         auto input_id = advanced_ids[i];
-        std::cout << "Index: i = " << i << "; advanced_ids: " << input_id << std::endl;
         auto m_idx = rg.make<v0::Convert>(masked_indicies[input_id], element::i32);
         auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
         cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
@@ -185,7 +181,6 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
         // Transpose folded advanced indexed axis to its original location.
         auto permute_indicies = v0::Constant::create(element::i32, Shape{adv_idx_permute.size()}, adv_idx_permute);
         gather = rg.make<v1::Transpose>(gather, permute_indicies);
-        std::cout << "Transpose: " << gather << std::endl;
         // unfold advanced index axes
         for (size_t i = 0; i < advanced_ids[0]; i++) {
             concat_dims.push_back(input_dims->output(i));
