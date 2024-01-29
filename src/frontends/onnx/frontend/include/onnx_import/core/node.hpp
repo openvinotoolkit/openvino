@@ -53,7 +53,11 @@ class Tensor;
 class SparseTensor;
 class Attribute;
 
-class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API Node {
+class
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
+                    "For instructions on transitioning to the new API, please refer to "       \
+                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+ONNX_IMPORTER_API Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
