@@ -680,8 +680,7 @@ jobs:
       # Dependencies
       #
       - name: Install build dependencies
-        run: |
-          ${OPENVINO_REPO}/install_build_dependencies.sh
+        run: ./install_build_dependencies.sh
 
       - name: Install python dependencies
         run: |
