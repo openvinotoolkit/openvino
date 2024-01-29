@@ -34,24 +34,24 @@ using ov::element::Type;
 using ov::element::Type_t;
 }  // namespace element
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 Strides conv_default_strides(const Node* node,
                              const ov::PartialShape& data_batch_shape,
                              const ov::PartialShape& filters_shape);
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 CoordinateDiff conv_default_padding(const Node* node,
                                     const ov::PartialShape& data_batch_shape,
                                     const ov::PartialShape& filters_shape);
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
@@ -65,8 +65,8 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
@@ -76,8 +76,8 @@ void validate_conv_params_spatial_dimensions(const Node* node,
                                              CoordinateDiff& pads_begin,
                                              CoordinateDiff& pads_end);
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 ov::PartialShape infer_batched_pooling_forward(const Node* node,
@@ -90,8 +90,8 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
                                                bool ceil_mode = false,
                                                const Strides& window_dilation = Strides{});
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 ov::PartialShape infer_slice_shape(const Node* node,
@@ -109,26 +109,26 @@ ov::PartialShape infer_slice_shape(const Node* node,
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API std::shared_ptr<Constant> get_constant_max_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API std::shared_ptr<Constant> get_constant_min_of_type(element::Type_t t);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API std::shared_ptr<Constant> get_constant_lowest_of_type(element::Type_t t);
 
@@ -146,8 +146,8 @@ namespace opset1 {
 /// \param      pads_begin        The placeholder for paddings at the beginning of axis.
 /// \param      pads_end          The placeholder for paddings at the end of axis.
 ///
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
 void infer_conv_backprop_auto_padding(const Shape& input_data_shape,

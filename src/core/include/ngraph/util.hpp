@@ -48,8 +48,8 @@ class Tensor;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string join(const T& v, const std::string& sep = ", ") {
     std::ostringstream ss;
@@ -64,8 +64,8 @@ std::string join(const T& v, const std::string& sep = ", ") {
 }
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string vector_to_string(const T& v) {
     std::ostringstream os;
@@ -74,39 +74,39 @@ std::string vector_to_string(const T& v) {
 }
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 size_t hash_combine(const std::vector<size_t>& list);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void dump(std::ostream& out, const void*, size_t);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string to_lower(const std::string& s);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string to_upper(const std::string& s);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string trim(const std::string& s);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::string locale_string(T x) {
     std::stringstream ss;
@@ -157,8 +157,8 @@ private:
 
 /// Parses a string containing a literal of the underlying type.
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 T parse_string(const std::string& s) {
     T result;
@@ -178,13 +178,13 @@ T parse_string(const std::string& s) {
 /// template specializations for float and double to handle INFINITY, -INFINITY
 /// and NaN values.
 template <>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API float parse_string<float>(const std::string& s);
 template <>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API double parse_string<double>(const std::string& s);
 
@@ -192,20 +192,20 @@ OPENVINO_API double parse_string<double>(const std::string& s);
 /// implementation ends up treating values as characters so that the number "0" turns into
 /// the parsed value 48, which is it's ASCII value
 template <>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API int8_t parse_string<int8_t>(const std::string& s);
 template <>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API uint8_t parse_string<uint8_t>(const std::string& s);
 
 /// Parses a list of strings containing literals of the underlying type.
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::vector<T> parse_string(const std::vector<std::string>& ss) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -218,59 +218,59 @@ std::vector<T> parse_string(const std::vector<std::string>& ss) {
 }
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 T ceil_div(const T& x, const T& y) {
     return (x == 0 ? 0 : (1 + (x - 1) / y));
 }
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 T subtract_or_zero(T x, T y) {
     return y > x ? 0 : x - y;
 }
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void* ngraph_malloc(size_t size);
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void ngraph_free(void*);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 size_t round_up(size_t size, size_t alignment);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 AxisVector get_default_order(size_t rank);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 AxisVector get_default_order(const ov::Rank& rank);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 AxisVector get_default_order(const ov::Shape& shape);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 AxisVector get_default_order(const ov::PartialShape& shape);
 
@@ -286,14 +286,14 @@ AxisVector get_default_order(const ov::PartialShape& shape);
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra);
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 T double_to_int(double x, double float_to_int_converter(double)) {
     if (!std::is_integral<T>()) {
@@ -317,8 +317,8 @@ T double_to_int(double x, double float_to_int_converter(double)) {
 }  // end namespace ngraph
 
 template <typename T>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv) {
     if (ov::element::from<T>() != tv->get_element_type()) {
@@ -332,11 +332,10 @@ std::vector<T> read_vector(std::shared_ptr<ov::Tensor> tv) {
 }
 
 template <class T, ov::element::Type_t ET>
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-std::vector<T> array_2_vector(typename ov::element_type_traits<ET>::value_type* data,
-                                                    size_t size) {
+std::vector<T> array_2_vector(typename ov::element_type_traits<ET>::value_type* data, size_t size) {
     std::vector<T> result(size);
     for (size_t i = 0; i < size; i++) {
         result[i] = static_cast<T>(data[i]);
@@ -344,19 +343,19 @@ std::vector<T> array_2_vector(typename ov::element_type_traits<ET>::value_type* 
     return result;
 }
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::vector<float> OPENVINO_API read_float_vector(std::shared_ptr<ov::Tensor> tv);
 
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::vector<int64_t> OPENVINO_API read_index_vector(std::shared_ptr<ov::Tensor> tv);
 
 OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 OPENVINO_SUPPRESS_DEPRECATED_END

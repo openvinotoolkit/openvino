@@ -20,8 +20,8 @@
 #include <set>
 #include <string>
 
-#include "openvino/core/deprecated.hpp"
 #include "onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 
 /// \brief              Top level nGraph namespace.
@@ -36,11 +36,10 @@ namespace onnx_import {
 /// \param[in]  domain    A domain to get the supported operators for.
 ///
 /// \return     The set containing names of supported operators.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-ONNX_IMPORTER_API std::set<std::string> get_supported_operators(std::int64_t version,
-                                                                                      const std::string& domain);
+ONNX_IMPORTER_API std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain);
 
 /// \brief      Determines whether ONNX operator is supported.
 ///
@@ -50,12 +49,12 @@ ONNX_IMPORTER_API std::set<std::string> get_supported_operators(std::int64_t ver
 ///                       If not set, the default domain "ai.onnx" is used.
 ///
 /// \return     true if operator is supported, false otherwise.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 ONNX_IMPORTER_API bool is_operator_supported(const std::string& op_name,
-                                                                   std::int64_t version,
-                                                                   const std::string& domain = "ai.onnx");
+                                             std::int64_t version,
+                                             const std::string& domain = "ai.onnx");
 
 /// \brief      Imports and converts an serialized ONNX model from the input stream
 ///             to an nGraph Function representation.
@@ -70,12 +69,12 @@ ONNX_IMPORTER_API bool is_operator_supported(const std::string& op_name,
 /// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return     An nGraph function that represents a single output from the created graph.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 ONNX_IMPORTER_API std::shared_ptr<ov::Model> import_onnx_model(std::istream& stream,
-                                                                                     const std::string& model_path = "",
-                                                                                     bool enable_mmap = false);
+                                                               const std::string& model_path = "",
+                                                               bool enable_mmap = false);
 
 /// \brief     Imports and converts an ONNX model from the input file
 ///            to an nGraph Function representation.
@@ -88,11 +87,10 @@ ONNX_IMPORTER_API std::shared_ptr<ov::Model> import_onnx_model(std::istream& str
 /// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return    An nGraph function that represents a single output from the created graph.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-ONNX_IMPORTER_API std::shared_ptr<ov::Model> import_onnx_model(const std::string& file_path,
-                                                                                     bool enable_mmap = false);
+ONNX_IMPORTER_API std::shared_ptr<ov::Model> import_onnx_model(const std::string& file_path, bool enable_mmap = false);
 }  // namespace onnx_import
 
 }  // namespace ngraph

@@ -17,16 +17,16 @@
 #include <cstdint>
 #include <string>
 
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 /// \brief Get the names environment variable as a string.
 /// \param env_var The string name of the environment variable to get.
 /// \return Returns string by value or an empty string if the environment
 ///         variable is not set.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API std::string getenv_string(const char* env_var);
 
@@ -35,8 +35,8 @@ OPENVINO_API std::string getenv_string(const char* env_var);
 /// \param env_var The string name of the environment variable to get.
 /// \param default_value The value to return if the environment variable is not set.
 /// \return Returns value or default_value if the environment variable is not set.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API int32_t getenv_int(const char* env_var, int32_t default_value = -1);
 
@@ -48,8 +48,8 @@ OPENVINO_API int32_t getenv_int(const char* env_var, int32_t default_value = -1)
 /// \param env_var The string name of the environment variable to get.
 /// \param default_value The value to return if the environment variable is not set.
 /// \return Returns the boolean value of the environment variable.
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. " \
-                    "For instructions on transitioning to the new API, please refer to "       \
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API bool getenv_bool(const char* env_var, bool default_value = false);
 }  // namespace ngraph
