@@ -229,7 +229,7 @@ protected:
     void ResolveInplaceDirections(const std::vector<NodePtr>& nodes);
     void InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes);
     void ResolveEdgeConflicts();
-    void ResolveDeepInplaceConflicts();
+    void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
@@ -263,6 +263,7 @@ private:
     void EnforceInferencePrecision();
     void EnforceBF16();
     void resolveInPlaceDirection(const NodePtr& node) const;
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
 
 }  // namespace intel_cpu

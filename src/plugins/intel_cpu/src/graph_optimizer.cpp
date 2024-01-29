@@ -2591,8 +2591,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
                             trans_node->getName(),
                             " is not a transpose node");
         }
-        auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
-        auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
+        const auto& inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+        const auto& outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
         if (!isOptimized || inOrder.size() > outOrder.size()) {
             isOptimized = false;
             // inDesc should be permuted before calling reorder
