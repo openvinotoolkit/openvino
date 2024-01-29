@@ -211,7 +211,7 @@ class TestMask_IndexPut(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_nonzero_index_put_(self, ie_device, precision, ir_version):
+    def test_index_put_masked_fill(self, ie_device, precision, ir_version):
         self._test(self.aten_index_put_mask2(), None, "aten::index_put_", ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
 
