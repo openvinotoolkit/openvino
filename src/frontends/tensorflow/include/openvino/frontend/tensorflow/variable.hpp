@@ -72,7 +72,7 @@ public:
         return m_is_initialized;
     }
 
-    ov::Output<ov::Node> get_value() const {
+    virtual ov::Output<ov::Node> get_value() {
         FRONT_END_GENERAL_CHECK(
             m_is_initialized,
             "[TensorFlow Frontend] internal error: get_value() is called for uninitialized variable");

@@ -93,6 +93,10 @@ public:
         return m_keys;
     }
 
+    ov::Output<ov::Node> get_value() override {
+        return output(0);
+    }
+
     ov::element::Type get_key_type() const {
         return m_key_type;
     }
