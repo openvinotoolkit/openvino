@@ -89,12 +89,26 @@ class PytorchLayerTest:
             if use_torch_export():
                 from openvino import convert_model
                 from torch.export import export
+                from torch.fx.experimental.proxy_tensor import make_fx
 
                 em = export(model, tuple(torch_inputs))
                 if version.parse(torch.__version__) >= version.parse("2.2"):
                     em = em.run_decompositions()
                 print(em.graph_module.code)
-                converted_model = convert_model(em, example_input=torch_inputs)
+
+                try:
+                    gm = make_fx(em)(*inputs)
+                except:
+                    gm = make_fx(em, tracing_mode='symbolic')(*inputs)
+
+                input_shapes = []
+                input_types = []
+                for input_data in inputs:
+                    input_types.append(input_data.type())
+                    input_shapes.append(input_data.size())
+
+                decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+                converted_model = convert_model(decoder, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model

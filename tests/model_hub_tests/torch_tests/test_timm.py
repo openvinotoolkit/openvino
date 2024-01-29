@@ -58,16 +58,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.inputs = (torch.randn(shape),)
         return m
 
-    def convert_model_impl(self, model_obj):
-        if self.mode == "export":
-            graph = export(model_obj, self.example)
-            if version.parse(torch.__version__) >= version.parse("2.2"):
-                graph = graph.run_decompositions()
-            ov_model = convert_model(graph, example_input=self.example)
-        else:
-            ov_model = super().convert_model_impl(model_obj)
-        return ov_model
-
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):

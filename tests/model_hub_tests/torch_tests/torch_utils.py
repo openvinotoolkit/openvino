@@ -62,13 +62,31 @@ class TestTorchConvertModel(TestConvertModel):
             return flattenize_structure(inputs)
 
     def convert_model_impl(self, model_obj):
-        from openvino import PartialShape
-        input_arg = [PartialShape(e.shape) for e in self.example]
-        ov_model = mo.convert_model(model_obj,
-                                 example_input=self.example,
-                                 input=input_arg,
-                                 verbose=True
-                                 )
+        if hasattr(self, "mode") and self.mode == "export":
+            from torch.fx.experimental.proxy_tensor import make_fx
+
+            graph = export(model_obj, self.example)
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                graph = graph.run_decompositions()
+
+            try:
+                gm = make_fx(graph)(*inputs)
+            except:
+                gm = make_fx(graph, tracing_mode='symbolic')(*inputs)
+
+            input_shapes = []
+            input_types = []
+            for input_data in inputs:
+                input_types.append(input_data.type())
+                input_shapes.append(input_data.size())
+
+            decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+            ov_model = convert_model(decoder, example_input=self.example)
+        else:
+            ov_model = convert_model(model_obj,
+                                     example_input=self.example,
+                                     verbose=True
+                                     )
         return ov_model
 
     def convert_model(self, model_obj):
