@@ -172,9 +172,3 @@ OpenVINO Python API
    :template: custom-module-template.rst
 
    openvino.frontend
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
-   compatibility

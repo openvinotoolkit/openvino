@@ -31,6 +31,27 @@ GPU Plugin contains the following components:
 * [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 
+## Documentation on dynamic-shape
+This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2023.1)](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#dynamic-shapes).
+
+* [Overall flow for dynamic shape execution](./docs/dynamic_shape/overall_flow.md)
+* Implementation details
+  * [Preprocessing: Shape inference / update weight / realloc memory](./docs/dynamic_shape/preprocessing.md)
+  * [dynamic impl of kernels](./docs/dynamic_shape/dynamic_impl.md)
+  * [in-memory kernel cache](./docs/dynamic_shape/in_memory_cache.md)
+  * [async kernel compilation](./docs/dynamic_shape/async_compilation.md)
+  <!-- * weight compression (TBD)) -->
+* Optimization features
+  * [Memory preallocation](./docs/dynamic_shape/memory_preallocation.md)
+<!--  * Fake alignment of shape (TBD)
+  * Shape-of subgraph on CPU (TBD)
+  * Runtime buffer fusing (TBD)
+  * Runtime reorder skip (TBD)
+  * KV cache (TBD)
+* Performance analysis and debugging features (TBD)
+* Model caching for dynamic shape (TBD)
+-->
+
 ## Attached licenses
 
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:

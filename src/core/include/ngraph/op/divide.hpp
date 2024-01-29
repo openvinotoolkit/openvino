@@ -14,7 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/divide.hpp"
 
 namespace ngraph {

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "cpu/cpu_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
@@ -133,7 +132,7 @@ protected:
             ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
-        auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = ov::test::utils::deprecated::make_constant<int8_t>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 
@@ -197,7 +196,7 @@ protected:
 
         checkFusingPosition = false;
 
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
         convert_precisions.insert({ov::element::i8, ov::element::f32});
         convert_precisions.insert({ov::element::u8, ov::element::f32});
     }

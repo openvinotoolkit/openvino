@@ -3,8 +3,8 @@
 //
 
 #include "subgraph_tests/include/fuse_transpose_reorder.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_models/preprocess/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
 
@@ -82,7 +82,7 @@ void FuseTransposeAndReorderTest::create_model() {
     auto order = input_shape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
     auto memFmt = input_shape.size() == 5 ? ndhwc : nhwc;
 
-    auto constOrder = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder);
     transpose->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
 
@@ -138,22 +138,22 @@ void FuseTransposeAndReorderTest1::create_model() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(input_shape))};
     auto order = input_shape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
 
-    auto constOrder1 = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder1 = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose1 = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder1);
     auto memFmt1 = input_shape.size() == 5 ? ndhwc : nhwc;
     transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
-    auto constOrder2 = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder2 = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose1, constOrder2);
     auto memFmt2 = input_shape.size() == 5 ? ndhwc : nhwc;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
-    auto constOrder3 = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder3 = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose3 = std::make_shared<ov::op::v1::Transpose>(transpose2, constOrder3);
     auto memFmt3 = input_shape.size() == 5 ? ncdhw : nchw;
     transpose3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
-    auto shape = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, transpose3->get_output_shape(0));
+    auto shape = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, transpose3->get_output_shape(0));
     auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose1, shape, false);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose3, reshape}, 1);
@@ -204,12 +204,12 @@ void FuseTransposeAndReorderTest2::create_model() {
                                std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(input_shape2))};
     auto order = input_shape.size() == 5 ? std::vector<int64_t>{0, 4, 1, 2, 3} : std::vector<int64_t>{0, 3, 1, 2};
 
-    auto constOrder1 = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder1 = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose1 = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder1);
     auto memFmt1 = input_shape.size() == 5 ? ndhwc : nhwc;
     transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
-    auto constOrder2 = ngraph::builder::makeConstant(ov::element::i64, {input_shape.size()}, order);
+    auto constOrder2 = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, order);
     auto transpose2 = std::make_shared<ov::op::v1::Transpose>(params[1], constOrder2);
     auto memFmt2 = input_shape.size() == 5 ? ncdhw : nchw;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
@@ -270,7 +270,7 @@ void FuseTransposeAndReorderTest3::create_model() {
     auto add = std::make_shared<ov::op::v1::Add>(convolutionNode->output(0), sndAddIn);
 
     auto order = std::vector<int64_t>{0, 2, 3, 1};
-    auto constOrder = ngraph::builder::makeConstant(ov::element::i64, {order.size()}, order);
+    auto constOrder = ov::test::utils::deprecated::make_constant(ov::element::i64, {order.size()}, order);
     auto transpose = std::make_shared<ov::op::v1::Transpose>(add, constOrder);
     transpose->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
 

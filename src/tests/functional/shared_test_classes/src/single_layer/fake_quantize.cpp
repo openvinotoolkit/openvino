@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/fake_quantize.hpp"
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+
 namespace LayerTestsDefinitions {
 
 
@@ -72,7 +74,7 @@ void FakeQuantizeLayerTest::SetUp() {
 
     UpdateSeed();
 
-    std::shared_ptr<ngraph::Node> fakeQNode;
+    std::shared_ptr<ov::Node> fakeQNode;
     if (fqDirectArg.empty()) {
         int32_t ngraphSeed = seed;
         if (NGRAPH_SEED != USE_CLOCK_TIME) {
@@ -80,9 +82,9 @@ void FakeQuantizeLayerTest::SetUp() {
         }
         std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                   << "ngraphSeed = " << ngraphSeed << std::endl;
-        fakeQNode = ngraph::builder::makeFakeQuantize(params[0], ngPrc, levels, constShape, ngraphSeed);
+        fakeQNode = ov::test::utils::make_fake_quantize(params[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
-        fakeQNode = ngraph::builder::makeFakeQuantize(
+        fakeQNode = ov::test::utils::make_fake_quantize(
             params[0],
             ngPrc,
             levels,
@@ -94,8 +96,8 @@ void FakeQuantizeLayerTest::SetUp() {
     }
     auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(fakeQNode);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
-    function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
+    function = std::make_shared<ov::Model>(results, params, "fakeQuantize");
     configuration = config.second;
 }
 

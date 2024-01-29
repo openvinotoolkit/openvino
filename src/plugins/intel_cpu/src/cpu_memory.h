@@ -5,7 +5,7 @@
 #pragma once
 
 #include "memory_desc/dnnl_memory_desc.h"
-
+#include "openvino/core/type/element_type_traits.hpp"
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.

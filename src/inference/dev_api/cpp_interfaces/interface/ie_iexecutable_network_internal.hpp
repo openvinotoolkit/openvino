@@ -12,11 +12,10 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
-class Function;
+class Model;
 namespace op {
 namespace v0 {
 class Parameter;
@@ -24,12 +23,12 @@ class Result;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
 namespace InferenceEngine {
 
 class IInferencePlugin;
 class IPluginWrapper;
 class IInferRequestInternal;
-class RemoteContext;
 class IVariableStateInternal;
 class ICompiledModelWrapper;
 
@@ -115,7 +114,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
+    virtual std::shared_ptr<ov::Model> GetExecGraphInfo();
 
     /**
      * @brief      Sets the pointer to plugin internal.
@@ -150,12 +149,6 @@ public:
      * @return A metric value corresponding to metric key
      */
     virtual Parameter GetMetric(const std::string& name) const;
-
-    /**
-     * @brief Gets the remote context.
-     * @return A reference to a context
-     */
-    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
     /**
      * @brief Raises the flag that model was loaded from cache

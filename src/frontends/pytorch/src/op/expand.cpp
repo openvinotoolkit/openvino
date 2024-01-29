@@ -3,10 +3,8 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
@@ -19,13 +17,7 @@ using namespace ov::op;
 
 namespace {
 OutputVector base_expand(const NodeContext& context, const Output<Node>& x, const Output<Node>& sizes) {
-    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto sizes_shape = context.mark_node(std::make_shared<v3::ShapeOf>(sizes, element::i32));
-    auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto neg_ones = context.mark_node(std::make_shared<v3::Broadcast>(neg_one, sizes_shape));
-    auto ones = context.mark_node(std::make_shared<v3::Broadcast>(one, sizes_shape));
-    auto neg_sizes = context.mark_node(std::make_shared<v1::Equal>(sizes, neg_ones));
-    auto shape = context.mark_node(std::make_shared<v1::Select>(neg_sizes, ones, sizes));
+    auto shape = context.mark_node(std::make_shared<v0::Abs>(sizes));
     return {context.mark_node(std::make_shared<v3::Broadcast>(x, shape, BroadcastType::BIDIRECTIONAL))};
 };
 }  // namespace
@@ -45,8 +37,8 @@ OutputVector translate_expand_as(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(y, element::i32));
-    return base_expand(context, x, sizes);
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(y, element::i32));
+    return {context.mark_node(std::make_shared<v3::Broadcast>(x, shape, BroadcastType::BIDIRECTIONAL))};
 };
 
 OutputVector translate_expand_fx(const NodeContext& context) {

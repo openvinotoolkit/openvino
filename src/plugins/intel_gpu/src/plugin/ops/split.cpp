@@ -79,18 +79,16 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         ov::Shape start_offset(input_pshape.size());
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto outPartialShape = op->get_output_partial_shape(i);
-            OPENVINO_SUPPRESS_DEPRECATED_START
             if (outPartialShape.size() != start_offset.size()) {
                 OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
-                               " output: ", ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(i)));
+                               " output: ", op->get_output_tensor(i).get_any_name());
             }
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
                     OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
-                                   " output: ", ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(idx)));
+                                   " output: ", op->get_output_tensor(idx).get_any_name());
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto offsetTensor = tensor_from_dims(start_offset, 0);
             auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);

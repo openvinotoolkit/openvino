@@ -10,23 +10,23 @@
 #include "eltwise.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
-#include <dnnl_extension_utils.h>
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include <selective_build.h>
+#include "selective_build.h"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;

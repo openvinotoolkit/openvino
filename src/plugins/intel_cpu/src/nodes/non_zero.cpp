@@ -7,11 +7,9 @@
 #include <nodes/common/cpu_memcpy.h>
 
 #include "openvino/core/parallel.hpp"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 #include <utils/bfloat16.hpp>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-
-using namespace InferenceEngine;
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {

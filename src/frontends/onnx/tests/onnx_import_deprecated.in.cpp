@@ -20,7 +20,6 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;

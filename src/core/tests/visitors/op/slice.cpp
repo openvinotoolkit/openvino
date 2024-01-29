@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, slice_op_no_axes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::Slice>();
+    NodeBuilder::opset().insert<ov::op::v8::Slice>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 5, 4});
     const auto start = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     const auto stop = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
@@ -28,7 +28,7 @@ TEST(attributes, slice_op_no_axes) {
 }
 
 TEST(attributes, slice_op_with_axes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::Slice>();
+    NodeBuilder::opset().insert<ov::op::v8::Slice>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 5, 4});
     const auto start = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     const auto stop = make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});

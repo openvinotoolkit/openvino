@@ -47,14 +47,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
-        NGRAPH_CHECK(shape_b.is_static());
+        OPENVINO_ASSERT(shape_b.is_static());
 
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
 
         // Transformation to FC is not supported for 1D inputs
-        if (rank_a == 1 || rank_b == 1 ||
-            rank_a > 3 || rank_b > 3) {
+        if (rank_a == 1 || rank_b == 1) {
             return false;
         }
 
@@ -141,7 +140,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         if (rank_b != 2) {
             ov::Dimension K = *(shape_b_aligned.rbegin() + 1);
-            NGRAPH_CHECK(K.is_static());
+            OPENVINO_ASSERT(K.is_static());
             auto k_len = K.get_length();
             auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
             auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);

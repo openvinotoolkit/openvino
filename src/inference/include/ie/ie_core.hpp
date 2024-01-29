@@ -26,9 +26,7 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_extension.h"
 #include "ie_plugin_config.hpp"
-#include "ie_remote_context.hpp"
 #include "ie_version.hpp"
 
 namespace InferenceEngine {
@@ -173,32 +171,6 @@ public:
                                   const std::map<std::string, std::string>& config = {});
 
     /**
-     * @brief Registers extension
-     * @param extension Pointer to already loaded extension
-     */
-    void AddExtension(const IExtensionPtr& extension);
-
-    /**
-     * @brief Creates an executable network from a network object within a specified remote context.
-     * @param network CNNNetwork object acquired from Core::ReadNetwork
-     * @param context Pointer to RemoteContext object
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return An executable network object
-     */
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
-                                  RemoteContext::Ptr context,
-                                  const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @brief Registers extension for the specified plugin
-     *
-     * @param extension Pointer to already loaded extension
-     * @param deviceName Device name to identify plugin to add an executable extension
-     */
-    void AddExtension(IExtensionPtr extension, const std::string& deviceName);
-
-    /**
      * @brief Creates an executable network from a previously exported network
      *
      * @param modelFileName Path to the location of the exported file
@@ -231,20 +203,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
     ExecutableNetwork ImportNetwork(std::istream& networkModel);
-
-    /**
-     * @brief Creates an executable network from a previously exported network within a specified
-     * remote context.
-     *
-     * @param networkModel Network model stream
-     * @param context Pointer to RemoteContext object
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return An executable network reference
-     */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -295,7 +253,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const;
@@ -348,22 +306,6 @@ public:
      * @param xmlConfigFile A path to .xml file with plugins to register.
      */
     void RegisterPlugins(const std::string& xmlConfigFile);
-
-    /**
-     * @brief Create a new shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
-     * @param deviceName Name of a device to create new shared context on.
-     * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
-     */
-    RemoteContext::Ptr CreateContext(const std::string& deviceName, const ParamMap& params);
-
-    /**
-     * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
-     * @param deviceName  - A name of a device to get create shared context from.
-     * @return A shared pointer to a default remote context.
-     */
-    RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
 };
 
 /**

@@ -520,13 +520,13 @@ void network::calculate_weights_cache_capacity() {
 }
 
 network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst) {
-    std::vector<std::shared_ptr<primitive_inst>> chain;
-    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+    std::vector<primitive_inst*> chain;
+    std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
     const auto& mem_orig = p_inst->output_memory();
 
-    auto add_mdata_chain = [&](std::shared_ptr<primitive_inst>& p_inst) {
-        auto mdata_ptr = std::dynamic_pointer_cast<mutable_data_inst>(p_inst);
+    auto add_mdata_chain = [&](primitive_inst* p_inst) {
+        auto mdata_ptr = dynamic_cast<mutable_data_inst*>(p_inst);
         if (!mdata_ptr)
             return;
         // special handling for mutable data, which can share
@@ -534,12 +534,12 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         for (auto& dep : p_inst->dependencies()) {
             // check dependencies
             if (eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
-                chain.push_back(std::const_pointer_cast<primitive_inst>(dep.first));
+                chain.push_back(const_cast<primitive_inst*>(dep.first));
             }
             // then second order dependencies
             for (auto& second_dep : dep.first->dependencies()) {
                 if (eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
-                    chain.push_back(std::const_pointer_cast<primitive_inst>(second_dep.first));
+                    chain.push_back(const_cast<primitive_inst*>(second_dep.first));
                 }
             }
         }
@@ -547,7 +547,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         //then users
         const auto& user_ids = mdata_ptr->get_user_ids();
         for (const auto& id : user_ids) {
-            auto usr_prim = get_primitive(id);
+            auto usr_prim = get_primitive(id).get();
             if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
@@ -555,11 +555,11 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     };
 
     if (p_inst->can_be_optimized()) {
-        candidates.push(p_inst);
+        candidates.push(p_inst.get());
     } else {
-        chain.push_back(p_inst);
+        chain.push_back(p_inst.get());
     }
-    add_mdata_chain(p_inst);
+    add_mdata_chain(p_inst.get());
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
@@ -567,7 +567,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
-            auto nc_cand = std::const_pointer_cast<primitive_inst>(cand);
+            auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
         }
@@ -578,7 +578,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             } else {
                 const auto& mem_dep = dep.first->output_memory();
                 if (eng.is_the_same_buffer(mem_orig, mem_dep)) {
-                    auto nc_dep = std::const_pointer_cast<primitive_inst>(dep.first);
+                    auto nc_dep = const_cast<primitive_inst*>(dep.first);
                     chain.push_back(nc_dep);
                     add_mdata_chain(nc_dep);
                 }
@@ -731,6 +731,10 @@ void network::allocate_primitives() {
     for (auto const& node : po) {
         if (node->can_be_optimized() && !node->is_dynamic()) {
             auto opt_inst = _primitives.at(node->id());
+            // build deps when prim_inst does not update dependencies yet.
+            if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
+                opt_inst->build_deps();
+            }
             opt_inst->update_output_memory();
         }
     }
@@ -848,10 +852,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Wait for previous execution completion
     reset_execution(false);
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "============================================================================" << std::endl;
         GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     } else {
-        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     }
 
@@ -1031,7 +1035,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         execute_primitive(inst, events);
         executed_prims++;
-
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
 
@@ -1252,18 +1255,18 @@ std::shared_ptr<const primitive_inst> network::get_primitive(const primitive_id&
     return _primitives.at(id);
 }
 
-std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::vector<primitive_id>& ids) {
-    std::vector<std::shared_ptr<primitive_inst>> result(ids.size());
+std::vector<primitive_inst*> network::get_primitives(const std::vector<primitive_id>& ids) {
+    std::vector<primitive_inst*> result(ids.size());
     std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) {
-        return get_primitive(id);
+        return get_primitive(id).get();
     });
     return result;
 }
 
-std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> result(nodes.size());
+std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
+    std::vector<std::pair<primitive_inst*, int>> result(nodes.size());
     std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const std::pair<program_node*, int>& node) {
-        return std::make_pair(get_primitive(node.first->id()), node.second);
+        return std::make_pair(get_primitive(node.first->id()).get(), node.second);
     });
     return result;
 }
@@ -1293,7 +1296,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
             const auto dep_node = dep.first;
-            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || dep_node->is_type<read_value>()) {
+            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || (dep_node->is_type<read_value>() && !dep_node->can_be_optimized())) {
                 return true;
             }
             if (dep_node->can_be_optimized()) {

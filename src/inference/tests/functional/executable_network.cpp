@@ -50,8 +50,3 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedGetMetric) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetMetric({}), InferenceEngine::NotAllocated);
 }
-
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetContext) {
-    ExecutableNetwork exec;
-    ASSERT_THROW(exec.GetContext(), InferenceEngine::NotAllocated);
-}

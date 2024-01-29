@@ -185,6 +185,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
+std::string getOpenvinoLibDirectory();
 std::string getExecutableDirectory();
 std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);

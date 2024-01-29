@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "ov_models/builders.hpp"
@@ -13,7 +14,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
-                                                       const element::Type& type,
+                                                       const ov::element::Type& type,
                                                        const std::vector<size_t>& filterSize,
                                                        const std::vector<size_t>& strides,
                                                        const std::vector<ptrdiff_t>& padsBegin,
@@ -35,7 +36,8 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
     filterWeightsShape[1] /= numGroups;
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode =
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     return makeGroupConvolutionBackpropData(in,
                                             filterWeightsNode,
@@ -52,7 +54,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
 
 std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
                                                        const ov::Output<Node>& weights,
-                                                       const element::Type& type,
+                                                       const ov::element::Type& type,
                                                        const std::vector<size_t>& strides,
                                                        const std::vector<ptrdiff_t>& padsBegin,
                                                        const std::vector<ptrdiff_t>& padsEnd,
@@ -81,7 +83,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
     }
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {
@@ -91,7 +93,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
 
 std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
                                                        const ov::Output<Node>& outputShape,
-                                                       const element::Type& type,
+                                                       const ov::element::Type& type,
                                                        const std::vector<size_t>& filterSize,
                                                        const std::vector<size_t>& strides,
                                                        const std::vector<ptrdiff_t>& padsBegin,
@@ -113,7 +115,8 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
     filterWeightsShape[1] /= numGroups;
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode =
+        ov::test::utils::deprecated::make_constant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     auto deconv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(in,
                                                                              filterWeightsNode,
@@ -138,7 +141,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& i
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::deprecated::make_constant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ov::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {

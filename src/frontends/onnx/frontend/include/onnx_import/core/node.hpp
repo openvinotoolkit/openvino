@@ -17,11 +17,11 @@
 #include <cstddef>
 #include <string>
 
-#include "ngraph/deprecated.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ONNX_NAMESPACE {
 // forward declaration
@@ -29,13 +29,16 @@ class NodeProto;
 }  // namespace ONNX_NAMESPACE
 
 namespace ngraph {
+namespace element {
+using ov::element::Type;
+}
 namespace onnx_import {
 namespace error {
 namespace node {
-struct UnknownAttribute : ngraph_error {
+struct UnknownAttribute : ov::Exception {
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit UnknownAttribute(const std::string& node, const std::string& name)
-        : ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+        : ov::Exception{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
     OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
@@ -62,7 +65,7 @@ public:
     Node& operator=(Node&&) noexcept = delete;
     Node& operator=(const Node&) = delete;
 
-    OutputVector get_ng_inputs() const;
+    ov::OutputVector get_ng_inputs() const;
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& get_name() const;
@@ -96,7 +99,8 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name) const;
 
     template <typename T>
-    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, element::Type type) const;
+    std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
+                                                                    ov::element::Type type) const;
 
     template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name, T default_value) const;
@@ -104,7 +108,7 @@ public:
     template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_attribute_as_constant(const std::string& name,
                                                                     T default_value,
-                                                                    element::Type type) const;
+                                                                    ov::element::Type type) const;
 
 private:
     class Impl;
@@ -223,7 +227,7 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name,
-    element::Type type) const;
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
@@ -231,8 +235,10 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
     std::vector<int64_t> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
-Node::get_attribute_as_constant(const std::string& name, std::vector<int64_t> default_value, element::Type type) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
+    const std::string& name,
+    std::vector<int64_t> default_value,
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
@@ -245,12 +251,12 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                                         float default_value,
-                                                                                        element::Type type) const;
+                                                                                        ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
     const std::string& name,
-    element::Type type) const;
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
@@ -263,12 +269,12 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
     const std::string& name,
-    element::Type type) const;
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                                         double default_value,
-                                                                                        element::Type type) const;
+                                                                                        ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
@@ -277,7 +283,7 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name,
-    element::Type type) const;
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
@@ -286,12 +292,12 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name,
-    element::Type type) const;
+    ov::element::Type type) const;
 
 template <>
 ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                                         int64_t default_value,
-                                                                                        element::Type type) const;
+                                                                                        ov::element::Type type) const;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 inline std::ostream& operator<<(std::ostream& outs, const Node& node) {

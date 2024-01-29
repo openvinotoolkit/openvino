@@ -12,7 +12,7 @@ Deploy Locally
    Optimize Binaries Size <opevino_conditional_compilation_deploying_guide>
 
 .. meta::
-   :description: There are several ways of deploying OpenVINO™ application once 
+   :description: There are several ways of deploying OpenVINO™ application once
                  its development has been finished.
 
 
@@ -74,5 +74,5 @@ Building a local distribution will require more detailed information, and you wi
 
 .. note::
 
-   Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`, :doc:`Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>`.
+   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 

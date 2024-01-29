@@ -6,9 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_packed_sum.h"
-#include <openvino/opsets/opset3.hpp>
-
-using namespace InferenceEngine;
+#include "openvino/opsets/opset3.hpp"
 
 namespace ov {
 namespace intel_cpu {

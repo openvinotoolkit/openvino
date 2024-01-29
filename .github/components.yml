@@ -13,7 +13,6 @@ LP_transformations:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
-    - POT
 
 preprocessing:
   revalidate:
@@ -157,7 +156,6 @@ Python_API:
   revalidate:
     - samples
     - MO
-    - POT
     - tools
   build:
     - CPU
@@ -202,13 +200,9 @@ IE_Tests:
 
 MO:
   revalidate:
-    - POT
+    - PyTorch_FE
+    - TF_FE
   build:
-    - Python_API
-
-POT:
-  build:
-    - CPU
     - Python_API
 
 tools:

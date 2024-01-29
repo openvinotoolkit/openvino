@@ -568,7 +568,7 @@ Benchmarking performance of converted model
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the model.
 
    NOTE: For more accurate performance, it is recommended to run

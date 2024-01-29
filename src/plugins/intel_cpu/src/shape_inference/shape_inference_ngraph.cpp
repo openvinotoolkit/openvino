@@ -3,8 +3,9 @@
 //
 
 #include "shape_inference_ngraph.hpp"
-#include <memory>
 #include "memory_accessor.hpp"
+
+#include <memory>
 
 using namespace ov::intel_cpu;
 

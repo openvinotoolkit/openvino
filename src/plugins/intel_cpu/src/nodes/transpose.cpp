@@ -8,11 +8,10 @@
 
 #include <algorithm>
 #include <string>
-#include <dnnl_extension_utils.h>
-#include <common/primitive_hashing_utils.hpp>
+#include "dnnl_extension_utils.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -211,6 +210,13 @@ void Transpose::createPrimitive() {
         order == std::vector<size_t>{0, 3, 1, 2}) {
         performAsReorder = true;
     }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // Avoid using reference implementation of non-fp32 reorders on arm platforms
+    if (prec != ov::element::f32) {
+        performAsReorder = false;
+    }
+#endif
 
     if (!performAsReorder) {
         transposeParams.permuteParams.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();

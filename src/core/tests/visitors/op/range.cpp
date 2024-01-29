@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, range_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v4::Range>();
+    NodeBuilder::opset().insert<ov::op::v4::Range>();
     auto start = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
     auto stop = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
     auto step = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});

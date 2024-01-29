@@ -4,8 +4,7 @@
 
 #include "random_uniform.hpp"
 
-#include "ie_parallel.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 
@@ -34,8 +33,8 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     // RandomUniform should generate new sequence each run even if all inputs are constants. So that method Node::IsConstant()
     // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
-    // we set 'NoConst' value for 'ConstantType' in ctor.
-    constant = ConstantType::NoConst;
+    // we set 'StrictNoConst' value for 'ConstantType' in ctor.
+    constant = ConstantType::StrictNoConst;
 
     auto rnd_op = as_type_ptr<op::v8::RandomUniform>(op);
     m_global_seed = rnd_op->get_global_seed();

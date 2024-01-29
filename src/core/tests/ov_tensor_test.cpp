@@ -369,25 +369,26 @@ TEST_F(OVTensorTest, saveDimsAndSizeAfterMoveStringTensor) {
     ASSERT_THROW(t.data<std::string>(), ov::Exception);
 }
 
-// SetShape
+// set_shape
 TEST_F(OVTensorTest, canSetShape) {
     const ov::Shape origShape({1, 2, 3});
-    ov::Tensor t{ov::element::f32, {1, 2, 3}};
-    const ov::Shape newShape({4, 5, 6});
+    ov::Tensor t{ov::element::f32, origShape};
+    const ov::Shape newShape({4, 5, 6}), newShape2({4, 5, 6, 7});
 
     const void* orig_data = t.data();
     ASSERT_EQ(t.get_shape(), origShape);
-    ASSERT_NO_THROW(t.set_shape({4, 5, 6}));
+    ASSERT_NO_THROW(t.set_shape(newShape));
     ASSERT_EQ(newShape, t.get_shape());
     ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t.get_element_type()), t.get_strides());
     ASSERT_NE(orig_data, t.data());
 
-    // check that setShape for copy changes original Tensor
+    // check that set_shape for copy changes original Tensor
     {
         ov::Tensor t2 = t;
-        ASSERT_NO_THROW(t2.set_shape(newShape));
-        ASSERT_EQ(newShape, t.get_shape());
+        ASSERT_NO_THROW(t2.set_shape(newShape2));
+        ASSERT_EQ(newShape2, t.get_shape());
         ASSERT_EQ(t2.get_shape(), t.get_shape());
+        ASSERT_EQ(t2.data(), t.data());
         orig_data = t.data();
     }
 
@@ -402,7 +403,7 @@ TEST_F(OVTensorTest, canSetShape) {
 TEST_F(OVTensorTest, canSetShapeStringTensor) {
     const ov::Shape origShape({1, 2, 3});
     ov::Tensor t{ov::element::string, {1, 2, 3}};
-    const ov::Shape newShape({4, 5, 6});
+    const ov::Shape newShape({4, 5, 6}), newShape2({4, 5, 6, 7});
 
     const void* orig_data = t.data();
     ASSERT_EQ(t.get_shape(), origShape);
@@ -410,22 +411,22 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
     ASSERT_EQ(newShape, t.get_shape());
     ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t.get_element_type()), t.get_strides());
     ASSERT_NE(orig_data, t.data());
-    const void* new_data = t.data();
 
     // check that setShape for copy changes original Tensor
     {
         ov::Tensor t2 = t;
-        ASSERT_NO_THROW(t2.set_shape(origShape));
-        ASSERT_EQ(origShape, t2.get_shape());
-        ASSERT_EQ(origShape, t.get_shape());
+        ASSERT_NO_THROW(t2.set_shape(newShape2));
+        ASSERT_EQ(newShape2, t2.get_shape());
+        ASSERT_EQ(t2.get_shape(), t.get_shape());
         ASSERT_EQ(t2.data(), t.data());
+        orig_data = t.data();
     }
 
     // set_shape for smaller memory - does not perform reallocation
     {
         ASSERT_NO_THROW(t.set_shape(origShape));
         ASSERT_EQ(origShape, t.get_shape());
-        ASSERT_EQ(new_data, t.data());
+        ASSERT_EQ(orig_data, t.data());
     }
 }
 
@@ -497,6 +498,28 @@ TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemor
     ASSERT_NO_THROW(t.set_shape(originalShape));
 }
 
+TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasing) {
+    const ov::Shape shape({4, 5, 6}), small_shape({1, 2, 3});
+    ov::Tensor t{ov::element::f32, shape};
+    void* data = t.data();
+
+    ASSERT_NO_THROW(t.set_shape(small_shape));
+    EXPECT_EQ(data, t.data());
+    ASSERT_NO_THROW(t.set_shape(shape));
+    EXPECT_EQ(data, t.data());
+}
+
+TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingStringTensor) {
+    const ov::Shape shape({4, 5, 6}), small_shape({1, 2, 3});
+    ov::Tensor t{ov::element::string, shape};
+    void* data = t.data();
+
+    ASSERT_NO_THROW(t.set_shape(small_shape));
+    EXPECT_EQ(data, t.data());
+    ASSERT_NO_THROW(t.set_shape(shape));
+    EXPECT_EQ(data, t.data());
+}
+
 TEST_F(OVTensorTest, canChangeShapeOnStridedTensor) {
     float data[64 * 4];
     ov::Tensor t{ov::element::f32, {4, 2, 2}, data, {64, 16, 4}};
@@ -545,6 +568,50 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
     ASSERT_EQ(byteStrides(ref_strides, roi_tensor.get_element_type()), roi_tensor.get_strides());
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
+}
+
+TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
+    const ov::Shape newShape({1, 1, 3, 2});
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 2}));
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMaxSizeShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape new_shape({1, 2, 1, 1});
+    const ov::Shape roi_capacity({1, 2, 4, 3});
+
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+
+    roi_tensor.set_shape(new_shape);
+    ASSERT_EQ(roi_tensor.get_shape(), new_shape);
+
+    roi_tensor.set_shape(roi_capacity);
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+}
+
+TEST_F(OVTensorTest, setShapeGtMaxOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({0, 0, 0, 0});
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMinShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({1, 3, 6, 3});  // ROI coordinate begin + newShape[2] is bigger than t.shape[2]
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 3}));
+    ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
 }
 
 TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {

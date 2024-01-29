@@ -13,9 +13,9 @@ import platform
 import subprocess  # nosec
 import shutil
 import re
-from distutils import log
-from distutils.command.build import build
-from distutils.command.clean import clean
+import logging as log
+from setuptools import Command
+from setuptools.command.build import build
 from pathlib import Path
 from fnmatch import fnmatchcase
 import pkg_resources
@@ -36,13 +36,6 @@ PKG_INSTALL_CFG = {
         'extract_entry_points': True,
         'extract_requirements': True,
         'extract_extras': True,
-    },
-    "accuracy_checker": {
-        'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
-        'black_list': ['*tests*'],
-        'prefix': 'accuracy_checker',
-        'extract_entry_points': True,
-        'extract_requirements': True,
     },
     "omz_tools": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
@@ -160,8 +153,16 @@ class CustomInstall(install):
         install.run(self)
 
 
-class CustomClean(clean):
+class CustomClean(Command):
     """Clean up staging directories"""
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
 
     def clean_temp_files(self):
         """Clean components staging directories"""
@@ -180,7 +181,6 @@ class CustomClean(clean):
 
     def run(self):
         self.clean_temp_files()
-        clean.run(self)
 
 
 def get_description(desc_file_path):

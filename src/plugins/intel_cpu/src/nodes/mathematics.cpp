@@ -11,8 +11,6 @@
 #include "utils/general_utils.h"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -161,6 +159,8 @@ void Math::execute(dnnl::stream strm) {
                     dst_data[i] = 1.0f;
                 else if (src_data[i] < 0.0f)
                     dst_data[i] = -1.0f;
+                else if (std::isnan(src_data[i]))
+                    dst_data[i] = src_data[i];
                 else
                     dst_data[i] = 0.0f;
             });

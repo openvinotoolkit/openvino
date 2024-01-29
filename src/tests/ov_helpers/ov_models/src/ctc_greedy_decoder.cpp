@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
@@ -28,7 +29,8 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData
         }
     }
 
-    auto sequenceMaskNode = makeConstant(inputData.get_element_type(), {T, B}, sequenceMaskData);
+    auto sequenceMaskNode =
+        ov::test::utils::deprecated::make_constant(inputData.get_element_type(), {T, B}, sequenceMaskData);
 
     auto CTCGreedyDecoderNode =
         std::make_shared<ov::op::v0::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);

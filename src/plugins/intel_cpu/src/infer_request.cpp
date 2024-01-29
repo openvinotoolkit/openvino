@@ -6,10 +6,7 @@
 
 #include "async_infer_request.h"
 #include "compiled_model.h"
-#include "debug.h"
 #include "dnnl_extension_utils.h"
-#include "ie_common.h"
-#include "ie_ngraph_utils.hpp"
 #include "itt.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_state.h"

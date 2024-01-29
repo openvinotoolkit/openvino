@@ -4,14 +4,13 @@
 
 #include "strided_slice.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "slice_shape_inference.hpp"
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "shape_inference/shape_inference_ngraph.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
         std::unordered_set<int64_t> begin_mask,
         std::unordered_set<int64_t> end_mask,

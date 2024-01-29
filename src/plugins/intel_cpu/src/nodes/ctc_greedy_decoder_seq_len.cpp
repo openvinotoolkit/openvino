@@ -9,8 +9,6 @@
 #include "openvino/core/parallel.hpp"
 #include "ctc_greedy_decoder_seq_len.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

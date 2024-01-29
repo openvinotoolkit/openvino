@@ -10,7 +10,7 @@
 #include <cpp/ie_infer_request.hpp>
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "so_ptr.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"

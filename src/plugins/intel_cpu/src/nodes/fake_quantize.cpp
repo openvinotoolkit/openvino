@@ -11,9 +11,9 @@
 #include <set>
 #include <cmath>
 
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <cpu/x64/jit_generator.hpp>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
+#include "cpu/x64/jit_generator.hpp"
 #include <common/dnnl_thread.hpp>
 
 #include "openvino/core/parallel.hpp"
@@ -22,10 +22,10 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/cpu_memcpy.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
@@ -35,9 +35,7 @@
 // #define FQ_DOUBLE_PRECISION
 
 using namespace dnnl;
-using namespace InferenceEngine;
 using namespace ov;
-using namespace details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;

@@ -6,6 +6,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace CPUTestUtils;
 
@@ -111,14 +112,14 @@ const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<p
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
-            const auto fakeQuantize = ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            const auto fakeQuantize = ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             std::vector<size_t> order(newShape.size());
             std::iota(order.begin(), order.end(), 0);
             auto last = order[order.size() - 1];
             order.pop_back();
             order.insert(order.begin(), last);
-            const auto transpose = ngraph::builder::subgraph::Transpose(order);
-            return ngraph::builder::subgraph::makeTranspose(fakeQuantize, transpose);
+            const auto transpose = ov::builder::subgraph::Transpose(order);
+            return ov::builder::subgraph::makeTranspose(fakeQuantize, transpose);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"}};
 
 const std::vector<fusingSpecificParams> fusingParamsSet {

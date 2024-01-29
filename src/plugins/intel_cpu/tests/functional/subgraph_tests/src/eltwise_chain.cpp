@@ -8,7 +8,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -104,7 +105,7 @@ protected:
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));
                 inputNodes.push_back(
-                    ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
+                    ov::test::utils::deprecated::make_constant(inputPrecisions[i], targetStaticShapes[0][i], input1Data, true));
             }
         }
 
@@ -117,7 +118,7 @@ protected:
 
             std::vector<size_t> constShape(targetStaticShapes[0][0].size(), 1);
             constShape[1] = targetStaticShapes[0][0][1];
-            auto fq = ngraph::builder::makeFakeQuantize(eltwiseOps[eltwiseOps.size() - 1],
+            auto fq = ov::test::utils::make_fake_quantize(eltwiseOps[eltwiseOps.size() - 1],
                                                         ov::element::Type(ov::element::f32),
                                                         256,
                                                         constShape);

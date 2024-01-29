@@ -4,18 +4,15 @@
 
 #include "rope.h"
 
-#include <chrono>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-#include <string>
-#include <vector>
-
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
-using namespace InferenceEngine;
+#include <chrono>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {

@@ -6,8 +6,8 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -82,7 +82,7 @@ void PermConvPermConcat::SetUp() {
     auto permute_out_shape = permute_out->get_output_shape(0);
 
     auto concat_const =
-        ngraph::builder::makeConstant(element_type,
+        ov::test::utils::deprecated::make_constant(element_type,
                                       {1, 1, 1, permute_out_shape[3]},
                                       ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 

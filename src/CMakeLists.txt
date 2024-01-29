@@ -18,11 +18,11 @@ add_subdirectory(frontends)
 add_subdirectory(plugins)
 add_subdirectory(inference)
 include(cmake/openvino.cmake)
-# preprocessing has dependency on `openvino` for static build
-add_subdirectory(common/preprocessing)
 add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
     add_subdirectory(core/tests)
     add_subdirectory(tests)
+else()
+  add_subdirectory(tests/ov_helpers/ov_models/ov_builders)
 endif()

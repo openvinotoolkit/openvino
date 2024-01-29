@@ -35,7 +35,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/einsum_decomposition.hpp"
@@ -122,6 +122,9 @@
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/move_convert_after_gather.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/fc_convert_fusion.hpp"
+#include "plugin/transformations/clamp_fp16_output.hpp"
+#include "plugin/transformations/transpose_matmul_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -463,9 +466,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        ov::normalize_axes(mvn.get(), out_rank, mvn_axes);
-                        OPENVINO_SUPPRESS_DEPRECATED_END
+                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
@@ -694,12 +695,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
+        manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

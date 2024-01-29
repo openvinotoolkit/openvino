@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/fusing_test_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace CPUTestUtils;
@@ -105,7 +105,7 @@ protected:
         const auto& inShapeB = inputDynamicShapes[1];
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
-        std::shared_ptr<Node> inputB = ngraph::builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
+        std::shared_ptr<Node> inputB = ov::test::utils::deprecated::make_constant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 
         auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
         auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{2}, std::vector<size_t>{1, 1});

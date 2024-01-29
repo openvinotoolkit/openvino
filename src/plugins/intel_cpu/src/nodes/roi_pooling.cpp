@@ -4,18 +4,18 @@
 
 #include "roi_pooling.h"
 
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include <selective_build.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
+#include "selective_build.h"
 
 #include <openvino/opsets/opset2.hpp>
 
 #include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
-#include <cpu/x64/jit_generator.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 #include <string>
 #include <vector>
@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

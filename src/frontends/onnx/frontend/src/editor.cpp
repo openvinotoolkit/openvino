@@ -11,7 +11,6 @@
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
-#include "ngraph/file_util.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
 #include "openvino/util/file_util.hpp"
@@ -21,8 +20,9 @@
 
 using namespace ov;
 using namespace ov::onnx_editor;
+using namespace ov::frontend::onnx::common;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace {
 using namespace ONNX_NAMESPACE;
@@ -69,7 +69,7 @@ ValueInfoProto* find_graph_value_info(GraphProto& graph, const std::string& name
     return nullptr;
 }
 
-void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_type) {
+void modify_input_type(ValueInfoProto& onnx_input, const ov::element::Type_t elem_type) {
     OPENVINO_ASSERT(onnx_input.has_type(),
                     "The input is malformed - it doesn't contain the 'type' field. Cannot change the "
                     "data type. Input name: ",
@@ -83,13 +83,13 @@ void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_ty
 
     auto* tensor_type = type_proto->mutable_tensor_type();
 
-    OPENVINO_ASSERT(ngraph::onnx_common::is_supported_ng_type(elem_type),
+    OPENVINO_ASSERT(is_supported_ov_type(elem_type),
                     "The input type for input '",
                     onnx_input.name(),
                     "' cannot be set to: ",
-                    element::Type(elem_type).get_type_name(),
+                    ov::element::Type(elem_type).get_type_name(),
                     ". This type is not allowed in ONNX.");
-    tensor_type->set_elem_type(ngraph::onnx_common::ng_to_onnx_data_type(elem_type));
+    tensor_type->set_elem_type(ov_to_onnx_data_type(elem_type));
 }
 
 void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProto& onnx_shape) {
@@ -97,7 +97,7 @@ void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProt
     if (dim.is_static()) {
         new_dim->set_dim_value(dim.get_length());
     } else {
-        // nGraph Dimension is also considered dynamic if it represents a constrained range
+        // Dimension is also considered dynamic if it represents a constrained range
         // of allowed values as well as if it's unconstrained at all. ONNX cannot represent
         // ranged dimensions so this might not be 100% accurate. The modified ONNX model will
         // always have a fully dynamic dimension in this case.
@@ -140,27 +140,26 @@ std::string extract_name(const T& input_or_initializer) {
 
 void modify_initializer(TensorProto& initializer,
                         const std::string& name,
-                        const std::shared_ptr<ngraph::op::Constant> values,
+                        const std::shared_ptr<ov::op::v0::Constant> values,
                         ValueInfoProto* input) {
     const auto elem_type = values->get_element_type();
-    OPENVINO_ASSERT(ngraph::onnx_common::is_supported_ng_type(elem_type),
+    OPENVINO_ASSERT(is_supported_ov_type(elem_type),
                     "Initializer '",
                     name,
                     "' type cannot be set to: ",
-                    element::Type(elem_type).get_type_name(),
+                    ov::element::Type(elem_type).get_type_name(),
                     ". This type is not allowed in ONNX.");
 
     initializer.Clear();
 
     initializer.set_name(name);
-    initializer.set_data_type(ngraph::onnx_common::ng_to_onnx_data_type(values->get_element_type()));
+    initializer.set_data_type(ov_to_onnx_data_type(values->get_element_type()));
 
     for (const auto& dim : values->get_shape()) {
         initializer.add_dims(dim);
     }
 
-    const auto data_size_in_bytes =
-        shape_size(values->get_shape()) * ngraph::onnx_common::get_onnx_data_size(initializer.data_type());
+    const auto data_size_in_bytes = shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
     initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
 
     // update input with type and shape of initializer
@@ -303,14 +302,14 @@ struct onnx_editor::ONNXModelEditor::Impl {
     }
 
     Impl(const std::string& model_path)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_file(model_path))) {}
 
     Impl(std::istream& model_stream)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))) {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(model_stream))) {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_file(model_path))) {}
 #endif
 };
 
@@ -365,7 +364,7 @@ void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) c
     out_file.close();
 }
 
-void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, element::Type_t>& input_types) {
+void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, ov::element::Type_t>& input_types) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_types) {
@@ -378,7 +377,7 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
-element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
+ov::element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
 
@@ -390,10 +389,10 @@ element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& 
                     onnx_input->name());
     auto& tensor_type = type_proto.tensor_type();
     auto type = tensor_type.elem_type();
-    return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    return ngraph::onnx_import::common::get_ov_element_type(type);
 }
 
-void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {
+void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ov::PartialShape>& input_shapes) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_shapes) {
@@ -437,7 +436,7 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     if (value_info != nullptr) {
         const auto& onnx_tensor_type = value_info->type().tensor_type();
         if (onnx_tensor_type.has_shape()) {
-            return ngraph::onnx_common::to_ng_shape(onnx_tensor_type.shape());
+            return onnx_to_ov_shape(onnx_tensor_type.shape());
         } else {
             return PartialShape::dynamic();
         }
@@ -541,7 +540,7 @@ std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
-    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values) {
+    const std::map<std::string, std::shared_ptr<ov::op::v0::Constant>>& input_values) {
     auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input : input_values) {

@@ -9,7 +9,7 @@
 #include "common/fake_quantize_on_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -23,4 +23,4 @@ public:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

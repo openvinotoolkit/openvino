@@ -9,9 +9,9 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
-#include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -24,11 +24,11 @@ std::shared_ptr<Node> createConvolution(
     const size_t outputChannels = 6ul;
     const size_t inputChannels = inputShape[1];
     const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-        std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
+    const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
+        std::make_shared<ov::opset1::Constant>(ov::element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
         precision,
         255,
-        { outputChannels, 1, 1, 1 },
+        {outputChannels, 1, 1, 1},
         std::vector<float>(outputChannels, -1.27f),
         std::vector<float>(outputChannels, 1.27f),
         std::vector<float>(outputChannels, -1.27f),
@@ -53,7 +53,7 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     // -1 - no Convolution, 2 - on both branches
     const int convoutionBranch,
     // -1 - no FakeQuantize, 2 - on both branches
@@ -70,7 +70,7 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
             //deqBeforeStructure.multiply.outPrecision = precision;
             // const auto parent = makeDequantization(input, deqBeforeStructure);
 
-            auto newParent = ngraph::builder::makeFakeQuantize(parent, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
+            auto newParent = ov::test::utils::make_fake_quantize(parent, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
             newParent->set_friendly_name("fakeQuantizeOnActivations");
 
             //if (additionalLayer == "maxpool") {
@@ -117,10 +117,10 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
         parent, Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, op::RoundingType::FLOOR);
 
     //if (addFQ) {
-    //    parent1 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+    //    parent1 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     //    parent1->set_friendly_name("lastFakeQuantize1");
 
-    //    parent2 = ngraph::builder::makeFakeQuantize(parent2, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+    //    parent2 = ov::test::utils::make_fake_quantize(parent2, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     //    parent2->set_friendly_name("lastFakeQuantize2");
     //}
 
@@ -135,11 +135,11 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
 
     if (fakeQuantizeBranch != -1) {
         if (fakeQuantizeBranch != 1) {
-            parent1 = ngraph::builder::makeFakeQuantize(parent1, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
+            parent1 = ov::test::utils::make_fake_quantize(parent1, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
             parent1->set_friendly_name("fakeQuantize1");
         }
         if (fakeQuantizeBranch != 0) {
-            parent2 = ngraph::builder::makeFakeQuantize(parent2, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
+            parent2 = ov::test::utils::make_fake_quantize(parent2, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
             parent2->set_friendly_name("fakeQuantize2");
         }
     }
@@ -163,7 +163,7 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
     const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto input = std::make_shared<ov::opset1::Parameter>(originalFunctionPrecision, ov::Shape(inputShape));
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const auto fakeQuantize = ov::test::utils::make_fake_quantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
@@ -186,9 +186,9 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getReference(
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -219,7 +219,7 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getReference(
     lastLayer = makeDequantization(lastLayer, deqAfterStructure);
 
     if (addFQ) {
-        lastLayer = ngraph::builder::makeFakeQuantize(
+        lastLayer = ov::test::utils::make_fake_quantize(
             lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
@@ -231,4 +231,4 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

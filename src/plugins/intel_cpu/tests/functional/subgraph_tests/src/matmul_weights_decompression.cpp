@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -165,7 +165,7 @@ protected:
         }
 
         auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
-        auto weights = ngraph::builder::makeConstant<int8_t>(weights_precision, transformed_weights_shape, {}, true, up_to);
+        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(weights_precision, transformed_weights_shape, {}, true, up_to);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
@@ -188,7 +188,7 @@ protected:
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
-            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
+            auto shift_const = ov::test::utils::deprecated::make_constant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
             std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
@@ -200,7 +200,7 @@ protected:
             mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
         }
 
-        std::shared_ptr<ov::Node> scale_const = ngraph::builder::makeConstant<float>(decompression_precision, scaleshift_const_shape, {}, true);
+        std::shared_ptr<ov::Node> scale_const = ov::test::utils::deprecated::make_constant<float>(decompression_precision, scaleshift_const_shape, {}, true);
         if (reshape_on_decompression_constant) {
             auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
             auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);

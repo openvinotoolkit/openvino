@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
@@ -33,10 +33,14 @@ std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const te
 }
 
 void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
+    abs_threshold = 0.1;
+
     FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
+    init_input_shapes(testValues.inputShape);
+
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,
         testValues.actual.precisionBeforeAdd,
         testValues.actual.add,
@@ -48,7 +52,7 @@ void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
 }
 
 TEST_P(FuseDequantizeToFakeQuantizeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

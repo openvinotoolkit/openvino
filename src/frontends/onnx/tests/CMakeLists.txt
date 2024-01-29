@@ -11,12 +11,9 @@ ov_deprecated_no_errors()
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
-    TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
-    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
-    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${TEST_MODEL_ZOO}/onnx/unit_test.manifest"
-    SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
+)
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
@@ -48,9 +45,8 @@ endif()
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `frontends/tests/onnx` directory
-# 3) Include "util/test_control.hpp" in your cpp file
-# 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
+# 3) Include "util/test_control.hpp" and "onnx_utils.hpp" in your cpp file
+# 4) add the line `static string s_manifest = onnx_backend_manifest("${MANIFEST}");` to your cpp file
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
@@ -78,10 +74,8 @@ set(SRC
     onnx_editor.cpp
     onnx_editor_topological_sort.cpp
     onnx_import_exceptions.cpp
-    onnx_import_library.cpp
     onnx_importer_test.cpp
     onnx_tensor_names.cpp
-    onnx_test_util.cpp
     onnx_utils.cpp
     onnx_transformations.cpp
     op_extension.cpp
@@ -122,11 +116,13 @@ foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
+# Create target
+
 add_executable(ov_onnx_frontend_tests ${SRC})
 add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*)
 set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
-add_dependencies(ov_onnx_frontend_tests template_extension)
+add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
 target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -145,27 +141,14 @@ endif()
 target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
-    openvino::runtime::dev
-    openvino_onnx_frontend
-    openvino_onnx_common
+    openvino::frontend::onnx
     func_test_utils)
-
-# It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
-# Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-target_include_directories(ov_onnx_frontend_tests
-    SYSTEM PRIVATE
-        $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
-target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
 if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE
-    $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
+# Install rules
 
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

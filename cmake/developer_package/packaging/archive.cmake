@@ -22,8 +22,6 @@ macro(ov_archive_cpack_set_dirs)
     # common "archive" package locations
     # TODO: move current variables to OpenVINO specific locations
     set(OV_CPACK_INCLUDEDIR runtime/include)
-    set(OV_CPACK_IE_CMAKEDIR runtime/cmake)
-    set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
     set(OV_CPACK_LICENSESDIR licenses)

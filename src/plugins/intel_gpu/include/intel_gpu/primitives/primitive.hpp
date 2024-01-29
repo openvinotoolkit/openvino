@@ -138,7 +138,7 @@ public:
     std::vector<input_info> dependencies() const {
         auto result = input;
         auto deps = get_dependencies();
-        for (auto& pid : deps) result.push_back({pid, 0});
+        for (auto& dep : deps) result.push_back(dep);
         return result;
     }
 
@@ -291,7 +291,7 @@ public:
     }
 
 protected:
-    virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
+    virtual std::vector<input_info> get_dependencies() const { return {}; }
     class condition;
     friend struct primitive_info;
 };

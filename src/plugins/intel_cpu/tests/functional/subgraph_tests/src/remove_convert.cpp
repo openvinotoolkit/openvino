@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
@@ -33,16 +34,16 @@ public:
         std::tie(inType, inputShape) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+            configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         }
         std::tie(inFmts, outFmts, priority, selectedType) =
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
         auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
-        auto begin = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto begin = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
         auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
                                                                 begin,
                                                                 end,
@@ -82,9 +83,9 @@ public:
 
         // Such complicated graph is necessary to cover the case when Convert has several children and connected to non
         // zero output
-        const auto split_axis = ngraph::builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        const auto split_axis = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
         const auto split_lengths =
-            ngraph::builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
+            ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_params, split_axis, split_lengths);
         auto convert = std::make_shared<ov::op::v0::Convert>(split->output(1), inType);
         auto relu = ov::test::utils::make_activation(convert, inType, ov::test::utils::ActivationTypes::Relu);

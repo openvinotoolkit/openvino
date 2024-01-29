@@ -8,17 +8,16 @@
 #include <thread>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
 #include "openvino/core/parallel.hpp"
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

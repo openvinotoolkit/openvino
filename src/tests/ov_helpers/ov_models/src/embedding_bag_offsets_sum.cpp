@@ -5,14 +5,15 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
-                                                 const element::Type& indicesType,
+std::shared_ptr<Node> makeEmbeddingBagOffsetsSum(const ov::element::Type& dataType,
+                                                 const ov::element::Type& indicesType,
                                                  const ov::Output<Node>& embTableNode,
                                                  const std::vector<size_t>& indices,
                                                  const std::vector<size_t>& offsets,
@@ -29,7 +30,7 @@ std::shared_ptr<Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
         std::vector<size_t> d_shape = {};
         auto defIdxNode = std::make_shared<ov::op::v0::Constant>(indicesType, d_shape, default_index);
         if (with_weights) {
-            auto weightsNode = makeConstant<float>(dataType, {indices.size()}, {}, true);
+            auto weightsNode = ov::test::utils::deprecated::make_constant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(embTableNode,
                                                                           indicesNode,

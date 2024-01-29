@@ -107,8 +107,7 @@ xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test da
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
-                                      "node->get_input_partial_shape(i), autob)' failed at "
-                                      "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
+                                      "node->get_input_partial_shape(i), autob)' failed at ")
 skip_issue_39658 = pytest.mark.skip(reason="RuntimeError: Tile operation has a form that is not supported."
                                            " z should be converted to TileIE operation.")
 
@@ -169,10 +168,10 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 
 # ONNX 1.15
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
-xfail_issue_125486 = xfail_test(reason="Gelu operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
 skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support cubic and linear modes, and 4D tensor") # Need to enable after bumping to 1.15
 skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
+skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines") 
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")

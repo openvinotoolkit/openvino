@@ -3,40 +3,40 @@
 //
 
 #include "conv.h"
-#include "onednn/dnnl.h"
-#include "reorder.h"
-#include "input.h"
+
+#include "common/c_types_map.hpp"
+#include "common/cpu_convert.h"
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "concat.h"
+#include "cpu/cpu_primitive.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
-#include "pooling.h"
-#include "concat.h"
-#include <graph.h>
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include <common/c_types_map.hpp>
-#include <cstdlib>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
-#include <vector>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <oneapi/dnnl/dnnl_types.h>
-#include <utils/general_utils.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "common/cpu_convert.h"
-#include <memory_desc/cpu_memory_desc_utils.h>
+#include "graph.h"
+#include "input.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "oneapi/dnnl/dnnl_common.hpp"
+#include "oneapi/dnnl/dnnl_types.h"
+#include "onednn/dnnl.h"
+#include "pooling.h"
+#include "reorder.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/cpu_primitive.hpp>
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
-#include "ie_ngraph_utils.hpp"
+#include "utils/general_utils.h"
+
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -122,7 +122,7 @@ public:
 
         auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
             auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
-            child->addEdge(edge);
+            Node::addEdge(edge);
             edges.push_back(edge);
             nodesSet.insert(parent);
             nodesSet.insert(child);
@@ -330,11 +330,12 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities = {
+    static std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::dw_acl,
         impl_desc_type::winograd_acl,
         impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
         impl_desc_type::brgconv_avx512_amx_1x1,
         impl_desc_type::brgconv_avx512_amx,
         impl_desc_type::jit_avx512_amx_dw,
@@ -348,6 +349,8 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::jit_avx512_dw,
         impl_desc_type::jit_avx512_1x1,
         impl_desc_type::jit_avx512,
+        impl_desc_type::brgconv_avx2_1x1,
+        impl_desc_type::brgconv_avx2,
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,
@@ -368,11 +371,19 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
 
+    priorities.erase(std::remove_if(priorities.begin(),
+                                    priorities.end(),
+                                    [](impl_desc_type type) {
+                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
+                                    }),
+                     priorities.end());
+
     return priorities;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
     return isBrgConvAvailable;
 }
 
@@ -1542,7 +1553,28 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getOutputShapeAtPort(0));
+        // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just change
+        // ranged min value to 1 to meet this case.
+        // For example:
+        // Output shape = {1, 160, {128, 256}, {128, 256}}
+        // Sum input shape = {1, 160, 1, 1}
+        // Update sum shape to {1, 160, {1, 256}, {1, 256}}
+        auto shape = getOutputShapeAtPort(0);
+        auto sumShape = getInputShapeAtPort(getParentEdges().size() - 1);
+        Shape finalShape = shape;
+        if (shape.getRank() == sumShape.getRank()) {
+            auto sumDims = sumShape.getDims();
+            auto minDims = shape.getMinDims();
+            auto maxDims = shape.getMaxDims();
+            for (size_t i = 0; i < maxDims.size(); i++) {
+                if ((maxDims[i] > minDims[i]) && sumDims[i] == 1) {
+                    minDims[i] = 1;
+                }
+            }
+            finalShape = Shape(minDims, maxDims);
+        }
+
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), finalShape);
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
 }
@@ -1612,12 +1644,13 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;
     }
-    // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni.
+    // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
-    if (inputZeroPointType == zpType::PerTensor &&
-        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
+    if (inputZeroPointType == zpType::PerTensor && (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
+                                                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
+                                                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     else
         inputZeroPointType = zpType::PerChannel;

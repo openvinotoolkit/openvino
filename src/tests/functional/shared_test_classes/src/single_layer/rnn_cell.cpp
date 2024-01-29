@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 #include "shared_test_classes/single_layer/rnn_cell.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -61,7 +62,7 @@ void RNNCellTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
-    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     std::shared_ptr<ov::Node> W;
     if (WType == InputLayerType::PARAMETER) {
@@ -69,7 +70,7 @@ void RNNCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -78,7 +79,7 @@ void RNNCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -87,15 +88,15 @@ void RNNCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1], W, R, B, hidden_size, activations,
                                                          activations_alpha, activations_beta, clip);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell)};
-    function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell)};
+    function = std::make_shared<ov::Model>(results, params, "rnn_cell");
     if (should_decompose) {
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::RNNCellDecomposition>();
         m.run_passes(function);
     }

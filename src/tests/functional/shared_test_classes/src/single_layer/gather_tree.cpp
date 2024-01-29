@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/gather_tree.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
+
 namespace LayerTestsDefinitions {
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
     std::vector<size_t> inputShape;
@@ -36,9 +38,9 @@ void GatherTreeLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    std::shared_ptr<ngraph::Node> inp2;
-    std::shared_ptr<ngraph::Node> inp3;
-    std::shared_ptr<ngraph::Node> inp4;
+    std::shared_ptr<ov::Node> inp2;
+    std::shared_ptr<ov::Node> inp3;
+    std::shared_ptr<ov::Node> inp4;
 
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
@@ -53,17 +55,17 @@ void GatherTreeLayerTest::SetUp() {
     } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
         auto maxBeamIndex = inputShape.at(2) - 1;
 
-        inp2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {}, true, maxBeamIndex);
-        inp3 = ngraph::builder::makeConstant<float>(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
-        inp4 = ngraph::builder::makeConstant<float>(ngPrc, {}, {}, true, maxBeamIndex);
+        inp2 = ov::test::utils::deprecated::make_constant<float>(ngPrc, inputShape, {}, true, maxBeamIndex);
+        inp3 = ov::test::utils::deprecated::make_constant<float>(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
+        inp4 = ov::test::utils::deprecated::make_constant<float>(ngPrc, {}, {}, true, maxBeamIndex);
     } else {
         throw std::runtime_error("Unsupported inputType");
     }
 
     auto operationResult = std::make_shared<ov::op::v1::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(operationResult)};
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(operationResult)};
+    function = std::make_shared<ov::Model>(results, paramsIn, "GatherTree");
 }
 
 InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

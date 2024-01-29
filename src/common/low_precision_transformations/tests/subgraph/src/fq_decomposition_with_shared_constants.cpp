@@ -20,7 +20,7 @@
 
 using namespace testing;
 using namespace ov;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FQDecompositionWithSharedConstants : public LayerTransformation, public WithParamInterface<bool> {
 public:

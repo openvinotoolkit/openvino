@@ -103,8 +103,6 @@ endif()
 ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB; NOT APPLE" OFF)
 ov_dependent_option (ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ov_dependent_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON "NOT MINGW64" OFF)
-
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 ov_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
@@ -112,8 +110,6 @@ ov_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 ov_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF "BUILD_SHARED_LIBS" OFF)
-
-ov_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_TESTS;ENABLE_GAPI_PREPROCESSING" OFF)
 
 ov_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
@@ -159,12 +155,7 @@ endif()
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 else()
-    if(LINUX AND AARCH64)
-        # CVS-126984: system TBB is not very stable on Linux ARM64 (at least on Ubuntu 20.04)
-        set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-    else()
-        set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
-    endif()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
@@ -185,6 +176,9 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 
 ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
     "ENABLE_PYTHON;UNIX" OFF)
+
+ov_dependent_option (ENABLE_JS "Enables JS API building" ON
+    "NOT WIN32" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 

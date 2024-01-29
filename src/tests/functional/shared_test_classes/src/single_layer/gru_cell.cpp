@@ -4,6 +4,7 @@
 
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include "shared_test_classes/single_layer/gru_cell.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -69,7 +70,7 @@ void GRUCellTest::SetUp() {
             {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                     {3 * hidden_size, hidden_size}, {(linear_before_reset? 4 : 3) * hidden_size}},
     };
-    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    std::vector<ov::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
@@ -81,7 +82,7 @@ void GRUCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -90,7 +91,7 @@ void GRUCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -99,16 +100,16 @@ void GRUCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::test::utils::deprecated::make_constant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(params[0], params[1], W, R, B, hidden_size, activations,
                                                           activations_alpha, activations_beta, clip,
                                                           linear_before_reset);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
-    function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0))};
+    function = std::make_shared<ov::Model>(results, params, "gru_cell");
     if (should_decompose) {
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::GRUCellDecomposition>();
         m.run_passes(function);
     }

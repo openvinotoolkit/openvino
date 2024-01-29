@@ -6,12 +6,10 @@
 #include <vector>
 #include <algorithm>
 
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include "openvino/core/parallel.hpp"
 #include "bucketize.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

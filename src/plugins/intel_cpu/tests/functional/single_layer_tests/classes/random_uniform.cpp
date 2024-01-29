@@ -3,7 +3,7 @@
 //
 
 #include "random_uniform.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
 
@@ -97,7 +97,7 @@ void RandomUniformLayerTestCPU::SetUp() {
         in_params.back()->set_friendly_name("shape");
         inputs.push_back(in_params.back());
     } else {
-        inputs.push_back(ngraph::builder::makeConstant(shape_prc, {m_output_shape.size()}, m_output_shape));
+        inputs.push_back(ov::test::utils::deprecated::make_constant(shape_prc, {m_output_shape.size()}, m_output_shape));
     }
     if (!const_in_2) {
         in_shapes.push_back({{}, {{1}}});
@@ -105,7 +105,7 @@ void RandomUniformLayerTestCPU::SetUp() {
         in_params.back()->set_friendly_name("minval");
         inputs.push_back(in_params.back());
     } else {
-        inputs.push_back(ngraph::builder::makeConstant(output_prc, {1}, std::vector<double>{m_min_val}));
+        inputs.push_back(ov::test::utils::deprecated::make_constant(output_prc, {1}, std::vector<double>{m_min_val}));
     }
     if (!const_in_3) {
         in_shapes.push_back({{}, {{1}}});
@@ -113,7 +113,7 @@ void RandomUniformLayerTestCPU::SetUp() {
         in_params.back()->set_friendly_name("maxval");
         inputs.push_back(in_params.back());
     } else {
-        inputs.push_back(ngraph::builder::makeConstant(output_prc, {1}, std::vector<double>{m_max_val}));
+        inputs.push_back(ov::test::utils::deprecated::make_constant(output_prc, {1}, std::vector<double>{m_max_val}));
     }
 
     init_input_shapes(in_shapes);

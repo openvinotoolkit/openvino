@@ -8,8 +8,6 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -26,27 +24,9 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager)
-    : _ostream(ostream)
-    , _extensionManager(extensionManager) {
-}
+ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto getCustomOpSets = [this]() {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-
-        if (_extensionManager) {
-            auto extensions = _extensionManager->Extensions();
-            for (const auto& extension : extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(std::begin(opset), std::end(opset));
-            }
-        }
-
-        return custom_opsets;
-    };
-
     auto serializeInfo = [&](std::ostream& stream) {
         const std::string name = "cnndata";
         pugi::xml_document xml_doc;
@@ -60,9 +40,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    // Serialize to old representation in case of old API
-    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInfo);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
@@ -83,7 +61,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
@@ -94,7 +71,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // read blob content
     _istream.seekg(hdr.consts_offset);
