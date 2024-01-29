@@ -14,6 +14,8 @@ static_assert(sizeof(float8_e5m2) == 1, "class f8e5m2 must be exactly 1 byte");
 static_assert(std::is_trivially_constructible<float8_e5m2, float8_e5m2>::value, "should be trivially constructible");
 static_assert(std::is_trivially_copyable<float8_e5m2>::value, "must be trivially copyable");
 static_assert(std::is_trivially_destructible<float8_e5m2>::value, "must be trivially destructible");
+static_assert(std::numeric_limits<float8_e5m2>::is_specialized, "numeric_limits must be specialized");
+static_assert(!std::numeric_limits<float8_e5m2>::is_integer, "numeric_limits::is_integer must be false");
 
 namespace {
 

@@ -14,6 +14,8 @@ static_assert(sizeof(float8_e4m3) == 1, "class f8e4m3 must be exactly 1 byte");
 static_assert(std::is_trivially_constructible<float8_e4m3, float8_e4m3>::value, "should be trivially constructible");
 static_assert(std::is_trivially_copyable<float8_e4m3>::value, "must be trivially copyable");
 static_assert(std::is_trivially_destructible<float8_e4m3>::value, "must be trivially destructible");
+static_assert(std::numeric_limits<float8_e4m3>::is_specialized, "numeric_limits must be specialized");
+static_assert(!std::numeric_limits<float8_e4m3>::is_integer, "numeric_limits::is_integer must be false");
 
 namespace {
 constexpr auto float_nan = std::numeric_limits<float>::quiet_NaN();
