@@ -15,7 +15,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
-
+    
 template<typename T>
 class SliceTest : public ::testing::Test {
 public:
@@ -63,6 +63,45 @@ public:
             ASSERT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
     }
 
+    void execute_dynamic(memory::ptr input, 
+    memory::ptr start, memory::ptr stop, 
+    memory::ptr step, memory::ptr wanted_output) {
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("start", start));
+        topology.add(data("stop", stop));
+        topology.add(data("step", step));
+        std::vector<input_info> inputs{input_info("input"),
+                                       input_info("start"),
+                                       input_info("stop"),
+                                       input_info("step")};
+        // if (axes_) {
+        //     topology.add(data("axes", axes_));
+        //     inputs.push_back(input_info("axes"));
+        // }
+        topology.add(slice("slice", inputs));
+
+        cldnn::network::ptr network =
+            get_network(engine_, topology, get_test_default_config(engine_), get_test_stream_ptr(), false);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "slice");
+
+        auto output = outputs.at("slice").get_memory();
+
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> wanted_output_ptr(wanted_output, get_test_stream());
+
+        ASSERT_EQ(output->get_layout(), wanted_output->get_layout());
+        ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
+        for (size_t i = 0; i < output_ptr.size(); ++i)
+            ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], 2e-3));
+    }
+
     data_types DataType() const;
 
 protected:
@@ -89,6 +128,29 @@ data_types SliceTest<long long>::DataType() const { return data_types::i64; }
 using testing::Types;
 typedef Types<float, int, long long> DataTypes;
 TYPED_TEST_SUITE(SliceTest, DataTypes);
+
+TYPED_TEST(SliceTest, bfyx_dynamic) {
+    memory::ptr input = this->engine_.allocate_memory({ this->DataType(), format::bfyx, { 1, 2, 100, 12  }});
+    set_values(input, this->GenInput(static_cast<int>(input->get_layout().get_linear_size())));
+
+    memory::ptr start = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    set_values<int64_t>(start, {0, 1, 0, 1});
+    memory::ptr stop = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    set_values<int64_t>(stop, { 1, 2, 5, 100 });
+    memory::ptr step = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    set_values<int64_t>(step, { 1, 1, 1, 10 });
+    memory::ptr wanted_output = this->engine_.allocate_memory({ this->DataType(), format::bfyx, { 1, 1, 5, 10 } });
+    set_values(wanted_output, std::vector<TypeParam>({ 
+            1201, 1211, 1221, 1231, 1241, 1301, 1311, 1321, 1331, 1341,
+            1401, 1411, 1421, 1431, 1441, 1501, 1511, 1521, 1531, 1541,
+            1601, 1611, 1621, 1631, 1641, 1701, 1711, 1721, 1731, 1741,
+            1801, 1811, 1821, 1831, 1841, 1901, 1911, 1921, 1931, 1941,
+            2001, 2011, 2021, 2031, 2041, 2101, 2111, 2121, 2131, 2141 
+    }));
+
+    this->execute_dynamic(input, start, stop, step, wanted_output);
+}
+
 
 TYPED_TEST(SliceTest, bfyx_positive_step) {
     this->input_shape_ = { 1, 2, 100, 12 };
