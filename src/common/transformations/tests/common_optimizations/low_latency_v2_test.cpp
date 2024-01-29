@@ -910,6 +910,7 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto outputs = create_sequence(p.rnn_type, attrs, X, H, C);
+        outputs[0].get_node()->set_friendly_name("lstm_node");
         ParameterVector params{X, H};
         if (p.rnn_type == RNNType::LSTM) {
             params.push_back(C);
@@ -930,9 +931,9 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto variable_h = make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{H->get_shape(), H->get_element_type(), "node_28/variable_0"});
+            ov::op::util::VariableInfo{H->get_shape(), H->get_element_type(), "lstm_node/variable_0"});
         auto variable_c = make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{C->get_shape(), C->get_element_type(), "node_28/variable_1"});
+            ov::op::util::VariableInfo{C->get_shape(), C->get_element_type(), "lstm_node/variable_1"});
         auto read_val_H = create_read_value(H, variable_h);
         auto read_val_C = create_read_value(C, variable_c);
 
