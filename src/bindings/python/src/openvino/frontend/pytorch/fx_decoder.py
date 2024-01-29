@@ -151,8 +151,7 @@ class TorchFXPythonDecoder (Decoder):
     def get_output_debug_name(self, index):
         if self._output_names is not None and index < len(self._output_names):
             return self._output_names[index]
-        name = self.pt_module.name if hasattr(
-            self.pt_module, "name") else "output"
+        name = getattr(self.pt_module, "name", "output")
         return name + ":" + str(index)
 
     def get_output_shape(self, index):
