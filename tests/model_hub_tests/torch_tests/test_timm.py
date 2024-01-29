@@ -50,7 +50,7 @@ torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
         shape = [1] + list(cfg.input_size)
@@ -85,15 +85,10 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
+    @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.parametrize("name", get_all_models())
-    def test_convert_model_all_models(self, name, ie_device):
-        self.mode = "trace"
-        self.run(name, None, ie_device)
-
-    @pytest.mark.nightly
-    @pytest.mark.parametrize("name", get_all_models())
-    def test_convert_model_export_all_models(self, name, ie_device):
-        self.mode = "export"
+    def test_convert_model_all_models(self, mode, name, ie_device):
+        self.mode = mode
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
