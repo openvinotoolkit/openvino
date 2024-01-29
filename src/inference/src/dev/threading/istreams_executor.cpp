@@ -51,6 +51,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
                                "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)");
             }
+            OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == ov::affinity) {
             ov::Affinity affinity;
             std::stringstream{value.as<std::string>()} >> affinity;
@@ -74,6 +75,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             default:
                 OPENVINO_THROW("Unsupported affinity type");
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
                 _streams = static_cast<int>(get_available_numa_nodes().size());
@@ -263,6 +265,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         };
         OPENVINO_SUPPRESS_DEPRECATED_END
         return properties;
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (key == ov::affinity) {
         switch (_threadBindingType) {
         case IStreamsExecutor::ThreadBindingType::NONE:
@@ -274,6 +277,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
             return ov::Affinity::HYBRID_AWARE;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (key == ov::num_streams) {
         return decltype(ov::num_streams)::value_type{_streams};
         OPENVINO_SUPPRESS_DEPRECATED_START
