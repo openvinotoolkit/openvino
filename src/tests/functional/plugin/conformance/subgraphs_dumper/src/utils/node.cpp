@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "utils/node.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace util {
@@ -116,17 +117,17 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         std::string input_name = node_name + "_" + std::to_string(i);
         // todo: replace deprecated code && remove this w/a for constant size
-        // const auto constant_input = ov::util::get_constant_from_source(node->input(i).get_source_output());
-        // if (constant_input) {
-        //     if (is_save_const || constant_input->get_byte_size() < 1024) {
-        //         auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
-        //                                                                constant_input->get_shape(),
-        //                                                                constant_input->get_data_ptr());
-        //         in_const->set_friendly_name(input_name);
-        //         inputs[i] = in_const;
-        //         continue;
-        //     }
-        // }
+        const auto constant_input = ov::util::get_constant_from_source(node->input(i).get_source_output());
+        if (constant_input) {
+            if (is_save_const || constant_input->get_byte_size() < 1024) {
+                auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
+                                                                       constant_input->get_shape(),
+                                                                       constant_input->get_data_ptr());
+                in_const->set_friendly_name(input_name);
+                inputs[i] = in_const;
+                continue;
+            }
+        }
         has_parameters = true;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(node->get_input_element_type(i), node->get_input_partial_shape(i));
