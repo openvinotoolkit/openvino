@@ -78,7 +78,7 @@ namespace ngraph
 
                             std::size_t data_group_size{n_data_channels / groups};
                             std::size_t filters_group_size{n_filters_channels / groups};
-                            OutputVector convolution_nodes;
+                            ov::OutputVector convolution_nodes;
 
                             // initial bounds for splice
                             std::vector<std::size_t> data_lower_bounds(data.get_shape().size());
@@ -92,12 +92,12 @@ namespace ngraph
                                 // slice data
                                 data_lower_bounds[1] = group * data_group_size;
                                 data_upper_bounds[1] = (group + 1) * data_group_size;
-                                auto sliced_data = std::make_shared<ngraph::opset0::Slice>(
+                                auto sliced_data = std::make_shared<ov::opset0::Slice>(
                                     data, data_lower_bounds, data_upper_bounds);
                                 // slice filters
                                 filters_lower_bounds[0] = group * filters_group_size;
                                 filters_upper_bounds[0] = (group + 1) * filters_group_size;
-                                auto sliced_filters = std::make_shared<ngraph::opset0::Slice>(
+                                auto sliced_filters = std::make_shared<ov::opset0::Slice>(
                                     filters, filters_lower_bounds, filters_upper_bounds);
 
                                 if (bias.get_node())
@@ -109,7 +109,7 @@ namespace ngraph
                                 else
                                 {
                                     convolution_nodes.push_back(
-                                        std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                                        std::make_shared<ov::opset0::QuantizedConvolution>(
                                             sliced_data,
                                             sliced_filters,
                                             strides,
@@ -152,7 +152,7 @@ namespace ngraph
                             }
                             else
                             {
-                                return std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                                return std::make_shared<ov::opset0::QuantizedConvolution>(
                                     data,
                                     filters,
                                     strides,
@@ -176,9 +176,9 @@ namespace ngraph
 
                 } // namespace
 
-                OutputVector quant_conv(const Node& node)
+                ov::OutputVector quant_conv(const Node& node)
                 {
-                    const OutputVector& inputs = node.get_ng_inputs();
+                    const ov::OutputVector& inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
                     auto filters = inputs.at(3);
 

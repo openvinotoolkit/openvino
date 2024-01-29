@@ -119,15 +119,15 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
                                                               std::vector<int64_t>{0});  // end mask
 
         // Construct new bias shape: [1, C, 1, 1, ... ]
-        bias_shape_node = std::make_shared<v0::Concat>(OutputVector{one_node, C_dim, remaining_bias_shape_ones}, 0);
+        bias_shape_node = std::make_shared<v0::Concat>(ov::OutputVector{one_node, C_dim, remaining_bias_shape_ones}, 0);
     }
 
     return std::make_shared<v1::Reshape>(bias, bias_shape_node, false);
 }
 }  // namespace
 
-OutputVector conv_transpose(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv_transpose(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     CHECK_VALID_NODE(node,
                      inputs.size() == 2 || inputs.size() == 3,

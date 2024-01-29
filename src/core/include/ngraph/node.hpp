@@ -31,13 +31,13 @@
 #include "ngraph/check.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
 
@@ -68,7 +68,7 @@ NGRAPH_API_DEPRECATED
 const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-const NodeVector& check_single_output_args(const NodeVector& args);
+const ov::NodeVector& check_single_output_args(const ov::NodeVector& args);
 
 const auto as_output_vector = ov::as_output_vector;
 const auto as_node_vector = ov::as_node_vector;
