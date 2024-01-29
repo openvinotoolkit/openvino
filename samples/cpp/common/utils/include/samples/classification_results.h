@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/op/constant.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/openvino.hpp"
 
 /**
