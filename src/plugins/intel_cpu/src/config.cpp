@@ -345,8 +345,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::f32;
         }
     }
-//TODO: remove the line below
-    inferencePrecision = ov::element::f16;
 
     if (!prop.empty())
         _config.clear();

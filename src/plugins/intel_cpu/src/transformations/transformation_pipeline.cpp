@@ -171,21 +171,24 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
     if (!fq)
         return false;
+    const auto& from = node->get_output_element_type(0);
+    auto it = precisions.find(from);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
 
-    //Add convert f16->f32 to all FQ inputs
     for (size_t i = 0; i < node->get_input_size(); ++i) {
-        auto convert_before = std::make_shared<opset4::Convert>(node->input_value(i), ov::element::f32);
+        auto convert_before = std::make_shared<opset4::Convert>(node->input_value(i), from);
         node->input(i).replace_source_output(convert_before);
     }
 
-    //Add convert f32->f16 to all FQ consumers
     auto consumers = node->output(0).get_target_inputs();
     for (auto& input : consumers) {
         const auto consumer = input.get_node();
         if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
             continue;
         }
-        auto convert_after = std::make_shared<opset4::Convert>(node, ov::element::f16);
+        auto convert_after = std::make_shared<opset4::Convert>(node, to);
         input.replace_source_output(convert_after);
     }
 
