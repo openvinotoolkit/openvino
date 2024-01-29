@@ -30,7 +30,7 @@ namespace set_1 {
 ///
 /// \return     Vector of nodes containting resulting OV nodes.
 ///
-OutputVector global_lp_pool(const Node& node);
+ov::OutputVector global_lp_pool(const Node& node);
 }  // namespace set_1
 
 }  // namespace op

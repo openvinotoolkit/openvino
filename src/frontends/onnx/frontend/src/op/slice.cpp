@@ -16,10 +16,10 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_10 {
-OutputVector slice(const Node& node) {
+ov::OutputVector slice(const Node& node) {
     using ov::op::util::is_null;
 
-    OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ng_inputs()};
     const auto& data = inputs.at(0);
     const auto& starts = inputs.at(1);
     const auto& ends = inputs.at(2);
@@ -27,7 +27,7 @@ OutputVector slice(const Node& node) {
     const bool axes_input_provided = inputs.size() >= 4 && !is_null(inputs.at(3));
     const bool steps_input_provided = inputs.size() == 5 && !is_null(inputs.at(4));
 
-    ov::Output<ngraph::Node> steps;
+    ov::Output<ov::Node> steps;
     if (steps_input_provided) {
         steps = inputs.at(4);
     } else {
@@ -47,8 +47,8 @@ OutputVector slice(const Node& node) {
 }  // namespace set_10
 
 namespace set_1 {
-OutputVector slice(const Node& node) {
-    ov::Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+ov::OutputVector slice(const Node& node) {
+    ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 

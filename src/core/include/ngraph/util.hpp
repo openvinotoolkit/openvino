@@ -31,7 +31,6 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -283,5 +282,5 @@ std::vector<int64_t> NGRAPH_API read_index_vector(std::shared_ptr<ov::Tensor> tv
 
 NGRAPH_API
 NGRAPH_API_DEPRECATED
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv);
+std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END

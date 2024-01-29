@@ -289,7 +289,7 @@ std::shared_ptr<ov::Model> makeConcatWithParams(std::vector<size_t> inputShape, 
     auto parameter2 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{inputShape});
     parameter2->set_friendly_name("param2");
     parameter2->output(0).get_tensor().set_names({"data2"});
-    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{parameter1, parameter2}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{parameter1, parameter2}, 1);
     concat->set_friendly_name("concat_op");
     concat->output(0).get_tensor().set_names({"concat"});
     auto result = std::make_shared<ov::op::v0::Result>(concat);

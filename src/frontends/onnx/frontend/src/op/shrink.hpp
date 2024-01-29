@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -20,7 +19,7 @@ namespace set_1 {
 ///       Input values greater or equal to '-lambd' and less or equal to 'lambd' are
 ///       zeroed-out. 'Bias' is added to the values that are less than '-lambd'
 ///       and subtracted from values greater than 'lambd'.
-OutputVector shrink(const Node& node);
+ov::OutputVector shrink(const Node& node);
 }  // namespace set_1
 
 }  // namespace op
