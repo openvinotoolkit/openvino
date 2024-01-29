@@ -46,8 +46,8 @@ OutputVector translate_lookup_table_find_op(const NodeContext& node) {
         key_type.is_integral_number(),
         "[TensorFlow Frontend] internal error: LookupTableFind is only supported for integer keys");
 
-    auto all_keys = table_handle->get_values();
-    auto all_values = table_handle->get_keys();
+    auto all_keys = table_handle->get_keys();
+    auto all_values = table_handle->get_values();
 
     // reshape both all values and keys to 1D tensor to work it further
     auto target_shape = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{-1});
