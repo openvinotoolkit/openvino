@@ -37,7 +37,26 @@ private:
 
 class InputModelInfo::InputModelInfoImpl : public ModelInfoImpl {};
 
-class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {};
+class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {
+public:
+    void set_color_format(const ColorFormat& color_format, const std::vector<std::string>& sub_names = {}) {
+        m_color_format_set = (color_format == ColorFormat::RGB) || (color_format == ColorFormat::BGR);
+        OPENVINO_ASSERT(m_color_format_set);
+        m_color_format = color_format;
+        m_planes_sub_names = sub_names;
+    }
+    bool is_color_format_set() const {
+        return m_color_format_set;
+    }
+    const ColorFormat& get_color_format() const {
+        return m_color_format;
+    }
+
+private:
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
+    std::vector<std::string> m_planes_sub_names{};
+    bool m_color_format_set = false;
+};
 
 /// \brief OutputInfoImpl - internal data structure
 struct OutputInfo::OutputInfoImpl {

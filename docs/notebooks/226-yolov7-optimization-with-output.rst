@@ -304,7 +304,7 @@ While ONNX models are directly
 supported by OpenVINO runtime, it can be useful to convert them to IR
 format to take the advantage of OpenVINO model conversion API features.
 The ``ov.convert_model`` python function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface.
 However, it can also be save on device in OpenVINO IR format using
@@ -996,7 +996,7 @@ Compare Performance of the Original and Quantized Models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 

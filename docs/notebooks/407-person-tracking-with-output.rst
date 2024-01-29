@@ -185,18 +185,18 @@ Representation (OpenVINO IR).
    and post-processing.
 
 In this case, `person detection
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
+model <https://docs.openvino.ai/2023.3/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
 `reidentification
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
+model <https://docs.openvino.ai/2023.3/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
 `Object Detection Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
+list <https://docs.openvino.ai/2023.3/omz_models_group_intel.html#object-detection-models>`__,
 ``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
+list <https://docs.openvino.ai/2023.3/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3

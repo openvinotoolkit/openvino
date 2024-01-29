@@ -7,18 +7,15 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/atan.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector atan(const Node& node) {
-    return {std::make_shared<default_opset::Atan>(node.get_ng_inputs().at(0))};
+inline ov::OutputVector atan(const Node& node) {
+    return {std::make_shared<ov::op::v0::Atan>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1
 

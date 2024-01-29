@@ -13,17 +13,17 @@
 #include <type_traits>  // std::enable_if
 #include <vector>
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace common {
-const ngraph::element::Type& get_ngraph_element_type(std::int64_t onnx_type);
+const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
 
 /// \brief      Return a monotonic sequence.
 ///
@@ -60,9 +60,9 @@ std::vector<T> get_monotonic_range(T end_value, T start_value = T{0}, T step = T
 /// \param[in]  step         The step value for the sequence.
 ///
 /// \return     The node which represents monotonic sequence.
-std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<ngraph::Node>& value,
-                                                                  int64_t start_value = 0,
-                                                                  int64_t step = 1);
+std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
+                                                              int64_t start_value = 0,
+                                                              int64_t step = 1);
 
 /// \brief Creates a shifted square identity matrix.
 /// \note Shifting in the context of this operator means that
@@ -75,9 +75,9 @@ std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<n
 ///
 /// \return A Constant node representing shifted identity matrix.
 template <typename T = double>
-std::shared_ptr<default_opset::Constant> shifted_square_identity(const Shape output_shape,
-                                                                 const element::Type& output_type,
-                                                                 const std::int64_t shift) {
+std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const Shape output_shape,
+                                                              const ov::element::Type& output_type,
+                                                              const std::int64_t shift) {
     std::vector<T> identity_matrix(shape_size(output_shape), T{0});
     std::int64_t rows = output_shape[0];
     std::int64_t cols = output_shape[1];
@@ -91,7 +91,7 @@ std::shared_ptr<default_opset::Constant> shifted_square_identity(const Shape out
         identity_matrix.at(diagonal_element_idx) = T{1};
     }
 
-    return std::make_shared<default_opset::Constant>(output_type, output_shape, identity_matrix);
+    return std::make_shared<ov::op::v0::Constant>(output_type, output_shape, identity_matrix);
 }
 
 /// \brief Creates a square identity matrix.
@@ -100,7 +100,7 @@ std::shared_ptr<default_opset::Constant> shifted_square_identity(const Shape out
 ///
 /// \return A Constant node representing identity matrix with shape (n, n).
 template <typename T = double>
-std::shared_ptr<default_opset::Constant> square_identity(const size_t n, const element::Type& type) {
+std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const ov::element::Type& type) {
     return shifted_square_identity(Shape{n, n}, type, 0);
 }
 
@@ -111,8 +111,8 @@ std::shared_ptr<default_opset::Constant> square_identity(const size_t n, const e
 /// \param[in] input An input node to be validated
 /// \param[in] allowed_types An optional set of allowed element types for this input
 void validate_scalar_input(const char* input_name,
-                           const std::shared_ptr<ngraph::Node> input,
-                           const std::set<element::Type> allowed_types = {});
+                           const std::shared_ptr<ov::Node> input,
+                           const std::set<ov::element::Type> allowed_types = {});
 
 /// \brief Temporary replacement for C++14 std::make_unique.
 /// \note details: https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique
@@ -130,17 +130,17 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 ///
 /// \param node ONNX node
 ///
-/// \return     OutputVector with binary op
+/// \return     ov::OutputVector with binary op
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
-OutputVector handle_opset6_binary_op(const Node& node);
+ov::OutputVector handle_opset6_binary_op(const Node& node);
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
 ///         encountered in the original model.
 /// \return A scalar constant containing a single value of zero
 ///         marked as "failsafe" in the runtime info object
-std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::element::Type& dtype);
+std::shared_ptr<ov::op::v0::Constant> make_failsafe_constant(const ov::element::Type& dtype);
 
 /// \brief Checks the node's runtime info object and returns true if this node represents
 ///        a dummy failsafe node created instead of an incorrect node found in the original model
@@ -149,10 +149,10 @@ bool is_failsafe_node(const std::shared_ptr<ov::Node>& node);
 /// \brief Marks an output of a node as "optimized out" meaning that during the import of an ONNX operation
 ///        no OV nodes have been created and the ONNX operator returns its inputs as its outputs.
 ///        This information is later used to add extra names to the tensors associated with such outputs.
-void mark_as_optimized_out(Output<ov::Node>& node_output);
+void mark_as_optimized_out(ov::Output<ov::Node>& node_output);
 
 /// \brief Checks if a given output was marked as optimized out byt the function above.
-bool is_optimized_out(const Output<ov::Node>& node_output);
+bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 
 /// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
 std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);

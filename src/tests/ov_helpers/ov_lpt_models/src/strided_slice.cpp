@@ -8,19 +8,18 @@
 #include "openvino/opsets/opset1.hpp"
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/strided_slice.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
     const std::vector<int64_t>& strides,
@@ -58,7 +57,7 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
 std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
+    const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const std::vector<int64_t>& begin,
     const std::vector<int64_t>& end,
     const std::vector<int64_t>& strides,
@@ -104,9 +103,9 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getReference(
     const std::vector<int64_t>& newAxisMask,
     const std::vector<int64_t>& shrinkAxisMask,
     const std::vector<int64_t>& elipsisMask,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("input");
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -137,4 +136,4 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

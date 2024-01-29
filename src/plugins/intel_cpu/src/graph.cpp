@@ -260,8 +260,6 @@ void Graph::InitNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
     for (auto &node : graphNodes) {
         node->init();
-        if (node->getConstantType() == Node::ConstantType::Unknown)
-            node->updateConstantType();
     }
 }
 
@@ -1301,54 +1299,42 @@ void Graph::Infer(SyncInferRequest* request) {
     if (infer_count != -1) infer_count++;
 }
 
-void Graph::VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes) {
-    if (node->temporary) {
-        return;
-    }
-
-    if (node->permanent) {
-        return;
-    }
-
-    node->temporary = true;
-
-    for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-        VisitNode(node->getChildEdgeAt(i)->getChild(), sortedNodes);
-    }
-
-    node->permanent = true;
-    node->temporary = false;
-
-    sortedNodes.insert(sortedNodes.begin(), node);
-}
-
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    std::vector<NodePtr> unsorted;
-    std::vector<NodePtr> sorted;
+    auto sort = [](const std::vector<NodePtr>& nodes) {
+        std::unordered_set<NodePtr> visited;
+        visited.reserve(nodes.size());
+        std::vector<NodePtr> sorted;
+        sorted.reserve(nodes.size());
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        NodePtr node = graphNodes[i];
+        std::function<void(const NodePtr)> visit;
+        visit = [&visited, &sorted, &visit](const NodePtr node) {
+            const bool inserted = visited.insert(node).second;
+            if (!inserted)
+                return; // already visited
 
-        node->permanent = false;
-        node->temporary = false;
+            for (size_t i = 0; i < node->getChildEdges().size(); i++) {
+                visit(node->getChildEdgeAt(i)->getChild());
+            }
 
-        unsorted.push_back(node);
-    }
+            sorted.push_back(node);
+        };
 
-    while (!unsorted.empty()) {
-        NodePtr node = unsorted.at(0);
-        unsorted.erase(unsorted.begin());
+        for (const auto& node : nodes) {
+            visit(node);
+        }
 
-        VisitNode(node, sorted);
-    }
+        return sorted;
+    };
 
-    for (size_t i = 0; i < sorted.size(); i++)
-        sorted[i]->execIndex = static_cast<int>(i);
-
-    graphNodes.erase(graphNodes.begin(), graphNodes.end());
-    graphNodes.assign(sorted.begin(), sorted.end());
+    // as a first step sort in reversed topological order to avoid an insertion into the front of the vector
+    graphNodes = sort(graphNodes);
+    // reverse to the actual topological order
+    std::reverse(graphNodes.begin(), graphNodes.end());
+    // number the nodes based on topological order
+    for (size_t i = 0; i < graphNodes.size(); i++)
+        graphNodes[i]->execIndex = static_cast<int>(i);
 
     // TODO: Sort in/out edges by port index because of backward compatibility
     //       A lot of plugin logic are build on top of assumption that index in
@@ -1435,7 +1421,9 @@ void Graph::CreateEdge(const NodePtr& parent,
 }
 
 void Graph::RemoveEdge(const EdgePtr& edge) {
-    edge->drop();
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
+
     graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
 }
 
@@ -1468,9 +1456,6 @@ void Graph::DropNode(const NodePtr &node) {
             const int outNum = c_edge->getOutputNum();
             RemoveEdge(c_edge);
             CreateEdge(parent, child, inNum, outNum);
-            if (child->getConstantType() != Node::ConstantType::Unknown) {
-                child->updateConstantType();
-            }
         }
     }
 }
@@ -1574,7 +1559,8 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
                        " and ",
                        edge->getChild()->getName(),
                        ".");
-    edge->drop();
+    edge->getParent()->removeChildEdge(edge);
+    edge->getChild()->removeParentEdge(edge);
 
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
@@ -1582,7 +1568,6 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
     CreateEdge(parent, node, parentPort, 0);
     CreateEdge(node, child, 0, childPort);
-    node->updateConstantType();
     AddNode(node);
 
     if (initNode) {

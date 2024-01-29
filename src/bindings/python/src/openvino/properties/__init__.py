@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Enums
 from openvino._pyopenvino.properties import Affinity
+from openvino._pyopenvino.properties import CacheMode
 
 # Properties
 import openvino._pyopenvino.properties as __properties

@@ -161,6 +161,7 @@ public:
 #define CASE_FC_U8S8_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_4 { 1, 3 }, { 1, 3 }, { 3, 3 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3D_3 { 2, 3, 1 }, { 2, 3, 15 }, { 15, 1, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
@@ -315,6 +316,33 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_1, 2, 3 },
 }));
+
+class fc_int8_eltwise_dynamic_residual : public FullyConnectedFusingTest {};
+TEST_P(fc_int8_eltwise_dynamic_residual, basic) {
+    // The basic purpose of this test is to check crash in fake aligned shape check
+    if (engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weight", get_mem(get_weights_layout(p))),
+        reorder("reorder", input_info("input"), p.default_format, data_types::i8),
+        eltwise("mul", { input_info("reorder"), input_info("input") }, eltwise_mode::div),
+        fully_connected("fc", input_info("mul"), "weight", "", data_types::i8, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("add", { input_info("fc"), input_info("reorder") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_dynamic_residual, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_U8S8_4, 3, 4 },
+}));
+
 
 class fc_int8_eltwise : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise, basic) {

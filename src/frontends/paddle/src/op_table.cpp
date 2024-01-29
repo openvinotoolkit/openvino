@@ -81,6 +81,8 @@ OP_CONVERTER(partial_concat);
 OP_CONVERTER(partial_sum);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
+OP_CONVERTER(pool3d);
+OP_CONVERTER(pool3d_with_index);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
@@ -201,6 +203,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"matmul", op::matmul},
             {"matmul_v2", op::matmul_v2},
             {"max_pool2d_with_index", op::pool2d},
+            {"max_pool3d_with_index", op::pool3d_with_index},
             {"matrix_nms", op::matrix_nms},
             {"meshgrid", op::meshgrid},
             {"multiclass_nms3", op::multiclass_nms},
@@ -214,6 +217,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"partial_sum", op::partial_sum},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
+            {"pool3d", op::pool3d},
             {"prior_box", op::prior_box},
             {"quantize_linear", op::quantize_linear},
             {"range", op::range},

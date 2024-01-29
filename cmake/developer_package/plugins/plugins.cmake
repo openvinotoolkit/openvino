@@ -80,7 +80,7 @@ function(ov_add_plugin)
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                    IE_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
+                    OV_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
             endif()
         endif()
 
@@ -323,8 +323,8 @@ function(ov_generate_plugins_hpp)
 
     # add plugins to libraries including ov_plugins.hpp
     ov_target_link_plugins(openvino)
-    if(TARGET inference_engine_s)
-        ov_target_link_plugins(inference_engine_s)
+    if(TARGET openvino_runtime_s)
+        ov_target_link_plugins(openvino_runtime_s)
     endif()
 
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
@@ -352,7 +352,7 @@ function(ov_generate_plugins_hpp)
                        VERBATIM)
 
     # for some reason dependency on source files does not work
-    # so, we have to use explicit target and make it dependency for inference_engine_obj
+    # so, we have to use explicit target and make it dependency for openvino_runtime_obj
     add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
-    add_dependencies(inference_engine_obj _ov_plugins_hpp)
+    add_dependencies(openvino_runtime_obj _ov_plugins_hpp)
 endfunction()

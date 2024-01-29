@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/core.hpp>
 #include <openvino/core/node.hpp>
 

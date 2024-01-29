@@ -3,7 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
@@ -46,9 +45,6 @@ OutputVector translate_variable_op(const NodeContext& node) {
     if (variable_data.is<ov::Tensor>()) {
         auto ov_tensor = variable_data.as<ov::Tensor>();
         const_node = make_shared<Constant>(ov_tensor);
-    } else if (variable_data.is<std::vector<std::string>>()) {
-        // a case of string tensor that should be assigned to the variable
-        const_node = make_shared<StringConstant>(variable_data, node.get_decoder());
     } else {
         // data of unknown type
         auto const_node = make_shared<UnsupportedConstant>("Variable of unsupported type", node.get_decoder());

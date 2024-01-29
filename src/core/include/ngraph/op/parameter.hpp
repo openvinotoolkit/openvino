@@ -14,7 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ngraph {

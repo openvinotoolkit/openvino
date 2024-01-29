@@ -109,6 +109,8 @@ public:
 
     // Return outer Loop IDs
     static std::vector<size_t> get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id);
+    static std::vector<size_t> get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs);
+    static std::vector<size_t> get_common_outer_loops(const std::vector<ExpressionPtr>& exprs);
 
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
@@ -172,6 +174,17 @@ public:
             update_loop_port(loop_id, actual_port, target_ports, is_entry);
         }
     }
+    // The method checks the loops (LoopInfo) that the target expression is marked with and update the corresponding loop ports if needed:
+    //   - If parent of the target expression and this expression are marked by one Loop and the parent is an exit port of this Loop,
+    //     the method replace parent output port with the target expression output ports as new exit LoopPorts.
+    //     If there are other consumers of parent output port that are not by the same Loop (like in the example below),
+    //     the method just adds inserted expression output ports to existing parent output port as new exit LoopPorts.
+    //             Parent [1, 0]
+    //            /              \                                <- Adds the target expression outputs to the existing LoopPort (parent output) of Loop[1]
+    //       Another expr [2]   Target expression [1, 3]             (If Another expr is marked by Loop [1] too, the method will replace loop ports (not add))
+    //   - If the target expression and its consumers have the same outer loop ids and some of consumers are entry ports of these Loops,
+    //     the method just replace the existing entry loop ports (that contains consumer input ports) with the target expression input ports.
+    void update_loop_ports(const ExpressionPtr& expr);
     // Sort Loop Ports by expression locations in Linear IR
     void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
 

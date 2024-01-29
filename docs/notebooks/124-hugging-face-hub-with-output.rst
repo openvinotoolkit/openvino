@@ -163,7 +163,7 @@ Converting the Model to OpenVINO IR format
 
 We use the OpenVINO `Model
 conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
 Intermediate Representation (IR).
 

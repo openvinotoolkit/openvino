@@ -4,9 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/test_common.hpp>
-
-// #include "ie_system_conf.h"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "os/cpu_map_info.hpp"
 

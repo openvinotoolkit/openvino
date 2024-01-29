@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/bitwise_and.hpp"
+#include "op/bitwise_not.hpp"
 #include "op/bitwise_or.hpp"
 #include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
@@ -72,6 +73,7 @@
 #include "op/gather.hpp"
 #include "op/gather_elements.hpp"
 #include "op/gather_nd.hpp"
+#include "op/gelu.hpp"
 #include "op/gemm.hpp"
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
@@ -275,7 +277,7 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by OpenVINO";
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
@@ -285,7 +287,8 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
-            throw error::UnsupportedVersion{op.first, version, domain};
+            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
+                           std::to_string(version));
         }
         result.emplace(op.first, it->second);
     }
@@ -355,6 +358,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
     REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
     REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
@@ -397,6 +401,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Gather", 1, gather);
     REGISTER_OPERATOR("GatherElements", 1, gather_elements);
     REGISTER_OPERATOR("GatherND", 1, gather_nd);
+    REGISTER_OPERATOR("Gelu", 1, gelu);
     REGISTER_OPERATOR("Gemm", 1, gemm);
     REGISTER_OPERATOR("Gemm", 6, gemm);
     REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
@@ -591,6 +596,7 @@ OperatorsBridge::OperatorsBridge() {
                                        VersionRange::since(1),
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
+    register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,

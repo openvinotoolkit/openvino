@@ -121,7 +121,6 @@ class TestMultinomial(CommonTFLayerTest):
         ir_version,
         temp_dir,
         use_new_frontend,
-        use_old_api,
     ):
         if ie_device == "GPU":
             pytest.skip("Multinomial is not supported on GPU")
@@ -139,6 +138,5 @@ class TestMultinomial(CommonTFLayerTest):
             temp_dir=temp_dir,
             ir_version=ir_version,
             use_new_frontend=use_new_frontend,
-            use_old_api=use_old_api,
             kwargs_to_prepare_input={"input": input, "num_samples": num_samples},
         )

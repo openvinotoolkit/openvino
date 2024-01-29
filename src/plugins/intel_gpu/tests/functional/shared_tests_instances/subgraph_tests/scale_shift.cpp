@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "subgraph_tests/scaleshift.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace SubgraphTestsDefinitions;
-
 namespace {
+using ov::test::ScaleShiftLayerTest;
 
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
+std::vector<std::vector<ov::Shape>> inShapes = {
         {{100}},
         {{100}, {100}},
         {{1, 8}},
@@ -41,17 +39,17 @@ std::vector<std::vector<float>> Shifts = {
         {-3.0f}
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                         InferenceEngine::Precision::FP16,
+std::vector<ov::element::Type> types = {ov::element::f32,
+                                        ov::element::f16,
 };
 
-}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScaleShift, ScaleShiftLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(types),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(Scales),
                                 ::testing::ValuesIn(Shifts)),
                         ScaleShiftLayerTest::getTestCaseName);
+}  // namespace

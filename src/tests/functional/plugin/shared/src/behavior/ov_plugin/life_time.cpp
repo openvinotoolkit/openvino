@@ -4,7 +4,6 @@
 
 #include <fstream>
 
-#include <ov_models/subgraph_builders.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 

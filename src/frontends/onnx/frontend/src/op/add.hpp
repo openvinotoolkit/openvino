@@ -7,26 +7,23 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const Node& node);
 
 }  // namespace set_1
 
 namespace set_6 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const Node& node);
 
 }  // namespace set_6
 
 namespace set_7 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const Node& node);
 
 }  // namespace set_7
 

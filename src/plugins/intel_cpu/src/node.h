@@ -12,8 +12,6 @@
 #include "dnnl_postops_composer.h"
 #include "dnnl_scratch_pad.h"
 #include "edge.h"
-#include "extension_mngr.h"
-#include "graph_context.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/mvn_list.hpp"
@@ -168,17 +166,27 @@ public:
 
     // @todo the method is used when graph is "preconstructed" before creation of the actual graph object
     // remove, as soon edges are added via Graph interface exclusively
-    static void addEdge(const EdgeWeakPtr& edge);
+    static void addEdge(const EdgePtr& edge);
 
     virtual void cleanup();
     void remove();
 
-    void addParentEdge(const EdgeWeakPtr& edge) {
+    void addParentEdge(const EdgePtr& edge) {
         parentEdges.push_back(edge);
+        updateConstantType();
     }
 
-    void addChildEdge(const EdgeWeakPtr& edge) {
+    void addChildEdge(const EdgePtr& edge) {
         childEdges.push_back(edge);
+    }
+
+    void removeParentEdge(const EdgePtr edge) {
+        removeEdge(edge, parentEdges);
+        updateConstantType();
+    }
+
+    void removeChildEdge(const EdgePtr edge) {
+        removeEdge(edge, childEdges);
     }
 
     const std::vector<EdgeWeakPtr> &getParentEdges() const noexcept {
@@ -214,7 +222,6 @@ public:
     }
 
     enum class ConstantType {
-        Unknown,        // Unknown ConstantType is used before the constancy determination procedure run
         Const,          // Node is placed in a constant subgraph
         NoConst,        // Node is placed in a non-constant subgraph
         StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the parent nodes' ConstantType.
@@ -401,9 +408,6 @@ public:
                                   const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
-    virtual bool created(const ExtensionManager::Ptr& extMgr) {
-        return created();
-    }
 
     /**
      * @brief Performs Node initialization based on graph context.
@@ -605,8 +609,6 @@ protected:
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
-    bool permanent = false;
-    bool temporary = false;
 
     enum class InPlaceType {
         Unknown,
@@ -614,7 +616,7 @@ protected:
         NoInPlace
     };
     mutable InPlaceType inplace = InPlaceType::Unknown;
-    ConstantType constant = ConstantType::Unknown;
+    ConstantType constant = ConstantType::NoConst;
     std::vector<MemoryPtr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
@@ -708,6 +710,16 @@ protected:
     std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
+    static void removeEdge(const EdgePtr edge, std::vector<EdgeWeakPtr> &edges) {
+        edges.erase(std::remove_if(edges.begin(), edges.end(),
+                                   [&edge] (EdgeWeakPtr _edge) {
+                                       return _edge.lock() == edge;
+                                   }),
+                    edges.end());
+    }
+
+    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
 
@@ -729,8 +741,6 @@ private:
     PerfCounters profiling;
 
     MemoryPtr scratchpadMem;
-
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
     // Hold output scales
     std::vector<float> DQScales;

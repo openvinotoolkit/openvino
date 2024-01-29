@@ -535,7 +535,7 @@ const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shar
     return node;
 }
 
-const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
+const ov::NodeVector& ngraph::check_single_output_args(const ov::NodeVector& args) {
     for (size_t i = 0; i < args.size(); ++i) {
         ngraph::check_single_output_arg(args.at(i), i);
     }
@@ -677,117 +677,16 @@ bool ov::Node::has_evaluate() const {
     return false;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool ov::Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    return false;
-}
-
-bool ov::Node::evaluate(const HostTensorVector& output_values,
-                        const HostTensorVector& input_values,
-                        const EvaluationContext& evaluationContext) const {
-    return evaluate(output_values, input_values);
-}
-
-namespace {
-
-class DynamicTensor : public ngraph::runtime::HostTensor {
-private:
-    ov::Tensor tensor;
-
-public:
-    DynamicTensor(const ov::element::Type& type) : ngraph::runtime::HostTensor(type, ov::PartialShape::dynamic()) {}
-
-    ov::Tensor get_tensor() {
-        return tensor;
-    }
-
-protected:
-    void allocate_buffer() override {
-        OPENVINO_ASSERT(get_partial_shape().is_static(),
-                        "Attempt to allocate buffer for tensor with partial shape: ",
-                        get_partial_shape());
-        OPENVINO_ASSERT(get_element_type().is_static(),
-                        "Attempt to allocate buffer for tensor with dynamic type: ",
-                        get_element_type());
-        m_buffer_size = m_descriptor->size();
-        tensor = ov::Tensor(get_element_type(), get_partial_shape().get_shape());
-        m_memory_pointer = tensor.data();
-        m_aligned_buffer_pool = m_memory_pointer;
-    }
-};
-
-inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    if (!t) {
-        return std::make_shared<DynamicTensor>(ov::element::dynamic);
-    } else {
-        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
-    }
-}
-
-inline ngraph::HostTensorPtr make_tmp_out_host_tensor(const ov::Tensor& t) {
-    if (!t) {
-        return std::make_shared<DynamicTensor>(ov::element::dynamic);
-    } else if (t.get_shape() == ov::Shape{0}) {
-        return std::make_shared<DynamicTensor>(t.get_element_type());
-    } else {
-        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
-    }
-}
-
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors, const bool is_output) {
-    const auto make_tmp_ht = is_output ? make_tmp_out_host_tensor : make_tmp_host_tensor;
-    ngraph::HostTensorVector result;
-    result.reserve(tensors.size());
-    for (const auto& tensor : tensors) {
-        result.push_back(make_tmp_ht(tensor));
-    }
-    return result;
-}
-
-inline void update_output_tensors(ov::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size() == outputs.size());
-    for (size_t i = 0; i < outputs.size(); i++) {
-        if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
-            auto tensor = dyn_output->get_tensor();
-            // In some cases (e.g. output with zero dims) we get empty tensor after casting to DynamicTensor.
-            // However we still can try to extract precision and shape from the corresponding HostTensor
-            if (!tensor && outputs[i]->get_partial_shape().is_static()) {
-                tensor = ov::Tensor(outputs[i]->get_element_type(), outputs[i]->get_shape());
-            }
-            if (output_values[i]) {
-                // Copy value to the original tensor
-                tensor.copy_to(output_values[i]);
-            } else {
-                // Tensor is not initialized, so create the new tensor
-                output_values[i] = tensor;
-            }
-        }
-    }
-}
-}  // namespace
-
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values, true);
-    HostTensorVector input = create_tmp_tensors(input_values, false);
-    bool sts = evaluate(output, input);
-    if (sts)
-        update_output_tensors(output_values, output);
-    return sts;
+    return false;
 }
 
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
-    // Call evaluate for old implementation with EvaluationContext
-    HostTensorVector output = create_tmp_tensors(output_values, true);
-    HostTensorVector input = create_tmp_tensors(input_values, false);
-    bool sts = evaluate(output, input, evaluationContext);
-    if (sts)
-        update_output_tensors(output_values, output);
-    // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
-    return sts ? sts : evaluate(output_values, input_values);
+    // As nodes in most cases implements evaluate without context try call it unless override by child class
+    return evaluate(output_values, input_values);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
     const auto& inputs = input_values();

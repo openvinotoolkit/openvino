@@ -26,7 +26,6 @@
 
 #include "ie_blob.h"
 #include "ie_common.h"
-#include "ie_preprocess.hpp"
 
 namespace InferenceEngine {
 
@@ -85,15 +84,6 @@ public:
      */
     virtual StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept = 0;
 
-    /**
-     * @brief Gets pre-process for input data
-     * @param name Name of input blob.
-     * @param info pointer to a pointer to PreProcessInfo structure
-     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-     * @return Status code of the operation: OK (0) for success
-     */
-    virtual StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc* resp) const
-        noexcept = 0;
     /**
      * @brief Infers specified input(s) in synchronous mode
      *
