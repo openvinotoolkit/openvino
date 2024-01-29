@@ -14,6 +14,7 @@
 
 #include "compiled_model.hpp"
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -96,6 +97,15 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     ov::SupportedOpsMap supported_ops_final;
     std::map<std::string, ov::SupportedOpsMap> query_results;
     ov::hetero::SubgraphsMappingInfo mapping_info;
+    ResultVector new_outputs;
+    for (auto& param : model->get_parameters()) {
+        if (param->get_users().size() == 0) {
+            auto result = std::make_shared<ov::op::v0::Result>(param);
+            ov::copy_runtime_info(param->shared_from_this(), result);
+            new_outputs.push_back(result);
+        }
+    }
+    model->add_results(new_outputs);
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed

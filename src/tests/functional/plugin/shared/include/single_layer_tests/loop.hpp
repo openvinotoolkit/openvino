@@ -48,12 +48,12 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     const auto scalarShape = ov::Shape{};
 
     auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
 
     // Loop body
     auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ngraph::element::boolean, scalarShape);
+    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, scalarShape);
 
     auto body = std::make_shared<ov::Model>(
             ov::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
@@ -92,13 +92,13 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     const auto scalarShape = ov::Shape{};
 
     auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
 
     // Loop body
     auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
-    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, scalarShape);
+    auto b_cond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
+    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, scalarShape);
 
     auto body = std::make_shared<ov::Model>(
             ov::OutputVector    {b_cond, b_data},

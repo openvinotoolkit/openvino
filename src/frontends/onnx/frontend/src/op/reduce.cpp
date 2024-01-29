@@ -33,12 +33,12 @@ namespace {
 std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto shape_of_input = std::make_shared<v3::ShapeOf>(input);
-    const auto scalar = v0::Constant::create(element::i32, Shape{1}, {0});
+    const auto scalar = v0::Constant::create(ov::element::i32, Shape{1}, {0});
     const auto rank_of_input = std::make_shared<v3::ShapeOf>(shape_of_input);
     const auto rank_of_input_scalar = std::make_shared<v0::Squeeze>(rank_of_input, scalar);
-    const auto start = v0::Constant::create(element::i32, Shape{}, {0});
-    const auto step = v0::Constant::create(element::i32, Shape{}, {1});
-    return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, element::i64);
+    const auto start = v0::Constant::create(ov::element::i32, Shape{}, {0});
+    const auto step = v0::Constant::create(ov::element::i32, Shape{}, {1});
+    return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
 std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
@@ -86,12 +86,12 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
                          ")");
     }
 
-    return v0::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes);
+    return v0::Constant::create(ov::element::i64, Shape{reduction_axes.size()}, reduction_axes);
 }
 
 template <typename OpType>
 std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
-                                               const Output<ov::Node>& ng_input,
+                                               const ov::Output<ov::Node>& ng_input,
                                                bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
@@ -105,53 +105,53 @@ std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
 }  // namespace
 
 namespace set_13 {
-OutputVector reduce_sum(const Node& node) {
+ov::OutputVector reduce_sum(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0), false)};
 }
 }  // namespace set_13
 
 namespace set_1 {
-OutputVector reduce_log_sum(const Node& node) {
-    const Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0));
+ov::OutputVector reduce_log_sum(const Node& node) {
+    const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0));
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
-OutputVector reduce_log_sum_exp(const Node& node) {
+ov::OutputVector reduce_log_sum_exp(const Node& node) {
     const auto exp_node = std::make_shared<v0::Exp>(node.get_ng_inputs().at(0));
-    const Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, exp_node);
+    const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, exp_node);
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
-OutputVector reduce_l1(const Node& node) {
+ov::OutputVector reduce_l1(const Node& node) {
     return {make_ng_reduction_op<v4::ReduceL1>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_l2(const Node& node) {
+ov::OutputVector reduce_l2(const Node& node) {
     return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_max(const Node& node) {
+ov::OutputVector reduce_max(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMax>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_mean(const Node& node) {
+ov::OutputVector reduce_mean(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMean>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_min(const Node& node) {
+ov::OutputVector reduce_min(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMin>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_prod(const Node& node) {
+ov::OutputVector reduce_prod(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceProd>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_sum(const Node& node) {
+ov::OutputVector reduce_sum(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0))};
 }
 
-OutputVector reduce_sum_square(const Node& node) {
-    const auto input = Output<ov::Node>{node.get_ng_inputs().at(0)};
+ov::OutputVector reduce_sum_square(const Node& node) {
+    const auto input = ov::Output<ov::Node>{node.get_ng_inputs().at(0)};
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return {make_ng_reduction_op<v1::ReduceSum>(node, square_node)};
 }
