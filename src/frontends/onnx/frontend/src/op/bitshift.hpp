@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector bitshift(const Node& node);
+ov::OutputVector bitshift(const Node& node);
 
 }  // namespace set_1
 

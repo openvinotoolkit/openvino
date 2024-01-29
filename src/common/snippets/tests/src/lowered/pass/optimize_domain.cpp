@@ -73,12 +73,16 @@ std::vector<OptimizeDomainParams> dopt_params = {
         {256, 4, {{14, 15, 16, 1}, {14, 15, 1, 17}}, {14, 15, 16, 17}, 2},
         {256, 4, {{14, 15, 1, 17}, {14, 15, 16, 17}}, {14, 15, 16, 17}, 2},
 
+        // Broadcasting breaks dimension collapsing after first collapsion => loop depth incremented
+        {256, 4, {{14, 15, 16, 16}, {16, 16}}, {1, 14, 15, 256}, 2},
+
         // Collapse even if not enough work to cover min_jit_work_amount
         {256, 18, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {1, 4, 5, 42}, 1},
         // Same dims, but higher parallel work amount => do not collapse to load all the threads
         {256, 32, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {4, 5, 6, 7}, 1},
 
         // 2D and 1D shapes are too small, so no collapsing should be done in such cases
+        {256, 2, {{256, 256, 3}, {3}}, {256, 256, 3}, 2},
         {256, 32, {{4, 5}, {4, 5}}, {4, 5}, 1},
         {256, 32, {{5}, {5}}, {5}, 1},
 

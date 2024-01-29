@@ -2,6 +2,7 @@ name: Fedora (RHEL), Python 3.9
 on:
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -56,6 +57,8 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -163,8 +166,15 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel --target package --verbose
 
       #
-      # Upload build artifacts
+      # Upload build artifacts and logs
       #
+      - name: Upload build logs
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: Upload openvino package
         if: ${{ always() }}
