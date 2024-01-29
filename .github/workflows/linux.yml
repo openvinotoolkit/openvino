@@ -662,10 +662,9 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: /__w/openvino/openvino/openvino/.github/actions/setup_python
+        uses: .github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
