@@ -530,6 +530,53 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
     auto output_transpose_const_label = pattern::wrap_type<op::v0::Constant>();
     auto output_transpose_label = pattern::wrap_type<op::v1::Transpose>({loop_label, output_transpose_const_label});
 
+    // Loop body pattern:
+    auto sequence_index_label = pattern::any_input(pattern::rank_equals(0));
+    auto iteration_counter_label = pattern::any_input();
+    auto iteration_counter_step_label = pattern::wrap_type<op::v0::Constant>();
+    auto iteration_counter_incremented_label =
+        pattern::wrap_type<op::v1::Add>({iteration_counter_label, iteration_counter_step_label});
+    auto iteration_counter_limit_label = pattern::wrap_type<op::v0::Constant>();
+    auto iteration_counter_less_than_limit_label =
+        pattern::wrap_type<op::v1::Less>({iteration_counter_incremented_label, iteration_counter_limit_label});
+    auto sequence_index_step_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_index_incremented_label =
+        pattern::wrap_type<op::v1::Add>({sequence_index_label, sequence_index_step_label});
+    auto sequence_index_limit_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_index_less_than_limit_label =
+        pattern::wrap_type<op::v1::Less>({sequence_index_incremented_label, sequence_index_limit_label});
+    auto and_label = pattern::wrap_type<op::v1::LogicalAnd>(
+        {iteration_counter_less_than_limit_label, sequence_index_less_than_limit_label});
+    auto loop_condition_label = pattern::wrap_type<op::v0::Result>({and_label});
+
+    auto X_body_label = pattern::any_input(pattern::rank_equals(3));
+    auto C_body_label = pattern::any_input(pattern::rank_equals(2));
+    auto H_body_label = pattern::any_input(pattern::rank_equals(2));
+    auto gather_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_index_new_shape_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_index_reshaped_label =
+        pattern::wrap_type<op::v1::Reshape>({sequence_index_label, sequence_index_new_shape_label});
+    auto sequence_index_or_label =
+        std::make_shared<pattern::op::Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
+    auto gather_body_label =
+        pattern::wrap_type<opset8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
+                                           pattern::rank_equals(2));
+    auto W_label = pattern::any_input();
+    auto R_label = pattern::any_input();
+    auto B_label = pattern::wrap_type<op::v0::Constant>();
+    auto lstm_cell_label = pattern::wrap_type<opset4::LSTMCell>(
+        {gather_body_label, H_body_label, C_body_label, W_label, R_label, B_label});
+    auto scatter_index_new_shape_label = pattern::wrap_type<op::v0::Constant>();
+    auto scatter_index_body_label =
+        pattern::wrap_type<op::v1::Reshape>({sequence_index_label, scatter_index_new_shape_label});
+    auto updates_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>(
+        {lstm_cell_label, pattern::wrap_type<op::v0::Constant>()});
+    auto scatter_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto scatter_body_label = pattern::wrap_type<op::v3::ScatterUpdate>(
+        {pattern::any_input(), scatter_index_body_label, updates_label, scatter_axis_label},
+        pattern::rank_equals(3));
+    auto loop_output_label = pattern::wrap_type<op::v0::Result>({scatter_body_label});
+
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto match_root = m.get_match_root();
@@ -543,53 +590,8 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         if (!body_output_desc || body_output_desc->m_iteration != -1)
             return false;
 
-        auto X_body_label = pattern::any_input(pattern::rank_equals(3));
-        auto C_body_label = pattern::any_input(pattern::rank_equals(2));
-        auto sequence_index_label = pattern::any_input(pattern::rank_equals(0));
-        auto H_body_label = pattern::any_input(pattern::rank_equals(2));
-        auto iteration_counter_label = pattern::any_input();
-        auto iteration_counter_step_label = pattern::wrap_type<op::v0::Constant>();
-        auto iteration_counter_incremented_label =
-            pattern::wrap_type<op::v1::Add>({iteration_counter_label, iteration_counter_step_label});
-        auto iteration_counter_limit_label = pattern::wrap_type<op::v0::Constant>();
-        auto iteration_counter_less_than_limit_label =
-            pattern::wrap_type<op::v1::Less>({iteration_counter_incremented_label, iteration_counter_limit_label});
-        auto sequence_index_step_label = pattern::wrap_type<op::v0::Constant>();
-        auto sequence_index_incremented_label =
-            pattern::wrap_type<op::v1::Add>({sequence_index_label, sequence_index_step_label});
-        auto sequence_index_limit_label = pattern::wrap_type<op::v0::Constant>();
-        auto sequence_index_less_than_limit_label =
-            pattern::wrap_type<op::v1::Less>({sequence_index_incremented_label, sequence_index_limit_label});
-        auto and_label = pattern::wrap_type<op::v1::LogicalAnd>(
-            {iteration_counter_less_than_limit_label, sequence_index_less_than_limit_label});
-        auto loop_condition_label = pattern::wrap_type<op::v0::Result>({and_label});
-        auto gather_axis_label = pattern::wrap_type<op::v0::Constant>();
-        auto sequence_index_new_shape_label = pattern::wrap_type<op::v0::Constant>();
-        auto sequence_index_reshaped_label =
-            pattern::wrap_type<op::v1::Reshape>({sequence_index_label, sequence_index_new_shape_label});
-        auto sequence_index_or_label =
-            std::make_shared<pattern::op::Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
-        auto gather_body_label =
-            pattern::wrap_type<opset8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
-                                               pattern::rank_equals(2));
-        auto W_label = pattern::any_input();
-        auto R_label = pattern::any_input();
-        auto B_label = pattern::wrap_type<op::v0::Constant>();
-        auto lstm_cell_label = pattern::wrap_type<opset4::LSTMCell>(
-            {gather_body_label, H_body_label, C_body_label, W_label, R_label, B_label});
-        auto scatter_index_new_shape_label = pattern::wrap_type<op::v0::Constant>();
-        auto scatter_index_body_label =
-            pattern::wrap_type<op::v1::Reshape>({sequence_index_label, scatter_index_new_shape_label});
-        auto updates_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>(
-            {lstm_cell_label, pattern::wrap_type<op::v0::Constant>()});
-        auto scatter_axis_label = pattern::wrap_type<op::v0::Constant>();
-        auto scatter_body_label = pattern::wrap_type<op::v3::ScatterUpdate>(
-            {pattern::any_input(), scatter_index_body_label, updates_label, scatter_axis_label},
-            pattern::rank_equals(3));
-        auto loop_output_label = pattern::wrap_type<op::v0::Result>({scatter_body_label});
-
-        ov::pass::pattern::Matcher loop_output_matcher(loop_output_label);
         ov::pass::pattern::Matcher loop_condition_matcher(loop_condition_label);
+        ov::pass::pattern::Matcher loop_output_matcher(loop_output_label);
 
         auto body = loop->get_function();
         const auto& body_parameters = body->get_parameters();
@@ -598,9 +600,8 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
 
         if (!loop_condition_matcher.match(body_results[special_body_ports.body_condition_output_idx]->output(0)))
             return false;
-        if (!loop_output_matcher.match(body_results[body_output_desc->m_body_value_index]->output(0))) {
+        if (!loop_output_matcher.match(body_results[body_output_desc->m_body_value_index]->output(0)))
             return false;
-        }
 
         const auto& loop_condition_map = loop_condition_matcher.get_pattern_value_map();
         const auto& loop_output_map = loop_output_matcher.get_pattern_value_map();
@@ -759,6 +760,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
             return false;
         }
 
+        // Finally create LSTMSequence
         auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
         auto max_sequence_length = op::v0::Constant::create(element::i32, Shape{1}, {sequence_index_limit});
         auto shapeof_X = std::make_shared<op::v3::ShapeOf>(X);
@@ -905,127 +907,146 @@ public:
     }
 };
 
-class FuseReverseLSTMSequence : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("FuseReverseLSTMSequence", "0");
-    FuseReverseLSTMSequence() {
-        using namespace ov;
-        using namespace ov::pass;
-        MATCHER_SCOPE(FuseReverseLSTMSequence);
-        auto data_label = pattern::any_input(pattern::rank_equals(3));
-        auto first_transpose_label =
-            pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, pattern::wrap_type<op::v0::Constant>()},
-                                                                   pattern::rank_equals(3));
-        auto input_to_first_reverse_sequence_label =
-            std::make_shared<pattern::op::Or>(OutputVector{first_transpose_label, data_label});
-        auto first_reverse_sequence_label =
-            pattern::wrap_type<op::v0::ReverseSequence>({input_to_first_reverse_sequence_label, pattern::any_input()});
-        auto second_transpose_label = pattern::wrap_type<op::v1::Transpose>(
-            {first_reverse_sequence_label, pattern::wrap_type<op::v0::Constant>()});
-        auto lstm_label = pattern::wrap_type<op::v5::LSTMSequence>({second_transpose_label,
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input(),
-                                                                    pattern::any_input()},
-                                                                   pattern::consumers_count(1));
-        auto squeeze_label = pattern::wrap_type<op::v0::Squeeze>({lstm_label, pattern::wrap_type<op::v0::Constant>()});
-        auto second_reverse_sequence_label =
-            pattern::wrap_type<op::v0::ReverseSequence>({squeeze_label, pattern::any_input()});
+ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
+    MATCHER_SCOPE(FuseReverseLSTMSequence);
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
-            const auto& pattern_map = m.get_pattern_value_map();
-            const auto& data = pattern_map.at(data_label);
-            const auto second_transpose = pattern_map.at(second_transpose_label).get_node_shared_ptr();
-            auto lstm = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_label).get_node_shared_ptr());
-            if (lstm->get_direction() != op::v5::LSTMSequence::direction::FORWARD)
-                return false;
+    auto data_label = pattern::any_input(pattern::rank_equals(3));
+    auto first_transpose_label =
+        pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, pattern::wrap_type<op::v0::Constant>()},
+                                                               pattern::rank_equals(3));
+    auto input_to_first_reverse_sequence_label =
+        std::make_shared<pattern::op::Or>(OutputVector{first_transpose_label, data_label});
+    auto first_reverse_sequence_label =
+        pattern::wrap_type<op::v0::ReverseSequence>({input_to_first_reverse_sequence_label, pattern::any_input()});
+    auto second_transpose_label =
+        pattern::wrap_type<op::v1::Transpose>({first_reverse_sequence_label, pattern::wrap_type<op::v0::Constant>()});
+    auto lstm_label = pattern::wrap_type<op::v5::LSTMSequence>({second_transpose_label,
+                                                                pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                pattern::any_input()},
+                                                               pattern::consumers_count(1));
+    auto squeeze_label = pattern::wrap_type<op::v0::Squeeze>({lstm_label, pattern::wrap_type<op::v0::Constant>()});
+    auto second_reverse_sequence_label =
+        pattern::wrap_type<op::v0::ReverseSequence>({squeeze_label, pattern::any_input()});
 
-            std::shared_ptr<Node> new_transpose_perm;
-            if (pattern_map.count(first_transpose_label) > 0) {
-                auto first_transpose = pattern_map.at(first_transpose_label).get_node_shared_ptr();
-                if (ov::is_type<op::v1::Reshape>(first_transpose)) {
-                    const auto& reshape_input_shape = first_transpose->get_input_partial_shape(0);
-                    const auto& lstm_input_shape = lstm->get_input_partial_shape(0);
-                    if (reshape_input_shape.size() != lstm_input_shape.size())
-                        return false;
-                    std::vector<int> new_perm_values;
-                    for (size_t i = 0; i < lstm_input_shape.size(); i++) {
-                        const auto& dim = lstm_input_shape[i];
-                        for (size_t j = 0; j < reshape_input_shape.size(); j++) {
-                            if (dim == reshape_input_shape[j]) {
-                                new_perm_values.push_back(j);
-                            }
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& data = pattern_map.at(data_label);
+        const auto second_transpose = pattern_map.at(second_transpose_label).get_node_shared_ptr();
+        const auto second_transpose_perm =
+            ov::as_type_ptr<op::v0::Constant>(second_transpose->get_input_node_shared_ptr(1));
+        auto lstm = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_label).get_node_shared_ptr());
+        if (lstm->get_direction() != op::v5::LSTMSequence::direction::FORWARD)
+            return false;
+
+        std::shared_ptr<Node> new_transpose_perm;
+        if (pattern_map.count(first_transpose_label) > 0) {
+            auto first_transpose = pattern_map.at(first_transpose_label).get_node_shared_ptr();
+            if (ov::is_type<op::v1::Reshape>(first_transpose)) {
+                const auto& reshape_input_shape = first_transpose->get_input_partial_shape(0);
+                const auto& reshape_output_shape = first_transpose->get_output_partial_shape(0);
+                if (reshape_input_shape.size() != reshape_output_shape.size())
+                    return false;
+                const auto second_transpose_perm_values = second_transpose_perm->cast_vector<int>();
+                std::vector<int> new_perm_values;
+                for (size_t i = 0; i < reshape_output_shape.size(); i++) {
+                    const auto& dim = reshape_output_shape[i];
+                    for (size_t j = 0; j < reshape_input_shape.size(); j++) {
+                        if (dim == reshape_input_shape[j]) {
+                            new_perm_values.push_back(second_transpose_perm_values[j]);
                         }
                     }
-                    if (new_perm_values != std::vector<int>{0, 1, 2}) {
-                        new_transpose_perm = op::v0::Constant::create(element::i32, Shape{}, new_perm_values);
-                    }
-                } else if (ov::is_type<op::v1::Transpose>(first_transpose)) {
-                    const auto first_transpose_perm =
-                        ov::as_type<op::v0::Constant>(first_transpose->get_input_node_ptr(0));
-                    const auto second_transpose_perm =
-                        ov::as_type<op::v0::Constant>(second_transpose->get_input_node_ptr(0));
-                    const auto first_transpose_perm_values = first_transpose_perm->cast_vector<int>();
-                    const auto second_transpose_perm_values = second_transpose_perm->cast_vector<int>();
-                    if (first_transpose_perm_values.size() != second_transpose_perm_values.size())
-                        return false;
-                    std::vector<int> new_perm_values;
-                    for (size_t i = 0; i < first_transpose_perm_values.size(); i++) {
-                        new_perm_values.push_back(first_transpose_perm_values[second_transpose_perm_values[i]]);
-                    }
-                    if (new_perm_values != std::vector<int>{0, 1, 2}) {
-                        new_transpose_perm = op::v0::Constant::create(element::i32, Shape{}, new_perm_values);
-                    }
                 }
-            } else {
-                new_transpose_perm = second_transpose->get_input_node_shared_ptr(1);
-            }
-
-            Output<Node> new_lstm_input;
-            if (new_transpose_perm) {
-                new_lstm_input = std::make_shared<op::v1::Transpose>(data, new_transpose_perm);
-            } else {
-                new_lstm_input = data;
-            }
-
-            auto new_lstm = std::make_shared<op::v5::LSTMSequence>(new_lstm_input,
-                                                                   lstm->input_value(1),
-                                                                   lstm->input_value(2),
-                                                                   lstm->input_value(3),
-                                                                   lstm->input_value(4),
-                                                                   lstm->input_value(5),
-                                                                   lstm->input_value(6),
-                                                                   lstm->get_hidden_size(),
-                                                                   op::v5::LSTMSequence::direction::REVERSE,
-                                                                   lstm->get_activations_alpha(),
-                                                                   lstm->get_activations_beta(),
-                                                                   lstm->get_activations(),
-                                                                   lstm->get_clip());
-
-            auto squeeze = pattern_map.at(squeeze_label).get_node_shared_ptr();
-            if (squeeze->input_value(0) != lstm->output(0))
-                return false;
-            auto new_squeeze = std::make_shared<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
-
-            for (auto& consumer : second_transpose->output(0).get_target_inputs()) {
-                auto node = consumer.get_node()->shared_from_this();
-                if (ov::is_type<op::util::ShapeOfBase>(node)) {
-                    auto shapeof = std::make_shared<op::v3::ShapeOf>(new_lstm_input);
-                    replace_node(node, shapeof);
+                if (new_perm_values.size() != 3)
+                    return false;
+                if (new_perm_values != std::vector<int>{0, 1, 2}) {
+                    new_transpose_perm =
+                        op::v0::Constant::create(element::i32, Shape{new_perm_values.size()}, new_perm_values);
+                }
+            } else if (ov::is_type<op::v1::Transpose>(first_transpose)) {
+                const auto first_transpose_perm = ov::as_type<op::v0::Constant>(first_transpose->get_input_node_ptr(1));
+                const auto first_transpose_perm_values = first_transpose_perm->cast_vector<int>();
+                const auto second_transpose_perm_values = second_transpose_perm->cast_vector<int>();
+                if (first_transpose_perm_values.size() != second_transpose_perm_values.size())
+                    return false;
+                std::vector<int> new_perm_values;
+                for (size_t i = 0; i < first_transpose_perm_values.size(); i++) {
+                    new_perm_values.push_back(first_transpose_perm_values[second_transpose_perm_values[i]]);
+                }
+                if (new_perm_values.size() != 3)
+                    return false;
+                if (new_perm_values != std::vector<int>{0, 1, 2}) {
+                    new_transpose_perm =
+                        op::v0::Constant::create(element::i32, Shape{new_perm_values.size()}, new_perm_values);
                 }
             }
+        } else {
+            new_transpose_perm = second_transpose_perm;
+        }
+        if (new_transpose_perm)
 
-            replace_node(m.get_match_root(), new_squeeze);
+            NodeRegistry node_registry;
 
-            return true;
-        };
+        Output<Node> new_lstm_input;
+        if (new_transpose_perm) {
+            new_lstm_input = node_registry.make<op::v1::Transpose>(data, new_transpose_perm);
+        } else {
+            new_lstm_input = data;
+        }
 
-        auto m = std::make_shared<pattern::Matcher>(second_reverse_sequence_label, matcher_name);
-        register_matcher(m, callback);
-    }
-};
+        auto new_lstm = node_registry.make<op::v5::LSTMSequence>(new_lstm_input,
+                                                                 lstm->input_value(1),
+                                                                 lstm->input_value(2),
+                                                                 lstm->input_value(3),
+                                                                 lstm->input_value(4),
+                                                                 lstm->input_value(5),
+                                                                 lstm->input_value(6),
+                                                                 lstm->get_hidden_size(),
+                                                                 op::v5::LSTMSequence::direction::REVERSE,
+                                                                 lstm->get_activations_alpha(),
+                                                                 lstm->get_activations_beta(),
+                                                                 lstm->get_activations(),
+                                                                 lstm->get_clip());
+
+        auto squeeze = pattern_map.at(squeeze_label).get_node_shared_ptr();
+        if (squeeze->input_value(0) != lstm->output(0))
+            return false;
+        int64_t squeeze_axis = -1;
+        if (!get_scalar_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
+            return false;
+        auto new_squeeze = node_registry.make<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
+        const auto match_root = m.get_match_root();
+        new_squeeze->set_friendly_name(match_root->get_friendly_name());
+
+        for (auto& consumer : second_transpose->output(0).get_target_inputs()) {
+            auto node = consumer.get_node()->shared_from_this();
+            if (ov::is_type<op::util::ShapeOfBase>(node)) {
+                auto shapeof = std::make_shared<op::v3::ShapeOf>(new_lstm_input);
+                replace_node(node, shapeof);
+            }
+        }
+
+        NodeVector from{pattern_map.at(first_reverse_sequence_label).get_node_shared_ptr(),
+                        second_transpose,
+                        lstm,
+                        squeeze,
+                        pattern_map.at(second_reverse_sequence_label).get_node_shared_ptr()};
+        if (pattern_map.count(first_transpose_label) > 0) {
+            from.push_back(pattern_map.at(first_transpose_label).get_node_shared_ptr());
+        }
+
+        copy_runtime_info(from, node_registry.get());
+        replace_node(match_root, new_squeeze);
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(second_reverse_sequence_label, matcher_name);
+    register_matcher(m, callback);
+}
 
 ov::pass::ConvertTensorIteratorToSequence::ConvertTensorIteratorToSequence() {
     add_matcher<ConvertTensorIteratorToLSTMSequence>();

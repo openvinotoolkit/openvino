@@ -19,6 +19,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
 class TRANSFORMATIONS_API ConvertLoopToLSTMSequence;
+class TRANSFORMATIONS_API FuseReverseLSTMSequence;
 
 }  // namespace pass
 }  // namespace ov
@@ -69,9 +70,18 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief Replaces Loop with LSTMCell inside to LSTMSequence
  */
-
 class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLoopToLSTMSequence", "0");
     ConvertLoopToLSTMSequence();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Fuses ReverseSequence->LSTM->ReverseSequence to LSTMSequence with REVERSE direction flag
+ */
+class ov::pass::FuseReverseLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("FuseReverseLSTMSequence", "0");
+    FuseReverseLSTMSequence();
 };

@@ -803,13 +803,13 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
     ASSERT_TRUE(res.first) << res.second;
 }
 
-using LoopToLSTMSequenceTestSuiteParams = std::tuple<bool,   // with_input_transpose
-                                                     bool>;  // with_gather_reshape
+using ConvertLoopToLSTMSequenceTestParams = std::tuple<bool,   // with_input_transpose
+                                                       bool>;  // with_gather_reshape
 
-class LoopToLSTMSequenceTestSuite : public testing::WithParamInterface<LoopToLSTMSequenceTestSuiteParams>,
-                                    public TransformationTestsF {};
+class ConvertLoopToLSTMSequenceTest : public testing::WithParamInterface<ConvertLoopToLSTMSequenceTestParams>,
+                                      public TransformationTestsF {};
 
-TEST_P(LoopToLSTMSequenceTestSuite, ConvertLoopToLSTMSequence) {
+TEST_P(ConvertLoopToLSTMSequenceTest, FusionTest) {
     const auto& params = GetParam();
     bool with_input_transpose = std::get<0>(params);
     bool with_gather_reshape = std::get<1>(params);
@@ -1003,5 +1003,108 @@ TEST_P(LoopToLSTMSequenceTestSuite, ConvertLoopToLSTMSequence) {
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertLoopToLSTMSequence,
-                         LoopToLSTMSequenceTestSuite,
+                         ConvertLoopToLSTMSequenceTest,
                          testing::Combine(testing::Values(false, true), testing::Values(false, true)));
+
+class FuseReverseLSTMSequenceTest : public TransformationTestsF, public testing::WithParamInterface<bool> {};
+
+TEST_P(FuseReverseLSTMSequenceTest, FusionTest) {
+    const auto with_input_transpose = GetParam();
+
+    size_t input_size = 3;
+    size_t hidden_size = 2;
+    size_t num_sequences = 5;
+    size_t batch_size = 1;
+
+    {
+        std::shared_ptr<op::v0::Parameter> input;
+        std::shared_ptr<op::v1::Transpose> second_transpose;
+        if (with_input_transpose) {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_sequences, input_size});
+            auto input_transpose =
+                std::make_shared<op::v1::Transpose>(input, op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
+            auto input_reverse = std::make_shared<op::v0::ReverseSequence>(
+                input_transpose,
+                op::v0::Constant::create(element::i32, Shape{1}, {num_sequences}),
+                1,
+                0);
+            second_transpose =
+                std::make_shared<op::v1::Transpose>(input_reverse,
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2}));
+        } else {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size, num_sequences});
+            auto input_reverse = std::make_shared<op::v0::ReverseSequence>(
+                input,
+                op::v0::Constant::create(element::i32, Shape{1}, {num_sequences}),
+                0,
+                2);
+            second_transpose =
+                std::make_shared<op::v1::Transpose>(input_reverse,
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+        }
+        auto H = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {1.0f});
+        auto C = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {2.0f});
+        auto sequence_lengths = op::v0::Constant::create(element::i32, Shape{1}, {num_sequences});
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {3.0f});
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {4.0f});
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {5.0f});
+        auto lstm = std::make_shared<op::v5::LSTMSequence>(second_transpose,
+                                                           H,
+                                                           C,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size,
+                                                           op::v5::LSTMSequence::direction::FORWARD);
+        auto squeeze =
+            std::make_shared<op::v0::Squeeze>(lstm->output(0), op::v0::Constant::create(element::i32, Shape{}, {1}));
+        auto output_reverse =
+            std::make_shared<op::v0::ReverseSequence>(squeeze,
+                                                      op::v0::Constant::create(element::i32, Shape{1}, {num_sequences}),
+                                                      0,
+                                                      1);
+
+        model = std::make_shared<Model>(output_reverse, ParameterVector{input});
+
+        manager.register_pass<ov::pass::FuseReverseLSTMSequence>();
+    }
+
+    {
+        std::shared_ptr<op::v0::Parameter> input;
+        std::shared_ptr<Node> lstm_input;
+        if (with_input_transpose) {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_sequences, input_size});
+            lstm_input = input;
+        } else {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size, num_sequences});
+            lstm_input =
+                std::make_shared<op::v1::Transpose>(input, op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+        }
+        auto H = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {1.0f});
+        auto C = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {2.0f});
+        auto sequence_lengths = op::v0::Constant::create(element::i32, Shape{1}, {num_sequences});
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {3.0f});
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {4.0f});
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {5.0f});
+        auto lstm = std::make_shared<op::v5::LSTMSequence>(lstm_input,
+                                                           H,
+                                                           C,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size,
+                                                           op::v5::LSTMSequence::direction::REVERSE);
+        auto squeeze =
+            std::make_shared<op::v0::Squeeze>(lstm->output(0), op::v0::Constant::create(element::i32, Shape{}, {1}));
+
+        model_ref = std::make_shared<Model>(squeeze, ParameterVector{input});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseReverseLSTMSequence, FuseReverseLSTMSequenceTest, testing::Values(false, true));
