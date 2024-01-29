@@ -136,9 +136,8 @@ public:
         return ov_output;
     }
 
-    ov::Any get_attribute_as_any(const std::string& name) const override {
-        auto res = m_decoder->get_attribute(name);
-        return res;
+    Any get_attribute_as_any(const std::string& name) const override {
+        return m_decoder->get_attribute(name);
     }
 
     void mutate_input(size_t index, Output<Node> ov_output) const;

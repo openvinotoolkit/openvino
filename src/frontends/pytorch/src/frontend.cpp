@@ -194,8 +194,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();  // TODO: remove when problem with dynamic
-                                                                              // rank is gone.
+    // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
