@@ -23,9 +23,10 @@ OutputVector translate_masked_fill(const NodeContext& context) {
     auto data = context.get_input(0);
     auto mask = context.get_input(1);
     auto value = context.get_input(2);
-    value = context.mark_node(std::make_shared<v1::ConvertLike>(value, data));
-    auto bool_mask = context.mark_node(std::make_shared<v0::Convert>(mask, element::boolean));
-    return {context.mark_node(std::make_shared<v1::Select>(bool_mask, value, data))};
+    ov::pass::NodeRegistry rg;
+    auto res = masked_fill(rg, data, mask, value);
+    context.mark_nodes(rg.get());
+    return {res};
 };
 
 }  // namespace op
