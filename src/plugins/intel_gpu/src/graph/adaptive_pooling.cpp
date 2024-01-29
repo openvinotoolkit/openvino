@@ -26,6 +26,7 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
     const auto prim = impl_param.typed_desc<adaptive_pooling>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
+    auto output_format = input0_layout.format;
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
@@ -43,7 +44,6 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
         auto pooledVector_tensor = make_tensor(pooledVector_mem->get_layout(), pooledVector_lock.data());
 
         const_data.emplace(1, pooledVector_tensor);
-        // ov::Tensor(l.data_type, l.get_shape(), memory_pointer);
     }
 
     const auto tensor_accessor = ov::make_tensor_accessor(const_data);
@@ -54,15 +54,15 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
 
         auto dt = prim->get_output_data_type(0).value_or(impl_param.get_input_layout(0).data_type);
         auto index_dt = prim->index_element_type;
-        layouts.push_back(layout{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())});
-        layouts.push_back(layout{output_shapes[1], index_dt, format::get_default_format(output_shapes[1].size())});
+        layouts.push_back(layout{output_shapes[0], dt, output_format});
+        layouts.push_back(layout{output_shapes[1], index_dt, output_format});
     } else {
         ov::op::v8::AdaptiveAvgPool op;
 
         output_shapes = ov::op::v8::shape_infer(&op, input_shapes, tensor_accessor);
 
         auto dt = prim->get_output_data_type(0).value_or(impl_param.get_input_layout(0).data_type);
-        layouts.push_back(layout{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())});
+        layouts.push_back(layout{output_shapes[0], dt, output_format});
     }
 
     return layouts;
