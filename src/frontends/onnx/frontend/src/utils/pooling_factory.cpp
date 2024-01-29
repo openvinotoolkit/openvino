@@ -30,7 +30,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
     std::iota(axes.begin(), axes.end(), 0);
     std::reverse(axes.begin() + 2, axes.end());
 
-    return std::make_shared<v0::Constant>(element::i32, Shape{rank}, axes);
+    return std::make_shared<v0::Constant>(ov::element::i32, Shape{rank}, axes);
 }
 }  // namespace
 
@@ -51,7 +51,7 @@ PoolingFactory::PoolingFactory(const Node& node)
     m_storage_order = static_cast<StorageOrder>(node.get_attribute_value<int64_t>("storage_order", 0));
 }
 
-OutputVector PoolingFactory::make_avg_pool() const {
+ov::OutputVector PoolingFactory::make_avg_pool() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
     return {std::make_shared<v1::AvgPool>(m_inputs.at(0),
                                           m_strides,
@@ -64,7 +64,7 @@ OutputVector PoolingFactory::make_avg_pool() const {
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-OutputVector PoolingFactory::make_max_pool() const {
+ov::OutputVector PoolingFactory::make_max_pool() const {
     return {std::make_shared<v1::MaxPool>(m_inputs.at(0),
                                           m_strides,
                                           m_padding_below,
@@ -74,7 +74,7 @@ OutputVector PoolingFactory::make_max_pool() const {
                                           m_auto_pad)};
 }
 
-OutputVector PoolingFactory::make_max_pool_with_indices() const {
+ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
     const auto max_pool = std::make_shared<v8::MaxPool>(m_inputs.at(0),
                                                         m_strides,
                                                         m_dilations,

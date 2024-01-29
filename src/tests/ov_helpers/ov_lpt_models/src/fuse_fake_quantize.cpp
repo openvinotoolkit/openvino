@@ -100,19 +100,16 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
 
         auto fqOnDataCopy = fqOnData;
         fqOnDataCopy.outputHighValues = {255.f};
-        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
+        fqOnDataCopy.outputPrecision =
+            fqOnData.outputPrecision == ov::element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
 
         std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-        lastNode = makeDequantization(
-            lastNode,
-            {
-                lastNode->output(0).get_element_type() != element::f32 ?
-                    DequantizationOperations::Convert{element::f32} :
-                    DequantizationOperations::Convert{},
-                {},
-                {{0.01f},
-                precisionFqOnData}
-            });
+        lastNode = makeDequantization(lastNode,
+                                      {lastNode->output(0).get_element_type() != ov::element::f32
+                                           ? DequantizationOperations::Convert{ov::element::f32}
+                                           : DequantizationOperations::Convert{},
+                                       {},
+                                       {{0.01f}, precisionFqOnData}});
         lastNode->set_friendly_name("output");
 
         ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastNode) };
