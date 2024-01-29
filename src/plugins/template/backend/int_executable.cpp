@@ -50,7 +50,7 @@ public:
 ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model) : m_is_compiled{true} {
     m_model = model->clone();
 
-    auto unsupported_types = util::unsupported_types();
+    const auto& unsupported_types = util::unsupported_types();
     precisions_map precisions_to_convert;
     for (const auto& type : unsupported_types)
         precisions_to_convert[type] = element::f32;

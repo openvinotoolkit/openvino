@@ -34,10 +34,7 @@ OutputVector translate_list_construct(const NodeContext& context) {
     }
     auto list_construct = context.mark_node(std::make_shared<v0::Concat>(consts, 0));
     OutputVector replacements(list_construct->get_output_size());
-    bool folded = ov::util::constant_fold_node(list_construct, replacements);
-    if (folded)
-        return replacements;
-    return {list_construct};
+    return ov::util::constant_fold_node(list_construct, replacements) ? replacements : OutputVector{list_construct};
 };
 
 }  // namespace op

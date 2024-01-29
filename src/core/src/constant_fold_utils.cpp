@@ -12,8 +12,14 @@
 #include "openvino/reference/convert.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
-ov::element::TypeVector ov::util::unsupported_types() {
-    return {ov::element::f16, ov::element::bf16};
+const ov::element::TypeVector& ov::util::unsupported_types() {
+    static const ov::element::TypeVector types{ov::element::f16, ov::element::bf16};
+    return types;
+}
+
+static bool is_type_unsupported(const ov::element::Type& type) {
+    const auto& unsupported_types = ov::util::unsupported_types();
+    return std::find(unsupported_types.begin(), unsupported_types.end(), type) != unsupported_types.end();
 }
 
 bool ov::util::node_requires_precision_conversion(const std::shared_ptr<const ov::Node>& node) {
@@ -33,16 +39,13 @@ bool ov::util::node_requires_precision_conversion(const std::shared_ptr<const ov
     if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
         return false;
     }
-    const auto unsupported_types = ov::util::unsupported_types();
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_input_element_type(i)) !=
-            unsupported_types.end()) {
+        if (is_type_unsupported(node->get_input_element_type(i))) {
             return true;
         }
     }
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_output_element_type(i)) !=
-            unsupported_types.end()) {
+        if (is_type_unsupported(node->get_output_element_type(i))) {
             return true;
         }
     }
@@ -54,9 +57,7 @@ static bool convert_range_precision(const std::shared_ptr<ov::Node>& node) {
     if (!range)
         return false;
 
-    const auto unsupported_types = ov::util::unsupported_types();
-    if (std::find(unsupported_types.begin(), unsupported_types.end(), range->get_output_type()) !=
-        unsupported_types.end()) {
+    if (is_type_unsupported(range->get_output_type())) {
         range->set_output_type(ov::element::f32);
         return true;
     }
@@ -84,19 +85,17 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     bool requires_conversion = false;
     bool inputs_changed = false;
 
-    const auto unsupported_types = ov::util::unsupported_types();
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), inputs[i].get_element_type()) !=
-            unsupported_types.end()) {
+        if (is_type_unsupported(inputs[i].get_element_type())) {
             requires_conversion = true;
         }
         inputs_changed = inputs_changed || node->input_value(i) != inputs[i];
     }
 
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), node->get_output_element_type(i)) !=
-            unsupported_types.end()) {
+        if (is_type_unsupported(node->get_output_element_type(i))) {
             requires_conversion = true;
+            break;
         }
     }
 
@@ -109,7 +108,7 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
 
     for (size_t i = 0; i < num_inputs; i++) {
         const auto& input_type = inputs[i].get_element_type();
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), input_type) != unsupported_types.end()) {
+        if (is_type_unsupported(input_type)) {
             auto convert = std::make_shared<ov::op::v0::Convert>(inputs[i], ov::element::f32);
             OutputVector replacements(1);
             if (convert->constant_fold(replacements, convert->input_values())) {
@@ -128,15 +127,12 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const std::sh
     auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
     if (type_relaxed) {
         for (size_t i = 0; i < cloned_node->get_input_size(); i++) {
-            if (std::find(unsupported_types.begin(), unsupported_types.end(), type_relaxed->get_origin_input_type(i)) !=
-                unsupported_types.end()) {
+            if (is_type_unsupported(type_relaxed->get_origin_input_type(i))) {
                 type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
             }
         }
         for (size_t i = 0; i < cloned_node->get_output_size(); i++) {
-            if (std::find(unsupported_types.begin(),
-                          unsupported_types.end(),
-                          cloned_node->get_output_element_type(i)) != unsupported_types.end()) {
+            if (is_type_unsupported(cloned_node->get_output_element_type(i))) {
                 type_relaxed->set_overridden_output_type(element::f32, i);
             }
         }
@@ -164,9 +160,8 @@ bool ov::util::constant_fold_node(const std::shared_ptr<Node>& node, OutputVecto
     if (output_constants.size() < num_outputs)
         output_constants.resize(num_outputs);
 
-    bool status = converted->constant_fold(output_constants, converted->input_values());
-    if (!status)
-        return status;
+    if (!converted->constant_fold(output_constants, converted->input_values()))
+        return false;
 
     for (size_t i = 0; i < num_outputs; i++) {
         if (output_constants[i].get_element_type() == node->get_output_element_type(i))
@@ -179,44 +174,13 @@ bool ov::util::constant_fold_node(const std::shared_ptr<Node>& node, OutputVecto
     return true;
 }
 
-template <typename T>
 static void convert_tensor(const ov::Tensor& input, ov::Tensor& output) {
-    const auto& output_type = output.get_element_type();
-    switch (output_type) {
-    case ov::element::bf16: {
-        ov::reference::convert(input.data<T>(), output.data<ov::bfloat16>(), ov::shape_size(input.get_shape()));
-        return;
-    }
-    case ov::element::f16: {
-        ov::reference::convert(input.data<T>(), output.data<ov::float16>(), ov::shape_size(input.get_shape()));
-        return;
-    }
-    case ov::element::f32: {
-        ov::reference::convert(input.data<T>(), output.data<float>(), ov::shape_size(input.get_shape()));
-        return;
-    }
-    default:
-        OPENVINO_THROW("unable to convert tensor with type ", input.get_element_type(), " to ", output_type);
-    }
-}
-
-static void convert_tensor(const ov::Tensor& input, ov::Tensor& output) {
-    switch (input.get_element_type()) {
-    case ov::element::f16:
-        convert_tensor<ov::float16>(input, output);
-        return;
-    case ov::element::bf16:
-        convert_tensor<ov::bfloat16>(input, output);
-        return;
-    case ov::element::f32:
-        convert_tensor<float>(input, output);
-        return;
-    default:
-        OPENVINO_THROW("unable to convert tensor with type ",
-                       input.get_element_type(),
-                       " to ",
-                       output.get_element_type());
-    }
+    auto outputs = ov::TensorVector{output};
+    OPENVINO_ASSERT(ov::op::v0::Convert().evaluate(outputs, ov::TensorVector{input}),
+                    "unable to convert tensor with type ",
+                    input.get_element_type(),
+                    " to ",
+                    output.get_element_type());
 }
 
 bool ov::util::evaluate_node(const std::shared_ptr<ov::Node>& node,
@@ -239,13 +203,11 @@ bool ov::util::evaluate_node(const std::shared_ptr<ov::Node>& node,
 
     auto cloned = convert_to_supported_precision(node->shared_from_this());
 
-    const auto unsupported_types = ov::util::unsupported_types();
     ov::TensorVector converted_input_tensors;
     converted_input_tensors.reserve(input_tensors.size());
     for (size_t i = 0; i < input_tensors.size(); i++) {
         // convert input tensors to f32 if this input tensor's type is unsupported
-        if (std::find(unsupported_types.begin(), unsupported_types.end(), input_tensors[i].get_element_type()) !=
-            unsupported_types.end()) {
+        if (is_type_unsupported(input_tensors[i].get_element_type())) {
             converted_input_tensors.emplace_back(ov::element::f32, input_tensors[i].get_shape());
             convert_tensor(input_tensors[i], converted_input_tensors.back());
         } else {

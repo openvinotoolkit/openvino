@@ -28,7 +28,7 @@ void ov::remove_keep_original_precision_attribute(const std::shared_ptr<ov::Node
 
 bool ov::has_keep_original_precision_attribute(const std::shared_ptr<const ov::Node>& node) {
     const auto& rt_info = node->get_rt_info();
-    return rt_info.count(KeepOriginalPrecision::get_type_info_static());
+    return rt_info.count(KeepOriginalPrecision::get_type_info_static()) > 0;
 }
 
 const ov::KeepOriginalPrecision& ov::get_keep_original_precision_attribute(

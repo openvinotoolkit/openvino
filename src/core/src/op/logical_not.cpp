@@ -52,7 +52,7 @@ bool LogicalNot::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 
     using namespace ov::element;
     return IF_TYPE_OF(v1_LogicalNot_evaluate,
-                      OV_PP_ET_LIST(boolean, i32, i64, u32, u64, f16, f32),
+                      OV_PP_ET_LIST(boolean, i32, i64, u32, u64, f32),
                       logical_not::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],

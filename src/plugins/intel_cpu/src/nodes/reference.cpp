@@ -17,7 +17,7 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         auto converted = util::convert_to_supported_precision(op);
         if (!converted->has_evaluate()) {
             OPENVINO_THROW_NOT_IMPLEMENTED(
-                "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented");
+                "Cannot fallback on ov reference implementation (ov::Node::evaluate() is not implemented");
         }
     }
 

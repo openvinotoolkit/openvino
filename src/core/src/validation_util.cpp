@@ -738,6 +738,26 @@ std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, 
         .append(std::to_string(upper))
         .append("].");
 }
+
+ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
+                                     const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+    size_t num_inputs = node->get_input_size();
+
+    ov::OutputVector inputs;
+    inputs.reserve(num_inputs);
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        auto input = node->input_value(i);
+        if (node_map.count(input) > 0) {
+            inputs.push_back(node_map.at(input));
+        } else {
+            inputs.push_back(input);
+        }
+    }
+
+    return inputs;
+}
+
 }  // namespace
 
 int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
@@ -811,25 +831,6 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-static ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
-                                            const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
-    size_t num_inputs = node->get_input_size();
-
-    ov::OutputVector inputs;
-    inputs.reserve(num_inputs);
-
-    for (size_t i = 0; i < num_inputs; i++) {
-        auto input = node->input_value(i);
-        if (node_map.count(input) > 0) {
-            inputs.push_back(node_map.at(input));
-        } else {
-            inputs.push_back(input);
-        }
-    }
-
-    return inputs;
-}
-
 std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
@@ -879,19 +880,18 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
                 node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
             }
         } else {
-            bool inputs_pushed_on_stack = false;
+            size_t stack_size_before = stack.size();
             for (size_t i = node->get_input_size(); i > 0; i--) {
                 auto input = original_node->input_value(i - 1);
                 if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
                     stack.push(input.get_node_shared_ptr());
-                    inputs_pushed_on_stack = true;
                 }
             }
             // if none of the inputs was pushed to stack, it means the node that was not constantfolded
             // is processed the second time. If that case - the node is not constfoldable.
             // A good example would be a node that all of its inputs are constants and yet it cannot be constantfolded
             // for some reason (like lack of evaluate, it's a op::util::FrameworkNode, etc.).
-            if (!inputs_pushed_on_stack) {
+            if (stack_size_before == stack.size()) {
                 return nullptr;
             }
         }
@@ -901,8 +901,7 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
     if (constant->get_element_type() != subgraph_sink.get_element_type()) {
         auto convert = std::make_shared<op::v0::Convert>(constant, subgraph_sink.get_element_type());
         OutputVector output(1);
-        bool ret = convert->constant_fold(output, OutputVector{constant});
-        if (!ret)
+        if (!convert->constant_fold(output, OutputVector{constant}))
             return nullptr;
         constant = output[0].get_node_shared_ptr();
     }

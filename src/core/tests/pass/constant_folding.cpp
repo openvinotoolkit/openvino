@@ -4005,5 +4005,5 @@ static std::string unsupported_types_test_case_name(const testing::TestParamInfo
 
 INSTANTIATE_TEST_SUITE_P(constant_folding,
                          unsupported_types,
-                         testing::Values(element::bf16, element::f16),
+                         testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);

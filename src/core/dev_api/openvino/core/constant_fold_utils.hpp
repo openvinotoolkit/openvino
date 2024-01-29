@@ -11,7 +11,7 @@ namespace util {
 /// \brief Returns a vector with unsupported element types. Constant inputs with those types (in general) require
 ///        conversion before node can be constant folded
 OPENVINO_API
-element::TypeVector unsupported_types();
+const element::TypeVector& unsupported_types();
 
 OPENVINO_API bool node_requires_precision_conversion(const std::shared_ptr<const Node>& node);
 
