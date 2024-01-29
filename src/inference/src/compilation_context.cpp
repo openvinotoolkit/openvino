@@ -13,9 +13,9 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"
-#include "openvino/util/file_util.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
