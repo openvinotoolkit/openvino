@@ -96,7 +96,7 @@ offer a limited set of supported OpenVINO features.
 
       .. code-block::
 
-         ov::caching_properties
+         ov::internal::caching_properties
          ov::enable_profiling
          ov::hint::performance_mode
          ov::hint::num_requests
