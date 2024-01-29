@@ -504,8 +504,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::reciprocal", op::translate_reciprocal},
         // aten::reflection_pad2d - Supported in limited set of patterns
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
-        {"aten::relu6", op::translate_relu6},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten::relu6", op::translate_relu6},
+        {"aten::relu6_", op::inplace_op<op::translate_relu6>},
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
