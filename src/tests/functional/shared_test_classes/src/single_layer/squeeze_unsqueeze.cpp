@@ -45,7 +45,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
         op = std::make_shared<ov::op::v0::Squeeze>(params.front());
     } else {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
+        op = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ov::element::i64, axesVector, opType);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 

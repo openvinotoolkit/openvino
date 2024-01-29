@@ -13,8 +13,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector dft(const Node& node) {
-    const OutputVector ng_inputs{node.get_ng_inputs()};
+ov::OutputVector dft(const Node& node) {
+    const ov::OutputVector ng_inputs{node.get_ng_inputs()};
     const ov::Output<ov::Node> data = ng_inputs.at(0);
 
     const auto dft_length_provided = ng_inputs.size() > 1 && !ov::op::util::is_null(ng_inputs[1]);

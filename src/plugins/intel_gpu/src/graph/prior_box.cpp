@@ -403,12 +403,12 @@ void prior_box_node::calc_result() {
     if (get_output_layout().data_type == data_types::f16)
         calculate_prior_box_output<ov::element_type_traits<data_types::f16>::value_type>(result,
                                                                              get_program().get_stream(),
-                                                                             input().get_output_layout(),
+                                                                             get_input_layout(),
                                                                              *typed_desc());
     else
         calculate_prior_box_output<ov::element_type_traits<data_types::f32>::value_type>(result,
                                                                              get_program().get_stream(),
-                                                                             input().get_output_layout(),
+                                                                             get_input_layout(),
                                                                              *typed_desc());
 }
 

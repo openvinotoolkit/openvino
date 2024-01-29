@@ -25,7 +25,8 @@ To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format and quantize it.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download the NER model <#download-the-ner-model>`__
@@ -68,13 +69,13 @@ method.
 .. code:: ipython3
 
     from transformers import AutoTokenizer, AutoModelForTokenClassification
-    
+
     model_id = "elastic/distilbert-base-cased-finetuned-conll03-english"
     model = AutoModelForTokenClassification.from_pretrained(model_id)
-    
+
     original_ner_model_dir = 'original_ner_model'
     model.save_pretrained(original_ner_model_dir)
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 Quantize the model, using Hugging Face Optimum API
@@ -106,18 +107,18 @@ corresponding ``OVModelForXxx`` class. So we use
 
     from functools import partial
     from optimum.intel import OVQuantizer
-    
+
     from optimum.intel import OVModelForTokenClassification
-    
+
     def preprocess_fn(data, tokenizer):
         examples = []
         for data_chunk in data["tokens"]:
             examples.append(' '.join(data_chunk))
-    
+
         return tokenizer(
             examples, padding=True, truncation=True, max_length=128
         )
-    
+
     quantizer = OVQuantizer.from_pretrained(model)
     calibration_dataset = quantizer.get_calibration_dataset(
         "conll2003",
@@ -126,13 +127,13 @@ corresponding ``OVModelForXxx`` class. So we use
         dataset_split="train",
         preprocess_batch=True,
     )
-    
+
     # The directory where the quantized model will be saved
     quantized_ner_model_dir = "quantized_ner_model"
-    
+
     # Apply static quantization and save the resulting model in the OpenVINO IR format
     quantizer.quantize(calibration_dataset=calibration_dataset, save_directory=quantized_ner_model_dir)
-    
+
     # Load the quantized model
     optimized_model = OVModelForTokenClassification.from_pretrained(quantized_ner_model_dir)
 
@@ -227,40 +228,40 @@ Compare performance
 
 
 As the Optimum Inference models are API compatible with Hugging Face
-Transformers models, we can just use ``pipeline()`` from `Hugging Face
+Transformers models, we can just use ``pipleine()`` from `Hugging Face
 Transformers API <https://huggingface.co/docs/transformers/index>`__ for
 inference.
 
 .. code:: ipython3
 
     from transformers import pipeline
-    
+
     ner_pipeline_optimized = pipeline("token-classification", model=optimized_model, tokenizer=tokenizer)
-    
+
     ner_pipeline_original = pipeline("token-classification", model=model, tokenizer=tokenizer)
 
 .. code:: ipython3
 
     import time
     import numpy as np
-    
+
     def calc_perf(ner_pipeline):
         inference_times = []
-    
+
         for data in calibration_dataset:
             text = ' '.join(data['tokens'])
             start = time.perf_counter()
             ner_pipeline(text)
             end = time.perf_counter()
             inference_times.append(end - start)
-    
+
         return np.median(inference_times)
-    
-    
+
+
     print(
         f"Median inference time of quantized model: {calc_perf(ner_pipeline_optimized)} "
     )
-    
+
     print(
         f"Median inference time of original model: {calc_perf(ner_pipeline_original)} "
     )
@@ -268,8 +269,8 @@ inference.
 
 .. parsed-literal::
 
-    Median inference time of quantized model: 0.008135671014315449 
-    Median inference time of original model: 0.108725632991991 
+    Median inference time of quantized model: 0.008135671014315449
+    Median inference time of original model: 0.108725632991991
 
 
 Compare size of the models
@@ -280,8 +281,8 @@ Compare size of the models
 .. code:: ipython3
 
     from pathlib import Path
-    
-    pytorch_model_file = Path(original_ner_model_dir) / "pytorch_model.bin" 
+
+    pytorch_model_file = Path(original_ner_model_dir) / "pytorch_model.bin"
     if not pytorch_model_file.exists():
         pytorch_model_file = pytorch_model_file.parent / "model.safetensors"
     print(f'Size of original model in Bytes is {pytorch_model_file.stat().st_size}')
@@ -306,21 +307,21 @@ text.
 .. code:: ipython3
 
     import gradio as gr
-    
+
     examples = [
         "My name is Wolfgang and I live in Berlin.",
     ]
-    
+
     def run_ner(text):
         output = ner_pipeline_optimized(text)
-        return {"text": text, "entities": output} 
-    
+        return {"text": text, "entities": output}
+
     demo = gr.Interface(run_ner,
-                        gr.Textbox(placeholder="Enter sentence here...", label="Input Text"), 
+                        gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
                         gr.HighlightedText(label="Output Text"),
                         examples=examples,
                         allow_flagging="never")
-    
+
     if __name__ == "__main__":
         try:
             demo.launch(debug=False)

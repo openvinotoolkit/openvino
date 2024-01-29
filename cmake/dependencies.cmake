@@ -143,10 +143,10 @@ function(ov_download_tbb)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64-canary.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.4-mac-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "60b7ffa73797b173187a7b0ca883c64d7e4e8f24824c0ff233c1ee90e9000317"
+                SHA256 "5e4581b95648d1c5d8f0742badecf48a9529feab6bc55ac94b526eddaf6a18c9"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")

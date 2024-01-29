@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector random_normal(const Node& node);
+ov::OutputVector random_normal(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

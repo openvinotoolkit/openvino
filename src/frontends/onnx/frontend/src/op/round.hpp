@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector round(const Node& node);
+ov::OutputVector round(const Node& node);
 
 }  // namespace set_1
 

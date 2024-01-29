@@ -21,8 +21,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector fusedgemm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector fusedgemm(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     auto num_inputs = inputs.size();
     FRONT_END_GENERAL_CHECK(num_inputs == 2 || num_inputs == 3,
                             "FusedGemm takes 2/3 inputs. Provided " + std::to_string(num_inputs));

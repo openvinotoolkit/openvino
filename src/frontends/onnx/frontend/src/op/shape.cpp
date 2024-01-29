@@ -8,8 +8,8 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "op/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -17,7 +17,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector shape(const Node& node) {
+ov::OutputVector shape(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     return {std::make_shared<default_opset::ShapeOf>(data)};
 }
