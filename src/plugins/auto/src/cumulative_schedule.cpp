@@ -73,8 +73,10 @@ void CumuSchedule::init() {
                 idx++;
             } else {
                 cpu_device_information = device;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 cpu_device_information.config.insert(
                     {ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
         if (!cpu_device_information.device_name.empty())
