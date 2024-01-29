@@ -8,7 +8,6 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/variadic.hpp"
 
@@ -17,7 +16,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector sum(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Add>(node, ngraph::op::AutoBroadcastType::NONE);
+    return variadic::make_ng_variadic_op<default_opset::Add>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1

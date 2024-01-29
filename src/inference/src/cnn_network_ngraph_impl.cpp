@@ -36,7 +36,7 @@ using namespace InferenceEngine;
 using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node>& output,
+void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ov::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
@@ -88,7 +88,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ngraph::Node
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
+    std::unordered_map<std::string, std::shared_ptr<ov::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
@@ -296,7 +296,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ngraph::Node>& output) {
+void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ov::Node>& output) {
     auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
@@ -317,7 +317,7 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const {
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
     auto params = _ngraph_function->get_parameters();
-    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+    sort(params.begin(), params.end(), [](std::shared_ptr<ov::Node> lhs, std::shared_ptr<ov::Node> rhs) {
         return lhs->get_friendly_name() < rhs->get_friendly_name();
     });
 
@@ -592,7 +592,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
         const auto first_parameter =
             *std::min_element(original_parameters.begin(),
                               original_parameters.end(),
-                              [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+                              [](std::shared_ptr<ov::Node> lhs, std::shared_ptr<ov::Node> rhs) {
                                   return lhs->get_friendly_name() < rhs->get_friendly_name();
                               });
         const auto first_parameter_pshape = first_parameter->get_output_partial_shape(0);

@@ -11,7 +11,6 @@ namespace intel_cpu {
 
 class SwapConvertTranspose : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
     SwapConvertTranspose();
 };
 

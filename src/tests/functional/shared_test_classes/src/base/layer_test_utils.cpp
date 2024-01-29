@@ -653,10 +653,10 @@ std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& 
     return "";
 }
 
-std::map<std::string, ngraph::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
+std::map<std::string, ov::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
     const auto function = execGraph.getFunction();
-    std::map<std::string, ngraph::Node::RTMap> runtimeInfo;
+    std::map<std::string, ov::Node::RTMap> runtimeInfo;
     for (const auto& op : function->get_ops()) {
         runtimeInfo[op->get_friendly_name()] = op->get_rt_info();
     }

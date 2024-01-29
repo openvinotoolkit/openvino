@@ -17,8 +17,8 @@ std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   const std::vector<size_t>& padsBegin,
                                   const std::vector<size_t>& padsEnd,
                                   const std::vector<size_t>& kernel,
-                                  const op::RoundingType& roundingType,
-                                  const op::PadType& padType,
+                                  const ov::op::RoundingType& roundingType,
+                                  const ov::op::PadType& padType,
                                   bool excludePad,
                                   const ov::test::utils::PoolingTypes& poolType) {
     std::shared_ptr<ov::Node> pooling;

@@ -44,8 +44,8 @@ PoolingFactory::PoolingFactory(const Node& node)
       m_auto_pad{convpool::get_auto_pad(node)},
       m_rounding_type{convpool::get_rounding_type(node)} {
     const auto paddings = convpool::get_pads(node, m_kernel_shape.size());
-    const CoordinateDiff& padding_above{paddings.second};
-    const CoordinateDiff& padding_below{paddings.first};
+    const ov::CoordinateDiff& padding_above{paddings.second};
+    const ov::CoordinateDiff& padding_below{paddings.first};
     m_padding_below = Shape{std::begin(padding_below), std::end(padding_below)};
     m_padding_above = Shape{std::begin(padding_above), std::end(padding_above)};
     m_storage_order = static_cast<StorageOrder>(node.get_attribute_value<int64_t>("storage_order", 0));

@@ -11,7 +11,7 @@ ov::intel_cpu::RoPENode::RoPENode(const OutputVector& args, const Config& cfg) :
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
+std::shared_ptr<ov::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
     const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(RoPENode_with_new_inputs);
     check_new_args_count(this, new_args);

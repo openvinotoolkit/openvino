@@ -158,7 +158,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic_validation_fails) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3, 4}},
                                 param_vals);
         },
-        NodeValidationFailure);
+        ov::NodeValidationFailure);
 }
 
 // Test specialization of dynamic element types to a case where validation will fail.
@@ -182,7 +182,7 @@ TEST(specialize_function, et_dynamic_shape_static_validation_fails) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
-        NodeValidationFailure);
+        ov::NodeValidationFailure);
 }
 
 // Test specialization of rank-static dynamic shapes, where the replacement shapes have the wrong

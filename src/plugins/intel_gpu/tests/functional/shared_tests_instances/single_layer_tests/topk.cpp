@@ -78,7 +78,7 @@ void TopKLayerTestGPU::SetUp() {
     auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
         std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ov::element::Type_t::i64, stable));
 
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     for (size_t i = 0; i < topk->get_output_size(); i++) {
         results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
     }

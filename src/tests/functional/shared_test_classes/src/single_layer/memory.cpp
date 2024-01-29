@@ -188,7 +188,7 @@ void MemoryTest::CreateCommonFunc() {
     auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
     auto res = std::make_shared<ov::op::v0::Result>(add);
-    function = std::make_shared<ov::Model>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
+    function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {

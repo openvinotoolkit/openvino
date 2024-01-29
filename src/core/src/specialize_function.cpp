@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
         new_parameters[i]->set_friendly_name(name);
     }
 
-    ResultVector new_results = f->get_results();
+    ov::ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
         new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);

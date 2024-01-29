@@ -31,7 +31,6 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/type/element_type.hpp"

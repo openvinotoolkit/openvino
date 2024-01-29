@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -17,7 +16,7 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
-ov::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
+ov::Output<ov::Node> get_k(const ngraph::onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
     FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
                             "ONNX TopK operator: 'K' parameter must contain a single positive value.",
@@ -36,13 +35,12 @@ ov::OutputVector topk(const Node& node) {
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data,
-                                              k_node,
-                                              axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::SORT_VALUES,
-                                              ov::element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
+                                                                            k_node,
+                                                                            axis,
+                                                                            default_opset::TopK::Mode::MAX,
+                                                                            default_opset::TopK::SortType::SORT_VALUES,
+                                                                            ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -54,13 +52,12 @@ ov::OutputVector topk(const Node& node) {
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data,
-                                              k,
-                                              axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::SORT_VALUES,
-                                              ov::element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
+                                                                            k,
+                                                                            axis,
+                                                                            default_opset::TopK::Mode::MAX,
+                                                                            default_opset::TopK::SortType::SORT_VALUES,
+                                                                            ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -83,7 +80,7 @@ ov::OutputVector topk(const Node& node) {
     const auto compute_max = static_cast<bool>(largest);
     const auto mode = compute_max ? default_opset::TopK::Mode::MAX : default_opset::TopK::Mode::MIN;
 
-    std::shared_ptr<ngraph::Node> top_k =
+    std::shared_ptr<ov::Node> top_k =
         std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
