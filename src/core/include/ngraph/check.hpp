@@ -18,7 +18,6 @@
 #include <sstream>
 #include <vector>
 
-#include "ngraph/except.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ngraph {

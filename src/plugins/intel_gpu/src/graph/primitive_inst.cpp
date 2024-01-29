@@ -742,7 +742,7 @@ void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) 
     size_t offset = 0;
     for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        const auto& node_in_lay = _node->get_dependency(i).get_output_layout();
+        const auto& node_in_lay = _node->get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];
         fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
     }
@@ -822,8 +822,8 @@ bool primitive_inst::update_impl() {
                             // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
                             // the newly chosen impl is not added to the impl cache for beffer performance.
                             if (_node->is_type<gemm>() &&
-                                _dynamic_impl->get_kernel_name().find("gemm_ref") == std::string::npos &&
-                                impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
+                                    (_node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") == std::string::npos) &&
+                                    impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
                                 return;
                             }
                             if (impl->get_kernels_source().size() > 0) {

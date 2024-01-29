@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "openvino/core/graph_util.hpp"
 
@@ -56,7 +55,7 @@ using ov::traverse_nodes;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-NodeVector find_common_args(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
+ov::NodeVector find_common_args(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
 
 /// Topological sort of just nodes
 template <typename T>
@@ -170,17 +169,17 @@ bool is_zero(const ov::Output<Node>& reduce_constant);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-NodeVector get_subgraph_outputs(const NodeVector& nodes,
-                                const NodeVector& exclusions,
-                                bool ignore_unused = false,
-                                bool ignore_output_duplicates = true);
+ov::NodeVector get_subgraph_outputs(const ov::NodeVector& nodes,
+                                    const ov::NodeVector& exclusions,
+                                    bool ignore_unused = false,
+                                    bool ignore_output_duplicates = true);
 
 // Extract sub-graph computing the `results`. Stops backward traversal at either a Parameter
 // node
 // or a node that belongs to args
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
+ov::NodeVector extract_subgraph(const ov::NodeVector& results, const ov::NodeVector& args);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
@@ -207,7 +206,7 @@ bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-void plot_graph(std::shared_ptr<Function> f,
+void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
                 std::function<void(const Node& node, std::vector<std::string>& attributes)> = nullptr);
 
@@ -227,7 +226,7 @@ std::vector<ov::Output<Node>> get_outputs_to(Node& src, Node& dst);
 /// It returns true if a cycle is found and the first cycle encountered.
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-bool check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
+bool check_for_cycles(const ov::Model* func, ov::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
 }  // namespace ngraph
 
 using ngraph::replace_node;

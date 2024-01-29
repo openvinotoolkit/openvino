@@ -15,7 +15,10 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace detail {
-OutputVector conv(const Node& node, ov::Output<ov::Node> data, ov::Output<ov::Node> filters, ov::Output<ov::Node> bias);
+ov::OutputVector conv(const Node& node,
+                      ov::Output<ov::Node> data,
+                      ov::Output<ov::Node> filters,
+                      ov::Output<ov::Node> bias);
 }
 /// \brief Performs ONNX Conv operation.
 ///
@@ -23,7 +26,7 @@ OutputVector conv(const Node& node, ov::Output<ov::Node> data, ov::Output<ov::No
 ///
 /// \return The vector containing OV nodes producing output of ONNX convolution
 ///         operation.
-OutputVector conv(const Node& node);
+ov::OutputVector conv(const Node& node);
 
 }  // namespace set_1
 

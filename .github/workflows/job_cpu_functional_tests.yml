@@ -56,7 +56,7 @@ jobs:
           pushd $INSTALL_DIR
             tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
           popd
-          
+
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
@@ -97,7 +97,7 @@ jobs:
           if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
             source ${INSTALL_DIR}/setupvars.sh
           fi
-          
+
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25
 
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
+        if: always()
         with:
           name: test-results-functional-cpu
           path: |

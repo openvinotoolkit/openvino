@@ -21,7 +21,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace ngraph {
 /// \brief Execute handlers on a subgraph to compute values
