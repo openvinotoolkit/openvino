@@ -8,14 +8,16 @@ running multiple times.
 
 |image0|
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Showing Info Available
-   Devices <#showing-info-available-devices>`__
--  `Using full precision model in CPU with StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
--  `Using full precision model in CPU with OVStableDiffusionPipeline <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
--  `Using full precision model in dGPU with OVStableDiffusionPipeline <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
+-  `Showing Info Available Devices <#showing-info-available-devices>`__
+-  `Using full precision model in CPU with
+   StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__
+-  `Using full precision model in CPU with
+   OVStableDiffusionPipeline <#using-full-precision-model-in-cpu-with-ovstablediffusionpipeline>`__
+-  `Using full precision model in dGPU with
+   OVStableDiffusionPipeline <#using-full-precision-model-in-dgpu-with-ovstablediffusionpipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -29,15 +31,17 @@ this
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets" "transformers >= 4.31"
+    %pip install -q "optimum-intel[openvino,diffusers]@git+https://github.com/huggingface/optimum-intel.git" "ipywidgets" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
     import warnings
     warnings.filterwarnings('ignore')
 
-Showing Info Available Devices 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Showing Info Available Devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -71,8 +75,10 @@ this
     GPU: Intel(R) Data Center GPU Flex 170 (dGPU)
 
 
-Using full precision model in CPU with ``StableDiffusionPipeline`` 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in CPU with ``StableDiffusionPipeline``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -88,8 +94,7 @@ Using full precision model in CPU with ``StableDiffusionPipeline``
     output_cpu.save("image_cpu.png")
     output_cpu
     
-    del pipe
-    gc.collect()
+
 
 
 
@@ -128,8 +133,15 @@ Using full precision model in CPU with ``StableDiffusionPipeline``
 
 
 
-Using full precision model in CPU with ``OVStableDiffusionPipeline`` 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code:: ipython3
+
+    del pipe
+    gc.collect()
+
+Using full precision model in CPU with ``OVStableDiffusionPipeline``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -213,12 +225,14 @@ Using full precision model in CPU with ``OVStableDiffusionPipeline``
 
 
 
-.. image:: 236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_10_1.png
+.. image:: 236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_11_1.png
 
 
 
-Using full precision model in dGPU with ``OVStableDiffusionPipeline`` 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using full precision model in dGPU with ``OVStableDiffusionPipeline``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The model in this notebook is FP32 precision. And thanks to the new
 feature of OpenVINO 2023.0 you do not need to convert the model to FP16
@@ -243,8 +257,8 @@ for running the inference on GPU.
     output_gpu_ov = ov_pipe(prompt, num_inference_steps=17).images[0]
     output_gpu_ov.save("image_ov_gpu.png")
     output_gpu_ov
-    
+
+.. code:: ipython3
+
     del ov_pipe
     gc.collect()
-
-

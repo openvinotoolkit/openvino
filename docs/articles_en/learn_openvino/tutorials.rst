@@ -60,6 +60,45 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 
 .. showcase::
+   :title: 280-depth-anything
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/280-depth-anything/280-depth-anything.gif
+
+   Depth estimation with DepthAnything and OpenVINO.
+
+.. showcase::
+   :title: 279-mobilevlm-language-assistant
+   :img: _static/images/notebook_eye.png
+
+   Mobile language assistant with MobileVLM and OpenVINO.
+
+.. showcase::
+   :title: 278-stable-diffusion-ip-adapter
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/278-stable-diffusion-ip-adapter/278-stable-diffusion-ip-adapter.png
+
+   Image Generation with Stable Diffusion and IP-Adapter.
+
+.. showcase::
+   :title: 275-llm-question-answering
+   :img: _static/images/notebook_eye.png
+
+   LLM Instruction-following pipeline with OpenVINO.
+
+
+.. showcase::
+   :title: 274-efficient-sam
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/274-efficient-sam/274-efficient-sam.png
+
+   Object segmentations with EfficientSAM and OpenVINO.
+
+
+.. showcase::
+   :title: 273-stable-zephyr-3b-chatbot
+   :img: _static/images/notebook_eye.png
+
+   LLM-powered chatbot using Stable-Zephyr-3b and OpenVINO.
+
+
+.. showcase::
    :title: 272-paint-by-example
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
 
@@ -83,41 +122,6 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
    Frame interpolation using FILM and OpenVINO.
 
-.. showcase::
-   :title: 267-distil-whisper-asr
-   :img: _static/images/notebook_eye.png
-
-   Automatic speech recognition using Distil-Whisper and OpenVINO.
-
-.. showcase::
-   :title: 265-wuerstchen-image-generation
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/265-wuerstchen-image-generation/265-wuerstchen-image-generation.png
-
-   Image generation with Würstchen and OpenVINO.
-
-.. showcase::
-   :title: 264-qrcode-monster
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/264-qrcode-monster/264-qrcode-monster.png
-
-   Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
-
-.. showcase::
-   :title: 263-latent-consistency-models-image-generation
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/263-latent-consistency-models-image-generation/263-latent-consistency-models-image-generation.png
-
-   Image generation with Latent Consistency Model and OpenVINO.
-
-.. showcase::
-   :title: 263-lcm-lora-controlnet
-   :img: https://user-images.githubusercontent.com/29454499/284292122-f146e16d-7233-49f7-a401-edcb714b5288.png
-
-   Text-to-Image Generation with LCM LoRA and ControlNet Conditioning.
-
-.. showcase::
-   :title: 262-softvc-voice-conversion
-   :img: _static/images/notebook_eye.png
-
-   SoftVC VITS Singing Voice Conversion and OpenVINO.
 
 
 .. note::

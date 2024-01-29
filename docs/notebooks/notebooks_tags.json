@@ -111,6 +111,14 @@
         "Benchmark Model"
     ],
     "121-convert-to-openvino": [
+        "Dynamic Shape",
+        "ONNX",
+        "Pytorch",
+        "Tensorflow",
+        "Torchvision",
+        "Transformers"
+    ],
+    "121-legacy-mo-convert-to-openvino": [
         "ONNX",
         "Pytorch",
         "Torchvision",
@@ -170,7 +178,6 @@
         "ONNX"
     ],
     "210-slowfast-video-recognition": [
-        "ONNX",
         "Pytorch"
     ],
     "211-speech-to-text": [
@@ -289,7 +296,6 @@
         "Transformers"
     ],
     "234-encodec-audio-compression": [
-        "ONNX",
         "Pytorch"
     ],
     "235-controlnet-stable-diffusion": [
@@ -361,6 +367,15 @@
         "ONNX",
         "Transformers"
     ],
+    "248-segmind-vegart": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "248-ssd-b1": [
+        "Pytorch"
+    ],
     "248-stable-diffusion-xl": [
         "Transformers"
     ],
@@ -370,7 +385,6 @@
         "Transformers"
     ],
     "250-music-generation": [
-        "ONNX",
         "Pytorch",
         "Transformers"
     ],
@@ -388,6 +402,11 @@
         "Transformers"
     ],
     "254-llm-chatbot": [
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "254-rag-chatbot": [
         "Async Inference",
         "NNCF",
         "Pytorch",
@@ -403,6 +422,12 @@
         "Pytorch"
     ],
     "257-llava-multimodal-chatbot": [
+        "Async Inference",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "257-videollava-multimodal-chatbot": [
         "Async Inference",
         "NNCF",
         "Pytorch",
@@ -441,11 +466,16 @@
         "Transformers"
     ],
     "264-qrcode-monster": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
     "265-wuerstchen-image-generation": [
-        "Pytorch"
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
     ],
     "266-speculative-sampling": [
         "Pytorch",
@@ -476,6 +506,39 @@
         "Pytorch",
         "Transformers"
     ],
+    "273-stable-zephyr-3b-chatbot": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "274-efficient-sam": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch"
+    ],
+    "275-llm-question-answering": [
+        "NNCF",
+        "Transformers"
+    ],
+    "276-stable-diffusion-torchdynamo-backend": [
+        "Pytorch"
+    ],
+    "277-amused-lightweight-text-to-image": [
+        "Pytorch"
+    ],
+    "278-stable-diffusion-ip-adapter": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "279-mobilevlm-language-assistant": [
+        "Async Inference",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "280-depth-anything": [
+        "Pytorch",
+        "Torchvision"
+    ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",
         "NNCF",
@@ -503,9 +566,6 @@
     ],
     "402-pose-estimation": [
         "Dynamic Shape"
-    ],
-    "403-action-recognition-webcam": [
-        "Download Model"
     ],
     "404-style-transfer": [
         "ONNX"

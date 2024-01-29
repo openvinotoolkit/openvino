@@ -22,7 +22,7 @@ The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
 aligned sentences. Here is the pipeline diagram:
 
-|image0|
+|image01|
 
 Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
@@ -36,6 +36,7 @@ Prerequisites
    embeddings
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
+
 
 **Table of contents:**
 
@@ -53,11 +54,12 @@ Prerequisites
 -  `Speed up Embeddings
    Computation <#speed-up-embeddings-computation>`__
 
-.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
+
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
 
 Get Books
 ---------
@@ -399,12 +401,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image01|
+|image0|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
+.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
 
 .. code:: ipython3
 
@@ -474,7 +476,7 @@ Optimize the Model with OpenVINO
 
 
 The LaBSE model is quite large and can be slow to infer on some
-hardware, so let’s optimize it with OpenVINO. `Model conversion Python
+hardware, so let’s optimize it with OpenVINO. `Model Conversion
 API <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
@@ -856,7 +858,7 @@ OpenVINO, you need to compile the model after reading it. There are two
 main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
 device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Working_with_devices.html>`__,
-like CPU, GPU. Each device may work with different data types,
+like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
 to store multiple copies of the network with optimized for different
@@ -933,7 +935,7 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   Note: To get a more accurate benchmark, use the `Benchmark Python
+   **Note**: To get a more accurate benchmark, use the `Benchmark Python
    Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 
 .. code:: ipython3

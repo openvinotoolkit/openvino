@@ -37,6 +37,7 @@
 247-code-language-id
 250-music-generation
 261-fast-segment-anything
+280-depth-anything
 401-object-detection
 402-pose-estimation
 403-action-recognition-webcam

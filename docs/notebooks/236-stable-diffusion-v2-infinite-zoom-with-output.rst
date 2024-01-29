@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <225-stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./235-controlnet-stable-diffusion/235-controlnet-stable-diffusion.ipynb>`__.
+ControlNet <235-controlnet-stable-diffusio235-controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -71,11 +71,11 @@ Notebook contains the following steps:
 3. Run Stable Diffusion v2 inpainting pipeline for generation infinity
    zoom video
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Stable Diffusion v2 Infinite Zoom
-   Showcase <#stable-diffusion-v-infinite-zoom-showcase>`__
+   Showcase <#stable-diffusion-v2-infinite-zoom-showcase>`__
 
    -  `Stable Diffusion Text guided
       Inpainting <#stable-diffusion-text-guided-inpainting>`__
@@ -211,7 +211,7 @@ Convert models to OpenVINO Intermediate representation (IR) format
 
 
 Conversion part of model stayed remain as in `Text-to-Image generation
-notebook <./236-stable-diffusion-v2-text-to-image.ipynb>`__. Except
+notebook <236-stable-diffusion-v2-text-to-image-with-output.html>`__. Except
 U-Net now has 9 channels, which now calculated like 4 for U-Net
 generated latents channels + 4 for latent representation of masked image
 + 1 channel resized mask.
@@ -665,7 +665,7 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
             latent_timestep = timesteps[:1]
 
             # get the initial random noise unless the user supplied it
-            latents, meta = self.prepare_latents(None, latent_timestep)
+            latents, meta = self.prepare_latents(latent_timestep)
             mask, masked_image_latents = self.prepare_mask_latents(
                 mask,
                 masked_image,
@@ -785,13 +785,11 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
 
             return text_embeddings
 
-        def prepare_latents(self, image:PIL.Image.Image = None, latent_timestep:torch.Tensor = None):
+        def prepare_latents(self, latent_timestep:torch.Tensor = None):
             """
             Function for getting initial latents for starting generation
 
             Parameters:
-                image (PIL.Image.Image, *optional*, None):
-                    Input image for generation, if not provided randon noise will be used as starting point
                 latent_timestep (torch.Tensor, *optional*, None):
                     Predicted by scheduler initial step for image generation, required for latent image mixing with nosie
             Returns:
@@ -800,16 +798,10 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
             """
             latents_shape = (1, 4, self.height // 8, self.width // 8)
             noise = np.random.randn(*latents_shape).astype(np.float32)
-            if image is None:
-                # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
-                if isinstance(self.scheduler, LMSDiscreteScheduler):
-                    noise = noise * self.scheduler.sigmas[0].numpy()
-                return noise, {}
-            input_image, meta = preprocess(image)
-            latents = self.vae_encoder(input_image)[self._vae_e_output]
-            latents = latents * 0.18215
-            latents = self.scheduler.add_noise(torch.from_numpy(latents), torch.from_numpy(noise), latent_timestep).numpy()
-            return latents, meta
+            # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
+            if isinstance(self.scheduler, LMSDiscreteScheduler):
+                noise = noise * self.scheduler.sigmas[0].numpy()
+            return noise, {}
 
         def postprocess_image(self, image:np.ndarray, meta:Dict, output_type:str = "pil"):
             """
@@ -1147,7 +1139,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GNA', 'AUTO'), value='AUTO')
 
 
 
@@ -1236,5 +1228,4 @@ Run Infinite Zoom video generation
 .. .. raw:: html
 
 ..    <div><iframe src="https://372deef95f8b1d0168.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
 
