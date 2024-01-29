@@ -326,25 +326,15 @@ def test_partial_shape_equals():
     assert shape == ps
     assert shape == ps.to_shape()
 
-def test_partial_shape_eq_list():
-    obj = [1, 2, 3]
-    ps = PartialShape(obj)
-    assert obj == ps, "The PartialShape object is not equal to the list"
+@pytest.mark.parametrize("shape", [[1, 2, 3], (1, 2, 3)])
+def test_partial_shape_eq(shape):
+    ps = PartialShape(shape)
+    assert shape == ps, "The PartialShape object is not equal to the list"
 
-def test_partial_shape_eq_tuple():
-    obj = (1, 2, 3)
-    ps = PartialShape(obj)
-    assert obj == ps, "The PartialShape object is not equal to the tuple"
-
-def test_shape_eq_list():
-    obj = [1, 2, 3]
-    sp = Shape(obj)
-    assert obj == sp
-
-def test_shape_eq_tuple():
-    obj = (1, 2, 3)
-    sp = Shape(obj)
-    assert obj == sp
+@pytest.mark.parametrize("shape", [[1, 2, 3], (1, 2, 3)])
+def test_shape_eq(shape):
+    sp = Shape(shape)
+    assert shape== sp
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
