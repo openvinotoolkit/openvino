@@ -855,15 +855,17 @@ Speed up Embeddings Computation
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using
 OpenVINO, you need to compile the model after reading it. There are two
-main reasons for this: 1. Compatibility with different devices. The
+main reasons for this:
+
+1. Compatibility with different devices. The
 model can be compiled to run on a `specific
-device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Working_with_devices.html>`__,
+device <https://docs.openvino.ai/2023.3/openvino_docs_Runtime_Inference_Modes_Overview.html>`__,
 like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
 to store multiple copies of the network with optimized for different
-hardware. A universal OpenVINO model representation is enough. 1.
-Optimization for different scenarios. For example, one scenario
+hardware. A universal OpenVINO model representation is enough.
+2. Optimization for different scenarios. For example, one scenario
 prioritizes minimizing the *time between starting and finishing model
 inference* (`latency-oriented
 optimization <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_latency.html>`__).
@@ -1044,9 +1046,8 @@ Async mode with throughput hint, we get ×3.21 (or 221%) performance
 boost.
 
 Here are useful links with information about the techniques used in this
-notebook: - `OpenVINO performance
-hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html>`__
-- `OpenVINO Async
-API <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
-- `Throughput
-Optimizations <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__
+notebook:
+
+- `OpenVINO performance hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html>`__
+- `OpenVINO Async API <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+- `Throughput Optimizations <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__
