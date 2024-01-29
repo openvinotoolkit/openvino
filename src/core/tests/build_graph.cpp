@@ -9,7 +9,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/graph_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
@@ -128,9 +127,8 @@ TEST(build_graph, no_arg_construction) {
     add1->set_argument(0, acos0);
     add1->set_argument(1, abs0);
     NodeVector ops{arg0, arg1, add0, abs0, acos0, add1};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::validate_nodes_and_infer_types(ops);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    for (const auto& op : ov::topological_sort(ops))
+        op->revalidate_and_infer_types();
     ASSERT_EQ(add1->get_output_shape(0), Shape{7});
 }
 

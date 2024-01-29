@@ -342,6 +342,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
 
 }  // namespace ov
 
+#if 0
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
@@ -845,3 +846,4 @@ bool check_for_cycles(const ov::Model* func, ov::NodeVector& cycle_nodes, bool& 
 }
 
 }  // namespace ngraph
+#endif

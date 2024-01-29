@@ -30,9 +30,9 @@
 #include <vector>
 
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/graph_util.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/enum_mask.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"

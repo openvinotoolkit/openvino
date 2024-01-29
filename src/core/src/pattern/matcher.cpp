@@ -83,8 +83,53 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
         }
     }
 }
+
+namespace {
+bool is_used(ov::Node* node) {
+    std::unordered_set<ov::Node*> instances_seen;
+    std::stack<ov::Node*, std::vector<ov::Node*>> stack;
+    stack.push(node);
+
+    while (stack.size() > 0) {
+        ov::Node* n = stack.top();
+        if (instances_seen.count(n) == 0) {
+            if (ov::op::util::is_output(n)) {
+                return true;
+            }
+            instances_seen.insert(n);
+        }
+        stack.pop();
+        for (const auto& arg : n->get_users()) {
+            if (instances_seen.count(arg.get()) == 0) {
+                stack.push(arg.get());
+            }
+        }
+    }
+    return false;
+}
+
+ov::NodeVector get_subgraph_outputs(const NodeVector& nodes, const NodeVector& exclusions, bool ignore_unused) {
+    const std::set<std::shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
+    const std::set<std::shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
+
+    NodeVector outputs;
+
+    for (const auto& n : nodes) {
+        if (exclusions_set.count(n) != 0)
+            continue;
+
+        for (const auto& u : n->get_users()) {
+            bool add_output = nodes_set.count(u) == 0 && (!ignore_unused || is_used(u.get()));
+            if (add_output) {
+                outputs.push_back(n);
+            }
+        }
+    }
+    return outputs;
+}
+}  // namespace
+
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -93,11 +138,10 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
                 label_exclusions.push_back(entry.second.get_node_shared_ptr());
             }
         }
-        return ngraph::get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
+        return get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
     }
 
-    return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_subgraph_outputs(get_matched_nodes(), exclusions, false).size() < 2;
 }
 
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {

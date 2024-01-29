@@ -15,6 +15,7 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "shape_validation.hpp"
@@ -513,16 +514,39 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     return true;
 }
 
+namespace {
+bool is_used(ov::Node* node) {
+    std::unordered_set<ov::Node*> instances_seen;
+    std::stack<ov::Node*, std::vector<ov::Node*>> stack;
+    stack.push(node);
+
+    while (stack.size() > 0) {
+        ov::Node* n = stack.top();
+        if (instances_seen.count(n) == 0) {
+            if (ov::op::util::is_output(n)) {
+                return true;
+            }
+            instances_seen.insert(n);
+        }
+        stack.pop();
+        for (const auto& arg : n->get_users()) {
+            if (instances_seen.count(arg.get()) == 0) {
+                stack.push(arg.get());
+            }
+        }
+    }
+    return false;
+}
+}  // namespace
+
 ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     NodeVector result;
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!check_is_used || ngraph::is_used(input_node)) {
+            if (!check_is_used || is_used(input_node)) {
                 result.push_back(input_node->shared_from_this());
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
