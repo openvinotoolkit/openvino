@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector scatter_elements(const Node& node) {
+ov::OutputVector scatter_elements(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto indices = node.get_ng_inputs().at(1);
     const auto updates = node.get_ng_inputs().at(2);
