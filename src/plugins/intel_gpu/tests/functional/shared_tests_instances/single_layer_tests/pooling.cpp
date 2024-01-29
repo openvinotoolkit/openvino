@@ -4,46 +4,45 @@
 
 #include <vector>
 
-#include "single_layer_tests/pooling.hpp"
-#include "common_test_utils/test_constants.hpp"
-
-using namespace ngraph::helpers;
-using namespace LayerTestsDefinitions;
-using namespace ngraph::element;
+#include "single_op_tests/pooling.hpp"
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+using ov::test::PoolingLayerTest;
+using ov::test::MaxPoolingV8LayerTest;
+
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions_fp_i32 = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32
+const std::vector<ov::element::Type> netPrecisions_fp_i32 = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32
 };
 
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
-                                                          {3, 5}};
+                                                   {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
-                                                          {1, 2}};
+                                                   {1, 2}};
 const std::vector<std::vector<size_t >> dilations = {{1, 1},
-                                                          {1, 2}};
+                                                     {1, 2}};
 const std::vector<std::vector<size_t >> padBegins = {{0, 0},
-                                                            {0, 2}};
+                                                     {0, 2}};
 const std::vector<std::vector<size_t >> padEnds = {{0, 0},
-                                                          {0, 2}};
+                                                   {0, 2}};
 const std::vector<ov::op::RoundingType> roundingTypes = {ov::op::RoundingType::CEIL,
-                                                             ov::op::RoundingType::FLOOR};
-const std::vector<ngraph::element::Type_t> indexElementTypes = {ngraph::element::Type_t::i32};
+                                                         ov::op::RoundingType::FLOOR};
+const std::vector<ov::element::Type> indexElementTypes = {ov::element::i32};
+
 const std::vector<int64_t> axes = {0, 2};
-const std::vector<size_t > inputShapeSmall = {1, 3, 30, 30};
-const std::vector<size_t > inputShapeLarge = {1, 3, 50, 50};
+const std::vector<ov::Shape> inputShapeSmall = {{1, 3, 30, 30}};
+const std::vector<ov::Shape> inputShapeLarge = {{1, 3, 50, 50}};
 
 ////* ========== Max Pooling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
-        ::testing::Values(PoolingTypes::MAX),
+        ::testing::Values(ov::test::utils::PoolingTypes::MAX),
         ::testing::ValuesIn(kernels),
         ::testing::ValuesIn(strides),
         ::testing::ValuesIn(padBegins),
@@ -57,17 +56,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTe
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions_fp_i32),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShapeLarge),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeLarge)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
 const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
-        ::testing::Values(PoolingTypes::MAX),
+        ::testing::Values(ov::test::utils::PoolingTypes::MAX),
         ::testing::ValuesIn(kernels),
         // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
         ::testing::Values(std::vector<size_t>({1, 1})),
@@ -82,11 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTes
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
                                 ::testing::ValuesIn(netPrecisions_fp_i32),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShapeLarge),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeLarge)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -94,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTes
 ////* ========== Avg Pooling ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
 const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
-        ::testing::Values(PoolingTypes::AVG),
+        ::testing::Values(ov::test::utils::PoolingTypes::AVG),
         ::testing::ValuesIn(kernels),
         // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
         ::testing::Values(std::vector<size_t>({1, 1})),
@@ -109,17 +100,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTes
                        ::testing::Combine(
                                avgPoolExplicitPadCeilRoundingParams,
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                               ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                               ::testing::Values(InferenceEngine::Layout::ANY),
-                               ::testing::Values(InferenceEngine::Layout::ANY),
-                               ::testing::Values(inputShapeSmall),
+                               ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                        PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
-        ::testing::Values(PoolingTypes::AVG),
+        ::testing::Values(ov::test::utils::PoolingTypes::AVG),
         ::testing::ValuesIn(kernels),
         ::testing::ValuesIn(strides),
         ::testing::ValuesIn(padBegins),
@@ -134,18 +121,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShapeSmall),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Pooling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */
 const auto allPools_ValidPad_Params = ::testing::Combine(
-        ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
+        ::testing::Values(ov::test::utils::PoolingTypes::MAX, ov::test::utils::PoolingTypes::AVG),
         ::testing::ValuesIn(kernels),
         ::testing::ValuesIn(strides),
         ::testing::Values(std::vector<size_t>({0, 0})),
@@ -160,11 +143,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShapeLarge),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeLarge)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -188,11 +167,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_FloorRounding, MaxPoolingV8L
                         ::testing::Combine(
                                 maxPool8_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions_fp_i32),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(inputShapeSmall),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
@@ -213,11 +188,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8La
                          ::testing::Combine(
                                  maxPool8_ExplicitPad_CeilRounding_Params,
                                  ::testing::ValuesIn(netPrecisions_fp_i32),
-                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                 ::testing::Values(inputShapeSmall),
+                                 ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 

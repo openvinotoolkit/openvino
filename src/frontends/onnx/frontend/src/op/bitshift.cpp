@@ -17,9 +17,9 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector bitshift(const Node& node) {
-    const Output<ov::Node> input_x = node.get_ng_inputs().at(0);
-    const Output<ov::Node> input_y = node.get_ng_inputs().at(1);
+ov::OutputVector bitshift(const Node& node) {
+    const ov::Output<ov::Node> input_x = node.get_ng_inputs().at(0);
+    const ov::Output<ov::Node> input_y = node.get_ng_inputs().at(1);
 
     std::string direction = node.get_attribute_value<std::string>("direction", "");
 
