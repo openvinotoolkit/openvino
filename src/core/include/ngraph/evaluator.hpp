@@ -21,7 +21,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace ngraph {
 /// \brief Execute handlers on a subgraph to compute values
@@ -114,7 +114,7 @@ protected:
     /// \brief Ensure value has been analyzed
     class ValueInst : public Inst {
     public:
-        ValueInst(const Output<Node>& value) : Inst(value.get_node()), m_index(value.get_index()) {}
+        ValueInst(const ov::Output<Node>& value) : Inst(value.get_node()), m_index(value.get_index()) {}
 
         ValueInst(const RawNodeOutput& value) : Inst(value.node), m_index(value.index) {}
 
@@ -162,7 +162,7 @@ protected:
 
 public:
     /// \brief Determine information about value
-    V evaluate(const Output<Node>& value) {
+    V evaluate(const ov::Output<Node>& value) {
         InstStack inst_stack;
         inst_stack.push(InstPtr(new ValueInst(value)));
         while (!inst_stack.empty()) {
