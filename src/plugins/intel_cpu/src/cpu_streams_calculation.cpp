@@ -61,6 +61,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         int socket_id = stream_info[STREAM_SOCKET_ID];
         int node_start = one_proc_table.size() == 1 ? 0 : 1;
         int node_end = one_proc_table.size() == 1 ? 1 : one_proc_table.size();
+        // When n_mode is 3, the following loop only selects CPUs on socket with the same id as current_socket_id.
+        // When n_mode is 2, the following loop only selects CPUs on sockets with id different from current_socket_id.
+        // When n_mode is 1, the following loop selects CPUs on all sockets.
         for (int n_mode = current_socket_id < 0 ? 1 : 3; (n_mode > 0) && (total_threads > 0); n_mode--) {
             for (int n = MAIN_CORE_PROC; (n <= HYPER_THREADING_PROC) && (total_threads > 0); n++) {
                 for (int index = node_start; (index < node_end) && (total_threads > 0); index++) {
