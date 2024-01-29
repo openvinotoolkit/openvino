@@ -55,10 +55,12 @@
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/convert_convolution.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -708,6 +710,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
 
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
+        manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+
+        const size_t zp_pad_size = 32;
+        manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
+
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/graph_util.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -11,12 +9,12 @@
 #include "openvino/op/loop.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -214,7 +212,7 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
 
 void ProgramBuilder::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ov::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateSingleLayerPrimitive");
-    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
+    GPU_DEBUG_LOG << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
                   << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
@@ -253,6 +251,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
+
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
@@ -264,6 +263,10 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
+        if (ov::is_type<op::Placeholder>(prevOp)) {
+            inputInfo.push_back(cldnn::input_info{});
+            continue;
+        }
         if (!queryMode) {
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 OPENVINO_THROW("Input ", prevName, " hasn't been found in primitive_ids map");
