@@ -14,8 +14,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector identity(const Node& node) {
-    OutputVector outputs = node.get_ng_inputs();
+inline ov::OutputVector identity(const Node& node) {
+    ov::OutputVector outputs = node.get_ng_inputs();
     for (auto& out : outputs) {
         common::mark_as_optimized_out(out);
     }
