@@ -52,7 +52,7 @@ OutputVector translate_convolution(const NodeContext& context) {
         if (!transposed) {
             conv = context.mark_node(std::make_shared<v1::GroupConvolution>(
                 context.get_input(0),
-                context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
+                reshape_kernel_for_group(context, context.get_input(1), groups),
                 strides,
                 pads,
                 pads,
@@ -60,7 +60,7 @@ OutputVector translate_convolution(const NodeContext& context) {
         } else {
             conv = context.mark_node(std::make_shared<v1::GroupConvolutionBackpropData>(
                 context.get_input(0),
-                context.mark_output(reshape_kernel_for_group(context, context.get_input(1), groups)),
+                reshape_kernel_for_group(context, context.get_input(1), groups),
                 strides,
                 pads,
                 pads,

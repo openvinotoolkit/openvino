@@ -94,6 +94,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
     auto new_kernel_shape =
         make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
+    auto res = make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
     context.mark_nodes({axis_0,
                         groups_const,
                         kernel_shape,
@@ -105,8 +106,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
                         stop,
                         step,
                         remaining_shape,
-                        new_kernel_shape});
-    return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
+                        new_kernel_shape,
+                        res});
+    return res;
 }
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
