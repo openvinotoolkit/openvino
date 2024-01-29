@@ -78,9 +78,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             streams = streamExecutorConfig.get_streams();
             threads = streamExecutorConfig.get_threads();
             threadsPerStream = streamExecutorConfig.get_threads_per_stream();
+            streamsInfoTable = {};
             if (key == ov::num_streams.name()) {
                 ov::Any value = val.as<std::string>();
                 auto streams_value = value.as<ov::streams::Num>();
+                streamsChanged = true;
                 if (streams_value == ov::streams::NUMA) {
                     latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
                 } else if (streams_value == ov::streams::AUTO) {

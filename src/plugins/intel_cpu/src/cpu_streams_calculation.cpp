@@ -543,12 +543,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 }
 
 void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config) {
-    IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
     generate_stream_info(streams, model, config, proc_type_table);
-
-    executor_config = IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
 }
 
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {

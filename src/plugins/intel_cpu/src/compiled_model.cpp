@@ -62,7 +62,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                               m_cfg.threadBindingType,
                                                               1,
                                                               0,
-                                                              0,
+                                                              m_cfg.threads,
                                                               IStreamsExecutor::Config::PreferredCoreType::ANY,
                                                               m_cfg.streamsInfoTable,
                                                               m_cfg.cpuReservation};
@@ -80,7 +80,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, m_cfg.streams);
+    int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
@@ -217,11 +217,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const std::string modelName = graph.dump()->get_friendly_name();
         return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = config.streams;
+        const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
-        const auto streams = config.streams;
+        const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
@@ -238,7 +238,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         }
         return ov::Affinity::NONE;
     } else if (name == ov::inference_num_threads) {
-        const auto num_threads = config.threads;
+        const auto num_threads = config.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;

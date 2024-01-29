@@ -82,6 +82,12 @@ public:
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
 
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information,
+         *        streams_info_table must be present in the configuration
+         */
+        void reserve_cpu_threads();
+
     public:
         /**
          * @brief      A constructor with arguments
@@ -202,6 +208,7 @@ public:
          * @param initial Inital configuration
          * @return configured values
          */
+        // It will be removed when other plugins will no longer call it.
         static Config reserve_cpu_threads(const Config& initial);
 
         /**

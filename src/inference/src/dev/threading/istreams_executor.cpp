@@ -152,6 +152,16 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     return streamConfig;
 }
 
+void IStreamsExecutor::Config::reserve_cpu_threads() {
+    int status = _name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
+
+    if (_streams_info_table.size() == 0 || (status == CPU_USED && !_cpu_reservation)) {
+        return;
+    }
+
+    reserve_available_cpus(_streams_info_table, _stream_processor_ids, status);
+}
+
 IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial) {
     auto config = initial;
     int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
@@ -284,11 +294,19 @@ void IStreamsExecutor::Config::update_executor_config() {
     }
 
     if (_cpu_reservation) {
-        auto new_config = reserve_cpu_threads(*this);
-        _stream_processor_ids = new_config._stream_processor_ids;
-        _streams = new_config._streams;
-        _threads = new_config._threads;
+        reserve_cpu_threads();
     }
+    // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
+    _streams = 0;
+    _threads = 0;
+    for (size_t i = 0; i < _streams_info_table.size(); i++) {
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            _streams += _streams_info_table[i][NUMBER_OF_STREAMS];
+            _threads += _streams_info_table[i][NUMBER_OF_STREAMS] * _streams_info_table[i][THREADS_PER_STREAM];
+        }
+    }
+    _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
+    OPENVINO_DEBUG << "[ threading ] " << _name << " reserve_cpu_threads " << _streams << "(" << _threads << ")";
 }
 
 void IStreamsExecutor::Config::set_config_zero_stream() {
