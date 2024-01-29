@@ -21,7 +21,6 @@ public:
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ov::op::v8::MatrixNms::Attributes m_attrs;
-    bool m_outStaticShape;
 
 protected:
     void SetUp() override;
