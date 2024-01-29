@@ -641,21 +641,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
     steps:
-      - name: Install Prerequisites
-        run: apt update && apt install -y git ca-certificates
-
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
       - name: checkout action
         uses: actions/checkout@v4
         with:
@@ -676,6 +661,18 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           ref: 'master'
+
+      - name: Download OpenVINO Developer package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_developer_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
+          popd
 
       #
       # Dependencies
