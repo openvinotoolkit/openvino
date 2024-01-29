@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/node.hpp"
 #include "ov_models/ov_builders/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -16,7 +15,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 ov::OutputVector transpose(const Node& node) {
-    ov::Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+    ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
 
     auto permute_axes = node.get_attribute_value<std::vector<std::size_t>>("perm", {});
 

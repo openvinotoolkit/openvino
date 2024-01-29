@@ -575,6 +575,16 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
         copy_runtime_info(additional_rt_info_src, to);
 }
 
+// helper ops
+Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask,
+                         const Output<Node>& value) {
+    auto _value = rg.make<opset10::ConvertLike>(value, data);
+    auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
+    return rg.make<opset10::Select>(bool_mask, _value, data);
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
