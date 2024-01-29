@@ -329,12 +329,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-        type_to_fuse_map empty_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
                                  fp_convert_precision_map,
-                                 empty_fuse_map,
+                                 f16_fuse_map,
                                  keep_precision_sensitive_in_fp32,
                                  false);
     }
