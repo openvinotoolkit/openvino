@@ -621,7 +621,7 @@ jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
