@@ -434,6 +434,7 @@ private:
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
+    mutable std::string m_auto_generated_friendly_name;
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
