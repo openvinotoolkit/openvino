@@ -50,13 +50,13 @@ OutputVector translate_convolution(const NodeContext& context) {
         }
     } else {
         if (!transposed) {
-            conv = context.mark_node(std::make_shared<v1::GroupConvolution>(
-                context.get_input(0),
-                reshape_kernel_for_group(context, context.get_input(1), groups),
-                strides,
-                pads,
-                pads,
-                dilations));
+            conv = context.mark_node(
+                std::make_shared<v1::GroupConvolution>(context.get_input(0),
+                                                       reshape_kernel_for_group(context, context.get_input(1), groups),
+                                                       strides,
+                                                       pads,
+                                                       pads,
+                                                       dilations));
         } else {
             conv = context.mark_node(std::make_shared<v1::GroupConvolutionBackpropData>(
                 context.get_input(0),
