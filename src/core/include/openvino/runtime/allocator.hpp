@@ -14,7 +14,6 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
