@@ -1,5 +1,5 @@
 [project]
-version = "2023.4"  # TODO: update automatically?
+version = "2024.0"  # TODO: update automatically?
 requires-python = ">=3.8"  # , <3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
