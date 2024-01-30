@@ -36,7 +36,7 @@ public:
     Graph& operator=(Graph&&) = default;
     std::shared_ptr<ov::Model> decode();
     virtual std::shared_ptr<ov::Model> convert();
-    OutputVector get_ov_outputs();
+    ov::OutputVector get_ov_outputs();
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
@@ -46,13 +46,13 @@ public:
     detail::MappedMemoryHandles get_mmap_cache() const {
         return m_mmap_cache;
     }
-    const ParameterVector& get_ng_parameters() const {
+    const ov::ParameterVector& get_ng_parameters() const {
         return m_parameters;
     }
     virtual bool is_ov_node_in_cache(const std::string& name) const;
     virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    OutputVector make_ov_nodes(const Node& onnx_node);
+    ov::OutputVector make_ov_nodes(const Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
@@ -69,12 +69,12 @@ protected:
           ov::frontend::ExtensionHolder extensions = {});
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
+    void set_friendly_names(const Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    OutputVector make_framework_nodes(const Node& onnx_node);
+    ov::OutputVector make_framework_nodes(const Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     void decode_to_framework_nodes();
     void convert_to_ov_nodes();
@@ -82,7 +82,7 @@ protected:
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<ov::Model> create_model();
 
-    ParameterVector m_parameters;
+    ov::ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
     std::unique_ptr<GraphCache> m_cache;
     ov::frontend::ExtensionHolder m_extensions = {};
