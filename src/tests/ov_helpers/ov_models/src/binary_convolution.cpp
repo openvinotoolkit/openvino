@@ -19,7 +19,7 @@ std::shared_ptr<Node> makeBinaryConvolution(const ov::Output<Node>& in,
                                             const std::vector<ptrdiff_t>& padsBegin,
                                             const std::vector<ptrdiff_t>& padsEnd,
                                             const std::vector<size_t>& dilations,
-                                            const op::PadType& autoPad,
+                                            const ov::op::PadType& autoPad,
                                             size_t numOutChannels,
                                             float padValue,
                                             const std::vector<int8_t>& filterWeihgts) {

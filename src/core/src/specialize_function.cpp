@@ -50,13 +50,13 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
             continue;
         }
 
-        OutputVector new_args;
+        ov::OutputVector new_args;
         for (auto input : old_node->inputs()) {
             auto output = input.get_source_output();
             new_args.push_back(output.for_node(m[output.get_node()]));
         }
 
-        NodeVector cloned_dependencies;
+        ov::NodeVector cloned_dependencies;
         for (auto& dependency : old_node->get_control_dependencies()) {
             std::shared_ptr<Node> dependent = m.at(dependency.get());
             if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) == cloned_dependencies.end()) {
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
         new_parameters[i]->set_friendly_name(name);
     }
 
-    ResultVector new_results = f->get_results();
+    ov::ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
         new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);
