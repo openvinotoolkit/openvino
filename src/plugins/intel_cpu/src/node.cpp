@@ -525,16 +525,20 @@ EdgePtr Node::getChildEdgeAt(size_t idx) const {
     return childEdgePtr;
 }
 
-std::vector<EdgePtr> Node::getChildEdgesAtPort(size_t idx) const {
-    if (idx >= outputShapes.size())
-        OPENVINO_THROW("Node ", getName(), " contains less output ports than ", idx);
+std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
+    if (inputNum < 0)
+        OPENVINO_THROW("Node ", getName(), ". negative input number is not supported ", inputNum);
+
+    if (static_cast<size_t>(inputNum) >= outputShapes.size())
+        OPENVINO_THROW("Node ", getName(), " contains less output ports than ", inputNum);
 
     std::vector<EdgePtr> res;
     for (auto &edge_w : childEdges) {
         auto edge = edge_w.lock();
         if (!edge)
             OPENVINO_THROW("Node ", getName(), " contains dead weak ptr");
-        if (edge->getInputNum() == static_cast<int>(idx)) res.push_back(edge);
+        if (edge->getInputNum() == inputNum)
+            res.push_back(edge);
     }
     return res;
 }

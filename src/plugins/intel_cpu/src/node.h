@@ -206,6 +206,25 @@ public:
     }
 
     EdgePtr getParentEdgeAt(size_t idx) const;
+
+    /**
+     * Returns all the child edges by input port number.
+     *
+     * Safe way of getting all the child edges at port.
+     * Does not require a vector of the child edges to be sorted.
+     * Allocates a storage (vector) to collect the child edges.
+     */
+    std::vector<EdgePtr> getChildEdgesAtPort(int inputNum) const;
+
+    /**
+     * Returns a child edge by index.
+     *
+     * @attention !!! Can only be used after Graph::SortTopologically is performed !!!
+     * Optimized way of accessing a child edge at port.
+     * If node contains multiple child edges at port, a random one is returned.
+     * Has less overhead in comparison with calling getChildEdgesAtPort(idx)[0].
+     * The main use case is accessing Memory from edge with less overhead.
+     */
     EdgePtr getChildEdgeAt(size_t idx) const;
 
     MemoryPtr getSrcMemoryAtPort(size_t idx) const {
@@ -233,8 +252,6 @@ public:
     T* getDstDataAtPortAs(size_t idx) const {
         return getDstMemoryAtPort(idx)->getDataAs<T>();
     }
-
-    std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
 
     int inPlaceInputPort(int portIdx) const;
     int inPlaceOutPort(int portIdx) const;
