@@ -189,6 +189,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
+
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
@@ -2631,9 +2632,23 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         if (reorder_last != reorder_layout) {
             new_nodes.push_back(reorder_last);
         }
-        for (auto node : new_nodes)
+        for (auto& node : new_nodes)
             graph.AddNode(node);
-        graph.InitNewNodes(new_nodes);
+
+        // multiple nodes must be initialized in specific order
+        for (auto& node : new_nodes)
+            node->init();
+        for (auto& node : new_nodes) {
+            node->getSupportedDescriptors();
+            node->initSupportedPrimitiveDescriptors();
+            node->filterSupportedPrimitiveDescriptors();
+        }
+        for (auto& node : new_nodes)
+            node->selectOptimalPrimitiveDescriptor();
+        for (auto& node : new_nodes)
+            graph.resolveInPlaceDirection(node);
+        for (auto& node : new_nodes)
+            node->initOptimalPrimitiveDescriptor();
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {

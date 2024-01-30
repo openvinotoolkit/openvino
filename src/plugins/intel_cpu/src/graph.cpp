@@ -222,16 +222,16 @@ void Graph::InitGraph() {
     GraphOptimizer optimizer;
 
     SortTopologically();
-    InitNodes(graphNodes);
+    InitNodes();
 
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
 
-    InitDescriptors(graphNodes);
+    InitDescriptors();
 
-    ResolveInplaceDirections(graphNodes);
+    ResolveInplaceDirections();
 
-    InitOptimalPrimitiveDescriptors(graphNodes);
+    InitOptimalPrimitiveDescriptors();
 
     ResolveEdgeConflicts();
 
@@ -261,17 +261,17 @@ void Graph::InitGraph() {
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
-void Graph::InitNodes(const std::vector<NodePtr>& nodes) {
+void Graph::InitNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitNodes");
-    for (auto &node : nodes) {
+    for (auto &node : graphNodes) {
         node->init();
     }
 }
 
-void Graph::InitDescriptors(const std::vector<NodePtr>& nodes) {
+void Graph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
-    for (auto &node : nodes) {
+    for (auto &node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
@@ -301,25 +301,25 @@ void Graph::InitDescriptors(const std::vector<NodePtr>& nodes) {
 #endif
     }
 
-    for (auto &node : nodes) {
+    for (auto &node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
         DEBUG_LOG("Select optimal primitive descriptors for node: ", node->getName());
         node->selectOptimalPrimitiveDescriptor();
     }
 }
 
-void Graph::ResolveInplaceDirections(const std::vector<NodePtr>& nodes) {
+void Graph::ResolveInplaceDirections() {
      OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
 
-    for (auto& node : nodes) {
+    for (auto& node : graphNodes) {
         resolveInPlaceDirection(node);
     }
 }
 
 
-void Graph::InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes) {
+void Graph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
-    for (auto &node : nodes) {
+    for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
         node->initOptimalPrimitiveDescriptor();
@@ -441,7 +441,7 @@ void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<st
 
     // optimized flag indicate that just desc update w/o actual physical memory movement.
     InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
-};
+}
 
 void Graph::ResolveEdgeConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
@@ -1584,21 +1584,19 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-void Graph::InitNewNodes(const std::vector<NodePtr>& new_nodes) {
-    InitNodes(new_nodes);
-    InitDescriptors(new_nodes);
-    ResolveInplaceDirections(new_nodes);
-    InitOptimalPrimitiveDescriptors(new_nodes);
-}
-
 bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
     CreateEdge(parent, node, parentPort, 0);
     CreateEdge(node, child, 0, childPort);
-
     AddNode(node);
 
-    if (initNode)
-        InitNewNodes({node});
+    if (initNode) {
+        node->getSupportedDescriptors();
+        node->initSupportedPrimitiveDescriptors();
+        node->filterSupportedPrimitiveDescriptors();
+        node->selectOptimalPrimitiveDescriptor();
+        resolveInPlaceDirection(node);
+        node->initOptimalPrimitiveDescriptor();
+    }
     return true;
 }
 

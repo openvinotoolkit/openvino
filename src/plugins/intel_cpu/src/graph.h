@@ -174,11 +174,6 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    /**
-     * @brief Initialize new nodes which has been connected into graph
-     */
-    void InitNewNodes(const std::vector<NodePtr>& new_nodes);
-
     std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
@@ -194,6 +189,8 @@ public:
     getInternalStateNodes() const {
         return internalStateNodes;
     }
+
+    void resolveInPlaceDirection(const NodePtr& node) const;
 
 protected:
     void ForgetGraphData() {
@@ -224,10 +221,10 @@ protected:
 
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
     void InitGraph();
-    void InitNodes(const std::vector<NodePtr>& nodes);
-    void InitDescriptors(const std::vector<NodePtr>& nodes);
-    void ResolveInplaceDirections(const std::vector<NodePtr>& nodes);
-    void InitOptimalPrimitiveDescriptors(const std::vector<NodePtr>& nodes);
+    void InitNodes();
+    void InitDescriptors();
+    void ResolveInplaceDirections();
+    void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
@@ -262,7 +259,6 @@ private:
 
     void EnforceInferencePrecision();
     void EnforceBF16();
-    void resolveInPlaceDirection(const NodePtr& node) const;
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
 
