@@ -5,12 +5,12 @@ These tests execute IE samples on pregenerated IR
 You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE and SHARE
 
 To install smoke tests:
-    ``` bash                                            			
-    - cd <working directory>/tests/samples_tests/smoke_tests
-    - mkdir build && cd build
-    - cmake ../..
-    - cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -P cmake_install.cmake
-    ```
+```sh                                            			
+cd <working directory>/tests/samples_tests/smoke_tests
+mkdir build && cd build
+cmake ../..
+cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -P cmake_install.cmake
+```
 1. To run tests from install directory required installing some dependencies: 
     - pip3 install -r  <INSTALL_DIR>\tests\smoke_tests\requirements.txt
 2. Call setupvars script and then set the environment variables:
