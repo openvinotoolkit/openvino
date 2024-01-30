@@ -259,9 +259,4 @@ public:
  */
 using TensorVector = std::vector<Tensor>;
 
-namespace runtime {
-using ov::Tensor;
-using ov::TensorVector;
-}  // namespace runtime
-
 }  // namespace ov

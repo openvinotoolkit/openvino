@@ -19,16 +19,16 @@ public:
     Executable();
     virtual ~Executable();
 
-    /// \param outputs vector of runtime::Tensor used as outputs
-    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param outputs vector of Tensor used as outputs
+    /// \param inputs vector of Tensor used as inputs
     /// \param collect_performance Enable per operation performance statistic
     /// \returns true if iteration is successful, false otherwise
     virtual bool call(std::vector<ov::Tensor>& outputs,
                       const std::vector<ov::Tensor>& inputs,
                       bool collect_performance = false) = 0;
 
-    /// \param outputs vector of runtime::Tensor used as outputs
-    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param outputs vector of Tensor used as outputs
+    /// \param inputs vector of Tensor used as inputs
     /// \param context Evaluation context
     /// \param collect_performance Enable per operation performance statistic
     /// \returns true if iteration is successful, false otherwise
@@ -41,14 +41,14 @@ public:
     virtual void cancel() = 0;
 
     /// \brief Executes a single iteration of a Function.
-    /// \param outputs vector of runtime::Tensor used as outputs
-    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param outputs vector of Tensor used as outputs
+    /// \param inputs vector of Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
     bool call_with_validate(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Validates a Function.
-    /// \param outputs vector of runtime::Tensor used as outputs
-    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param outputs vector of Tensor used as outputs
+    /// \param inputs vector of Tensor used as inputs
     void validate(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Query the input Parameters

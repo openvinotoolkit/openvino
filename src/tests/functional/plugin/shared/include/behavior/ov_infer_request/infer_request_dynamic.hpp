@@ -41,7 +41,7 @@ public:
 
 protected:
     void SetUp() override;
-    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
+    bool checkOutput(const ov::Tensor& in, const ov::Tensor& actual);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;

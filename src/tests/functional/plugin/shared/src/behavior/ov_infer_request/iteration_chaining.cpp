@@ -78,7 +78,7 @@ void OVIterationChaining::TearDown() {
     OVInferRequestTests::TearDown();
 }
 
-bool OVIterationChaining::checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual) {
+bool OVIterationChaining::checkOutput(const ov::Tensor& in, const ov::Tensor& actual) {
     bool result = true;
     auto net = core->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
     ov::InferRequest req;

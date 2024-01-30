@@ -39,7 +39,7 @@ struct OVIterationChaining : public OVInferRequestTests {
 
 private:
     static std::shared_ptr<ov::Model> getIterativeFunction();
-    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
+    bool checkOutput(const ov::Tensor& in, const ov::Tensor& actual);
 };
 
 }  // namespace behavior

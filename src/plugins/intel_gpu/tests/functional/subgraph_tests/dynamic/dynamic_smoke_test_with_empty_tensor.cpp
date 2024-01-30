@@ -54,7 +54,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
         auto node = funcInputs[i].get_node_shared_ptr();
-        auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[i]);
+        auto tensor = ov::Tensor(node->get_element_type(), targetInputStaticShapes[i]);
         if (i == 0) {
             // All zero inputs for non_zero op
             auto tensor_ptr = static_cast<int32_t*>(tensor.data());
