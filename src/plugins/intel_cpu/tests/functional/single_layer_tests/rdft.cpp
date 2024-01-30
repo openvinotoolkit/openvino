@@ -152,21 +152,21 @@ protected:
         const auto& funcInputs = function->inputs();
         auto funcInput = funcInputs.begin();
         inputs.clear();
-        runtime::Tensor data_tensor = test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
+        ov::Tensor data_tensor = test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
                                                                                               targetInputStaticShapes[0], 0, 1, 0);
 
         inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
         funcInput++;
         if (!constAxes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < axes.size());
-            auto tensor = ov::runtime::Tensor{funcInput->get_element_type(), Shape{axes[inputIdx].size()}};
+            auto tensor = ov::Tensor{funcInput->get_element_type(), Shape{axes[inputIdx].size()}};
             std::memcpy(tensor.data(), axes[inputIdx].data(), axes[inputIdx].size() * sizeof(axes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
             funcInput++;
         }
         if (!constSignalSizes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < signalSizes.size());
-            auto tensor = ov::runtime::Tensor{funcInput->get_element_type(), Shape{signalSizes[inputIdx].size()}};
+            auto tensor = ov::Tensor{funcInput->get_element_type(), Shape{signalSizes[inputIdx].size()}};
             std::memcpy(tensor.data(), signalSizes[inputIdx].data(), signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
         }

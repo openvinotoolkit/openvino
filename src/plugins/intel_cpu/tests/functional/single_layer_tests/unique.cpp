@@ -120,7 +120,7 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
                 int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<size_t>());

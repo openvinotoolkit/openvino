@@ -14,9 +14,9 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 
 namespace ov {
+
 class Tensor;
 
 /**
@@ -157,11 +157,5 @@ public:
      */
     explicit operator bool() const noexcept;
 };
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace runtime {
-using ov::Allocator;
-}  // namespace runtime
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov
