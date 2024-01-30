@@ -450,11 +450,7 @@ struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
         auto dst = static_cast<ov::intel_cpu::bfloat16_t *>(ctx.dstPtr);
         auto clamp = ctx.clamp;
 
-        if (ctx.interimPrc.is_real()) {
-            parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
-            });
-        } else if (!clamp) {
+        if (ctx.interimPrc.is_real() || !clamp) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
@@ -650,7 +646,7 @@ struct ConvertPrecision<std::tuple<uint8_t, ov::float16>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // src_t -> fp16
+                jit_convert(src + offset, dst + offset, current_batch_size);  // uint8 -> fp16
             });
 
         } else {
@@ -661,7 +657,7 @@ struct ConvertPrecision<std::tuple<uint8_t, ov::float16>> {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)  // uint8 -> fp32
                     tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
                 jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
             });
@@ -685,7 +681,7 @@ struct ConvertPrecision<std::tuple<float, int8_t>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> fp16
+                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> int8
             });
         } else {
             float lbound, ubound;
