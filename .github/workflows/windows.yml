@@ -426,19 +426,10 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
-
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
             Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
 
       #

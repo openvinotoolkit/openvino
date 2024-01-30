@@ -667,25 +667,16 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
-
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
       #
       # Dependencies
       #
+
       - name: Install build dependencies
         run: ./install_build_dependencies.sh
 
