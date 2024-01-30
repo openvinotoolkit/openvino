@@ -96,9 +96,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         return make_unique<ImplType>(best_kernel);
     }
 
-private:
-    using primitive_impl::get_arguments;
-
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
@@ -226,22 +223,6 @@ protected:
 
             stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
-    }
-
-    kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        if (_kernels.size()) {
-            auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[0].params.scalars;
-
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
-
-            return args;
-        }
-
-        kernel_arguments_data args;
-        return args;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,

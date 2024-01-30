@@ -322,8 +322,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
-    using primitive_impl::get_arguments;
-
     std::string get_cache_directory(const ExecutionConfig& config) const {
         auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
