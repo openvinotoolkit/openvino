@@ -74,19 +74,17 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                          ((socket_id < 0) || (socket_id == one_proc_table[index][PROC_SOCKET_ID])))) {
                         if ((0 != one_proc_table[index][n]) && ((ALL_PROC == target_proc) || (n == target_proc))) {
                             stream_info[PROC_TYPE] = n;
+                            stream_info[STREAM_NUMA_NODE_ID] = one_proc_table[index][PROC_NUMA_NODE_ID];
+                            stream_info[STREAM_SOCKET_ID] = one_proc_table[index][PROC_SOCKET_ID];
                             if (total_threads <= one_proc_table[index][n]) {
                                 stream_info[THREADS_PER_STREAM] = total_threads;
-                                stream_info[STREAM_NUMA_NODE_ID] = one_proc_table[index][PROC_NUMA_NODE_ID];
-                                stream_info[STREAM_SOCKET_ID] = one_proc_table[index][PROC_SOCKET_ID];
                                 streams_info_table.push_back(stream_info);
-                                total_threads -= one_proc_table[index][n];
+                                total_threads -= stream_info[THREADS_PER_STREAM];
                                 return;
                             } else {
                                 stream_info[THREADS_PER_STREAM] = one_proc_table[index][n];
-                                stream_info[STREAM_NUMA_NODE_ID] = one_proc_table[index][PROC_NUMA_NODE_ID];
-                                stream_info[STREAM_SOCKET_ID] = one_proc_table[index][PROC_SOCKET_ID];
                                 streams_info_table.push_back(stream_info);
-                                total_threads -= one_proc_table[index][n];
+                                total_threads -= stream_info[THREADS_PER_STREAM];
                             }
                         }
                     }
