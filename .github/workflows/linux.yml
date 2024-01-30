@@ -76,6 +76,9 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: |
           apt-get update
@@ -514,6 +517,9 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
         with:
