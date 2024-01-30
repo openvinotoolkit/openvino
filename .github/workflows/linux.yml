@@ -129,7 +129,6 @@ jobs:
           show-cache-info: 'true'
     
       - name: Set up PDM
-        uses: actions/checkout@v4
         uses: pdm-project/setup-pdm@v3
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -137,7 +136,8 @@ jobs:
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
-          pdm sync -G build -p
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # pdm install --frozen-lockfile -v -G linters -p ${PDM_PROJECT}
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
