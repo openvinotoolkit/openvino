@@ -45,10 +45,19 @@ def extract_unsupported_ops_from_exception(e: str) -> list:
 
 
 class TestTorchConvertModel(TestConvertModel):
+    cached_model = None
     def setup_class(self):
         torch.set_grad_enabled(False)
 
     def load_model(self, model_name, model_link):
+        if self.cached_model is not None and self.cached_model[0] == model_name and self.cached_model[1] == model_link:
+            return self.cached_model[2]
+        else:
+            res = self.load_model_impl(model_name, model_link)
+            self.cached_model = (model_name, model_link, res)
+            return res
+
+    def load_model_impl(self, model_name, model_link):
         raise "load_model is not implemented"
 
     def get_inputs_info(self, model_obj):
@@ -61,10 +70,40 @@ class TestTorchConvertModel(TestConvertModel):
         else:
             return flattenize_structure(inputs)
 
+    def convert_model_impl(self, model_obj):
+        if hasattr(self, "mode") and self.mode == "export":
+            from torch.fx.experimental.proxy_tensor import make_fx
+            from torch.export import export
+            from packaging import version
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+            graph = export(model_obj, self.example)
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                graph = graph.run_decompositions()
+
+            try:
+                gm = make_fx(graph)(*self.example)
+            except:
+                gm = make_fx(graph, tracing_mode='symbolic')(*self.example)
+
+            input_shapes = []
+            input_types = []
+            for input_data in self.example:
+                input_types.append(input_data.type())
+                input_shapes.append(input_data.size())
+
+            decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+            ov_model = convert_model(decoder, example_input=self.example)
+        else:
+            ov_model = convert_model(model_obj,
+                                     example_input=self.example,
+                                     verbose=True
+                                     )
+        return ov_model
+
     def convert_model(self, model_obj):
         try:
-            ov_model = convert_model(
-                model_obj, example_input=self.example, verbose=True)
+            ov_model = self.convert_model_impl(model_obj)
         except Exception as e:
             report_filename = os.environ.get("OP_REPORT_FILE", None)
             if report_filename:

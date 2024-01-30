@@ -117,6 +117,21 @@ OutputVector translate_adaptive_max_pool1d(const NodeContext& context) {
     return translate_adaptive_max_pool_base(context, const_tile_params, const_neg_1);
 };
 
+OutputVector translate_adaptive_max_pool3d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool3d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
+OutputVector translate_adaptive_max_pool2d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool2d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
+OutputVector translate_adaptive_max_pool1d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool1d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

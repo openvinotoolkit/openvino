@@ -17,14 +17,13 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_div_common(const NodeContext& context, bool inplace) {
-    num_inputs_check(context, 2, 3);
-    auto x = context.get_input(0);
-    auto y = context.get_input(1);
-    std::string rounding_mode = "";
-    if (!context.input_is_none(2)) {
-        rounding_mode = context.const_input<std::string>(2);
-    }
+OutputVector translate_div_common(const NodeContext& context,
+                                  const Output<Node>& lhs,
+                                  const Output<Node>& rhs,
+                                  const std::string& rounding_mode,
+                                  bool inplace) {
+    auto x = lhs;
+    auto y = rhs;
     if (rounding_mode.empty()) {
         // if no rounding mode and both inputs are ints cast BOTH to fp32
         const auto x_dtype = x.get_element_type();
@@ -36,7 +35,7 @@ OutputVector translate_div_common(const NodeContext& context, bool inplace) {
     }
     if (inplace) {
         if (x.get_element_type().is_dynamic() || x.get_element_type() != y.get_element_type())
-            y = context.mark_node(std::make_shared<v1::ConvertLike>(x, y));
+            y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
     } else {
         align_eltwise_input_types(context, x, y, true);
     }
@@ -55,11 +54,36 @@ OutputVector translate_div_common(const NodeContext& context, bool inplace) {
 };
 
 OutputVector translate_div(const NodeContext& context) {
-    return translate_div_common(context, false);
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    std::string rounding_mode = "";
+    if (!context.input_is_none(2)) {
+        rounding_mode = context.const_input<std::string>(2);
+    }
+    return translate_div_common(context, x, y, rounding_mode, false);
 };
 
 OutputVector translate_div_(const NodeContext& context) {
-    return translate_div_common(context, true);
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    std::string rounding_mode = "";
+    if (!context.input_is_none(2)) {
+        rounding_mode = context.const_input<std::string>(2);
+    }
+    return translate_div_common(context, x, y, rounding_mode, true);
+};
+
+OutputVector translate_div_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    std::string rounding_mode = "";
+    if (context.has_attribute("rounding_mode")) {
+        rounding_mode = context.get_attribute<std::string>("rounding_mode");
+    }
+    return translate_div_common(context, x, y, rounding_mode, false);
 };
 
 }  // namespace op

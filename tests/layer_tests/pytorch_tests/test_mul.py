@@ -32,6 +32,7 @@ class TestMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_mul_pt_spec(self, input_array, other_array, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = np.float32
@@ -100,6 +101,7 @@ class TestMulTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_mul_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

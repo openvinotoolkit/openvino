@@ -61,6 +61,7 @@ class TestTensorSplit(PytorchLayerTest):
     @pytest.mark.parametrize("axis", [0, 1, -1])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_tensor_split(self, input_shape, splits, axis, ie_device, precision, ir_version):
         self.input_shape = input_shape
         self._test(*self.create_model(splits, axis), ie_device, precision, ir_version)

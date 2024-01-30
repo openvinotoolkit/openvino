@@ -26,6 +26,7 @@ class TestEmbedding(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("indicies_size", [1, 2, 3, 4])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     def test_embedding(self, ie_device, precision, ir_version, indicies_size, indicies_dtype):

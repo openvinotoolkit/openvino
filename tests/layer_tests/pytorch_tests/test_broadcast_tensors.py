@@ -31,6 +31,7 @@ class TestBroadcastTensors(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("x_shape", [[1, ], [2, 1], [2, 2, 1]])
     @pytest.mark.parametrize("y_shape", [[2, ], [1, 2], [1, 2, 1]])
     @pytest.mark.parametrize("z_shape", [[1, 2], [2, 2], [1, 2, 1, 1]])

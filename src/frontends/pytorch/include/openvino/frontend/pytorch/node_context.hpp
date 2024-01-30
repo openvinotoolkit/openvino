@@ -51,10 +51,34 @@ public:
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override {
-        FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
+        size_t index_ = static_cast<size_t>(index);
+        FRONT_END_GENERAL_CHECK(!input_is_none(index_), "Input doesn't exist with index: ", index);
         auto input = m_decoder_inputs.at(index);
+        if (input == 0) {
+            // Case when input can be inlined (possible only for fx decoder)
+            if (m_decoder->is_input_inlined(index_)) {
+                auto inlined_input = m_decoder->inlined_input(index_);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", index);
+                return inlined_input[0];
+            }
+        }
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         return m_tensor_map->at(input);
+    }
+
+    Output<Node> get_input(const std::string& name) const override {
+        FRONT_END_GENERAL_CHECK(has_attribute(name), "Input with name ", name, " doesn't exist");
+        auto attr = get_attribute_as_any(name);
+        if (attr.is<Output<Node>>()) {
+            // Case when input is constant value
+            return attr.as<Output<Node>>();
+        } else if (attr.is<type::PyNone>()) {
+            // None means input is unknown type, most likely a Node
+            auto input = m_decoder->get_named_input(name);
+            FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
+            return m_tensor_map->at(input);
+        }
+        FRONT_END_GENERAL_CHECK(false, "Input has type which can't be converted to ov::Node.");
     }
 
     Any get_values_from_const_input(int index) const override;
@@ -112,9 +136,8 @@ public:
         return ov_output;
     }
 
-    Any get_attribute_as_any(const std::string&) const override {
-        throw std::runtime_error(
-            "There is no any named attributes in PyTorch node, query by attribute name is not implemented");
+    Any get_attribute_as_any(const std::string& name) const override {
+        return m_decoder->get_attribute(name);
     }
 
     void mutate_input(size_t index, Output<Node> ov_output) const;
