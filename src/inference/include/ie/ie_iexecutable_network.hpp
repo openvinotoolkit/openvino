@@ -29,7 +29,6 @@
 #include "ie_icnn_network.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_input_info.hpp"
-#include "ie_parameter.hpp"
 
 namespace InferenceEngine {
 
@@ -123,11 +122,11 @@ public:
     /**
      * @brief Sets configuration for current executable network
      *
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param config Map of pairs: (config name, config value)
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return code of the operation. InferenceEngine::OK if succeeded
      */
-    virtual StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode SetConfig(const ov::AnyMap& config, ResponseDesc* resp) noexcept = 0;
 
     /** @brief Gets configuration for current executable network.
      *
@@ -142,7 +141,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return code of the operation. InferenceEngine::OK if succeeded
      */
-    virtual StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept = 0;
+    virtual StatusCode GetConfig(const std::string& name, ov::Any& result, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -155,7 +154,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return code of the operation. InferenceEngine::OK if succeeded
      */
-    virtual StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept = 0;
+    virtual StatusCode GetMetric(const std::string& name, ov::Any& result, ResponseDesc* resp) const noexcept = 0;
 
 protected:
     virtual ~IExecutableNetwork() = default;

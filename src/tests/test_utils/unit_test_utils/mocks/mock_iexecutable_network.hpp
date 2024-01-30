@@ -28,17 +28,14 @@ public:
     MOCK_METHOD(StatusCode, Export, (const std::string&, ResponseDesc*), (noexcept));
     MOCK_METHOD(StatusCode, Export, (std::ostream&, ResponseDesc*), (noexcept));
     MOCK_METHOD(StatusCode, GetExecGraphInfo, (ICNNNetwork::Ptr&, ResponseDesc*), (noexcept));
-    MOCK_METHOD(StatusCode,
-                SetConfig,
-                ((const std::map<std::string, Parameter>& config), ResponseDesc* resp),
-                (noexcept));
+    MOCK_METHOD(StatusCode, SetConfig, ((const ov::AnyMap& config), ResponseDesc* resp), (noexcept));
     MOCK_METHOD(StatusCode,
                 GetConfig,
-                (const std::string& name, Parameter& result, ResponseDesc* resp),
+                (const std::string& name, ov::Any& result, ResponseDesc* resp),
                 (const, noexcept));
     MOCK_METHOD(StatusCode,
                 GetMetric,
-                (const std::string& name, Parameter& result, ResponseDesc* resp),
+                (const std::string& name, ov::Any& result, ResponseDesc* resp),
                 (const, noexcept));
 };
 

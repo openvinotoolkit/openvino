@@ -33,12 +33,8 @@ public:
     MOCK_METHOD(void, SetCore, (std::weak_ptr<InferenceEngine::ICore>), (noexcept));
     MOCK_METHOD(std::shared_ptr<InferenceEngine::ICore>, GetCore, (), (const, noexcept));
     MOCK_METHOD(bool, IsNewAPI, (), (const, noexcept));
-    MOCK_CONST_METHOD2(GetConfig,
-                       InferenceEngine::Parameter(const std::string&,
-                                                  const std::map<std::string, InferenceEngine::Parameter>&));
-    MOCK_CONST_METHOD2(GetMetric,
-                       InferenceEngine::Parameter(const std::string&,
-                                                  const std::map<std::string, InferenceEngine::Parameter>&));
+    MOCK_CONST_METHOD2(GetConfig, ov::Any(const std::string&, const ov::AnyMap&));
+    MOCK_CONST_METHOD2(GetMetric, ov::Any(const std::string&, const ov::AnyMap&));
     MOCK_METHOD2(
         ImportNetwork,
         std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(std::istream&,

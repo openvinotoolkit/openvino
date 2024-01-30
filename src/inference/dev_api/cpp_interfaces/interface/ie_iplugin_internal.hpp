@@ -17,7 +17,6 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_input_info.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -204,7 +203,7 @@ public:
      * @param options - configuration details for config
      * @return Value of config corresponding to config key
      */
-    virtual Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const;
+    virtual ov::Any GetConfig(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
@@ -212,7 +211,7 @@ public:
      * @param options - configuration details for metric
      * @return Metric value corresponding to metric key
      */
-    virtual Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const;
+    virtual ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
