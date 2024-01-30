@@ -73,7 +73,7 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     auto core = ov::test::utils::PluginCache::get().core();
     if (targetDevice == "CPU") {
         compiledModel = core->compile_model(funcPtr, targetDevice,
-                                {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}});
+                                ov::hint::inference_precision(ov::element::bf16));
         loweringPrecision = "bf16";
     } else {
         compiledModel = core->compile_model(funcPtr, targetDevice);
