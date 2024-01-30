@@ -291,6 +291,13 @@ class TorchScriptPythonDecoder (Decoder):
             node.set_friendly_name(name)
         return node
 
+    def _add_name_to_const(self, outputs, name):
+        if len(outputs) == 0:
+            # set name corresponding to state_dict name
+            outputs[0].get_node().set_friendly_name(name)
+            self.out_debug_name_overwrites[0] = name
+        self.constant_cache[name] = outputs
+    
     def try_decode_get_attr(self):
         pt_value, name = get_value_from_getattr(self.graph_element,
                                                 self.pt_module)
@@ -299,9 +306,21 @@ class TorchScriptPythonDecoder (Decoder):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
             # TODO: but can be anything. Figure a better way to distinguish
             weight, bias = pt_value.unpack()
-            res = convert_quantized_tensor(weight, self._shared_memory)
+            w_name = name + ".weight"
+            if w_name in self.constant_cache:
+                res = self.constant_cache[w_name]
+            else:
+                res = convert_quantized_tensor(weight, self._shared_memory)
+                self._add_name_to_const(res, w_name)
+
             if isinstance(bias, torch.Tensor):
-                res += ivalue_to_constant(bias)
+                b_name = name + ".bias"
+                if b_name in self.constant_cache:
+                    res += self.constant_cache[b_name]
+                else:
+                    b_res = ivalue_to_constant(bias)
+                    self._add_name_to_const(b_res, b_name)
+                    res += b_res
             else:
                 res += ops.convert_like(ivalue_to_constant(torch.zeros(1))
                                         [0], res[0]).outputs()
