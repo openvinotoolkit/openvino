@@ -226,9 +226,9 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
         }
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START;
+    OPENVINO_SUPPRESS_DEPRECATED_START;
     const auto& foldedFunc = ngraph::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    NGRAPH_SUPPRESS_DEPRECATED_END;
+    OPENVINO_SUPPRESS_DEPRECATED_END;
     ov::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto& op : foldedFunc->get_ops()) {
         OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
