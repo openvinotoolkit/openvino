@@ -70,7 +70,7 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _compiled_model.outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 
@@ -104,7 +104,7 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _compiled_model.inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_inputs)
         js_inputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 
