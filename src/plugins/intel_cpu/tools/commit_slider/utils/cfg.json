@@ -13,7 +13,8 @@
     },
     "utilMap" : {
         "map_builder" : "printMap",
-        "log_parser" : "logParser"
+        "log_parser" : "logParser",
+        "break_validator": "breakValidator"
     },
     "extendBuildCommand" : false,
     "commandList" : [
