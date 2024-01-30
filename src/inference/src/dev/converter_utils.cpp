@@ -47,7 +47,7 @@
 namespace {
 
 std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
-    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    ov::Output<ov::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
     if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
         p = node->input_value(0);
     }
@@ -152,7 +152,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
 std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const InferenceEngine::CNNNetwork& network,
                                                                    bool is_new_api) {
     OPENVINO_ASSERT(network.getFunction(),
-                    "CNNNetwork can be converted to OpenVINO Model only in case if it contains ngraph::Function");
+                    "CNNNetwork can be converted to OpenVINO Model only in case if it contains ov::Model");
     if (is_new_api)
         return network.getFunction();
 
