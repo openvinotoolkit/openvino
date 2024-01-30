@@ -10,7 +10,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -23,7 +22,7 @@ namespace set_1 {
 ///
 /// \return The vector containing Ngraph nodes producing output of ONNX quantizied
 ///         convolution operation.
-OutputVector quant_conv(const Node& node);
+ov::OutputVector quant_conv(const Node& node);
 
 }  // namespace set_1
 

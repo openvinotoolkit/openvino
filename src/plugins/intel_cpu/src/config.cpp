@@ -4,7 +4,6 @@
 
 #include "config.h"
 
-#include "cpu/cpu_config.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -90,6 +89,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     changedHintPerfMode = true;
                 }
             }
+            OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == ov::affinity.name()) {
             try {
                 ov::Affinity affinity = val.as<ov::Affinity>();
@@ -127,6 +127,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;

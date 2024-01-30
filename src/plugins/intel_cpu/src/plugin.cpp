@@ -393,6 +393,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.threadBindingType;
         switch (affinity) {
@@ -406,6 +407,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
@@ -472,10 +474,14 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::available_devices.name()),
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
+                                                    RO_property(ov::execution_devices.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::type.name()),
+                                                    RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -492,6 +498,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -535,6 +542,24 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
+    } else if (name == ov::device::type) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+    } else if (name == ov::device::architecture) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return decltype(ov::device::architecture)::value_type{"intel64"};
+#elif defined(OPENVINO_ARCH_X86)
+        return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
+#endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

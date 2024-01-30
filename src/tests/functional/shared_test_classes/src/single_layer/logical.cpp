@@ -66,7 +66,7 @@ void LogicalLayerTest::SetUp() {
     auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
-    std::shared_ptr<ngraph::Node> logicalNode;
+    std::shared_ptr<ov::Node> logicalNode;
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
@@ -76,9 +76,9 @@ void LogicalLayerTest::SetUp() {
         }
         logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
     } else {
-        logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
+        logicalNode = ngraph::builder::makeLogical(inputs[0], ov::Output<ov::Node>(), logicalOpType);
     }
 
-    function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
+    function = std::make_shared<ov::Model>(logicalNode, inputs, "Logical");
 }
 } // namespace LayerTestsDefinitions

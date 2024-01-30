@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, region_yolo_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::RegionYolo>();
+    NodeBuilder::opset().insert<ov::op::v0::RegionYolo>();
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 255, 26, 26});
 
     size_t num_coords = 4;

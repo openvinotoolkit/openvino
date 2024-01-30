@@ -72,9 +72,9 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
         if (is_vec_input)
-            OPENVINO_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(), "Xmm(0) cannot be input register in SSE41");
+            OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(), "Xmm(0) cannot be input register in SSE41");
         if (is_vec_output)
-            OPENVINO_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(), "Xmm(0) cannot be output register in SSE41");
+            OV_CPU_JIT_EMITTER_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(), "Xmm(0) cannot be output register in SSE41");
         if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {
             aux_vec_idxs.push_back(idx);
             preserved_vec_idxs.push_back(idx);
@@ -107,7 +107,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         preserved_vec_idxs.push_back(idx);
     }
     if (aux_vec_idxs.size() < aux_vecs_count())
-        OPENVINO_THROW("Failed to allocate required number of vector registers");
+        OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of vector registers");
 
     // Same logic but to allocate gprs
     for (auto idx : pool_gpr_idxs)
@@ -131,7 +131,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         preserved_gpr_idxs.push_back(_idx);
     }
     if (aux_gpr_idxs.size() < aux_gprs_count())
-        OPENVINO_THROW("Failed to allocate required number of general-purpose registers");
+        OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of general-purpose registers");
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose

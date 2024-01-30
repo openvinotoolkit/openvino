@@ -11,7 +11,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
 #include "ie_cache_manager.hpp"
-#include "ie_extension.h"
 #include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
@@ -196,16 +195,6 @@ private:
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     // Legacy API
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
-    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
-    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
-        try {
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
-            AddExtensionUnsafe(extension_ptr);
-        } catch (const InferenceEngine::GeneralError&) {
-            // in case of shared library is not opened
-        }
-    }
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
         const InferenceEngine::CNNNetwork& model,
         ov::Plugin& plugin,
@@ -285,12 +274,6 @@ public:
 
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
-
-    /**
-     * @brief Registers the extension in a Core object
-     *        Such extensions can be used for both CNNNetwork readers and device plugins
-     */
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 

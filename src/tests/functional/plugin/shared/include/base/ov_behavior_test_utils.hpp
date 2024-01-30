@@ -13,7 +13,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -246,6 +245,21 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         actualNetwork = ov::test::utils::make_split_conv_concat();
+    }
+};
+
+class OVClassSeveralDevicesTests : public OVPluginTestBase,
+                                   public OVClassNetworkTest,
+                                   public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> target_devices;
+
+    void SetUp() override {
+        target_device = ov::test::utils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
+        target_devices = GetParam();
     }
 };
 
