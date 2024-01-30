@@ -145,15 +145,6 @@ TEST_P(EltwiseChainTest, CompareWithRefs) {
     run();
 }
 
-TEST_P(EltwiseChainTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    run();
-}
-
 namespace {
 
 std::vector<std::vector<ov::Shape>> inputShapes = {

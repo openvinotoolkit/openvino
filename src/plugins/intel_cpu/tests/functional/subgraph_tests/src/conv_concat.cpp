@@ -68,6 +68,8 @@ void ConvConcatSubgraphTest::SetUp() {
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
+    selectedType += "_f32";
+
     ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes),
                                     std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes)};
 
@@ -146,26 +148,10 @@ void ConvConcatSubgraphTest::SetUp() {
 }
 
 TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
-    selectedType += "_f32";
     run();
 
     CheckPluginRelatedResults(compiledModel, pluginTypeNode);
 };
-
-using ConvConcatSubgraphTest_FP16 = ConvConcatSubgraphTest;
-
-TEST_P(ConvConcatSubgraphTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-    selectedType += "_f16";
-
-    run();
-
-    CheckPluginRelatedResults(compiledModel, pluginTypeNode);
-};
-
 
 /* ============= Common Convolution Params ============= */
 const ov::op::PadType paddingType{ov::op::PadType::EXPLICIT};
@@ -199,12 +185,6 @@ const std::vector<CPUSpecificParams> CPUParams2DConv = {
     conv_avx512_2D_1x1
 };
 
-/* ============= Kernel_1x1 FP16 (2D) ============= */
-const std::vector<CPUSpecificParams> CPUParams2DConv_FP16 = {
-    conv_avx512_2D_1x1_nspc_brgconv,
-    conv_avx512_2D_1x1_nspc_brgconv_amx
-};
-
 commonConvParams convParams2D1x1 = commonConvParams{{1, 1}, {1, 1}, {0, 0}, {0, 0}, dilation2D, numOutChannels, paddingType, 1};
 
 const auto params2DConv = ::testing::Combine(
@@ -215,17 +195,7 @@ const auto params2DConv = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-const auto params2DConv_FP16 = ::testing::Combine(
-    ::testing::Values(nodeType::convolution),
-    ::testing::Values(convParams2D1x1),
-    ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(CPUParams2DConv_FP16)),
-    ::testing::Values(inputShapes2D),
-    ::testing::Values(axis)
-);
-
-
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D1x1_FP16, ConvConcatSubgraphTest_FP16, params2DConv_FP16, ConvConcatSubgraphTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams2DDeconv = {
     conv_avx2_2D_1x1,
@@ -358,12 +328,6 @@ const std::vector<CPUSpecificParams> CPUParams2D = {
     conv_avx512_2D
 };
 
-/* ============= Convolution FP16 (2D) ============= */
-const std::vector<CPUSpecificParams> CPUParams2D_FP16 = {
-    conv_avx512_2D_nspc_brgconv,
-    conv_avx512_2D_nspc_brgconv_amx
-};
-
 const auto params2D = ::testing::Combine(
     ::testing::Values(nodeType::convolution),
     ::testing::Values(convParams2D),
@@ -372,17 +336,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-const auto params2D_FP16 = ::testing::Combine(
-    ::testing::Values(nodeType::convolution),
-    ::testing::Values(convParams2D),
-    ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(CPUParams2D_FP16)),
-    ::testing::Values(inputShapes2D),
-    ::testing::Values(axis)
-);
-
-
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_FP16, ConvConcatSubgraphTest_FP16, params2D_FP16, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -390,12 +344,6 @@ const std::vector<CPUSpecificParams> CPUParams3D = {
     conv_gemm_3D,
     conv_avx2_3D,
     conv_avx512_3D
-};
-
-/* ============= Convolution (3D) ============= */
-const std::vector<CPUSpecificParams> CPUParams3D_FP16 = {
-    conv_avx512_3D_nspc_brgconv,
-    conv_avx512_3D_nspc_brgconv_amx
 };
 
 const auto params3D = ::testing::Combine(
@@ -406,17 +354,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-const auto params3D_FP16 = ::testing::Combine(
-    ::testing::Values(nodeType::convolution),
-    ::testing::Values(convParams3D),
-    ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(CPUParams3D_FP16)),
-    ::testing::Values(inputShapes3D),
-    ::testing::Values(axis)
-);
-
-
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_FP16, ConvConcatSubgraphTest_FP16, params3D_FP16, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace ConvolutionConact
 

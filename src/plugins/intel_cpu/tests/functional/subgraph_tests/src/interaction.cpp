@@ -171,8 +171,8 @@ TEST_P(IntertactionCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
 }
 
-
-TEST_P(IntertactionCPUTest, CompareWithRefs_FP16) {
+using IntertactionCPUTest_FP16 = IntertactionCPUTest;
+TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
@@ -184,6 +184,7 @@ TEST_P(IntertactionCPUTest, CompareWithRefs_FP16) {
 
 namespace {
 const std::vector<ElementType> inPrecisions = {ElementType::f32, ElementType::bf16, ElementType::i32, ElementType::i8};
+const std::vector<ElementType> inPrecisions_FP16 = {ElementType::f32, ElementType::i32, ElementType::i8};
 // the model has 27 inputs with same shape
 const std::vector<InputShape> input_shapes = {
     // temporarily disable dynamic shape for performance issue
@@ -204,5 +205,9 @@ const std::vector<InputShape> input_shapes = {
 INSTANTIATE_TEST_SUITE_P(smoke_Interaction,
                          IntertactionCPUTest,
                          ::testing::Combine(::testing::ValuesIn(inPrecisions), ::testing::ValuesIn(input_shapes)),
+                         IntertactionCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interaction,
+                         IntertactionCPUTest_FP16,
+                         ::testing::Combine(::testing::ValuesIn(inPrecisions_FP16), ::testing::ValuesIn(input_shapes)),
                          IntertactionCPUTest::getTestCaseName);
 }  // namespace

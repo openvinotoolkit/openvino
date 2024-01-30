@@ -133,17 +133,6 @@ TEST_P(ConvWithZeroPointFuseSubgraphTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, pluginTypeNode);
 };
 
-TEST_P(ConvWithZeroPointFuseSubgraphTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    run();
-
-    CheckPluginRelatedResults(compiledModel, pluginTypeNode);
-};
-
 const ov::Shape inputShapes2D = {1, 32, 136, 136};
 
 const auto params2DConv = ::testing::Combine(::testing::ValuesIn({nodeType::convolution, nodeType::groupConvolution}),

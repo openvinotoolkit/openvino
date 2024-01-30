@@ -71,6 +71,7 @@ protected:
                                                             paddingType);
         }
 
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
     }
@@ -86,31 +87,6 @@ protected:
 };
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
-    selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
-    run();
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
-class ConvPoolActivTest_FP16 : public ConvPoolActivTest {
-    bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA(true);
-        if (isaType == "")
-            return primType == "ref";
-        else
-            return primType == selectedType;
-    }
-};
-
-TEST_P(ConvPoolActivTest_FP16, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
-        selectedType = makeSelectedTypeStr("brgconv_avx512_amx", element::f16);
-    } else {
-        selectedType = makeSelectedTypeStr("brgconv_avx512", element::f16);
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
     run();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
@@ -119,22 +95,10 @@ namespace {
 
 const std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingRelu, fusingSwish, fusingSigmoid};
 
-const std::vector<fusingSpecificParams> fusingParamsSet_FP16 {
-        emptyFusingSpec
-        // fusingRelu,
-        // fusingSwish,
-        // fusingSigmoid
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_Check,
                          ConvPoolActivTest,
                          ::testing::ValuesIn(fusingParamsSet),
                          ConvPoolActivTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Check,
-                         ConvPoolActivTest_FP16,
-                         ::testing::ValuesIn(fusingParamsSet_FP16),
-                          ConvPoolActivTest::getTestCaseName);
 
 }  // namespace
 

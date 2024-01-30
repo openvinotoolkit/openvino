@@ -406,7 +406,6 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingReluScaleShift
 };
 
-
 const std::vector<fusingSpecificParams> fusingParamsSetFP16{
         emptyFusingSpec,
         fusingSigmoid,
@@ -472,7 +471,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
                                  ::testing::ValuesIn(fusingParamsSetFP16),
                                  ::testing::Values(cpu_f16_plugin_config)),
                          ConvSumInPlaceTest_FP16::getTestCaseName);
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
                          ::testing::Combine(

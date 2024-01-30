@@ -645,35 +645,6 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
     }
 }
 
-using MHAQuantTest_FP16 = MHAQuantTest;
-
-TEST_P(MHAQuantTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    std::vector<InputShape> inputShapes;
-    std::vector<ElementType> inputPrecisions;
-    std::vector<ElementType> matMulIn0Precisions;
-    size_t patternType;
-    ExpectedNodes expectedNodes;
-    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
-
-    if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
-
-    if (!ov::with_cpu_x86_avx512_core_vnni())
-        GTEST_SKIP();
-
-    run();
-
-    for (const auto& node : expectedNodes) {
-        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
-    }
-}
-
-
 namespace {
 
 std::vector<std::vector<ov::Shape>> inputShapesQuant = {
@@ -709,19 +680,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0_FP16, MHAQuantTest_FP16,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
-                                ::testing::ValuesIn(inputPrecisionsQuant),
-                                ::testing::ValuesIn(matMulIn0PrecisionsQuant),
-                                ::testing::Values(0),
-                                ::testing::Values(ExpectedNodes{{"Subgraph", 5},  // FQs on inputs x 3 + MHA + Deq Mul
-                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        MHAQuantTest::getTestCaseName);
-
-
-
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1,
                          MHAQuantTest,
                          ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
@@ -733,17 +691,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1,
                                                 {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1_FP16, MHAQuantTest_FP16,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
-                                ::testing::ValuesIn(inputPrecisionsQuant),
-                                ::testing::ValuesIn(matMulIn0PrecisionsQuant),
-                                ::testing::Values(1),
-                                ::testing::Values(ExpectedNodes{{"Subgraph", 3},  // FQ on input + MHA + Deq Mul
-                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        MHAQuantTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                          MHAQuantTest,

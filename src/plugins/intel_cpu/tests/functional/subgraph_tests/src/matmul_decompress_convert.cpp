@@ -291,7 +291,7 @@ std::vector<ov::AnyMap> filter_additional_config_bf16() {
     return additionalConfig;
 }
 
-std::vector<ov::AnyMap> filterAdditionalConfig_FP16() {
+std::vector<ov::AnyMap> filter_additional_config_fp16() {
     std::vector<ov::AnyMap> additionalConfig;
     additionalConfig.push_back({{ov::hint::inference_precision(ov::element::f16)}});
     return additionalConfig;
@@ -322,7 +322,7 @@ std::vector<CPUSpecificParams> filter_specific_params_bf16() {
     return specificParams;
 }
 
-std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
+std::vector<CPUSpecificParams> filter_specific_params_f16() {
     std::vector<CPUSpecificParams> specificParams;
     specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
@@ -351,18 +351,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16,
                          testParams2D_FP16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams2D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
-                                                                ::testing::ValuesIn(transposeParams),
-                                                                ::testing::Values(ElementType::f32, ElementType::f16),
-                                                                ::testing::ValuesIn(filterAdditionalConfig_FP16()),
-                                                                ::testing::ValuesIn(filterSpecificParams_FP16()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_runtime_FP16,
-                         MatMulDecompressConvertTest_FP16,
-                         testParams2D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest::getTestCaseName);
-
-
 const auto testParams2D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f32, ElementType::f16),
@@ -373,6 +361,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16,
                          MatMulDecompressConvertTest,
                          testParams2D_BF16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
+
+const auto testParams2D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
+                                                                ::testing::ValuesIn(transposeParams),
+                                                                ::testing::Values(ElementType::f32, ElementType::f16),
+                                                                ::testing::ValuesIn(filter_additional_config_fp16()),
+                                                                ::testing::ValuesIn(filter_specific_params_f16()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_runtime_FP16,
+                         MatMulDecompressConvertTest_FP16,
+                         testParams2D_runtime_FP16_smoke,
+                         MatMulDecompressConvertTest::getTestCaseName);
+
 
 const auto testParams3D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
@@ -396,18 +396,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16,
                          testParams3D_FP16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams3D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
-                                                                ::testing::ValuesIn(transposeParams),
-                                                                ::testing::Values(ElementType::f32, ElementType::f16),
-                                                                ::testing::ValuesIn(filterAdditionalConfig_FP16()),
-                                                                ::testing::ValuesIn(filterSpecificParams_FP16()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_runtime_FP16,
-                         MatMulDecompressConvertTest_FP16,
-                         testParams3D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest::getTestCaseName);
-
-
 const auto testParams3D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f32, ElementType::f16),
@@ -418,6 +406,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16,
                          MatMulDecompressConvertTest,
                          testParams3D_BF16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
+
+const auto testParams3D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
+                                                                ::testing::ValuesIn(transposeParams),
+                                                                ::testing::Values(ElementType::f32, ElementType::f16),
+                                                                ::testing::ValuesIn(filter_additional_config_fp16()),
+                                                                ::testing::ValuesIn(filter_specific_params_f16()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_runtime_FP16,
+                         MatMulDecompressConvertTest_FP16,
+                         testParams3D_runtime_FP16_smoke,
+                         MatMulDecompressConvertTest::getTestCaseName);
+
 
 }  // namespace
 
@@ -524,8 +524,7 @@ protected:
         if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else if (additionalConfig.find(ov::hint::inference_precision.name()) != additionalConfig.end()
-                && additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16.to_string()) {
+        } else if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
             convertOutType = inType = outType = netType = ElementType::f16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {

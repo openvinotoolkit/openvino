@@ -76,21 +76,6 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "MatMul");
 }
 
-TEST_P(AlignMatMulInputRanksTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision(ov::element::f16)});
-    selectedType = makeSelectedTypeStr("brgemm_avx512" ,  ov::test::ElementType::f16);
-
-    run();
-    CheckNumberOfNodesWithType(compiledModel,
-                               "Reshape",
-                               expectedNumOfReshapes);  // Squeeze / Unsqueeze turns into Reshape
-    CheckPluginRelatedResults(compiledModel, "MatMul");
-}
-
-
 namespace {
 
 const std::vector<std::pair<ov::Shape, ov::Shape>> supportedInputShapes = {

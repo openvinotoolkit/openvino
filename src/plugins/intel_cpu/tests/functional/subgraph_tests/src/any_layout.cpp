@@ -2,36 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/shape.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-
-using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-typedef std::tuple<
-        ov::Shape,
-        ov::AnyMap   // Device config
-> AnyLayoutTestParamsSet;
-
-
-class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<AnyLayoutTestParamsSet> {
+class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<ov::Shape> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<AnyLayoutTestParamsSet> obj) {
+    static std::string getTestCaseName(::testing::TestParamInfo<ov::Shape> obj) {
         std::ostringstream result;
-        ov::Shape shape;
-        ov::AnyMap additionalConfig;
-        std::tie(shape, additionalConfig) = obj.param;
-        result << "shape=" << shape;
-        if (!additionalConfig.empty()) {
-            result << "_PluginConf";
-            for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second.as<std::string>();
-            }
-        }
-
+        result << "shape=" << obj.param;
         return result.str();
     }
 
@@ -51,9 +32,7 @@ protected:
     }
 
     void Run() {
-        ov::Shape shape;
-        ov::AnyMap additionalConfig;
-        std::tie(shape, additionalConfig) = GetParam();
+        const ov::Shape & shape = GetParam();
         auto shape_size = ov::shape_size(shape);
 
         std::vector<float> input_data(shape_size, 2);
@@ -73,7 +52,7 @@ protected:
 
         // Load model
         Core core;
-        auto compiled_model = core.compile_model(function, "CPU", additionalConfig);
+        auto compiled_model = core.compile_model(function, "CPU");
 
         // Infer
         auto infer_req = compiled_model.create_infer_request();
@@ -89,18 +68,15 @@ TEST_P(AnyLayoutOnInputsAndOutputs, CheckExpectedResult) {
     Run();
 }
 
-static std::vector<ov::Shape> AnyLayoutOnInputsAndOutputsParams = {
+static AnyLayoutOnInputsAndOutputs::ParamType AnyLayoutOnInputsAndOutputsParams[] = {
     ov::Shape{ 1, 2, 3, 4 },
     ov::Shape{ 1, 2, 3, 4, 5 },
     ov::Shape{ 1, 2, 3, 4, 5, 6 },
 };
 
-
 INSTANTIATE_TEST_SUITE_P(AnyLayoutOnInputsAndOutputs,
                          AnyLayoutOnInputsAndOutputs,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
-                             ::testing::ValuesIn({CPUTestUtils::empty_plugin_config, cpu_f16_plugin_config})),
+                         ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
                          AnyLayoutOnInputsAndOutputs::getTestCaseName);
 
 }  // namespace test

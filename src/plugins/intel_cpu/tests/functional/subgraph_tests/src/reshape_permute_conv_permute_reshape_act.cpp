@@ -7,9 +7,6 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "test_utils/cpu_test_utils.hpp"
-
-using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {

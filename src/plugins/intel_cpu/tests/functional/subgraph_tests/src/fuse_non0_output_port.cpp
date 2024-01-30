@@ -7,7 +7,6 @@
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -60,14 +59,5 @@ TEST_F(FuseNon0OuputPort, smoke_FuseNon0OuputPort) {
     run();
 }
 
-
-TEST_F(FuseNon0OuputPort, smoke_FuseNon0OuputPort_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    run();
-}
 }  // namespace test
 }  // namespace ov

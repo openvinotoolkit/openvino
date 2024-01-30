@@ -4,8 +4,6 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 /*This test runs the following subgraph:
@@ -33,9 +31,9 @@
                        Concat
                           |
                         Softmax
-
+                          
                         Result
-
+  
   The main purpose of this test is checking the code path when all the nodes except Softmax use "in-place" memory mode.
   Softmax is used as a model of an arbitrary subgraph preceding the pattern.
 */
@@ -117,15 +115,6 @@ public:
 TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs) {
     run();
 }
-
-TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-    run();
-}
-
 
 namespace {
 

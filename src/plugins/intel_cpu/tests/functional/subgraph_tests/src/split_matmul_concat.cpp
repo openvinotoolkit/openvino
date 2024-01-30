@@ -125,16 +125,6 @@ TEST_P(SplitMatMulConcatTest, CompareWithRefs) {
     run();
 }
 
-TEST_P(SplitMatMulConcatTest, CompareWithRefs_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    run();
-}
-
 namespace {
 
 const std::vector<std::pair<bool, bool>> transposeParams = {

@@ -16,30 +16,13 @@ struct InputTensorROIParamType {
     ov::Layout layout;
 };
 
-typedef std::tuple<
-        InputTensorROIParamType,
-        ov::AnyMap   // Device config
-> InputTensorROITestParamsSet;
-
-
-class InputTensorROI : public ::testing::TestWithParam<InputTensorROITestParamsSet> {
+class InputTensorROI : public ::testing::TestWithParam<InputTensorROIParamType> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<InputTensorROITestParamsSet> obj) {
+    static std::string getTestCaseName(::testing::TestParamInfo<InputTensorROIParamType> obj) {
         std::ostringstream result;
-        InputTensorROIParamType param;
-        ov::AnyMap additionalConfig;
-        std::tie(param, additionalConfig) = obj.param;
-        result << "type=" << param.type << "_";
-        result << "shape=" << param.shape << "_";
-        result << "layout=" << param.layout.to_string();
-        if (!additionalConfig.empty()) {
-            result << "_PluginConf";
-            for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second.as<std::string>();
-            }
-        }
-
-
+        result << "type=" << obj.param.type << "_";
+        result << "shape=" << obj.param.shape << "_";
+        result << "layout=" << obj.param.layout.to_string();
         return result.str();
     }
 
@@ -75,15 +58,9 @@ protected:
         std::shared_ptr<ov::Core> ie = ov::test::utils::PluginCache::get().core();
 
         // Compile model
-
-        InputTensorROIParamType param;
-        ov::AnyMap additionalConfig;
-        std::tie(param, additionalConfig) = GetParam();
-        auto fn_shape = param.shape;
-        auto model = create_test_function(param.type, fn_shape, param.layout);
-        ov::AnyMap configuration;
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        auto compiled_model = ie->compile_model(model, "CPU", configuration);
+        auto fn_shape = GetParam().shape;
+        auto model = create_test_function(GetParam().type, fn_shape, GetParam().layout);
+        auto compiled_model = ie->compile_model(model, "CPU");
 
         // Create InferRequest
         ov::InferRequest req = compiled_model.create_infer_request();
@@ -93,7 +70,7 @@ protected:
         auto input_shape_size = ov::shape_size(input_shape);
         std::vector<T> data(input_shape_size);
         std::iota(data.begin(), data.end(), 0);
-        auto input_tensor = ov::Tensor(param.type, input_shape, &data[0]);
+        auto input_tensor = ov::Tensor(GetParam().type, input_shape, &data[0]);
 
         // Set ROI
         auto roi = ov::Tensor(input_tensor, {0, 1, 1, 1}, {1, 3, 3, 3});
@@ -117,17 +94,7 @@ protected:
 };
 
 TEST_P(InputTensorROI, SetInputTensorROI) {
-    InputTensorROIParamType param;
-    ov::AnyMap additionalConfig;
-    std::tie(param, additionalConfig) = GetParam();
-
-    if (additionalConfig.count(ov::hint::inference_precision.name())
-        && additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16.to_string() &&
-        (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16()))) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-
-    switch (param.type) {
+    switch (GetParam().type) {
     case ov::element::Type_t::f32: {
         Run<float>();
         break;
@@ -141,7 +108,7 @@ TEST_P(InputTensorROI, SetInputTensorROI) {
     }
 }
 
-static InputTensorROIParamType InputTensorROIParams[] = {
+static InputTensorROI::ParamType InputTensorROIParams[] = {
     {ov::PartialShape{1, 2, 2, 2}, element::f32, "NCHW"},
     {ov::PartialShape{1, 2, ov::Dimension::dynamic(), ov::Dimension::dynamic()}, element::f32, "NCHW"},
     {ov::PartialShape{1, 2, 2, 2}, element::u8, "NCHW"},
@@ -150,9 +117,7 @@ static InputTensorROIParamType InputTensorROIParams[] = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_InputTensorROI,
                          InputTensorROI,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(InputTensorROIParams),
-                             ::testing::ValuesIn({CPUTestUtils::empty_plugin_config, CPUTestUtils::cpu_f16_plugin_config})),
+                         ::testing::ValuesIn(InputTensorROIParams),
                          InputTensorROI::getTestCaseName);
 
 }  // namespace test

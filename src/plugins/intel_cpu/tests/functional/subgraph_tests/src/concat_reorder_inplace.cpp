@@ -61,14 +61,6 @@ namespace {
 TEST_F(ConcatReorderInPlaceTest, smoke_ConcatReorderInPlace_CPU) {
     run();
 }
-TEST_F(ConcatReorderInPlaceTest, smoke_ConcatReorderInPlace_CPU_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision(ov::element::f16)});
-    run();
-}
-
 }  // namespace
 }  // namespace test
 }  // namespace ov

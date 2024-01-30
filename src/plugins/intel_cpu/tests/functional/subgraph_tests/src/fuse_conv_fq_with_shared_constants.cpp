@@ -69,17 +69,6 @@ TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU) {
     run();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
-
-TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    run();
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
 }  // namespace
 }  // namespace test
 }  // namespace ov

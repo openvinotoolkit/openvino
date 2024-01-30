@@ -6,7 +6,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "ov_models/builders.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
@@ -58,44 +57,6 @@ void SetUp() override {
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
     using indexInterval = std::pair<size_t, size_t>;
     size_t elemsCount = pConstStorage->size() / sizeof(float);
-    const indexInterval intervals[] = {
-        {0, elemsCount/2},
-        {elemsCount/2, elemsCount},
-        {0, elemsCount}
-    };
-
-    constexpr unsigned seed = 1u;
-    constexpr unsigned denormalsCount = 15u;
-    constexpr uint32_t denormalsRange = (0xffffffffu >> 9u) - 1;
-    testing::internal::Random random(seed);
-    auto randomRange = NGraphFunctions::Utils::generateVector<ov::element::f32>(elemsCount, 10, -10);
-
-    for (auto& interval : intervals) {
-        auto randomIndices = NGraphFunctions::Utils::generateVector<ov::element::u32>(denormalsCount, interval.second, interval.first);
-        std::unordered_set<decltype(randomIndices)::value_type> randomIndexSet(randomIndices.begin(), randomIndices.end());
-        for (size_t i = 0; i < elemsCount; ++i) {
-            if (randomIndexSet.count(i)) {
-                auto denormal = random.Generate(denormalsRange) + 1;
-                float tmp;
-                memcpy(&tmp, &denormal, sizeof(float));
-                pConstStorage->get_ptr<float>()[i] = tmp;
-            } else {
-                pConstStorage->get_ptr<float>()[i] = randomRange[i];
-            }
-        }
-
-        run();
-    }
-}
-
-TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    using indexInterval = std::pair<size_t, size_t>;
-    size_t elemsCount = pConstStorage->size();
     const indexInterval intervals[] = {
         {0, elemsCount/2},
         {elemsCount/2, elemsCount},

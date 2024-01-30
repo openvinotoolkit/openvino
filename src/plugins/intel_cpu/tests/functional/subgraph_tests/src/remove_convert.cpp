@@ -156,6 +156,12 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
 }
 
+TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
+    run();
+    CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
+    CheckPluginRelatedResults(compiledModel, "StridedSlice");
+}
+
 namespace {
 const std::vector<InputShape> inputShapes = {
     // dynamic batch
@@ -174,7 +180,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessFP16ConvertCPUTest,
                          ::testing::Combine(::testing::Values(ElementType::f16), ::testing::ValuesIn(inputShapes)),
                          RemoveUselessFP16ConvertCPUTest::getTestCaseName);
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessConvertCPUTest,

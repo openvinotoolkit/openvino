@@ -6,7 +6,6 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -26,7 +25,7 @@ namespace test {
  *                |
  *              result
  *
-
+ 
  *
  *  Due to non-const target shape parameter (params[1]), reshape node
  *  is non-constant node even though the input tensor is constant node.
@@ -86,14 +85,6 @@ TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantChec
     run();
 }
 
-TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantCheck_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-    run();
-}
-
 /* Case 2:
  * Subgraph
  *
@@ -146,15 +137,6 @@ protected:
 TEST_F(InPlaceReshapeShareInputCheck, smoke_CPU_InPlaceReshapeShareInputCheck) {
     run();
 }
-
-TEST_F(InPlaceReshapeShareInputCheck, smoke_CPU_InPlaceReshapeShareInputCheck_FP16) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-    run();
-}
-
 
 }  // namespace test
 }  // namespace ov

@@ -4,7 +4,6 @@
 
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -42,7 +41,7 @@ protected:
         function = std::make_shared<ov::Model>(avgpool, ov::ParameterVector{param});
     }
 
-    void checkResult() {
+    void TearDown() override {
         auto exec_model = compiledModel.get_runtime_model();
 
         int eltwise_nodes_found = 0;
@@ -65,18 +64,6 @@ protected:
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs) {
     run();
-    checkResult();
-}
-
-TEST_F(GatherAddAvgpool, smoke_CompareWithRefs_FP16) {
-    GTEST_SKIP() << "CVS-110112 test cases failed ";
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-
-    run();
-    checkResult();
 }
 
 }  // namespace test

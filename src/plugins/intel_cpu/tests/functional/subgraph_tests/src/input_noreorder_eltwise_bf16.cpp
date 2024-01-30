@@ -63,7 +63,7 @@ class InputNoReorderEltwiseFP16 : virtual public SubgraphBaseStaticTest, public 
 protected:
     void SetUp() override {
         auto netPrecision = inType = ov::element::f32;
-        outType = ov::element::bf16;
+        outType = ov::element::f16;
         targetDevice = ov::test::utils::DEVICE_CPU;
         ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::f16)};
         configuration.insert(additional_config.begin(), additional_config.end());
