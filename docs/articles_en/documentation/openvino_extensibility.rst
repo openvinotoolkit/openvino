@@ -82,12 +82,12 @@ A custom operation class and a new mapping frontend extension class object shoul
 .. note::
    This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
-Use the ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method to load the extensions to the ``:ref:`ov::Core <doxid-classov_1_1_core>``` object. This method allows loading library with extensions or extensions from the code.
+Use the ``ov::Core::add_extension`` method to load the extensions to the ``ov::Core`` object. This method allows loading library with extensions or extensions from the code.
 
 Load Extensions to Core
 +++++++++++++++++++++++
 
-Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method:
+Extensions can be loaded from a code with the  ``ov::Core::add_extension`` method:
 
 .. tab-set::
 
@@ -141,7 +141,7 @@ An extension library should be created in the following cases:
 
 To create an extension library, for example, to load the extensions into Model Optimizer, perform the following:
 
-1. Create an entry point for extension library. OpenVINO provides the ``:ref:`OPENVINO_CREATE_EXTENSIONS() <doxid-core_2include_2openvino_2core_2extension_8hpp_1acdadcfa0eff763d8b4dadb8a9cb6f6e6>``` macro, which allows to define an entry point to a library with OpenVINO Extensions.
+1. Create an entry point for extension library. OpenVINO provides the ``OPENVINO_CREATE_EXTENSIONS()`` macro, which allows to define an entry point to a library with OpenVINO Extensions.
 This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
