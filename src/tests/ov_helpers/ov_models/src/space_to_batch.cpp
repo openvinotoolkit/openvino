@@ -9,7 +9,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<ov::Node>& in,
                                            const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& padsBegin,

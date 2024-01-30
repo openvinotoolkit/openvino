@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated) {
+std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<ov::Node>& inputData, const bool mergeRepeated) {
     auto inputDataShape = inputData.get_shape();
     size_t T = inputDataShape[0];
     size_t B = inputDataShape[1];

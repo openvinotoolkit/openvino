@@ -57,7 +57,7 @@ std::shared_ptr<ov::Node> makeGRU(const ov::OutputVector& in,
                                                              clip,
                                                              linear_before_reset);
         } else {
-            std::shared_ptr<Node> seq_lengths;
+            std::shared_ptr<ov::Node> seq_lengths;
             switch (mode) {
             case ov::test::utils::SequenceTestsMode::PURE_SEQ:
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {

@@ -54,7 +54,7 @@ std::shared_ptr<ov::Node> makeRNN(const ov::OutputVector& in,
                                                              activations_beta,
                                                              clip);
         } else {
-            std::shared_ptr<Node> seq_lengths;
+            std::shared_ptr<ov::Node> seq_lengths;
             switch (mode) {
             case ov::test::utils::SequenceTestsMode::PURE_SEQ:
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {

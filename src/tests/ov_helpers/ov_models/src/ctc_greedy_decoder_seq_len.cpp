@@ -13,8 +13,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
-                                                     const ov::Output<Node>& sequenceLengthData,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
+                                                     const ov::Output<ov::Node>& sequenceLengthData,
                                                      int32_t blankIndex,
                                                      bool mergeRepeated,
                                                      const ov::element::Type& idxPrecision) {
@@ -37,7 +37,7 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inp
                                                                 idxPrecision);
 }
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
                                                      int32_t blankIndex,
                                                      bool mergeRepeated,
                                                      const ov::element::Type& idxPrecision) {

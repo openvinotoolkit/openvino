@@ -9,8 +9,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeMinMax(const ov::Output<Node>& in1,
-                                     const ov::Output<Node>& in2,
+std::shared_ptr<ov::Node> makeMinMax(const ov::Output<ov::Node>& in1,
+                                     const ov::Output<ov::Node>& in2,
                                      ov::test::utils::MinMaxOpType opType) {
     switch (opType) {
     case ov::test::utils::MinMaxOpType::MINIMUM:

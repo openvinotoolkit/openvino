@@ -50,7 +50,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeActivation(const ov::Output<ov::Node>& in,
                                          const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
                                          std::vector<size_t> inShape,

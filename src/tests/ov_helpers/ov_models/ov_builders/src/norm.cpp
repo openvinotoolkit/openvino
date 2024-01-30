@@ -27,27 +27,27 @@ enum class BiasMode {
     MAX
 };
 
-std::shared_ptr<Node> lp_norm(const Output<Node>& value,
-                              size_t p_norm,
-                              const Output<Node>& reduction_axes,
-                              float bias,
-                              bool keep_dims) {
+std::shared_ptr<ov::Node> lp_norm(const Output<ov::Node>& value,
+                                  size_t p_norm,
+                                  const Output<ov::Node>& reduction_axes,
+                                  float bias,
+                                  bool keep_dims) {
     // In general "entrywise" lp-norm for matrix `A` is defined as following double
     // sum:
     // ||A||_p = ||vec(A)||_p = [sum_{i=1}^m sum_{j=1}^n abs(a_{i,j})^p]^{1/p}
-    std::shared_ptr<Node> abs_values{std::make_shared<ov::op::v0::Abs>(value)};
-    std::shared_ptr<Node> p_node = ov::op::v0::Constant::create(value.get_element_type(), Shape{}, {p_norm});
+    std::shared_ptr<ov::Node> abs_values{std::make_shared<ov::op::v0::Abs>(value)};
+    std::shared_ptr<ov::Node> p_node = ov::op::v0::Constant::create(value.get_element_type(), Shape{}, {p_norm});
 
     // Get inner part of equation: abs_values^p_node, then sum over reduction_axes.
-    std::shared_ptr<Node> values{std::make_shared<ov::op::v1::Power>(abs_values, p_node)};
+    std::shared_ptr<ov::Node> values{std::make_shared<ov::op::v1::Power>(abs_values, p_node)};
     values = std::make_shared<ov::op::v1::ReduceSum>(values, reduction_axes, keep_dims);
 
-    std::shared_ptr<Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
+    std::shared_ptr<ov::Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
 
     values = std::make_shared<ov::op::v1::Add>(values, bias_node);
 
     // Get outer part of equation: raise values to 1/p_norm exponent.
-    std::shared_ptr<Node> inv_p_node =
+    std::shared_ptr<ov::Node> inv_p_node =
         ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {1.f / p_norm});
 
     return {std::make_shared<ov::op::v1::Power>(values, inv_p_node)};
@@ -64,12 +64,14 @@ std::shared_ptr<Node> lp_norm(const Output<Node>& value,
 ///
 /// \return     L-0 norm of value. The output sub-graph is composed of v1 ops.
 ///
-std::shared_ptr<Node> l0_norm(const Output<Node>& value, const Output<Node>& reduction_axes, bool keep_dims) {
+std::shared_ptr<ov::Node> l0_norm(const Output<ov::Node>& value,
+                                  const Output<ov::Node>& reduction_axes,
+                                  bool keep_dims) {
     // L0 norm returns number of elements different from zero.
-    const std::shared_ptr<Node> zero_node{ov::op::v0::Constant::create(value.get_element_type(), Shape{}, {0.f})};
+    const std::shared_ptr<ov::Node> zero_node{ov::op::v0::Constant::create(value.get_element_type(), Shape{}, {0.f})};
 
     // Convert bool values to input node data type.
-    const std::shared_ptr<Node> non_zero_values =
+    const std::shared_ptr<ov::Node> non_zero_values =
         std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v1::NotEqual>(value, zero_node),
                                               value.get_element_type());
 
@@ -87,14 +89,15 @@ std::shared_ptr<Node> l0_norm(const Output<Node>& value, const Output<Node>& red
 ///
 /// \return     L-1 norm of value. The output sub-graph is composed of v1 ops.
 ///
-std::shared_ptr<Node> l1_norm(const Output<Node>& value,
-                              const Output<Node>& reduction_axes,
-                              float bias,
-                              bool keep_dims) {
-    const std::shared_ptr<Node> values{
+std::shared_ptr<ov::Node> l1_norm(const Output<ov::Node>& value,
+                                  const Output<ov::Node>& reduction_axes,
+                                  float bias,
+                                  bool keep_dims) {
+    const std::shared_ptr<ov::Node> values{
         std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v0::Abs>(value), reduction_axes, keep_dims)};
 
-    const std::shared_ptr<Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
+    const std::shared_ptr<ov::Node> bias_node{
+        ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
 
     return std::make_shared<ov::op::v1::Add>(values, bias_node);
 }
@@ -112,18 +115,18 @@ std::shared_ptr<Node> l1_norm(const Output<Node>& value,
 ///
 /// \return     L-2 norm of value. The output sub-graph is composed of v1 ops.
 ///
-std::shared_ptr<Node> l2_norm(const Output<Node>& value,
-                              const Output<Node>& reduction_axes,
-                              float bias,
-                              BiasMode bias_mode,
-                              bool keep_dims) {
-    std::shared_ptr<Node> pow = std::make_shared<ov::op::v1::Power>(
+std::shared_ptr<ov::Node> l2_norm(const Output<ov::Node>& value,
+                                  const Output<ov::Node>& reduction_axes,
+                                  float bias,
+                                  BiasMode bias_mode,
+                                  bool keep_dims) {
+    std::shared_ptr<ov::Node> pow = std::make_shared<ov::op::v1::Power>(
         value,
         std::make_shared<ov::op::v0::Constant>(value.get_element_type(), Shape{}, 2));
-    std::shared_ptr<Node> values{std::make_shared<ov::op::v1::ReduceSum>(pow, reduction_axes, keep_dims)};
+    std::shared_ptr<ov::Node> values{std::make_shared<ov::op::v1::ReduceSum>(pow, reduction_axes, keep_dims)};
 
-    std::shared_ptr<Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
-    std::shared_ptr<Node> result;
+    std::shared_ptr<ov::Node> bias_node{ov::op::v0::Constant::create(values->get_element_type(), Shape{}, {bias})};
+    std::shared_ptr<ov::Node> result;
     switch (bias_mode) {
     case BiasMode::MAX: {
         result = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Maximum>(values, bias_node));
@@ -137,11 +140,11 @@ std::shared_ptr<Node> l2_norm(const Output<Node>& value,
 }
 }  // namespace
 
-std::shared_ptr<Node> lp_norm(const Output<Node>& value,
-                              const Output<Node>& reduction_axes,
-                              size_t p_norm,
-                              float bias,
-                              bool keep_dims) {
+std::shared_ptr<ov::Node> lp_norm(const Output<ov::Node>& value,
+                                  const Output<ov::Node>& reduction_axes,
+                                  size_t p_norm,
+                                  float bias,
+                                  bool keep_dims) {
     // The number of non-zero elements
     if (p_norm == 0) {
         return l0_norm(value, reduction_axes, keep_dims);

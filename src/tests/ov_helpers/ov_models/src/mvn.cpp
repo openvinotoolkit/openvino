@@ -9,7 +9,10 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannels, bool normalizeVariance, double eps) {
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<ov::Node>& in,
+                                  bool acrossChannels,
+                                  bool normalizeVariance,
+                                  double eps) {
     auto mvnNode = std::make_shared<ov::op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
 
     // OpenVINO MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
@@ -23,7 +26,7 @@ std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannel
     return mvnNode;
 }
 
-std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<ov::Node>& in,
                                   const ov::AxisSet& axes,
                                   bool normalizeVariance,
                                   double eps) {
@@ -32,11 +35,11 @@ std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
     return mvnNode;
 }
 
-std::shared_ptr<Node> makeMVN6(const ov::Output<Node>& in,
-                               const ov::Output<Node>& axesNode,
-                               bool normalizeVariance,
-                               float eps,
-                               std::string& epsMode) {
+std::shared_ptr<ov::Node> makeMVN6(const ov::Output<ov::Node>& in,
+                                   const ov::Output<ov::Node>& axesNode,
+                                   bool normalizeVariance,
+                                   float eps,
+                                   std::string& epsMode) {
     ov::op::MVNEpsMode nEpsMode = ov::op::MVNEpsMode::INSIDE_SQRT;
     if (epsMode == "outside_sqrt")
         nEpsMode = ov::op::MVNEpsMode::OUTSIDE_SQRT;

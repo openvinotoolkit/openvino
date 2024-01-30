@@ -13,14 +13,14 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const ov::element::Type& constantType,
-                                       std::size_t levels,
-                                       std::vector<size_t> constShapes,
-                                       const std::vector<float>& inputLowData,
-                                       const std::vector<float>& inputHighData,
-                                       const std::vector<float>& outputLowData,
-                                       const std::vector<float>& outputHighData) {
+std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& constantType,
+                                           std::size_t levels,
+                                           std::vector<size_t> constShapes,
+                                           const std::vector<float>& inputLowData,
+                                           const std::vector<float>& inputHighData,
+                                           const std::vector<float>& outputLowData,
+                                           const std::vector<float>& outputHighData) {
     auto inputLowNode =
         ov::test::utils::deprecated::make_constant(constantType, constShapes, inputLowData, inputLowData.empty());
     auto inputHighNode =

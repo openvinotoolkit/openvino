@@ -10,11 +10,9 @@
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-using namespace ngraph;
-
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, AxisSet, bool> MVNTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, ov::AxisSet, bool> MVNTransformationParams;
 
 class MVNTransformation :
     public testing::WithParamInterface<MVNTransformationParams>,

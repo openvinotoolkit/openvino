@@ -10,8 +10,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeComparison(const ov::Output<Node>& in0,
-                                         const ov::Output<Node>& in1,
+std::shared_ptr<ov::Node> makeComparison(const ov::Output<ov::Node>& in0,
+                                         const ov::Output<ov::Node>& in1,
                                          ov::test::utils::ComparisonTypes comparisonType) {
     switch (comparisonType) {
     case ov::test::utils::ComparisonTypes::EQUAL:
