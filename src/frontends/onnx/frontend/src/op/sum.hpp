@@ -7,7 +7,7 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
+#include "openvino/op/add.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/variadic.hpp"
 
@@ -16,14 +16,14 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector sum(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Add>(node, ov::op::AutoBroadcastType::NONE);
+    return variadic::make_ng_variadic_op<ov::op::v1::Add>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
 inline ov::OutputVector sum(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Add>(node);
+    return variadic::make_ng_variadic_op<ov::op::v1::Add>(node);
 }
 
 }  // namespace set_8
