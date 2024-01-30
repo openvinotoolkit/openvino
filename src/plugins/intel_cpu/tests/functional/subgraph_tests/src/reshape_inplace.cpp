@@ -57,9 +57,9 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::runtime::Tensor{ov::element::i32, targetInputStaticShapes[i]};
+                tensor = ov::Tensor{ov::element::i32, targetInputStaticShapes[i]};
                 auto inputData = tensor.data<ov::element_type_traits<ov::element::i32>::value_type>();
                 const std::vector<unsigned> data = {38, 38, 15, 4};
                 for (size_t j = 0lu; j < data.size(); ++j) {

@@ -83,11 +83,11 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 1) {
 #define RESHAPE_TEST_CASE(INT_TYPE)                                                                 \
     case ov::element::Type_t::INT_TYPE: {                                                           \
-        tensor = ov::runtime::Tensor{ov::element::INT_TYPE, targetInputStaticShapes[i]};            \
+        tensor = ov::Tensor{ov::element::INT_TYPE, targetInputStaticShapes[i]};                     \
         auto inputData = tensor.data<ov::element_type_traits<ov::element::INT_TYPE>::value_type>(); \
         ASSERT_TRUE(idx < data.size());                                                             \
         for (size_t j = 0lu; j < data[idx].size(); ++j) {                                           \
