@@ -158,12 +158,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         try {
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } catch (const InferenceEngine::Exception&) {
-            // some may throw IE exceptions
-            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
-            return "";
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (ov::Exception&) {
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
@@ -306,7 +300,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    m_plugin_config.set_property(properties);
+    auto property_to_set = properties;
+    m_plugin_config.set_property(property_to_set);
 }
 
 // ! [plugin:create_plugin_engine]

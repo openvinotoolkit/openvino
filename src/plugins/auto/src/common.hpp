@@ -8,7 +8,6 @@
 #include <map>
 #include <string>
 
-#include "itt.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
