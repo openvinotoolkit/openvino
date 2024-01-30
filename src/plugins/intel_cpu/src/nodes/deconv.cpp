@@ -403,22 +403,33 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
 }
 
 std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape &dims) const {
+    std::vector<memory::format_tag> formatVec;
     if (dims.getRank() == 0)
-        return {memory::format_tag::x};
+        formatVec = {memory::format_tag::x};
     else if (dims.getRank() == 1)
-        return {memory::format_tag::x};
+        formatVec = {memory::format_tag::x};
     else if (dims.getRank() == 2)
-        return {memory::format_tag::nc};
+        formatVec = {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc,
+        formatVec = {memory::format_tag::tnc, memory::format_tag::ntc,
                 memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
     else if (dims.getRank() == 4)
-        return {memory::format_tag::nchw, memory::format_tag::nChw8c,
+        formatVec = {memory::format_tag::nchw, memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c, memory::format_tag::nhwc };
     else if (dims.getRank() == 5)
-        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
+        formatVec = {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c, dnnl::memory::format_tag::ndhwc };
-    return {memory::format_tag::any};
+
+    const bool removeChannelFirst = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                !fusedWith.empty() &&
+                                dynamic_cast<Eltwise*>(fusedWith[0].get());
+    formatVec.erase(std::remove_if(formatVec.begin(),
+                            formatVec.end(),
+                            [removeChannelFirst](memory::format_tag type) {
+                                return removeChannelFirst && (type == memory::format_tag::ndhwc || type == memory::format_tag::nhwc);
+                            }),
+                            formatVec.end());
+    return formatVec;
 }
 
 void Deconvolution::getSupportedDescriptors() {
