@@ -7,13 +7,19 @@
 
 namespace cldnn {
 
-/// @brief SwiGLU activation primitive
+/// @brief Swish Gated Linear Unit Activation primitive
+/// @details Performs gated linear unit activation that combines swish activation function
 struct swiglu : public primitive_base<swiglu> {
     CLDNN_DECLARE_PRIMITIVE(swiglu);
 
     swiglu() : primitive_base("", {}) {}
 
     /// @brief Constructs swiglu primitive
+    /// @param id This primitive id
+    /// @param input Input primitive id
+    /// @param axis The index of an axis in data along which to perform the split
+    /// @param split_lengths A list containing the sizes of each output tensor along the split axis
+    /// @param output_size Output data size of the primitive
     swiglu(const primitive_id& id,
            const input_info& input,
            const std::vector<int64_t>& axis,

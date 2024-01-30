@@ -53,10 +53,15 @@ protected:
                                              const ov::element::Type input_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0])};
 
+        // VariadicSplit(X, axis, split_lengths) = Xw, Xv
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
         auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {13696, -1});
         auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis_const, split_lengths_const);
+
+        // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
+
+        // Mul(Xw, Xv) = Swish(Xw) * Xv
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
         return std::make_shared<ov::Model>(ov::NodeVector{mul}, params, "SwiGLUDecomposition");

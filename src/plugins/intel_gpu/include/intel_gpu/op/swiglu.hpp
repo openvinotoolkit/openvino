@@ -10,12 +10,19 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
+/// \brief Operator performing Swish Gated Linear Unit Activation
+/// This operation performs gated linear unit activation that combines swish activation function
 class SwiGLU : public ov::op::Op {
 public:
     OPENVINO_OP("SwiGLU", "gpu_opset");
 
     SwiGLU() = default;
-
+    /// \brief Constructs an SwiGLU operation.
+    ///
+    /// \param data Input tensor with data
+    /// \param axis The index of an axis in "data" along which to perform the split
+    /// \param split_lenghts A list containing the sizes of each output tensor along the split "axis"
+    /// \param output_type Output element type
     SwiGLU(const Output<Node>& data,
            const std::vector<int64_t>& axis,
            const std::vector<int64_t>& split_lengths,

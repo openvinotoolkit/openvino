@@ -20,11 +20,19 @@ namespace intel_gpu {
 SwiGLUFusion::SwiGLUFusion() {
     using namespace ov::pass::pattern;
 
+    // Detect SwiGLU decomposition pattern
+    // SwiGLU(Xw, Xv, beta) = (Xw * (1.0 + exp(-beta * Xw))) * Xv
     auto data = any_input();
+
+    // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto const_axis = wrap_type<ov::op::v0::Constant>();
     auto const_split_lengths = wrap_type<ov::op::v0::Constant>();
     auto variadic_split = wrap_type<ov::op::v1::VariadicSplit>({data, const_axis, const_split_lengths});
+
+    // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
     auto swish = wrap_type<ov::op::v4::Swish>({variadic_split});
+
+    // Mul(Xw, Xv) = Swish(Xw) * Xv
     auto mul = wrap_type<ov::op::v1::Multiply>({swish, variadic_split});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -39,6 +47,7 @@ SwiGLUFusion::SwiGLUFusion() {
         auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(const_split_lengths).get_node_shared_ptr());
         if (!split_lengths)
             return false;
+
         auto axis_value = axis->cast_vector<int64_t>();
         auto split_lengths_value = split_lengths->cast_vector<int64_t>();
 
