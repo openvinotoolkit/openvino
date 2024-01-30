@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/extension.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "file_utils.h"
-#include "openvino/frontend/extension.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/file_util.hpp"
 
 using testing::ElementsAreArray;
 
@@ -65,8 +66,8 @@ static void infer_model(ov::Core& core,
 }
 
 static std::string model_full_path(const char* path) {
-    return FileUtils::makePath<char>(
-        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
+    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
+                                     path);
 }
 
 TEST(Extension, XmlModelWithCustomAbs) {
@@ -122,8 +123,8 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
-                                                  std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {

@@ -20,9 +20,6 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
-set(OV_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
-list(REMOVE_ITEM LIBRARY_SRC ${OV_STATIC_DEPENDENT_FILES})
-
 file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
@@ -83,7 +80,6 @@ source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
-            ${OV_STATIC_DEPENDENT_FILES}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
@@ -132,7 +128,7 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
-ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${OV_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
