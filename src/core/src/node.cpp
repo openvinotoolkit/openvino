@@ -534,20 +534,6 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     return ss.str();
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
-    OPENVINO_ASSERT(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
-    return node;
-}
-
-const ov::NodeVector& ngraph::check_single_output_args(const ov::NodeVector& args) {
-    for (size_t i = 0; i < args.size(); ++i) {
-        ngraph::check_single_output_arg(args.at(i), i);
-    }
-    return args;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,
                            const Output<Node>& graph_value) {
