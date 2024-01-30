@@ -78,9 +78,9 @@ Example of applying LowLatency2 transformation:
 .. image:: _static/images/applying_low_latency_2.svg
    :align: center
 
-After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. 
-These inputs should set the initial value for initialization of ReadValue operations. 
-However, such initialization is not supported in the current State API implementation. 
+After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above.
+These inputs should set the initial value for initialization of ReadValue operations.
+However, such initialization is not supported in the current State API implementation.
 Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified
 by the user via :ref:`State API<ov_ug_state_api>`.
 
@@ -180,7 +180,7 @@ How to get TensorIterator/Loop operations from different frameworks via ModelOpt
 How to create a model with state using OpenVINO
 ###############################################
 
-To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer 
+To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer
 or create an OpenVINO Model (details can be found in :doc:`Build OpenVINO Model section<openvino_docs_OV_UG_Model_Representation>`.
 Let's build the following model using C++ OpenVINO API:
 
@@ -194,8 +194,8 @@ Example of Creating Model via OpenVINO API
 
       .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
          :language: cpp
-         :fragment: [ov:state_model]
+         :fragment: [ov:state_network]
 
-In this example, `ov::SinkVector` is used to create `ov::Model`. For model with states, except inputs and outputs,  `Assign` nodes should also point to `Model` 
-to avoid deleting it during graph transformations. You can do it with the constructor, as shown in the example, or with the special method `add_sinks(const SinkVector& sinks)`. Also, you can delete 
+In this example, `ov::SinkVector` is used to create `ov::Model`. For model with states, except inputs and outputs, `Assign` nodes should also point to `Model`
+to avoid deleting it during graph transformations. You can do it with the constructor, as shown in the example, or with the special method `add_sinks(const SinkVector& sinks)`. Also, you can delete
 sink from `ov::Model` after deleting the node from graph with the `delete_sink()` method.
