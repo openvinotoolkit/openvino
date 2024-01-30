@@ -416,10 +416,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
-        xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-    ),
-    (
         xfail_issue_99950,
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
