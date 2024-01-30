@@ -99,7 +99,7 @@ Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _model->inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& input : cm_inputs)
         js_inputs[i++] = Output<ov::Node>::wrap(info.Env(), input);
 
@@ -110,7 +110,7 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _model->outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<ov::Node>::wrap(info.Env(), out);
 
