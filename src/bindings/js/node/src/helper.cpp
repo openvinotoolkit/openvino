@@ -1,9 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "helper.hpp"
+#include "node/include/helper.hpp"
 
-#include "tensor.hpp"
+#include "node/include/tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =

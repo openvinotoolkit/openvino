@@ -1,12 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/input_info.hpp"
+#include "node/include/preprocess/input_info.hpp"
 
-#include "errors.hpp"
-#include "preprocess/input_model_info.hpp"
-#include "preprocess/input_tensor_info.hpp"
-#include "preprocess/preprocess_steps.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/preprocess/input_model_info.hpp"
+#include "node/include/preprocess/input_tensor_info.hpp"
+#include "node/include/preprocess/preprocess_steps.hpp"
 
 InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInfo>(info){};
 

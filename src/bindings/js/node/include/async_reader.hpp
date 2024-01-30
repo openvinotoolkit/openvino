@@ -5,7 +5,6 @@
 
 #include <napi.h>
 
-#include "model_wrap.hpp"
 #include "openvino/runtime/core.hpp"
 #include "read_model_args.hpp"
 

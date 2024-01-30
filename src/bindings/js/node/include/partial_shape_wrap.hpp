@@ -5,8 +5,6 @@
 
 #include <napi.h>
 
-#include "errors.hpp"
-#include "helper.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {
