@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
-#include "common_test_utils/file_utils.hpp"
 #include "onnx/quantized_models_tests.hpp"
+
+#include <openvino/util/file_util.hpp>
+
+#include "common_test_utils/file_utils.hpp"
 
 namespace ONNXTestsDefinitions {
 
@@ -20,8 +22,8 @@ void QuantizedModelsTests::SetUp() {
 }
 
 static std::string getModelFullPath(const char* path) {
-    return FileUtils::makePath<char>(
-        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
+    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
+                                     path);
 }
 
 void QuantizedModelsTests::run_model(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {
