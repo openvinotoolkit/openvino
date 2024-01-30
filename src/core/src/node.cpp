@@ -514,30 +514,9 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     return true;
 }
 
-namespace {
-bool is_used(ov::Node* node) {
-    std::unordered_set<ov::Node*> instances_seen;
-    std::stack<ov::Node*, std::vector<ov::Node*>> stack;
-    stack.push(node);
-
-    while (stack.size() > 0) {
-        ov::Node* n = stack.top();
-        if (instances_seen.count(n) == 0) {
-            if (ov::op::util::is_output(n)) {
-                return true;
-            }
-            instances_seen.insert(n);
-        }
-        stack.pop();
-        for (const auto& arg : n->get_users()) {
-            if (instances_seen.count(arg.get()) == 0) {
-                stack.push(arg.get());
-            }
-        }
-    }
-    return false;
+namespace ov {
+bool is_used(Node* node);
 }
-}  // namespace
 
 ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     NodeVector result;

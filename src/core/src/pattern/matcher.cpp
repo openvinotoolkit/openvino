@@ -12,6 +12,8 @@
 #include "openvino/util/log.hpp"
 
 namespace ov {
+bool is_used(Node* node);
+
 namespace pass {
 namespace pattern {
 MatcherState::MatcherState(Matcher* matcher)
@@ -85,29 +87,6 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
 }
 
 namespace {
-bool is_used(ov::Node* node) {
-    std::unordered_set<ov::Node*> instances_seen;
-    std::stack<ov::Node*, std::vector<ov::Node*>> stack;
-    stack.push(node);
-
-    while (stack.size() > 0) {
-        ov::Node* n = stack.top();
-        if (instances_seen.count(n) == 0) {
-            if (ov::op::util::is_output(n)) {
-                return true;
-            }
-            instances_seen.insert(n);
-        }
-        stack.pop();
-        for (const auto& arg : n->get_users()) {
-            if (instances_seen.count(arg.get()) == 0) {
-                stack.push(arg.get());
-            }
-        }
-    }
-    return false;
-}
-
 ov::NodeVector get_subgraph_outputs(const NodeVector& nodes, const NodeVector& exclusions, bool ignore_unused) {
     const std::set<std::shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
     const std::set<std::shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
