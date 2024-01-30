@@ -274,10 +274,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_44858,
-        "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
-        "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
-        "OnnxBackendNodeModelTest.test_unsqueeze_axis_2_cpu",
-        "OnnxBackendNodeModelTest.test_unsqueeze_negative_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_three_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",

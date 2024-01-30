@@ -63,7 +63,12 @@ std::vector<TRShape> shape_infer(const Unsqueeze* op,
             }
         }
     } else {
-        out_shape = ov::PartialShape::dynamic();
+        if (arg_shape.rank().is_static() && input_shapes[1].is_static() && input_shapes[1].size() == 1 &&
+            input_shapes[1][0].get_length() == 1) {
+            out_shape = ov::PartialShape::dynamic(arg_shape.rank() + 1);
+        } else {
+            out_shape = ov::PartialShape::dynamic();
+        }
     }
     return output_shapes;
 }

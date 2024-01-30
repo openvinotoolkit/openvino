@@ -14,6 +14,7 @@
 #include "openvino/op/region_yolo.hpp"
 #include "openvino/op/reorg_yolo.hpp"
 #include "openvino/op/roi_pooling.hpp"
+#include "openvino/op/unsqueeze.hpp"
 using namespace std;
 using namespace ov;
 
@@ -86,5 +87,25 @@ TEST(type_prop_layers, reduce_axes_2) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
     auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto op = make_shared<op::v1::ReduceProd>(inputs, axes, false);
+    ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+TEST(type_prop_layers, unsqueeze_axes_1) {
+    auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
+    auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    auto op = make_shared<op::v0::Unsqueeze>(inputs, axes);
+    ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(5));
+}
+
+TEST(type_prop_layers, unsqueeze_axes_2) {
+    auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
+    auto axes = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto op = make_shared<op::v0::Unsqueeze>(inputs, axes);
+    ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop_layers, unsqueeze_axes_dynamic) {
+    auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 3, 4, 5});
+    auto axes = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto op = make_shared<op::v0::Unsqueeze>(inputs, axes);
     ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
