@@ -221,7 +221,7 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
     const auto& devices = _core.get_available_devices();
     Napi::Array js_devices = Napi::Array::New(info.Env(), devices.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (const auto& dev : devices)
         js_devices[i++] = dev;
 

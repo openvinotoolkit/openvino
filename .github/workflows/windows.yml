@@ -201,8 +201,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
 
