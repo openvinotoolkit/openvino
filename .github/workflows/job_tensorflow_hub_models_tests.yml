@@ -33,10 +33,17 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
     steps:
-
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
+      - name: Set apt retries
+        run: |
+          if [ "$(id -u)" -eq 0 ]; then
+            echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+          else
+            sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
+          fi
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
