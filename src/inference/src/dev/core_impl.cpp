@@ -898,7 +898,14 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    return get_plugin(parsed._deviceName).query_model(model, parsed._config);
+    auto plugin = get_plugin(parsed._deviceName);
+    // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
+    // it from config
+    if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
+        !is_virtual_device(plugin.get_name())) {
+        parsed._config.erase(ov::cache_dir.name());
+    }
+    return plugin.query_model(model, parsed._config);
 }
 
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
