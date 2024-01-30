@@ -32,13 +32,14 @@ void convert_types(std::shared_ptr<v0::Parameter>& parameter,
     ov::TensorVector upper_tensor = {ov::Tensor(new_type, output.get_shape())};
     bool lower_success = convert->evaluate_lower(lower_tensor);
     bool upper_success = convert->evaluate_upper(upper_tensor);
-    auto& tensor = output.get_tensor();
 
     if (lower_success || upper_success) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(new_type);  // deprecated piece
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto tmp_tensor = std::make_shared<ov::descriptor::Tensor>(new_type,
+                                                                   output.get_tensor().get_partial_shape(),
+                                                                   output.get_tensor().get_names());
+        output.set_tensor_ptr(tmp_tensor);
     }
+    auto& tensor = output.get_tensor();
     if (lower_success)
         tensor.set_lower_value(lower_tensor[0]);
     if (upper_success)
@@ -114,10 +115,11 @@ void reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov
             continue;
         const auto& etype =
             item.second.first ? item.second.first.get_element_type() : item.second.second.get_element_type();
+        auto tmp_tensor = std::make_shared<ov::descriptor::Tensor>(etype,
+                                                                   inputs[item.first].get_tensor().get_partial_shape(),
+                                                                   inputs[item.first].get_tensor().get_names());
+        inputs[item.first].set_tensor_ptr(tmp_tensor);
         auto& tensor = inputs[item.first].get_tensor();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(etype);
-        OPENVINO_SUPPRESS_DEPRECATED_END
         if (item.second.first)
             tensor.set_lower_value(item.second.first);
         if (item.second.second)

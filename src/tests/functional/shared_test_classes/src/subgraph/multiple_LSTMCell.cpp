@@ -122,8 +122,14 @@ void MultipleLSTMCellTest::SetUp() {
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
 
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
 
     auto cell_memory_write = std::make_shared<ov::op::v6::Assign>(out_cell, var_cell);
     auto hidden_memory_write = std::make_shared<ov::op::v6::Assign>(out_hidden, var_hidden);
@@ -193,8 +199,14 @@ void MultipleLSTMCellTest::SetUp() {
     auto out_hidden_2 = tensor_iterator_2->get_iter_value(H_o_2, -1);
     auto out_cell_2 = tensor_iterator_2->get_iter_value(C_o_2, -1);
 
-    out_hidden_2.get_tensor().set_element_type(element_type);
-    out_cell_2.get_tensor().set_element_type(element_type);
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden_2.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell_2.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
 
     auto cell_memory_2_write = std::make_shared<ov::op::v6::Assign>(out_cell_2, var_cell_2);
     auto hidden_memory_2_write = std::make_shared<ov::op::v6::Assign>(out_hidden_2, var_hidden_2);
@@ -381,8 +393,14 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
 
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
     tensor_iterator->validate_and_infer_types();
 
     auto first_reshape_pattern =
@@ -444,8 +462,14 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto out_hidden_2 = tensor_iterator_2->get_iter_value(H_o_2, -1);
     auto out_cell_2 = tensor_iterator_2->get_iter_value(C_o_2, -1);
 
-    out_hidden_2.get_tensor().set_element_type(element_type);
-    out_cell_2.get_tensor().set_element_type(element_type);
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden_2.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
+    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell_2.get_node())) {
+        parameter->set_element_type(element_type);
+        parameter->validate_and_infer_types();
+    }
     tensor_iterator_2->validate_and_infer_types();
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));

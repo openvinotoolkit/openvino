@@ -154,16 +154,17 @@ protected:
 /// So it should be
 class TemporaryReplaceOutputType {
     Output<Node> m_output;
-    element::Type orig_type;
+    std::shared_ptr<ov::descriptor::Tensor> orig_tensor;
 
 public:
     /// Replace element type for a given output port by tmp_type
     TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
         // save original element type in order to restore it in the destructor
-        orig_type = m_output.get_element_type();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(tmp_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        orig_tensor = m_output.get_tensor_ptr();
+        auto tmp_tensor = std::make_shared<ov::descriptor::Tensor>(tmp_type,
+                                                                   orig_tensor->get_partial_shape(),
+                                                                   orig_tensor->get_names());
+        m_output.set_tensor_ptr(tmp_tensor);
     }
 
     /// Return the output port that was used in the constructor
@@ -173,9 +174,7 @@ public:
 
     /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(orig_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        m_output.set_tensor_ptr(orig_tensor);
     }
 };
 

@@ -60,9 +60,6 @@ public:
 
     OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
     void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
-    OPENVINO_DEPRECATED(
-        "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
-    void set_element_type(const element::Type& elemenet_type);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);

@@ -36,13 +36,9 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
-    set_element_type(element_type);
+    m_element_type = element_type;
     m_partial_shape = pshape;
     m_shape_changed = true;
-}
-
-void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
-    m_element_type = element_type;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
