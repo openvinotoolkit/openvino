@@ -23,7 +23,6 @@
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
@@ -96,30 +95,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::AnyMap Plugin::pre_process_config(const ov::AnyMap& orig_config) const {
-    ov::AnyMap properties = orig_config;
-    for (auto& property : properties) {
-        // for model_priority, the values need to be converted
-        if (property.first == ov::hint::model_priority.name()) {
-            ov::Any converted_val{nullptr};
-            auto legacy_val = property.second.as<std::string>();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
-                converted_val = ov::hint::Priority::HIGH;
-            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
-                converted_val = ov::hint::Priority::MEDIUM;
-            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
-                converted_val = ov::hint::Priority::LOW;
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            } else {
-                converted_val = legacy_val;
-            }
-            property.second = std::move(converted_val);
-        }
-    }
-    return properties;
-}
-
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
                                                           const ov::AnyMap& properties) const {
     std::vector<DeviceInformation> meta_devices;
@@ -184,10 +159,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         try {
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
-        } catch (const InferenceEngine::Exception&) {
-            // some may throw IE exceptions
-            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
-            return "";
         } catch (ov::Exception&) {
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
@@ -264,11 +235,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
                 } catch (ov::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                } catch (InferenceEngine::Exception&) {
-                    LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
-                OPENVINO_SUPPRESS_DEPRECATED_END
             }
 
             if (full_device_name.empty()) {
@@ -292,14 +259,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
                               unique_name.c_str());
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            } catch (const InferenceEngine::Exception&) {
-                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
-                              device_name_with_id.c_str(),
-                              default_device_id.c_str(),
-                              unique_name.c_str());
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (enable_device_priority) {
             device_priority++;
@@ -310,13 +270,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        return m_plugin_config.supported_ro_properties(get_device_name());
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return m_plugin_config.supported_rw_properties(get_device_name());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if (ov::supported_properties == name) {
+    if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
     } else if (name == ov::internal::supported_properties.name()) {
@@ -338,33 +292,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         }
         return capabilities;
     }
-    auto val = m_plugin_config.get_property(name);
-    if (!is_new_api()) {
-        if (name == ov::hint::model_priority.name()) { // need to convert priority values to old API
-            ov::Any legacy_val{nullptr};
-            if (!val.empty()) {
-            switch (val.as<ov::hint::Priority>()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
-                case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
-                case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            default: OPENVINO_ASSERT(false, "Unsupported model priority value");
-            }
-        }
-        return legacy_val;
-        } else {
-            return val;
-        }
-    } else {
-        return val;
-    }
-    return val;
+    return m_plugin_config.get_property(name);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    m_plugin_config.set_property(pre_process_config(properties));
+    auto property_to_set = properties;
+    m_plugin_config.set_property(property_to_set);
 }
 
 // ! [plugin:create_plugin_engine]
@@ -412,7 +346,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
-    load_config.set_user_property(pre_process_config(properties));
+    load_config.set_user_property(properties);
     load_config.apply_user_properties();
     if (!work_mode_auto) {
         if (iter_config != properties.end() && iter_config->second.as<std::string>() != "THROUGHPUT") {
@@ -470,56 +404,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         ppp_model = cloned_model->clone();
 
         ov::preprocess::PrePostProcessor preproc(ppp_model);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        // temp solution to resolve the precision/layout mismatch between new/old api
-        if (!is_new_api()) {
-            for (size_t i = 0; i < ppp_model->inputs().size(); i++) {
-                ov::Output<const Node> input(ppp_model->input(i).get_node(), ppp_model->input(i).get_index());
-                auto& rt_info = input.get_rt_info();
-                auto it = rt_info.find("ie_legacy_td");
-                if (it != rt_info.end()) {
-                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
-                    auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
-                    if (element_type != input.get_element_type()) {
-                        preproc.input(i).tensor().set_element_type(element_type);
-                    }
-                    if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
-                        td.getLayout() != InferenceEngine::Layout::SCALAR) {
-                        std::stringstream stream;
-                        stream << td.getLayout();
-                        if (td.getLayout() == InferenceEngine::Layout::NHWC) {
-                            preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
-                            if (input.get_partial_shape().is_static() && input.get_shape().size() == 4)
-                                preproc.input(i).model().set_layout("NCHW");
-                        }
-                    }
-                }
-            }
-            for (size_t i = 0; i < ppp_model->outputs().size(); i++) {
-                ov::Output<Node> output(ppp_model->output(i).get_node(), ppp_model->output(i).get_index());
-                auto& rt_info = output.get_rt_info();
-                auto it = rt_info.find("ie_legacy_td");
-                if (it != rt_info.end()) {
-                    auto& td = it->second.as<InferenceEngine::TensorDesc>();
-                    auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
-                    if (element_type != output.get_element_type()) {
-                        preproc.output(i).tensor().set_element_type(element_type);
-                    }
-                    if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
-                        td.getLayout() != InferenceEngine::Layout::SCALAR) {
-                        std::stringstream stream;
-                        stream << td.getLayout();
-                        if (stream.str() == "NHWC") {
-                            if (output.get_partial_shape().is_static() && output.get_shape().size() == 4)
-                                preproc.output(i).model().set_layout("NCHW");
-                            preproc.output(i).postprocess().convert_layout(ov::Layout{stream.str()});
-                        }
-                    }
-                }
-            }
-            preproc.build();
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -569,11 +453,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
             device_context._so = auto_s_context->m_hw_compiled_model._so;
     } catch (ov::NotImplemented&) {
         LOG_INFO_TAG("underlying hardware does not support hardware context");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    } catch (InferenceEngine::Exception&) {
-        LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     if (is_cumulative) {
         impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
     } else {

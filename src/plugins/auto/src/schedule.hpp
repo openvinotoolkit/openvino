@@ -6,6 +6,8 @@
 #pragma once
 
 #include "common.hpp"
+#include "itt.hpp"
+
 namespace ov {
 namespace auto_plugin {
 using Stage = std::pair<std::shared_ptr<ov::threading::ITaskExecutor>, ov::threading::Task>;

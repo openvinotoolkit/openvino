@@ -36,9 +36,6 @@ std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
 }
 
 ov::Any AutoCompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -54,13 +51,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (name == ov::supported_properties) {
         auto ro_properties = default_ro_properties();
@@ -93,15 +83,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = m_context->m_model_priority;
-        if (m_context->m_ov_core->is_new_api()) {
-            return value ? ((value > 1) ? ov::hint::Priority::LOW :
-                    ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(
-                        MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
+        return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
@@ -246,16 +228,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name);
             return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name);
         }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        auto ro_properties = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), ro_properties);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), ro_properties);
-        return to_string_vector(ro_properties);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        auto rw_properties = default_rw_properties();
-        return to_string_vector(rw_properties);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         std::string device_name;
