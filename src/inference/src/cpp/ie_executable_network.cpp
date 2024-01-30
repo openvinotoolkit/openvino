@@ -80,15 +80,15 @@ CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     EXEC_NET_CALL_STATEMENT(return CNNNetwork{_impl->GetExecGraphInfo()});
 }
 
-void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
+void ExecutableNetwork::SetConfig(const ov::AnyMap& config) {
     EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
+ov::Any ExecutableNetwork::GetConfig(const std::string& name) const {
     EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), {_so}});
 }
 
-Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+ov::Any ExecutableNetwork::GetMetric(const std::string& name) const {
     EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), {_so}});
 }
 
