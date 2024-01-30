@@ -170,15 +170,17 @@ bool QuantizationDetails::empty() const noexcept {
     return (levels == 0ul) && inputLowValues.empty() && inputHighValues.empty() && outputLowValues.empty() && outputHighValues.empty();
 }
 
-bool QuantizationDetails::isSupportedLevel(const size_t level) {
+bool QuantizationDetails::isSupportedLevel(
+        const size_t quantization_level,
+        const std::unordered_set<ov::pass::low_precision::levels, EnumClassHash>& supported_levels) {
     using ov::pass::low_precision::levels;
-    static const std::unordered_set<size_t> supported_levels = {
+    const std::unordered_set<levels, EnumClassHash> current_levels = supported_levels.empty() ? std::unordered_set<levels, EnumClassHash> {
         levels::int4,  levels::int4_narrow_range,
         levels::int8,  levels::int8_narrow_range,
         levels::int16, levels::int16_narrow_range,
         levels::int32, levels::int32_narrow_range
-    };
-    return supported_levels.find(level) != supported_levels.end();
+    } : supported_levels;
+    return current_levels.find(static_cast<levels>(quantization_level)) != current_levels.end();
 }
 
 } // namespace low_precision
