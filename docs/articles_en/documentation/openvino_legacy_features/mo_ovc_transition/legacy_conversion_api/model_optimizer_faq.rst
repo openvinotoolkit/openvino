@@ -14,7 +14,7 @@ where you can participate in a free forum discussion.
 
 .. warning::
 
-   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi has been deprecated.
+   Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi has been discontinued.
 
 .. _question-1:
 
