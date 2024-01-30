@@ -594,10 +594,10 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LogicalOr                                               | YES                           |                               |
 | LookupTableExport                                       | NO                            |                               |
 | LookupTableExportV2                                     | NO                            |                               |
-| LookupTableFind                                         | NO                            |                               |
-| LookupTableFindV2                                       | NO                            |                               |
-| LookupTableImport                                       | NO                            |                               |
-| LookupTableImportV2                                     | NO                            |                               |
+| LookupTableFind                                         | YES                           |                               |
+| LookupTableFindV2                                       | YES                           |                               |
+| LookupTableImport                                       | YES                           |                               |
+| LookupTableImportV2                                     | YES                           |                               |
 | LookupTableInsert                                       | YES                           |                               |
 | LookupTableInsertV2                                     | YES                           |                               |
 | LookupTableRemoveV2                                     | NO                            |                               |
