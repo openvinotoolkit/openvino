@@ -38,7 +38,8 @@ Notebook contains the following steps:
 2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `login to huggingfacehub to get access to pretrained
@@ -80,7 +81,7 @@ not, you do not have to do anything. Just run the notebook.**
    following code:
 
 .. code:: python
-   :force:
+
 
    ## login to huggingfacehub to get access to pretrained model
 
@@ -1046,7 +1047,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GNA', 'AUTO'), value='CPU')
 
 
 
@@ -1377,5 +1378,5 @@ Interactive demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

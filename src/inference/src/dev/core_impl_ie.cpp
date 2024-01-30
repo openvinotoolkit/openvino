@@ -16,6 +16,7 @@
 #include "iplugin_wrapper.hpp"
 #include "itt.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"

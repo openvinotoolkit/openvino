@@ -7,7 +7,6 @@
 #include "ov_lpt_models/fake_quantize_and_two_output_branches_with_convolution.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
@@ -27,29 +26,42 @@ std::shared_ptr<ov::opset1::Convolution> createConvolution(
         ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
-    const std::shared_ptr<ov::opset1::Convolution> convolution = typeRelaxed ?
-        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-            std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
-            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(fqOnWeights.empty() ?
-                weights :
-                ov::test::utils::make_fake_quantize(
-                    weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-                    fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues), element::f32).get(),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 }) :
-        std::make_shared<ov::opset1::Convolution>(
-            parent,
-            fqOnWeights.empty() ? weights->output(0) :
-            ov::test::utils::make_fake_quantize(
-                weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-                fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 });
+    const std::shared_ptr<ov::opset1::Convolution> convolution =
+        typeRelaxed ? std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+                          std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                          std::vector<ov::element::Type>{},
+                          ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
+                          ov::op::TemporaryReplaceOutputType(
+                              fqOnWeights.empty() ? weights
+                                                  : ov::test::utils::make_fake_quantize(weights,
+                                                                                        precision,
+                                                                                        fqOnWeights.quantizationLevel,
+                                                                                        fqOnWeights.constantShape,
+                                                                                        fqOnWeights.inputLowValues,
+                                                                                        fqOnWeights.inputHighValues,
+                                                                                        fqOnWeights.outputLowValues,
+                                                                                        fqOnWeights.outputHighValues),
+                              ov::element::f32)
+                              .get(),
+                          ov::Strides{1, 1},
+                          ov::CoordinateDiff{0, 0},
+                          ov::CoordinateDiff{0, 0},
+                          ov::Strides{1, 1})
+                    : std::make_shared<ov::opset1::Convolution>(
+                          parent,
+                          fqOnWeights.empty() ? weights->output(0)
+                                              : ov::test::utils::make_fake_quantize(weights,
+                                                                                    precision,
+                                                                                    fqOnWeights.quantizationLevel,
+                                                                                    fqOnWeights.constantShape,
+                                                                                    fqOnWeights.inputLowValues,
+                                                                                    fqOnWeights.inputHighValues,
+                                                                                    fqOnWeights.outputLowValues,
+                                                                                    fqOnWeights.outputHighValues),
+                          ov::Strides{1, 1},
+                          ov::CoordinateDiff{0, 0},
+                          ov::CoordinateDiff{0, 0},
+                          ov::Strides{1, 1});
 
     return convolution;
 }
@@ -128,13 +140,13 @@ std::shared_ptr<ov::Model> FakeQuantizeAndTwoOutputBranchesWithConvolutionFuncti
     const std::shared_ptr<ov::opset1::Concat> concat = std::make_shared<ov::opset1::Concat>(NodeVector{ deqAfter1, deqAfter2 }, 1ul);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOp);
     if (params.updatePrecisions) {
-        replace_node(
-            convolution1->get_input_node_shared_ptr(1),
-            ov::pass::low_precision::fold<ov::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), element::i8));
+        replace_node(convolution1->get_input_node_shared_ptr(1),
+                     ov::pass::low_precision::fold<ov::opset1::Convert>(convolution1->get_input_node_shared_ptr(1),
+                                                                        ov::element::i8));
 
-        replace_node(
-            convolution2->get_input_node_shared_ptr(1),
-            ov::pass::low_precision::fold<ov::opset1::Convert>(convolution2->get_input_node_shared_ptr(1), element::i8));
+        replace_node(convolution2->get_input_node_shared_ptr(1),
+                     ov::pass::low_precision::fold<ov::opset1::Convert>(convolution2->get_input_node_shared_ptr(1),
+                                                                        ov::element::i8));
     }
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(concat) };

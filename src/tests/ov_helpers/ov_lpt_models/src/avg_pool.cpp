@@ -9,7 +9,6 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/avg_pool.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
@@ -54,7 +53,7 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
         } else if (additionalLayer == "convolution") {
             lastLayer = makeConvolution(lastLayer, precision, false);
         } else if (additionalLayer == "unsupported_convolution") {
-            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+            lastLayer = makeConvolution(lastLayer, precision, true, ov::element::f32);
         }
     }
 
@@ -135,9 +134,9 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getReference(
         } else if (additionalLayer == "softmax") {
             lastLayer = std::make_shared<ov::opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
-            lastLayer = makeConvolution(lastLayer, element::f32, dequantizationAfter.empty());
+            lastLayer = makeConvolution(lastLayer, ov::element::f32, dequantizationAfter.empty());
         } else if (additionalLayer == "unsupported_convolution") {
-            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+            lastLayer = makeConvolution(lastLayer, precision, true, ov::element::f32);
         }
     }
 

@@ -15,7 +15,6 @@
 #include "layer_transformation.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {

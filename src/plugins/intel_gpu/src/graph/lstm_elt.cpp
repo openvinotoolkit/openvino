@@ -62,7 +62,7 @@ std::string lstm_elt_inst::to_string(lstm_elt_node const& node) {
 }
 
 lstm_elt_inst::typed_primitive_inst(network& network, lstm_elt_node const& node) : parent(network, node) {
-    auto input_size = node.input().get_output_layout();
+    auto input_size = node.get_input_layout();
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",
                                   input_size.format.value,
