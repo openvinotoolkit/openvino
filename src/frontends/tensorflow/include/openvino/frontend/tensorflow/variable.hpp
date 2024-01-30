@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
 namespace ov {
@@ -14,6 +15,17 @@ class Variable : public ov::op::util::FrameworkNode {
 public:
     using Ptr = std::shared_ptr<Variable>;
     OPENVINO_OP("TFVariable", "ov::frontend::tensorflow", ::ov::op::util::FrameworkNode);
+
+    Variable(const std::string& name, const std::shared_ptr<DecoderBase>& decoder)
+        : ov::op::util::FrameworkNode(ov::OutputVector{}, 1),
+          m_name(name),
+          m_shape(ov::Shape{}),
+          m_type(ov::element::dynamic),
+          m_decoder(decoder),
+          m_is_initialized(false),
+          m_init_counter(0) {
+        validate_and_infer_types();
+    }
 
     Variable(const std::string& name,
              const ov::Shape& shape,
@@ -60,7 +72,7 @@ public:
         return m_is_initialized;
     }
 
-    ov::Output<ov::Node> get_value() const {
+    virtual ov::Output<ov::Node> get_value() {
         FRONT_END_GENERAL_CHECK(
             m_is_initialized,
             "[TensorFlow Frontend] internal error: get_value() is called for uninitialized variable");
@@ -75,7 +87,7 @@ public:
         return m_init_counter;
     }
 
-private:
+protected:
     std::string m_name;
     ov::Shape m_shape;
     ov::element::Type m_type;
