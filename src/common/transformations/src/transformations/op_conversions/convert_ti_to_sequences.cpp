@@ -986,9 +986,8 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         } else {
             new_transpose_perm = second_transpose_perm;
         }
-        if (new_transpose_perm)
 
-            NodeRegistry node_registry;
+        NodeRegistry node_registry;
 
         Output<Node> new_lstm_input;
         if (new_transpose_perm) {
