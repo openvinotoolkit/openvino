@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_parameter.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/exception.hpp"
 

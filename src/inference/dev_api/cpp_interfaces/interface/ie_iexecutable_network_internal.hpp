@@ -11,7 +11,6 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
@@ -132,23 +131,23 @@ public:
 
     /**
      * @brief Sets configuration for current executable network
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param config Map of pairs: (config name, config ov::Any value)
      */
-    virtual void SetConfig(const std::map<std::string, Parameter>& config);
+    virtual void SetConfig(const ov::AnyMap& config);
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
      * @param name A config key, can be found in ie_plugin_config.hpp
      * @return A value of config corresponding to config key
      */
-    virtual Parameter GetConfig(const std::string& name) const;
+    virtual ov::Any GetConfig(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
      * @param name  A metric name to request
      * @return A metric value corresponding to metric key
      */
-    virtual Parameter GetMetric(const std::string& name) const;
+    virtual ov::Any GetMetric(const std::string& name) const;
 
     /**
      * @brief Raises the flag that model was loaded from cache

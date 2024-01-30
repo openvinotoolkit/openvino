@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_plugin/auto_batching_tests.hpp"
+
 #include "behavior/compiled_model/properties.hpp"
 
 using namespace ov::test::behavior;

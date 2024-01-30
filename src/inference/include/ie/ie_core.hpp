@@ -235,7 +235,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
+    ov::Any GetConfig(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -248,7 +248,7 @@ public:
      * @param options - optional parameters to get a metric value
      * @return Metric value corresponding to metric key.
      */
-    Parameter GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options = {}) const;
+    ov::Any GetMetric(const std::string& deviceName, const std::string& name, const ov::AnyMap& options = {}) const;
 
     /**
      * @brief Returns devices available for neural networks inference

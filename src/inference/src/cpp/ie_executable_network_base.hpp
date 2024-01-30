@@ -68,15 +68,15 @@ public:
         TO_STATUS(graphPtr = CNNNetwork{_impl->GetExecGraphInfo()});
     }
 
-    StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
+    StatusCode SetConfig(const ov::AnyMap& config, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetConfig(config));
     }
 
-    StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
+    StatusCode GetConfig(const std::string& name, ov::Any& result, ResponseDesc* resp) const noexcept override {
         TO_STATUS(result = _impl->GetConfig(name));
     }
 
-    StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
+    StatusCode GetMetric(const std::string& name, ov::Any& result, ResponseDesc* resp) const noexcept override {
         TO_STATUS(result = _impl->GetMetric(name));
     }
 

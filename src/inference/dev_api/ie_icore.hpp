@@ -15,7 +15,6 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -51,7 +50,7 @@ public:
      *
      * @param network CNNNetwork object acquired from Core::ReadNetwork
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @return An executable network reference
      */
@@ -68,7 +67,7 @@ public:
      * @param modelStr String data of model
      * @param weights Model's weights
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
@@ -88,7 +87,7 @@ public:
      *
      * @param modelPath Path to model
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
@@ -102,7 +101,7 @@ public:
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation*
      * @return An executable network reference
      */
@@ -115,7 +114,7 @@ public:
      *
      * @param deviceName A name of a device to query
      * @param network Network object to query
-     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @param config Optional map of pairs: (config name, config value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
