@@ -19,6 +19,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
         program_helpers::do_for_types<gather>(*node, [](gather_node& node){
             // Check pattern
+            if (node.get_dependency(0).is_constant())
+                return;
+
             auto impl_params = node.get_kernel_impl_params();
             if (node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
