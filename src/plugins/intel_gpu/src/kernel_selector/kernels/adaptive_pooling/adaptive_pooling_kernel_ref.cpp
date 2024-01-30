@@ -41,8 +41,9 @@ bool AdaptivePoolingRef::Validate(const Params& p, const optional_params& o) con
     const auto& params = dynamic_cast<const adaptive_pooling_params&>(p);
     const auto& inputs = params.inputs;
 
-    if (!((params.mode == PoolType::MAX && inputs.size() == 2) ||
-          (params.mode == PoolType::AVG && inputs.size() == 1))) {
+    if (!((params.mode == PoolType::AVG && inputs.size() == 1)
+          || (params.mode == PoolType::MAX && inputs.size() == 2)
+          || (params.mode == PoolType::MAX && inputs.size() == 1 && params.outputs_num == 2))) {
         return false;
     }
 
@@ -86,8 +87,15 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
 
     cldnn_jit.AddConstant(MakeJitConstant(toString(new_params.mode) + "_POOLING", 1));
 
+    if (new_params.outputs_num == 2) {
+        cldnn_jit.AddConstant(MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1));
+    }
+
     if (new_params.mode == PoolType::MAX) {
-        cldnn_jit.Merge(MakeTypeJitConstants(new_params.poolIndexElementType, "INDICES"));
+        if (new_params.outputs_num == 1) {
+            // Legacy code of mutable data
+            cldnn_jit.Merge(MakeTypeJitConstants(new_params.poolIndexElementType, "INDICES"));
+        }
     }
 
     const auto accumulator_type = new_params.inputs[0].GetDType();
@@ -105,7 +113,12 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
     arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});     // input data
     arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});    // output
     if (new_params.mode == PoolType::MAX) {
-        arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});     // indices
+        if (new_params.outputs_num == 2) {
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});     // second output
+        } else {
+            // Legacy code of mutable data
+            arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});     // indices
+        }
     }
 
     KernelsData kernelsData;

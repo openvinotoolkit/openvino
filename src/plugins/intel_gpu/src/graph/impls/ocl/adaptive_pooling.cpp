@@ -22,18 +22,6 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
         return make_unique<adaptive_pooling_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
-        kernel_arguments_data args;
-        const auto num_inputs = instance.inputs_memory_count();
-        for (size_t i = 0; i < num_inputs; ++i) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-
-        args.outputs = {instance.output_memory_ptr()};
-        return args;
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<adaptive_pooling>();
@@ -56,8 +44,13 @@ public:
                 }
                 default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
             }
-
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+            bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            if (allow_new_shape_infer) {
+                params.outputs_num = 2;
+                params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+            } else {
+                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+            }
         }
 
         return {params, optional_params};
