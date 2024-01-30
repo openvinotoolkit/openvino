@@ -30,12 +30,165 @@ TEST(F8E5M2Test, f32_inf) {
     const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::infinity());
 
     EXPECT_EQ(f8.to_bits(), 0b01111100);
+    EXPECT_EQ(f8, std::numeric_limits<float8_e5m2>::infinity());
 }
 
 TEST(F8E5M2Test, f32_minus_inf) {
     const auto f8 = ov::float8_e5m2(-std::numeric_limits<float>::infinity());
 
     EXPECT_EQ(f8.to_bits(), 0b11111100);
+    EXPECT_EQ(f8, -std::numeric_limits<float8_e5m2>::infinity());
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_is_specialized) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::is_specialized;
+    EXPECT_TRUE(val);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_is_signed) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::is_signed;
+    EXPECT_TRUE(val);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_is_integer) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::is_integer;
+    EXPECT_FALSE(val);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_is_exact) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::is_exact;
+    EXPECT_FALSE(val);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_radix) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::radix;
+    EXPECT_EQ(val, 2);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_digits) {
+    const auto val = std::numeric_limits<ov::float8_e5m2>::digits;
+    EXPECT_EQ(val, 3);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_digits10) {
+    const auto f8_dig = std::numeric_limits<ov::float8_e5m2>::digits;
+    const auto f8_dig10 = std::numeric_limits<ov::float8_e5m2>::digits10;
+
+    EXPECT_EQ(f8_dig10, static_cast<int>((f8_dig - 1) * std::log10(2)));
+    EXPECT_EQ(f8_dig10, 0);
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_epsilon) {
+    const auto f8_1 = ov::float8_e5m2(1.f);
+    const auto f8_1_bits = f8_1.to_bits();
+    const auto f8_1_next_bits = f8_1_bits + 1u;
+
+    const auto f8_eps = ov::float8_e5m2::from_bits(f8_1_next_bits - f8_1_bits);
+
+    EXPECT_EQ(f8_eps, std::numeric_limits<ov::float8_e5m2>::epsilon());
+    EXPECT_EQ(f8_eps.to_bits(), std::numeric_limits<ov::float8_e5m2>::epsilon().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_round_error) {
+    const auto f8 = ov::float8_e5m2(0.5f);
+
+    EXPECT_EQ(f8, std::numeric_limits<ov::float8_e5m2>::round_error());
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::round_error().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_quiet_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<ov::float8_e5m2>::quiet_NaN());
+
+    const auto has_quiet_nan = std::numeric_limits<ov::float8_e5m2>::has_quiet_NaN;
+    EXPECT_TRUE(has_quiet_nan);
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111111);
+    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::quiet_NaN().to_bits(), 0b01111111);
+}
+
+TEST(F8E5M2Test, f8e5m2_sig_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<ov::float8_e5m2>::signaling_NaN());
+
+    const auto has_sig_nan = std::numeric_limits<ov::float8_e5m2>::has_signaling_NaN;
+    EXPECT_TRUE(has_sig_nan);
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111101);
+    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
+}
+
+TEST(F8E5M2Test, f16_quiet_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<ov::float16>::quiet_NaN());
+
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111111);
+    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::quiet_NaN().to_bits(), 0b01111111);
+}
+
+TEST(F8E5M2Test, f16_sig_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<ov::float16>::signaling_NaN());
+
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111101);
+    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
+}
+
+TEST(F8E5M2Test, f32_quiet_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::quiet_NaN());
+
+    EXPECT_TRUE(std::isnan(f8));
+    // The last bit is zero because of f32 to f16 conversion
+    EXPECT_EQ(f8.to_bits(), 0b01111110);
+}
+
+TEST(F8E5M2Test, f32_sig_nan) {
+    const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::signaling_NaN());
+    const auto f8_bits = f8.to_bits();
+
+    const auto allowed_nan = (f8_bits == 0b01111101) || (f8_bits == 0b01111110);
+    EXPECT_TRUE(allowed_nan);
+
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
+}
+
+TEST(F8E5M2Test, f8e5m2_min_normalized) {
+    const auto f8 = ov::float8_e5m2(0.00006103515625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000100);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::min().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_max_normalized) {
+    const auto f8 = ov::float8_e5m2(57344.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111011);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::max().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_lowest_normalized) {
+    const auto f8 = ov::float8_e5m2(-57344.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111011);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::lowest().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_denorm_min) {
+    const auto f8 = ov::float8_e5m2(0.0000152587890625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e5m2>::denorm_min().to_bits());
+}
+
+TEST(F8E5M2Test, f8e5m2_num_limits_exp) {
+    const auto min_exp = std::numeric_limits<ov::float8_e5m2>::min_exponent;
+    const auto min_exp10 = std::numeric_limits<ov::float8_e5m2>::min_exponent10;
+    const auto max_exp = std::numeric_limits<ov::float8_e5m2>::max_exponent;
+    const auto max_exp10 = std::numeric_limits<ov::float8_e5m2>::max_exponent10;
+
+    EXPECT_EQ(min_exp, -13);
+    EXPECT_EQ(min_exp10, -4);
+    EXPECT_EQ(max_exp, 16);
+    EXPECT_EQ(max_exp10, 4);
 }
 
 TEST(F8E5M2Test, f32_ge_f8_max_round_to_inf) {
@@ -63,9 +216,9 @@ TEST(F8E5M2Test, f32_ge_f8_max_round_to_lowest) {
 }
 
 template <class TContainer>
-std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TContainer& values) {
-    std::vector<std::tuple<int, typename TContainer::value_type>> enum_values;
-    int i = 0;
+std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enumerate(const TContainer& values) {
+    std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enum_values;
+    uint8_t i = 0;
     for (const auto& v : values) {
         enum_values.emplace_back(i, v);
         ++i;
@@ -74,6 +227,7 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
 }
 
 constexpr auto f32_qnan = std::numeric_limits<float>::quiet_NaN();
+constexpr auto f32_signan = std::numeric_limits<float>::signaling_NaN();
 constexpr auto f32_inf = std::numeric_limits<float>::infinity();
 
 // clang-format off
@@ -109,7 +263,7 @@ const auto exp_floats = std::vector<float>{
     8192.0f,            10240.0f,               12288.0f,               14336.0f,
     16384.0f,           20480.0f,               24576.0f,               28672.0f,
     32768.0f,           40960.0f,               49152.0f,               57344.0f,
-    f32_inf,            f32_qnan,               f32_qnan,               f32_qnan,
+    f32_inf,            f32_signan,             f32_qnan,               f32_qnan,
     -0.0f,              -1.52587890625e-05f,    -3.0517578125e-05f,     -4.57763671875e-05f,
     -6.103515625e-05f,  -7.62939453125e-05f,    -9.1552734375e-05f,     -0.0001068115234375f,
     -0.0001220703125f,  -0.000152587890625f,    -0.00018310546875f,     -0.000213623046875f,
@@ -141,10 +295,10 @@ const auto exp_floats = std::vector<float>{
     -8192.0f,           -10240.0f,              -12288.0f,              -14336.0f,
     -16384.0f,          -20480.0f,              -24576.0f,              -28672.0f,
     -32768.0f,          -40960.0f,              -49152.0f,              -57344.0f,
-    -f32_inf,           -f32_qnan,              -f32_qnan,              -f32_qnan};
+    -f32_inf,           -f32_signan,            -f32_qnan,              -f32_qnan};
 // clang-format on
 
-using f8m5e2_params = std::tuple<int, float>;
+using f8m5e2_params = std::tuple<uint8_t, float>;
 class F8E5M2PTest : public testing::TestWithParam<f8m5e2_params> {};
 
 INSTANTIATE_TEST_SUITE_P(convert,
@@ -167,10 +321,22 @@ TEST_P(F8E5M2PTest, f8_bits_to_f32) {
 TEST_P(F8E5M2PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& value = std::get<1>(params);
-    const auto& exp_value = std::isnan(value) ? (std::signbit(value) ? 0xfe : 0x7e) : std::get<0>(params);
+    auto exp_value = std::get<0>(params);
     const auto f8 = ov::float8_e5m2(value);
+    const auto f8_bits = f8.to_bits();
 
-    EXPECT_EQ(f8.to_bits(), exp_value);
+    if (exp_value == 0xFF || exp_value == 0x7F) {  // quiet NaN
+        EXPECT_TRUE(std::isnan(f8));
+        exp_value--;
+    } else if (exp_value == 0x7D || exp_value == 0xFD) {  // signaling NaN
+        // signaling NaN representation can be implementation defined
+        const auto allowed_nan = (f8_bits == exp_value) || (f8_bits == ++exp_value);
+        EXPECT_TRUE(std::isnan(f8));
+        EXPECT_TRUE(allowed_nan);
+        return;
+    }
+
+    EXPECT_EQ(f8_bits, exp_value);
 }
 }  // namespace test
 }  // namespace ov

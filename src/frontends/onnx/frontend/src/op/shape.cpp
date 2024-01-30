@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/shape.hpp"
-
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "op/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
+
+#include "openvino/op/shape_of.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -19,7 +16,7 @@ namespace set_1 {
 
 ov::OutputVector shape(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<default_opset::ShapeOf>(data)};
+    return {std::make_shared<v3::ShapeOf>(data)};
 }
 
 }  // namespace set_1

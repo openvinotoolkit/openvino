@@ -47,7 +47,7 @@
 namespace {
 
 std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
-    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    ov::Output<ov::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
     if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
         p = node->input_value(0);
     }
@@ -257,15 +257,11 @@ public:
         m_plugin->set_property(config);
     }
 
-    InferenceEngine::Parameter GetConfig(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
+    ov::Any GetConfig(const std::string& name, const ov::AnyMap& options) const override {
         return m_plugin->get_property(name, options);
     }
 
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
+    ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const override {
         return m_plugin->get_property(name, options);
     }
 
@@ -373,15 +369,15 @@ public:
         return m_model->get_runtime_model()->clone();
     }
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
+    void SetConfig(const ov::AnyMap& config) override {
         m_model->set_property(config);
     }
 
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override {
+    ov::Any GetConfig(const std::string& name) const override {
         return m_model->get_property(name);
     }
 
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+    ov::Any GetMetric(const std::string& name) const override {
         // Add legacy supported properties
         if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
             try {

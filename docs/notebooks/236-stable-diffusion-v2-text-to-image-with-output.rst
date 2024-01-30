@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <225-stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./235-controlnet-stable-diffusion/235-controlnet-stable-diffusion.ipynb>`__.
+ControlNet <235-controlnet-stable-diffusio235-controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -76,12 +76,12 @@ implementation. If you would like to get started and run the notebook
 quickly, check out `236-stable-diffusion-v2-text-to-image-demo
 notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion v2 for Text-to-Image
-   Generation <#stable-diffusion-v-for-text-to-image-generation>`__
+   Generation <#stable-diffusion-v2-for-text-to-image-generation>`__
 
    -  `Stable Diffusion in Diffusers
       library <#stable-diffusion-in-diffusers-library>`__
@@ -909,7 +909,7 @@ First, you should create instances of OpenVINO Model.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GNA', 'AUTO'), value='AUTO')
 
 
 
