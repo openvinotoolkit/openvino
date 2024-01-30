@@ -7,7 +7,6 @@
 #include "ov_lpt_models/round.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 
 using namespace ov::pass::low_precision;
 

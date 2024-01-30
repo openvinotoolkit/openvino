@@ -9,7 +9,6 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
@@ -26,10 +25,10 @@ std::shared_ptr<Node> createConvolution(
     const size_t inputChannels = inputShape[1];
     const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
     const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
-        std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
+        std::make_shared<ov::opset1::Constant>(ov::element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
         precision,
         255,
-        { outputChannels, 1, 1, 1 },
+        {outputChannels, 1, 1, 1},
         std::vector<float>(outputChannels, -1.27f),
         std::vector<float>(outputChannels, 1.27f),
         std::vector<float>(outputChannels, -1.27f),

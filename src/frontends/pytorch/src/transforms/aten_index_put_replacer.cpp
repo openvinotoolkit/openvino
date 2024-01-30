@@ -129,6 +129,13 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto index_dtype = index.get_element_type();
             // Do we need to also check u8?
             if (index_dtype == element::boolean) {
+                auto value_pshape_rank = values.get_partial_shape().rank();
+                if (value_pshape_rank.is_static() && value_pshape_rank.get_length() == 0) {
+                    auto res = masked_fill(rg, input, index, values);
+                    copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
+                    index_op->output(0).replace(res);
+                    return true;
+                }
                 values = rg.make<v1::ConvertLike>(values, input);
                 // then apply masked scatter
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);

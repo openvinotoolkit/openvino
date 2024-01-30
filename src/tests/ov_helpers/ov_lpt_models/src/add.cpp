@@ -11,7 +11,6 @@
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -97,44 +96,53 @@ std::shared_ptr<ov::Model> AddFunction::getOriginal(
     auto parent = input2;
     if (additionalLayer == "convolution") {
         parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ precision },
-            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
-                std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                element::f32).get(),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 });
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{1, 4, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
     }
     std::shared_ptr<Node> additional_output = nullptr;
     if (additionalLayer == "convolution_multiconsumers") {
         parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                std::vector<element::Type>{ element::f32, element::f32 },
-                std::vector<element::Type>{ precision },
-                ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(
-                        std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                        element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{1, 4, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
-        parent = std::make_shared< ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ precision },
-            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+        parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
-                std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 4, 1, 1, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                element::f32).get(),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 });
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{4, 1, 1, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
     }
     if (additionalLayer != "") {
         parent = configure_postops(parent, precision, postops_configuration);
@@ -226,10 +234,9 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
     std::shared_ptr<ov::Node> input1;
     std::shared_ptr<ov::Node> parent1;
     if (constInputIndex == 0) {
-        parent1 = std::make_shared<ov::opset1::Constant>(
-            dequantizationAfter.empty() ? precision : element::f32,
-            inputShape1.to_shape(),
-            constValues);
+        parent1 = std::make_shared<ov::opset1::Constant>(dequantizationAfter.empty() ? precision : ov::element::f32,
+                                                         inputShape1.to_shape(),
+                                                         constValues);
     } else {
         input1 = std::make_shared<ov::opset1::Parameter>(
             additionalLayer != "" ? precision : (precision1.is_real() ? precision : precision1),
@@ -245,15 +252,14 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
     }
 
     auto dequantizationStructure1 = dequantization1;
-    dequantizationStructure1.multiply.outPrecision = dequantizationAfter.empty() ? precision : element::f32;
+    dequantizationStructure1.multiply.outPrecision = dequantizationAfter.empty() ? precision : ov::element::f32;
     const auto dequantizationOp1 = ov::is_type<ov::opset1::Constant>(parent1) ? parent1 : makeDequantization(parent1, dequantizationStructure1);
 
     std::shared_ptr<ov::Node> input2;
     if (constInputIndex == 1) {
-        input2 = std::make_shared<ov::opset1::Constant>(
-            dequantizationAfter.empty() ? precision : element::f32,
-            inputShape2.to_shape(),
-            constValues);
+        input2 = std::make_shared<ov::opset1::Constant>(dequantizationAfter.empty() ? precision : ov::element::f32,
+                                                        inputShape2.to_shape(),
+                                                        constValues);
     } else {
         input2 = std::make_shared<ov::opset1::Parameter>(
             precision2.is_real() ? precision : precision2, inputShape2);
@@ -261,66 +267,75 @@ std::shared_ptr<ov::Model> AddFunction::getReference(
     auto parent = input2;
     if (additionalLayer == "convolution") {
         parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ precision },
-            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
-                std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                element::f32).get(),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 });
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{1, 4, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
     }
     std::shared_ptr<Node> additional_output = nullptr;
     if (additionalLayer == "convolution_multiconsumers") {
         parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                std::vector<element::Type>{ element::f32, element::f32 },
-                std::vector<element::Type>{ precision },
-                ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(
-                        std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                        element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 });
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{1, 4, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
         additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
-        parent = std::make_shared< ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ precision },
-            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+        parent = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{precision},
+            ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
-                std::make_shared<ov::opset1::Constant>(element::i8, Shape{ 4, 1, 1, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
-                element::f32).get(),
-            ov::Strides{ 1, 1 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::CoordinateDiff{ 0, 0 },
-            ov::Strides{ 1, 1 });
+                std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                       Shape{4, 1, 1, 1, 1},
+                                                       std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
+                ov::element::f32)
+                .get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
     }
     if (additionalLayer != "") {
         parent = configure_postops(parent, precision, postops_configuration);
     }
 
     auto dequantizationStructure2 = dequantization2;
-    dequantizationStructure2.multiply.outPrecision = dequantizationAfter.empty() ? precision : element::f32;
+    dequantizationStructure2.multiply.outPrecision = dequantizationAfter.empty() ? precision : ov::element::f32;
     const auto dequantizationOp2 = ov::is_type<ov::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
 
-    const std::shared_ptr<Node> add = operationType == "Add" ?
-        std::dynamic_pointer_cast<Node>(std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ element::f32 },
-            ov::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
-        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ element::f32 },
-            ov::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
+    const std::shared_ptr<Node> add =
+        operationType == "Add" ? std::dynamic_pointer_cast<Node>(std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
+                                     std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                                     std::vector<ov::element::Type>{ov::element::f32},
+                                     ov::op::TemporaryReplaceOutputType(dequantizationOp1, ov::element::f32).get(),
+                                     ov::op::TemporaryReplaceOutputType(dequantizationOp2, ov::element::f32).get()))
+                               : std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
+                                     std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                                     std::vector<ov::element::Type>{ov::element::f32},
+                                     ov::op::TemporaryReplaceOutputType(dequantizationOp1, ov::element::f32).get(),
+                                     ov::op::TemporaryReplaceOutputType(dequantizationOp2, ov::element::f32).get());
 
-    NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, dequantizationAfter.empty() ? precision : element::f32);
+    NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, dequantizationAfter.empty() ? precision : ov::element::f32);
     auto& rtInfo = add->get_rt_info();
     rtInfo["Variant::std::string"] = "add";
 
