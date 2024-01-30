@@ -76,7 +76,8 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
                                 ov::hint::inference_precision(ov::element::bf16));
         loweringPrecision = "bf16";
     } else {
-        compiledModel = core->compile_model(funcPtr, targetDevice);
+        compiledModel = core->compile_model(funcPtr, targetDevice,
+                            ov::hint::inference_precision(ov::element::f16));
         loweringPrecision = "f16";
     }
     const auto runtime_model = compiledModel.get_runtime_model();
