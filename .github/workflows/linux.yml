@@ -706,7 +706,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
         env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
+          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=ON'
           CMAKE_BUILD_PARALLEL_LEVEL: '8'
           CMAKE_GENERATOR: 'Unix Makefiles'
 
