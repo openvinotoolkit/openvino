@@ -563,6 +563,6 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* :ref:`ov::Core <doxid-classov-1-1-core>`
-* :ref:`ov::RemoteTensor <doxid-classov-1-1-remote-tensor>`
+* ``ov::Core``
+* ``ov::RemoteTensor``
 
