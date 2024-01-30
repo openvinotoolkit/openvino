@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import importlib
 import shutil
 import os
@@ -31,15 +34,32 @@ def getParams():
         action="store_true",
         help="flag if current directory is working",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-u",
+        "--utility",
+        dest="utility",
+        help="run utility with specified name",
+        default="no_utility",
+    )
+    args, additionalArgs = parser.parse_known_args()
+
+    argHolder = DictHolder(args.__dict__)
 
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
-    customCfgPath = args.__dict__["configuration"]
+    customCfgPath = argHolder.configuration
     presetCfgData = None
     with open(presetCfgPath) as cfgFile:
         presetCfgData = json.load(cfgFile)
     cfgFile.close()
+
+    if argHolder.utility != "no_utility":
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        argHolder = DictHolder(mergedArgs)
+        return argHolder, presetCfgData, presetCfgPath
+
     customCfgData = None
     with open(customCfgPath) as cfgFile:
         customCfgData = json.load(cfgFile)
@@ -50,7 +70,7 @@ def getParams():
         presetCfgData[key] = newVal
 
     presetCfgData = absolutizePaths(presetCfgData)
-    return args, presetCfgData, customCfgPath
+    return argHolder, presetCfgData, customCfgPath
 
 
 def getBlobDiff(file1, file2):
@@ -205,7 +225,8 @@ def runCommandList(commit, cfgData):
             encoding="utf-8", errors="replace"
         )
         for line in proc.stdout:
-            sys.stdout.write(line)
+            if cfgData["verboseOutput"]:
+                sys.stdout.write(line)
             commitLogger.info(line)
             if "catchMsg" in cmd:
                 isErrFound = re.search(cmd["catchMsg"], line)
@@ -424,6 +445,18 @@ def safeClearDir(path, cfg):
     return
 
 
+def runUtility(cfg, args):
+    modName = args.utility
+    try:
+        mod = importlib.import_module(
+            "utils.{un}".format(un=modName))
+        utilName = checkAndGetUtilityByName(cfg, modName)
+        utility = getattr(mod, utilName)
+        utility(args)
+    except ModuleNotFoundError as e:
+        raise CfgError("No utility {} found".format(modName))
+
+
 class CfgError(Exception):
     pass
 
@@ -473,9 +506,27 @@ def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
         return map[keyName]
 
 
+def checkAndGetUtilityByName(cfg, utilName):
+    if not (utilName in cfg["utilMap"]):
+        raise CfgError(
+            "{utilName} is not registered in config".format(
+                utilName=utilName
+            )
+        )
+    else:
+        return cfg["utilMap"][utilName]
+
+
 def checkAndGetSubclass(clName, parentClass):
     cl = [cl for cl in parentClass.__subclasses__() if cl.__name__ == clName]
     if not (cl.__len__() == 1):
         raise CfgError("Class {clName} doesn't exist".format(clName=clName))
     else:
         return cl[0]
+
+
+class DictHolder:
+    def __init__(self, dict: dict = None):
+        if dict is not None:
+            for k, v in dict.items():
+                setattr(self, k, v)
