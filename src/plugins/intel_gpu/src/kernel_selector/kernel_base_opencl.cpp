@@ -103,6 +103,7 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
         .decoration_macro("CONST_ARRAY_REF", "", kernel_id);
 
     undefs += "#undef KERNEL\n";
+    undefs += "#undef KERNEL_ID\n";
     undefs += "#undef FUNC\n";
     undefs += "#undef FUNC_CALL\n";
     undefs += "#undef CONST_ARRAY_DECL\n";

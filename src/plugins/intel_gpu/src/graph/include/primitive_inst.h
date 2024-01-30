@@ -57,7 +57,6 @@ struct primitive_impl {
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     std::string get_kernel_name() const { return _kernel_name; }
 
@@ -509,16 +508,8 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
     }
 
-    kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
-        return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/, kernel_arguments_data& /*args*/) {}
-    virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
-        kernel_arguments_data args;
-        return args;
-    }
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 
