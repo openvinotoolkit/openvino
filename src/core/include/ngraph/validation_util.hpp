@@ -19,7 +19,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/enum_mask.hpp"
@@ -45,19 +44,19 @@ using ov::element::Type_t;
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-Strides conv_default_strides(const Node* node,
+Strides conv_default_strides(const ov::Node* node,
                              const ov::PartialShape& data_batch_shape,
                              const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-CoordinateDiff conv_default_padding(const Node* node,
+CoordinateDiff conv_default_padding(const ov::Node* node,
                                     const ov::PartialShape& data_batch_shape,
                                     const ov::PartialShape& filters_shape);
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
+ov::PartialShape infer_windowed_reduction_output_shape(const ov::Node* node,
                                                        const ov::PartialShape& data_shape,
                                                        const Strides& data_dilation,
                                                        const CoordinateDiff& data_padding_below,
@@ -69,7 +68,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
                                                        bool ceil_mode = false);
 
 NGRAPH_API_DEPRECATED
-void validate_conv_params_spatial_dimensions(const Node* node,
+void validate_conv_params_spatial_dimensions(const ov::Node* node,
                                              const size_t num_spatial_dims,
                                              const op::PadType auto_pad,
                                              Strides& strides,
@@ -79,7 +78,7 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-ov::PartialShape infer_batched_pooling_forward(const Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
@@ -91,7 +90,7 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
 
 NGRAPH_API_DEPRECATED
 NGRAPH_API
-ov::PartialShape infer_slice_shape(const Node* node,
+ov::PartialShape infer_slice_shape(const ov::Node* node,
                                    const ov::PartialShape& input_shape,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
@@ -107,7 +106,7 @@ ov::PartialShape infer_slice_shape(const Node* node,
 /// if not.
 /// \deprecated Use evaluate_upper_bound instead
 NGRAPH_API_DEPRECATED
-NGRAPH_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
+NGRAPH_API std::pair<bool, uint64_t> maximum_value(const ov::Output<ov::Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API_DEPRECATED

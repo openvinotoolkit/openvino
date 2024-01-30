@@ -30,7 +30,7 @@ using ov::op::v0::Negative;
 }  // namespace v0
 }  // namespace op
 
-Strides conv_default_strides(const Node* /* node */,
+Strides conv_default_strides(const ov::Node* /* node */,
                              const ov::PartialShape& data_batch_shape,
                              const ov::PartialShape& filters_shape) {
     size_t rank;
@@ -46,7 +46,7 @@ Strides conv_default_strides(const Node* /* node */,
     return Strides(rank, 1);
 }
 
-CoordinateDiff conv_default_padding(const Node* /* node */,
+CoordinateDiff conv_default_padding(const ov::Node* /* node */,
                                     const ov::PartialShape& data_batch_shape,
                                     const ov::PartialShape& filters_shape) {
     size_t rank;
@@ -69,7 +69,7 @@ CoordinateDiff conv_default_padding(const Node* /* node */,
 // TODO(amprocte): The messages here would be a bit friendlier if we didn't say "after
 // padding/after dilation" for cases where there is actually no padding/dilation.
 //
-ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
+ov::PartialShape infer_windowed_reduction_output_shape(const ov::Node* node,
                                                        const ov::PartialShape& data_shape,
                                                        const Strides& data_dilation,
                                                        const CoordinateDiff& data_padding_below,
@@ -201,7 +201,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
     return output_shape;
 }
 
-void validate_conv_params_spatial_dimensions(const Node* node,
+void validate_conv_params_spatial_dimensions(const ov::Node* node,
                                              const size_t num_spatial_dims,
                                              const op::PadType auto_pad,
                                              Strides& strides,
@@ -234,7 +234,7 @@ void validate_conv_params_spatial_dimensions(const Node* node,
 //
 // Infers the output batch shape and element type for batched pooling fprop.
 //
-ov::PartialShape infer_batched_pooling_forward(const Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
@@ -324,7 +324,7 @@ ov::PartialShape infer_batched_pooling_forward(const Node* node,
     return data_batch_output_shape;
 }
 
-ov::PartialShape infer_slice_shape(const Node* node,
+ov::PartialShape infer_slice_shape(const ov::Node* node,
                                    const ov::PartialShape& input_shape,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
@@ -528,7 +528,7 @@ struct MaxValue {
     int64_t m_slice_axis{-1};
 };
 
-std::vector<MaxValue> exec_constant(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_constant(ov::Node* node, std::vector<MaxValue>& inputs) {
     auto result = MaxValue();
     auto op = ov::as_type<ov::op::v0::Constant>(node);
     auto element_type = op->get_output_element_type(0);
@@ -552,7 +552,7 @@ std::vector<MaxValue> exec_constant(Node* node, std::vector<MaxValue>& inputs) {
     return {result};
 }
 
-std::vector<MaxValue> exec_minimum(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_minimum(ov::Node* node, std::vector<MaxValue>& inputs) {
     uint64_t min_value = std::numeric_limits<uint64_t>::max();
     switch (node->get_output_element_type(0)) {
     case element::Type_t::i8:
@@ -587,7 +587,7 @@ std::vector<MaxValue> exec_minimum(Node* node, std::vector<MaxValue>& inputs) {
     return {MaxValue(min_value)};
 }
 
-std::vector<MaxValue> exec_concat(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_concat(ov::Node* node, std::vector<MaxValue>& inputs) {
     auto op = ov::as_type<ov::op::v0::Concat>(node);
     std::vector<uint64_t> slice_maxen;
     for (const auto& input : inputs) {
@@ -597,7 +597,7 @@ std::vector<MaxValue> exec_concat(Node* node, std::vector<MaxValue>& inputs) {
     return {MaxValue(slice_maxen, axis)};
 }
 
-std::vector<MaxValue> exec_reduce_min(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_reduce_min(ov::Node* node, std::vector<MaxValue>& inputs) {
     auto data = inputs.at(0);
     if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
         if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
@@ -617,7 +617,7 @@ std::vector<MaxValue> exec_reduce_min(Node* node, std::vector<MaxValue>& inputs)
     return {MaxValue(data.m_value)};
 }
 
-std::vector<MaxValue> exec_shape_of(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_shape_of(ov::Node* node, std::vector<MaxValue>& inputs) {
     const auto& inputPS = node->get_input_partial_shape(0);
     std::vector<uint64_t> shapeDims;
     for (int64_t i = 0; i < inputPS.rank().get_length(); i++) {
@@ -631,7 +631,7 @@ std::vector<MaxValue> exec_shape_of(Node* node, std::vector<MaxValue>& inputs) {
     return {MaxValue(shapeDims, 0)};
 }
 
-std::vector<MaxValue> exec_gather(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_gather(ov::Node* node, std::vector<MaxValue>& inputs) {
     auto gather = ov::as_type<ov::op::v1::Gather>(node);
 
     const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
@@ -653,12 +653,12 @@ std::vector<MaxValue> exec_gather(Node* node, std::vector<MaxValue>& inputs) {
     return {MaxValue(inputs[0].m_slices[indicesVec[0]])};
 }
 
-std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
+std::vector<MaxValue> exec_nop(ov::Node* node, std::vector<MaxValue>& inputs) {
     return {inputs.at(0)};
 }
 }  // namespace
 
-std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value) {
+std::pair<bool, uint64_t> maximum_value(const ov::Output<ov::Node>& value) {
     static ngraph::Evaluator<MaxValue>::op_handler_map handlers = {
         {ov::op::v0::Concat::get_type_info_static(), exec_concat},
         {ov::op::v0::Constant::get_type_info_static(), exec_constant},
@@ -743,7 +743,7 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
-void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+void ov::normalize_axes(const ov::Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     ov::util::normalize_axes(node, tensor_rank, axes);
 }
 
@@ -753,7 +753,7 @@ std::vector<size_t> ov::normalize_axes(const std::string& node_description,
     return ov::util::normalize_axes(node_description, axes, tensor_rank);
 }
 
-int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
+int64_t ov::normalize_axis(const ov::Node* node, std::int64_t axis, const Rank& tensor_rank) {
     return ov::util::normalize_axis(node, axis, tensor_rank);
 }
 
@@ -761,7 +761,7 @@ int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axi
     return ov::util::normalize_axis(node_description, axis, tensor_rank);
 }
 
-int64_t ov::normalize_axis(const Node* node,
+int64_t ov::normalize_axis(const ov::Node* node,
                            std::int64_t axis,
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
@@ -777,15 +777,15 @@ int64_t ov::normalize_axis(const std::string& node_description,
     return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
-bool ov::evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape& pshape) {
+bool ov::evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialShape& pshape) {
     return ov::util::evaluate_as_partial_shape(output, pshape);
 }
 
-bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+bool ov::default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
     return ov::util::default_label_evaluator(node, output_labels);
 }
 
-std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<Node>& source) {
+std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<ov::Node>& source) {
     return ov::util::get_constant_from_source(source);
 }
 
@@ -810,7 +810,7 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<Node>& subgraph_sink) {
+std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<ov::Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 
@@ -847,7 +847,7 @@ namespace ov {
 namespace util {
 using ov::op::v0::Constant;
 
-std::shared_ptr<Constant> get_constant_from_source(const ov::Output<Node>& source) {
+std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& source) {
     if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
         return c;
     } else if (has_and_set_equal_bounds(source)) {
@@ -950,7 +950,7 @@ std::vector<ov::PartialShape> get_tensors_partial_shapes(const TensorVector& ten
     return shapes;
 }
 
-std::vector<ov::PartialShape> get_node_input_partial_shapes(const Node& node) {
+std::vector<ov::PartialShape> get_node_input_partial_shapes(const ov::Node& node) {
     std::vector<ov::PartialShape> shapes;
     shapes.reserve(node.get_input_size());
     for (size_t i = 0; i < node.get_input_size(); ++i) {
@@ -965,7 +965,7 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
-bool evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape& pshape) {
+bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialShape& pshape) {
     Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
@@ -998,7 +998,7 @@ bool evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape&
     return shape_defined;
 }
 
-bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+bool default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
     return default_label_evaluator(node, {0}, output_labels);
 }
 
@@ -1027,7 +1027,7 @@ std::vector<size_t> normalize_axes(const std::string& node_description,
     return new_axes;
 }
 
-void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+void normalize_axes(const ov::Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
     const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
     NODE_VALIDATION_CHECK(node,
@@ -1036,7 +1036,7 @@ void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<in
     std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
 }
 
-int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
+int64_t normalize_axis(const ov::Node* node, std::int64_t axis, const Rank& tensor_rank) {
     return ov::util::normalize_axis(node->description(), axis, tensor_rank);
 }
 
@@ -1060,7 +1060,7 @@ int64_t normalize_axis(const std::string& node_description, std::int64_t axis, c
                           tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
-int64_t normalize_axis(const Node* node,
+int64_t normalize_axis(const ov::Node* node,
                        std::int64_t axis,
                        std::uint64_t tensor_rank,
                        std::int64_t axis_range_min,

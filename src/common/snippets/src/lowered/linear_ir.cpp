@@ -105,8 +105,10 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
 }
 
 namespace {
+using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
+
 std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                                   ngraph::NodeMap& node_map) {
+                                                   NodeMap& node_map) {
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
     for (const auto& node : sorted_nodes) {
@@ -168,7 +170,7 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     }
 
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
-    ngraph::NodeMap node_map;
+    NodeMap node_map;
     clone_nodes(original_nodes, node_map);
 
     for (auto it = begin; it != end; it++) {

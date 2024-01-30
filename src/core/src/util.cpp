@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/util.hpp"
+#if 0
 
-#include <algorithm>
-#include <deque>
-#include <forward_list>
-#include <iomanip>
-#include <iostream>
-#include <map>
-#include <numeric>
-#include <unordered_set>
+#    include <algorithm>
+#    include <deque>
+#    include <forward_list>
+#    include <iomanip>
+#    include <iostream>
+#    include <map>
+#    include <numeric>
+#    include <unordered_set>
 
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
+#    include "openvino/core/graph_util.hpp"
+#    include "openvino/util/common_util.hpp"
+#    include "openvino/util/log.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -413,3 +414,4 @@ std::vector<int64_t> read_index_vector(std::shared_ptr<ov::Tensor> tv) {
 
     return index_vec;
 }
+#endif

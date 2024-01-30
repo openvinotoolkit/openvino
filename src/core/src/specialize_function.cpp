@@ -26,7 +26,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_element_types.size());
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_values.size());
 
-    NodeMap m;
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> m;
 
     for (size_t i = 0; i < parameter_shapes.size(); i++) {
         OPENVINO_ASSERT(f->get_parameters()[i]->get_element_type().is_dynamic() ||
@@ -58,7 +58,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
 
         ov::NodeVector cloned_dependencies;
         for (auto& dependency : old_node->get_control_dependencies()) {
-            std::shared_ptr<Node> dependent = m.at(dependency.get());
+            std::shared_ptr<ov::Node> dependent = m.at(dependency.get());
             if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) == cloned_dependencies.end()) {
                 cloned_dependencies.push_back(dependent);
             }

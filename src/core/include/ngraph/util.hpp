@@ -4,30 +4,32 @@
 
 #pragma once
 
-#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
-#    define NGRAPH_LEGACY_HEADER_INCLUDED
-#    ifdef _MSC_VER
-#        pragma message( \
-            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    else
-#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    endif
-#endif
+#if 0
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>  // llvm 8.1 gets confused about `malloc` otherwise
-#include <functional>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <typeindex>
-#include <typeinfo>
-#include <unordered_map>
-#include <vector>
+#    if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#        define NGRAPH_LEGACY_HEADER_INCLUDED
+#        ifdef _MSC_VER
+#            pragma message( \
+                "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#        else
+#            warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#        endif
+#    endif
+
+#    include <algorithm>
+#    include <chrono>
+#    include <cmath>
+#    include <cstdlib>  // llvm 8.1 gets confused about `malloc` otherwise
+#    include <functional>
+#    include <iostream>
+#    include <map>
+#    include <memory>
+#    include <sstream>
+#    include <string>
+#    include <typeindex>
+#    include <typeinfo>
+#    include <unordered_map>
+#    include <vector>
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/shape.hpp"
@@ -284,3 +286,5 @@ NGRAPH_API
 NGRAPH_API_DEPRECATED
 std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv);
 NGRAPH_SUPPRESS_DEPRECATED_END
+
+#endif
