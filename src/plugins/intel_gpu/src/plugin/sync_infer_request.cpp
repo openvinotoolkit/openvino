@@ -730,7 +730,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
         auto new_layout = memory->get_layout();
         new_layout.set_partial_shape(m_graph->get_input_layouts().at(name).get_shape());
-        memory = engine.reinterpret_buffer(*memory, new_layout);
+        memory = engine.reinterpret_buffer(*memory, cldnn::layout{ov::PartialShape{memory->get_layout().get_shape()},
+                                                                                   cldnn::element_type_to_data_type(element_type),
+                                                                                   cldnn::format::get_default_format(memory->get_layout().get_shape().size())});
     }
 
     cldnn::event::ptr ret_event = nullptr;
