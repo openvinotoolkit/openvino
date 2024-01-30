@@ -64,7 +64,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-std::shared_ptr<op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs);
+std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 
 bool is_none_node(const Output<Node>& node);
 
@@ -248,8 +248,17 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
-    virtual OutputVector inlined_inputs(size_t start_index) const override {
-        FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
+    bool is_input_inlined(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(is_input_inlined);
+    }
+    virtual OutputVector inlined_input(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(inlined_input);
+    }
+    virtual ov::Any get_attribute(const std::string& name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_attribute);
+    }
+    virtual size_t get_named_input(const std::string& name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_named_input);
     }
 
 private:
