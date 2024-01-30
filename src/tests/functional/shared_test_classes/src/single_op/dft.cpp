@@ -52,7 +52,7 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
     }
 
     inputs.clear();
-    runtime::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
+    Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
                                             targetInputStaticShapes[0],
                                             inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
