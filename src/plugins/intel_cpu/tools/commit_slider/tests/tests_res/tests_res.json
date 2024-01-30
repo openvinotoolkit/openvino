@@ -1,0 +1,56 @@
+{
+    "CommonRes": {
+        "repoPath": "./",
+        "cachePath": "../slider_cache",
+        "logPath": "../log",
+        "patchGeneratorPrefix": "const char \\*patchGenerator = R\"V0G0N\\(",
+        "patchGeneratorPostfix": "\\)V0G0N\";",
+        "mainFile": "main.cpp",
+        "repoStructure": {
+            "files": [
+                {"name": "CMakeLists.txt", "content": "cmake_minimum_required(VERSION 3.10)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\n\nproject({repoName} VERSION 1.0)\nadd_executable(\"${{PROJECT_NAME}}\" \"{mainFile}\")"},
+                {"name": ".gitignore", "content": "/build\n"},
+                {"name": "{mainFile}", "content": ""}
+            ],
+            "dirs": ["build"]
+        }
+    },
+    "FirstBadVersion": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFailedVersion",
+                "stopPattern" : "(.)*failed(.)*"
+            }
+        }
+    },
+    "FirstValidVersion": {
+        "repoName": "firstValidVersion",
+        "patchedFile": "tests_res/fvv_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFixedVersion",
+                "stopPattern" : "(.)*failed(.)*"
+            }
+        }
+    }
+}

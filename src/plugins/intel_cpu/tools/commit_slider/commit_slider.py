@@ -1,20 +1,27 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import subprocess
 import os
 import shutil
 import sys
-from shutil import copytree
+from distutils.dir_util import copy_tree
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
 
-if args.__dict__["isWorkingDir"]:
+if args.utility != "no_utility":
+    from utils.helpers import runUtility
+    runUtility(cfgData, args)
+
+elif args.isWorkingDir:
     # rerun script from work directory
     from utils.modes import Mode
     from utils.helpers import CfgError
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if args.__dict__["commitSeq"] is None:
+    if args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
@@ -31,7 +38,7 @@ if args.__dict__["isWorkingDir"]:
         else:
             raise CfgError("Commit list is mandatory")
     else:
-        commitList = checkArgAndGetCommits(args.__dict__["commitSeq"], cfgData)
+        commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
 
     commitList.reverse()
     p = Mode.factory(cfgData)
@@ -45,7 +52,7 @@ else:
     else:
         safeClearDir(workPath, cfgData)
     curPath = os.getcwd()
-    copytree(curPath, workPath)
+    copy_tree(curPath, workPath)
     scriptName = os.path.basename(__file__)
     argString = " ".join(sys.argv)
     formattedCmd = "{py} {workPath}/{argString} -wd".format(
@@ -57,16 +64,21 @@ else:
     tempLogPath = cfgData["logPath"].format(workPath=workPath)
     permLogPath = cfgData["logPath"].format(workPath=curPath)
     safeClearDir(permLogPath, cfgData)
-    copytree(tempLogPath, permLogPath)
+    copy_tree(tempLogPath, permLogPath)
 
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copytree(tempCachePath, permCachePath)
+    copy_tree(tempCachePath, permCachePath)
 
-    shutil.copyfile(
-        os.path.join(workPath, customCfgPath),
-        os.path.join(curPath, customCfgPath),
-        follow_symlinks=True,
-    )
+    try:
+        shutil.copyfile(
+            os.path.join(workPath, customCfgPath),
+            os.path.join(curPath, customCfgPath),
+            follow_symlinks=True,
+        )
+    except shutil.SameFileError:
+        # prevent exception raising if cfg set up from outer location
+        pass
+
     safeClearDir(workPath, cfgData)
