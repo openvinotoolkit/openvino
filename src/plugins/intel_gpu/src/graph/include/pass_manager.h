@@ -395,4 +395,12 @@ private:
     void run(program& p) override;
 };
 
+class fuse_primitives_with_layout : public base_pass {
+public:
+    fuse_primitives_with_layout() : base_pass("fuse_primitives_with_layout") {}
+
+private:
+    void run(program& p) override;
+};
+
 }  // namespace cldnn
