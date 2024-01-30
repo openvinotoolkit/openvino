@@ -1674,14 +1674,9 @@ void Graph::EnforceInferencePrecision() {
                 if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
                     return true;
 
-                if (node->getType() == Type::Convert) {
-                    auto dstPrecision = node->getOriginalOutputPrecisionAtPort(0);
-                    if (dstPrecision.is_integral_number() && dstPrecision.bitwidth() > 8) {
-                        // BF16 only has 8bit precision & FP16 has 10bit precision
-                        // they cannot reserve the interger-level precision for number with abs value >255 or >1024
-                        // so we keep input as f32
-                        return true;
-                    }
+                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
+                    return true;
                 }
 
                 return false;
