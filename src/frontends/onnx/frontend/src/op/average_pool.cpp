@@ -11,7 +11,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector average_pool(const ONNX_Node& node) {
+ov::OutputVector average_pool(const Node& node) {
     return pooling::PoolingFactory(node).make_avg_pool();
 }
 

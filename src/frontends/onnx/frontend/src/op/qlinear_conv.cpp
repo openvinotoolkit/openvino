@@ -22,7 +22,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector qlinear_conv(const ONNX_Node& node) {
+ov::OutputVector qlinear_conv(const Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     auto x = inputs.at(0);

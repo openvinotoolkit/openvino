@@ -26,7 +26,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector fused_conv(const ONNX_Node& node) {
+ov::OutputVector fused_conv(const Node& node) {
     auto conv_res = conv(node).at(0);
 
     if (node.get_ng_inputs().size() == 4) {  // Z input provided

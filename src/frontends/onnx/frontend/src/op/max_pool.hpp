@@ -21,7 +21,7 @@ namespace set_1 {
 /// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
-ov::OutputVector max_pool(const ONNX_Node& node);
+ov::OutputVector max_pool(const Node& node);
 
 }  // namespace set_1
 
@@ -34,7 +34,7 @@ namespace set_8 {
 /// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
-ov::OutputVector max_pool(const ONNX_Node& node);
+ov::OutputVector max_pool(const Node& node);
 
 }  // namespace set_8
 

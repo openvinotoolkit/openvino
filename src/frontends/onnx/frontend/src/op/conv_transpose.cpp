@@ -126,7 +126,7 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
 }
 }  // namespace
 
-ov::OutputVector conv_transpose(const ONNX_Node& node) {
+ov::OutputVector conv_transpose(const Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     CHECK_VALID_NODE(node,

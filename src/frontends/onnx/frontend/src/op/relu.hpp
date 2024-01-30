@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector relu(const ONNX_Node& node) {
+inline ov::OutputVector relu(const Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
     return {std::make_shared<ov::op::v0::Relu>(ng_inputs.at(0))};
 }

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector leaky_relu(const ONNX_Node& node);
+ov::OutputVector leaky_relu(const Node& node);
 
 }  // namespace set_1
 

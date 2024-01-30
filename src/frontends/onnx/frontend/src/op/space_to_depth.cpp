@@ -12,7 +12,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector space_to_depth(const ONNX_Node& node) {
+ov::OutputVector space_to_depth(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto& shape = data.get_partial_shape();
     FRONT_END_GENERAL_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");

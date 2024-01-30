@@ -38,7 +38,7 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
 }
 }  // namespace detail
 namespace set_1 {
-ov::OutputVector dequantize_linear(const ONNX_Node& node) {
+ov::OutputVector dequantize_linear(const Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
@@ -140,7 +140,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
                                    const ov::Output<ov::Node>& scale,
                                    const std::shared_ptr<ov::Node>& zero_point,
                                    int64_t axis,
-                                   const ONNX_Node& node) {
+                                   const Node& node) {
     const auto& x_shape = x.get_partial_shape();
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
@@ -162,7 +162,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }
 }  // namespace detail
 
-ov::OutputVector dequantize_linear(const ONNX_Node& node) {
+ov::OutputVector dequantize_linear(const Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,

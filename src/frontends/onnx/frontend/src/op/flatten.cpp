@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector flatten(const ONNX_Node& node) {
+ov::OutputVector flatten(const Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     auto data = inputs.at(0);
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);

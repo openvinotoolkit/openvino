@@ -21,7 +21,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
-ArgMinMaxFactory::ArgMinMaxFactory(const ONNX_Node& node)
+ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
       m_input_node{node.get_ng_inputs().at(0)},
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},

@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector abs(const ONNX_Node& node) {
+inline ov::OutputVector abs(const Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Abs op is not supported");

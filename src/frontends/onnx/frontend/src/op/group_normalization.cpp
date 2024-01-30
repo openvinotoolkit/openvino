@@ -21,7 +21,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector group_normalization(const ONNX_Node& node) {
+ov::OutputVector group_normalization(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     OPENVINO_ASSERT(inputs.size() == 3);
 

@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX AveragePool
 ///        operation.
-ov::OutputVector average_pool(const ONNX_Node& node);
+ov::OutputVector average_pool(const Node& node);
 
 }  // namespace set_1
 

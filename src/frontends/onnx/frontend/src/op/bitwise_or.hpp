@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector bitwise_or(const ONNX_Node& node);
+ov::OutputVector bitwise_or(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

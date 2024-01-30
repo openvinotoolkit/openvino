@@ -54,17 +54,17 @@ class Tensor;
 class SparseTensor;
 class Attribute;
 
-class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API ONNX_Node {
+class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API Node {
 public:
-    ONNX_Node() = delete;
+    Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
-    ONNX_Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
+    Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
 
-    ONNX_Node(ONNX_Node&&) noexcept;
-    ONNX_Node(const ONNX_Node&);
+    Node(Node&&) noexcept;
+    Node(const Node&);
 
-    ONNX_Node& operator=(ONNX_Node&&) noexcept = delete;
-    ONNX_Node& operator=(const ONNX_Node&) = delete;
+    Node& operator=(Node&&) noexcept = delete;
+    Node& operator=(const Node&) = delete;
 
     ov::OutputVector get_ng_inputs() const;
     const std::string& domain() const;
@@ -121,190 +121,187 @@ private:
 };
 
 template <>
-ONNX_IMPORTER_API float ONNX_Node::get_attribute_value(const std::string& name, float default_value) const;
+ONNX_IMPORTER_API float Node::get_attribute_value(const std::string& name, float default_value) const;
 
 template <>
-ONNX_IMPORTER_API double ONNX_Node::get_attribute_value(const std::string& name, double default_value) const;
+ONNX_IMPORTER_API double Node::get_attribute_value(const std::string& name, double default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::int64_t ONNX_Node::get_attribute_value(const std::string& name,
-                                                              std::int64_t default_value) const;
+ONNX_IMPORTER_API std::int64_t Node::get_attribute_value(const std::string& name, std::int64_t default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::string ONNX_Node::get_attribute_value(const std::string& name, std::string default_value) const;
+ONNX_IMPORTER_API std::string Node::get_attribute_value(const std::string& name, std::string default_value) const;
 
 template <>
-ONNX_IMPORTER_API Tensor ONNX_Node::get_attribute_value(const std::string& name, Tensor default_value) const;
+ONNX_IMPORTER_API Tensor Node::get_attribute_value(const std::string& name, Tensor default_value) const;
 
 template <>
-ONNX_IMPORTER_API SparseTensor ONNX_Node::get_attribute_value(const std::string& name,
-                                                              SparseTensor default_value) const;
+ONNX_IMPORTER_API SparseTensor Node::get_attribute_value(const std::string& name, SparseTensor default_value) const;
 
 template <>
-ONNX_IMPORTER_API Graph ONNX_Node::get_attribute_value(const std::string& name, Graph default_value) const;
+ONNX_IMPORTER_API Graph Node::get_attribute_value(const std::string& name, Graph default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<float> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                    std::vector<float> default_value) const;
+ONNX_IMPORTER_API std::vector<float> Node::get_attribute_value(const std::string& name,
+                                                               std::vector<float> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<double> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                     std::vector<double> default_value) const;
+ONNX_IMPORTER_API std::vector<double> Node::get_attribute_value(const std::string& name,
+                                                                std::vector<double> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::int64_t> ONNX_Node::get_attribute_value(
-    const std::string& name,
-    std::vector<std::int64_t> default_value) const;
+ONNX_IMPORTER_API std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
+                                                                      std::vector<std::int64_t> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::size_t> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                          std::vector<std::size_t> default_value) const;
+ONNX_IMPORTER_API std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
+                                                                     std::vector<std::size_t> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::string> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                          std::vector<std::string> default_value) const;
+ONNX_IMPORTER_API std::vector<std::string> Node::get_attribute_value(const std::string& name,
+                                                                     std::vector<std::string> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<Tensor> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                     std::vector<Tensor> default_value) const;
+ONNX_IMPORTER_API std::vector<Tensor> Node::get_attribute_value(const std::string& name,
+                                                                std::vector<Tensor> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<SparseTensor> ONNX_Node::get_attribute_value(
-    const std::string& name,
-    std::vector<SparseTensor> default_value) const;
+ONNX_IMPORTER_API std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
+                                                                      std::vector<SparseTensor> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<Graph> ONNX_Node::get_attribute_value(const std::string& name,
-                                                                    std::vector<Graph> default_value) const;
+ONNX_IMPORTER_API std::vector<Graph> Node::get_attribute_value(const std::string& name,
+                                                               std::vector<Graph> default_value) const;
 
 template <>
-ONNX_IMPORTER_API float ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API float Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API double ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API double Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::int64_t ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::int64_t Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::size_t ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::size_t Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::string ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::string Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API Tensor ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API Tensor Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API SparseTensor ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API SparseTensor Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API Subgraph ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API Subgraph Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<float> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<float> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<double> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<double> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::int64_t> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::size_t> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<std::size_t> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<std::string> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<std::string> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<Tensor> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<Tensor> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<SparseTensor> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::vector<Graph> ONNX_Node::get_attribute_value(const std::string& name) const;
+ONNX_IMPORTER_API std::vector<Graph> Node::get_attribute_value(const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<std::vector<int64_t>>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<std::vector<int64_t>>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
     const std::string& name,
     std::vector<int64_t> default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
     const std::string& name,
     std::vector<int64_t> default_value,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<float>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
     const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant(const std::string& name,
-                                                                                             float default_value) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        float default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
-ONNX_Node::get_attribute_as_constant(const std::string& name, float default_value, ov::element::Type type) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        float default_value,
+                                                                                        ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<float>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
     const std::string& name,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<double>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
     const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant(
-    const std::string& name,
-    double default_value) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        double default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<double>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
     const std::string& name,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
-ONNX_Node::get_attribute_as_constant(const std::string& name, double default_value, ov::element::Type type) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        double default_value,
+                                                                                        ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<int64_t>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<int64_t>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant(
-    const std::string& name,
-    int64_t default_value) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        int64_t default_value) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> ONNX_Node::get_attribute_as_constant<int64_t>(
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
     const std::string& name,
     ov::element::Type type) const;
 
 template <>
-ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant>
-ONNX_Node::get_attribute_as_constant(const std::string& name, int64_t default_value, ov::element::Type type) const;
+ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                                        int64_t default_value,
+                                                                                        ov::element::Type type) const;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-inline std::ostream& operator<<(std::ostream& outs, const ONNX_Node& node) {
+inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
     return (outs << "<Node(" << node.op_type() << "): " << node.get_description() << ">");
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

@@ -133,7 +133,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \return     ov::OutputVector with binary op
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const ONNX_Node& node);
+ov::OutputVector handle_opset6_binary_op(const Node& node);
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer

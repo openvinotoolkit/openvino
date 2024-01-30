@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector concat(const ONNX_Node& node) {
+ov::OutputVector concat(const Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
     ov::OutputVector valid_inputs;

@@ -13,12 +13,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector batch_norm(const ONNX_Node& node);
+ov::OutputVector batch_norm(const Node& node);
 
 }  // namespace set_1
 
 namespace set_7 {
-ov::OutputVector batch_norm(const ONNX_Node& node);
+ov::OutputVector batch_norm(const Node& node);
 
 }  // namespace set_7
 

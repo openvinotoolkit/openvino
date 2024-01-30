@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector gelu(const ONNX_Node& node) {
+ov::OutputVector gelu(const Node& node) {
     const auto& inputs = node.get_ng_inputs();
     std::string approximate = node.get_attribute_value<std::string>("approximate", "");
 

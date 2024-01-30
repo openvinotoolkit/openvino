@@ -42,7 +42,7 @@ struct OpInputMap {
     using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit OpInputMap(const onnx_import::ONNX_Node& node, std::size_t gates_count);
+    explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
     OPENVINO_SUPPRESS_DEPRECATED_END
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
@@ -60,7 +60,7 @@ struct OpInputMap {
 ///
 struct OpAttributes {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit OpAttributes(const ONNX_Node& node);
+    explicit OpAttributes(const Node& node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~OpAttributes() = default;
 

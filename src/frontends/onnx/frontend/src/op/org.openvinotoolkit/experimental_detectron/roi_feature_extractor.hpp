@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector experimental_detectron_roi_feature_extractor(const ONNX_Node& node);
+ov::OutputVector experimental_detectron_roi_feature_extractor(const Node& node);
 }  // namespace set_1
 
 }  // namespace op

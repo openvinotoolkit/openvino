@@ -35,7 +35,7 @@ void validate_generate_proposals_inputs(const ov::OutputVector& inputs) {
 }
 }  // namespace
 
-ov::OutputVector generate_proposals(const ONNX_Node& node) {
+ov::OutputVector generate_proposals(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     validate_generate_proposals_inputs(inputs);
 

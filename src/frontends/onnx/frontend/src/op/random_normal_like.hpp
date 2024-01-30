@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector random_normal_like(const ONNX_Node& node);
+ov::OutputVector random_normal_like(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

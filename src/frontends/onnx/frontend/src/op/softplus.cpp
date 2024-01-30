@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector softplus(const ONNX_Node& node) {
+ov::OutputVector softplus(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     return {std::make_shared<default_opset::SoftPlus>(data)};
 }

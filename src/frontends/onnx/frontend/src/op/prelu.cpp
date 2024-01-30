@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector prelu(const ONNX_Node& node) {
+ov::OutputVector prelu(const Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
     const auto& data = ng_inputs.at(0);
     const auto& slope = ng_inputs.at(1);

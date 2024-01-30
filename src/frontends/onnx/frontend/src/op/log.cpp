@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector log(const ONNX_Node& node) {
+ov::OutputVector log(const Node& node) {
     return {std::make_shared<v0::Log>(node.get_ng_inputs().at(0))};
 }
 

@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector detection_output(const ONNX_Node& node) {
+ov::OutputVector detection_output(const Node& node) {
     auto inputs = node.get_ng_inputs();
 
     auto box_logits = inputs[0];

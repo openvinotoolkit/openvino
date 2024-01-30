@@ -13,11 +13,11 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector mean_variance_normalization(const ONNX_Node& node);
+ov::OutputVector mean_variance_normalization(const Node& node);
 }  // namespace set_1
 
 namespace set_9 {
-ov::OutputVector mean_variance_normalization(const ONNX_Node& node);
+ov::OutputVector mean_variance_normalization(const Node& node);
 }  // namespace set_9
 
 }  // namespace op

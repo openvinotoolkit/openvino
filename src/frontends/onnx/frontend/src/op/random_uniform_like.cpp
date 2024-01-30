@@ -17,7 +17,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector random_uniform_like(const ONNX_Node& node) {
+ov::OutputVector random_uniform_like(const Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     const auto input = inputs.at(0);
 

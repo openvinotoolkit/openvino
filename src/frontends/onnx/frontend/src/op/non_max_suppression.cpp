@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector non_max_suppression(const ONNX_Node& node) {
+ov::OutputVector non_max_suppression(const Node& node) {
     using ov::op::util::is_null;
     // TODO: this op will not be tested until at least
     //       a reference implementation is added

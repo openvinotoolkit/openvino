@@ -25,7 +25,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector deformable_conv_2d(const ONNX_Node& node);
+ov::OutputVector deformable_conv_2d(const Node& node);
 
 }  // namespace set_1
 

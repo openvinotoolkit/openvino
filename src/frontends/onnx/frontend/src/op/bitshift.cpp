@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector bitshift(const ONNX_Node& node) {
+ov::OutputVector bitshift(const Node& node) {
     const ov::Output<ov::Node> input_x = node.get_ng_inputs().at(0);
     const ov::Output<ov::Node> input_y = node.get_ng_inputs().at(1);
 

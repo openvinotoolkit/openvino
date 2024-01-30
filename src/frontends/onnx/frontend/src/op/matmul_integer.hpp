@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX quantizied
 ///         matrix multiplication integer operation.
-ov::OutputVector matmul_integer(const ONNX_Node& node);
+ov::OutputVector matmul_integer(const Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

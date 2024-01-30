@@ -14,13 +14,13 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector less_or_equal(const ONNX_Node& node);
+ov::OutputVector less_or_equal(const Node& node);
 
 }  // namespace set_1
 
 namespace set_16 {
 
-ov::OutputVector less_or_equal(const ONNX_Node& node);
+ov::OutputVector less_or_equal(const Node& node);
 
 }  // namespace set_16
 }  // namespace op

@@ -12,7 +12,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector argmax(const ONNX_Node& node) {
+ov::OutputVector argmax(const Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
@@ -20,7 +20,7 @@ ov::OutputVector argmax(const ONNX_Node& node) {
 }  // namespace set_1
 
 namespace set_12 {
-ov::OutputVector argmax(const ONNX_Node& node) {
+ov::OutputVector argmax(const Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }

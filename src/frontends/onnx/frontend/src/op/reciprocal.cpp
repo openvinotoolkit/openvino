@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector reciprocal(const ONNX_Node& node) {
+ov::OutputVector reciprocal(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
 
     auto one_node = v0::Constant::create(data.get_element_type(), Shape{}, {1});

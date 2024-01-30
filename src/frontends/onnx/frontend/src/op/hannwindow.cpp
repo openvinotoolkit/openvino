@@ -23,7 +23,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector hannwindow(const ONNX_Node& node) {
+ov::OutputVector hannwindow(const Node& node) {
     const auto size = node.get_ng_inputs().at(0);
     const auto output_datatype = common::get_ov_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
     const bool periodic = node.get_attribute_value<int64_t>("periodic", 1) == 1;

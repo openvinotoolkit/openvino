@@ -23,7 +23,7 @@ namespace op {
 namespace set_1 {
 namespace {
 struct GRUInputMap : public recurrent::OpInputMap {
-    GRUInputMap(const ONNX_Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {
+    GRUInputMap(const Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {
         bool linear_before_reset = static_cast<bool>(node.get_attribute_value<std::int64_t>("linear_before_reset", 0));
 
         // Override bias, since we need separated W and R biases for `h` gate.
@@ -66,7 +66,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
 };
 
 struct GRUAttributes : public recurrent::OpAttributes {
-    GRUAttributes(const ONNX_Node& node)
+    GRUAttributes(const Node& node)
         : OpAttributes(node),
           m_linear_before_reset{static_cast<bool>(node.get_attribute_value<std::int64_t>("linear_before_reset", 0))} {
         m_activations = node.get_attribute_value<std::vector<std::string>>("activations", {"sigmoid", "tanh"});
@@ -78,7 +78,7 @@ struct GRUAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-ov::OutputVector gru(const ONNX_Node& node) {
+ov::OutputVector gru(const Node& node) {
     constexpr std::size_t gates_count = 3;
     GRUInputMap input_map{node, gates_count};
     GRUAttributes attributes{node};

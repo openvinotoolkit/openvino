@@ -19,7 +19,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector constant_of_shape(const onnx_import::ONNX_Node& node) {
+ov::OutputVector constant_of_shape(const onnx_import::Node& node) {
     ov::Output<ov::Node> constant_value;
     if (node.has_attribute("value")) {
         auto value_tensor = node.get_attribute_value<Tensor>("value");

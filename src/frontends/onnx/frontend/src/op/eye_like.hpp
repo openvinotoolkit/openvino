@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector eye_like(const ONNX_Node& node);
+ov::OutputVector eye_like(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

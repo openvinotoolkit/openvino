@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of quantized ONNX
 ///         convolution operation.
-ov::OutputVector conv_integer(const ONNX_Node& node);
+ov::OutputVector conv_integer(const Node& node);
 
 }  // namespace set_1
 

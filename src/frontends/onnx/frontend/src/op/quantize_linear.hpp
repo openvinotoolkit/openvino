@@ -19,13 +19,13 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
                                              const ov::Output<ov::Node>& data);
 }
 namespace set_1 {
-ov::OutputVector quantize_linear(const ONNX_Node& node);
+ov::OutputVector quantize_linear(const Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
 
-ov::OutputVector quantize_linear(const ONNX_Node& node);
+ov::OutputVector quantize_linear(const Node& node);
 
 }  // namespace set_13
 

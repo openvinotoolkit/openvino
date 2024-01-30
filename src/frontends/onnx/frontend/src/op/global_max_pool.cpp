@@ -18,7 +18,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector global_max_pool(const ONNX_Node& node) {
+ov::OutputVector global_max_pool(const Node& node) {
     // Generate axes for reduce operation which contain all spatial dims indexes.
     // Examples:
     // Input shape: [N, C, H, W]

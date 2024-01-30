@@ -23,7 +23,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector embed_layer_normalization(const ONNX_Node& node) {
+ov::OutputVector embed_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
 

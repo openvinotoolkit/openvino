@@ -31,7 +31,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace {
-std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const ONNX_Node& node) {
+std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto shape_of_input = std::make_shared<v3::ShapeOf>(input);
     const auto scalar = v0::Constant::create(ov::element::i32, Shape{1}, {0});
@@ -42,7 +42,7 @@ std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const ONNX_Node& node) {
     return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
-std::shared_ptr<ov::Node> get_reduction_axes_from_input(const ONNX_Node& node) {
+std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
     const std::int64_t noop_with_empty_axes = node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
     const auto input = node.get_ng_inputs().at(0);
     if (node.get_ng_inputs().size() > 1) {
@@ -64,7 +64,7 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_input(const ONNX_Node& node) {
     }
 }
 
-std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const ONNX_Node& node) {
+std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
     auto reduction_axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
@@ -91,7 +91,7 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const ONNX_Node& node) {
 }
 
 template <typename OpType>
-std::shared_ptr<ov::Node> make_ng_reduction_op(const ONNX_Node& node,
+std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
                                                const ov::Output<ov::Node>& ng_input,
                                                bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
@@ -106,52 +106,52 @@ std::shared_ptr<ov::Node> make_ng_reduction_op(const ONNX_Node& node,
 }  // namespace
 
 namespace set_13 {
-ov::OutputVector reduce_sum(const ONNX_Node& node) {
+ov::OutputVector reduce_sum(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0), false)};
 }
 }  // namespace set_13
 
 namespace set_1 {
-ov::OutputVector reduce_log_sum(const ONNX_Node& node) {
+ov::OutputVector reduce_log_sum(const Node& node) {
     const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0));
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
-ov::OutputVector reduce_log_sum_exp(const ONNX_Node& node) {
+ov::OutputVector reduce_log_sum_exp(const Node& node) {
     const auto exp_node = std::make_shared<v0::Exp>(node.get_ng_inputs().at(0));
     const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, exp_node);
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
-ov::OutputVector reduce_l1(const ONNX_Node& node) {
+ov::OutputVector reduce_l1(const Node& node) {
     return {make_ng_reduction_op<v4::ReduceL1>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_l2(const ONNX_Node& node) {
+ov::OutputVector reduce_l2(const Node& node) {
     return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_max(const ONNX_Node& node) {
+ov::OutputVector reduce_max(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMax>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_mean(const ONNX_Node& node) {
+ov::OutputVector reduce_mean(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMean>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_min(const ONNX_Node& node) {
+ov::OutputVector reduce_min(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceMin>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_prod(const ONNX_Node& node) {
+ov::OutputVector reduce_prod(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceProd>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_sum(const ONNX_Node& node) {
+ov::OutputVector reduce_sum(const Node& node) {
     return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ng_inputs().at(0))};
 }
 
-ov::OutputVector reduce_sum_square(const ONNX_Node& node) {
+ov::OutputVector reduce_sum_square(const Node& node) {
     const auto input = ov::Output<ov::Node>{node.get_ng_inputs().at(0)};
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return {make_ng_reduction_op<v1::ReduceSum>(node, square_node)};

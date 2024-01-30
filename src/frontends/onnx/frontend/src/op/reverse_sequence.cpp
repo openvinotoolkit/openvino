@@ -18,7 +18,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector reverse_sequence(const ONNX_Node& node) {
+ov::OutputVector reverse_sequence(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const auto sequence_lengths = node.get_ng_inputs().at(1);

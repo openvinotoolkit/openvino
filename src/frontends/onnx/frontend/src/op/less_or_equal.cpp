@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector less_or_equal(const ONNX_Node& node) {
+ov::OutputVector less_or_equal(const Node& node) {
     const auto& input = node.get_ng_inputs();
     const auto a = input.at(0);
     const auto b = input.at(1);
@@ -26,7 +26,7 @@ ov::OutputVector less_or_equal(const ONNX_Node& node) {
 }  // namespace set_1
 
 namespace set_16 {
-ov::OutputVector less_or_equal(const ONNX_Node& node) {
+ov::OutputVector less_or_equal(const Node& node) {
     const auto& input = node.get_ng_inputs();
     const auto a = input.at(0);
     const auto b = input.at(1);

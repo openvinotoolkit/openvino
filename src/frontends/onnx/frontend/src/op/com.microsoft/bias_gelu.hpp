@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector bias_gelu(const ONNX_Node& node);
+ov::OutputVector bias_gelu(const Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

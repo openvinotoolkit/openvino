@@ -34,7 +34,7 @@ std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector prior_box(const ONNX_Node& node) {
+ov::OutputVector prior_box(const Node& node) {
     auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
@@ -65,7 +65,7 @@ ov::OutputVector prior_box(const ONNX_Node& node) {
                                         axes)};
 }
 
-ov::OutputVector prior_box_clustered(const ONNX_Node& node) {
+ov::OutputVector prior_box_clustered(const Node& node) {
     auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 

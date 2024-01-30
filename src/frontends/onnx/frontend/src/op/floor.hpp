@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector floor(const ONNX_Node& node) {
+inline ov::OutputVector floor(const Node& node) {
     return {std::make_shared<ov::op::v0::Floor>(node.get_ng_inputs().at(0))};
 }
 

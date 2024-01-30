@@ -14,14 +14,14 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector mul(const ONNX_Node& node) {
+inline ov::OutputVector mul(const Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Multiply>(node);
 }
 
 }  // namespace set_1
 
 namespace set_7 {
-inline ov::OutputVector mul(const ONNX_Node& node) {
+inline ov::OutputVector mul(const Node& node) {
     return {std::make_shared<ov::op::v1::Multiply>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector gather_elements(const ONNX_Node& node) {
+inline ov::OutputVector gather_elements(const Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);

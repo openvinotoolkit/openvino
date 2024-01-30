@@ -30,7 +30,7 @@ std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov
     return {std::make_shared<v1::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-ov::OutputVector conv(const ONNX_Node& node,
+ov::OutputVector conv(const Node& node,
                       ov::Output<ov::Node> data,
                       ov::Output<ov::Node> filters,
                       ov::Output<ov::Node> bias) {
@@ -73,7 +73,7 @@ ov::OutputVector conv(const ONNX_Node& node,
 }
 }  // namespace detail
 
-ov::OutputVector conv(const ONNX_Node& node) {
+ov::OutputVector conv(const Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }

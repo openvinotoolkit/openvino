@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector cum_sum(const ONNX_Node& node) {
+ov::OutputVector cum_sum(const Node& node) {
     auto inputs = node.get_ng_inputs();
     auto data = inputs.at(0);
     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);

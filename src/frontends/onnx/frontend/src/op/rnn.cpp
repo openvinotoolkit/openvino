@@ -17,19 +17,19 @@ namespace op {
 namespace set_1 {
 namespace {
 struct RNNInputMap : public recurrent::OpInputMap {
-    RNNInputMap(const onnx_import::ONNX_Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
+    RNNInputMap(const onnx_import::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
 
     virtual ~RNNInputMap() = default;
 };
 
 struct RNNAttributes : public recurrent::OpAttributes {
-    RNNAttributes(const ONNX_Node& node) : OpAttributes(node) {}
+    RNNAttributes(const Node& node) : OpAttributes(node) {}
 
     virtual ~RNNAttributes() = default;
 };
 }  // namespace
 
-ov::OutputVector rnn(const ONNX_Node& node) {
+ov::OutputVector rnn(const Node& node) {
     constexpr std::size_t gates_count = 1;
     RNNInputMap input_map{node, gates_count};
     RNNAttributes attributes{node};

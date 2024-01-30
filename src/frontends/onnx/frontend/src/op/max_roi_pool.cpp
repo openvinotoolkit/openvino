@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector max_roi_pool(const ONNX_Node& node) {
+ov::OutputVector max_roi_pool(const Node& node) {
     const auto& inputs = node.get_ng_inputs();
     const auto X = inputs.at(0);
     const auto rois = inputs.at(1);

@@ -14,14 +14,14 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector div(const ONNX_Node& node) {
+inline ov::OutputVector div(const Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Divide>(node);
 }
 
 }  // namespace set_1
 
 namespace set_7 {
-inline ov::OutputVector div(const ONNX_Node& node) {
+inline ov::OutputVector div(const Node& node) {
     return {std::make_shared<ov::op::v1::Divide>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 

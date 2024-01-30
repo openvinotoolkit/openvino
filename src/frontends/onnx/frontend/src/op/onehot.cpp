@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector onehot(const ONNX_Node& node) {
+ov::OutputVector onehot(const Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     auto indices = std::make_shared<v0::Convert>(inputs.at(0), ov::element::i64);
     auto depth = std::make_shared<v0::Convert>(reshape::interpret_as_scalar(inputs.at(1)), ov::element::i64);

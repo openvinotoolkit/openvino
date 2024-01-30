@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 /// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
 OPENVINO_SUPPRESS_DEPRECATED_START
-using Operator = std::function<ov::OutputVector(const ONNX_Node&)>;
+using Operator = std::function<ov::OutputVector(const Node&)>;
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.

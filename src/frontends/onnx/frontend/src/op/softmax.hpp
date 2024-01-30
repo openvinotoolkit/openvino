@@ -13,17 +13,17 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector softmax(const ONNX_Node& node);
+ov::OutputVector softmax(const Node& node);
 
 }  // namespace set_1
 
 namespace set_11 {
-ov::OutputVector softmax(const ONNX_Node& node);
+ov::OutputVector softmax(const Node& node);
 
 }  // namespace set_11
 
 namespace set_13 {
-ov::OutputVector softmax(const ONNX_Node& node);
+ov::OutputVector softmax(const Node& node);
 
 }  // namespace set_13
 }  // namespace op

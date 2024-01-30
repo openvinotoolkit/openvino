@@ -16,7 +16,7 @@ namespace set_1
 // Expand operator has been available since version 8 of the default ONNX operator set.
 // Currently, Expand is assigned to version 1 due to temporary reason.
 {
-ov::OutputVector expand(const ONNX_Node& node);
+ov::OutputVector expand(const Node& node);
 
 }  // namespace set_1
 

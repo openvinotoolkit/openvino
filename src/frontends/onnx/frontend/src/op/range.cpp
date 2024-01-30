@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector range(const ONNX_Node& node) {
+ov::OutputVector range(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     CHECK_VALID_NODE(node, inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
 

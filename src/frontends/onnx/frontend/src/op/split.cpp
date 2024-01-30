@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector split(const ONNX_Node& node) {
+ov::OutputVector split(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
@@ -30,7 +30,7 @@ ov::OutputVector split(const ONNX_Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector split(const ONNX_Node& node) {
+ov::OutputVector split(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 

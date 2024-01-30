@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX
 ///         GlobalMaxPool operation.
-ov::OutputVector global_max_pool(const ONNX_Node& node);
+ov::OutputVector global_max_pool(const Node& node);
 
 }  // namespace set_1
 

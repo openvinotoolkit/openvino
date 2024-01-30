@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector sigmoid(const ONNX_Node& node) {
+inline ov::OutputVector sigmoid(const Node& node) {
     return {std::make_shared<default_opset::Sigmoid>(node.get_ng_inputs().at(0))};
 }
 
