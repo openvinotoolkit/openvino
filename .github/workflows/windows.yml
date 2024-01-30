@@ -235,8 +235,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@v3
         with:
           name: openvino_js_package
@@ -347,8 +346,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-    if: ${{ 'false' }} # 128689
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
       - name: Fetch OpenVINO JS sources
