@@ -31,7 +31,8 @@ ov::OutputVector bitshift(const ONNX_Node& node) {
                      "attribute. Given: ",
                      direction);
 
-    auto shift = std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), Shape{1}, {2}), input_y);
+    auto shift =
+        std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), ov::Shape{1}, {2}), input_y);
 
     if (direction == "RIGHT") {
         return {std::make_shared<v1::Divide>(input_x, shift)};

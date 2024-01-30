@@ -55,11 +55,11 @@ protected:
     ONNX_Node m_onnx_node;
     OPENVINO_SUPPRESS_DEPRECATED_END
     const ov::OutputVector m_inputs;
-    Shape m_kernel_shape;
-    Strides m_strides;
-    Strides m_dilations;
-    Shape m_padding_below;
-    Shape m_padding_above;
+    ov::Shape m_kernel_shape;
+    ov::Strides m_strides;
+    ov::Strides m_dilations;
+    ov::Shape m_padding_below;
+    ov::Shape m_padding_above;
     ov::op::PadType m_auto_pad;
     ov::op::RoundingType m_rounding_type;
 

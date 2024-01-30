@@ -18,6 +18,7 @@
 #include "validation_util.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

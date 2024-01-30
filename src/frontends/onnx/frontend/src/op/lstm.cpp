@@ -19,6 +19,7 @@
 #include "ov_models/ov_builders/split.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

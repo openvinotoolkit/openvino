@@ -18,15 +18,15 @@
 
 namespace ngraph {
 namespace frontend {
-std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+std::shared_ptr<ov::Node> ONNXFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     return std::make_shared<ONNXFrameworkNode>(m_node, inputs);
 }
 
-std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+std::shared_ptr<ov::Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_models, inputs);
 }
 
-std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+std::shared_ptr<ov::Node> NotSupportedONNXNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     const auto& attrs = get_attrs();
     std::string error_message = attrs.at(failed_conversion_key);
     return std::make_shared<NotSupportedONNXNode>(inputs,

@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <string>
 
+#include "ngraph/deprecated.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"

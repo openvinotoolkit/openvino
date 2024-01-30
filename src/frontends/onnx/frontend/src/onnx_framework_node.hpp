@@ -56,7 +56,7 @@ public:
         return ov_nodes;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // TODO: implement reading as well, now it work for serialization only
@@ -90,7 +90,7 @@ public:
         return m_models;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
 private:
     std::vector<std::shared_ptr<ov::Model>> m_models;
@@ -123,7 +123,7 @@ public:
         return attrs[failed_conversion_key];
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 

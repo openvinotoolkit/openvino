@@ -23,11 +23,11 @@ public:
         : m_values{sparse_tensor.values(), model_dir, mmap_cache},
           m_indices{sparse_tensor.indices(), model_dir, mmap_cache},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
-        if (m_shape == Shape{0}) {
+        if (m_shape == ov::Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
             // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
-            m_shape = Shape{};
+            m_shape = ov::Shape{};
         }
     }
 
@@ -37,7 +37,7 @@ public:
     SparseTensor& operator=(const SparseTensor&) = delete;
     SparseTensor& operator=(SparseTensor&&) = delete;
 
-    const Shape& get_shape() const {
+    const ov::Shape& get_shape() const {
         return m_shape;
     }
 
@@ -60,7 +60,7 @@ public:
 private:
     Tensor m_values;
     Tensor m_indices;
-    Shape m_shape;
+    ov::Shape m_shape;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const SparseTensor& tensor) {

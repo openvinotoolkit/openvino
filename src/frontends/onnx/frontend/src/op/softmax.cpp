@@ -35,7 +35,7 @@ ov::OutputVector softmax(const ONNX_Node& node) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = default_opset::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     default: {
@@ -58,7 +58,7 @@ ov::OutputVector softmax(const ONNX_Node& node) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = default_opset::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     default: {

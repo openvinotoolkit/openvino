@@ -16,6 +16,7 @@
 #include "openvino/op/relu.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {

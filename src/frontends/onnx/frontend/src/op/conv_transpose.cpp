@@ -19,6 +19,8 @@
 #include "utils/convpool.hpp"
 
 using namespace ov::op;
+using ov::Shape;
+using ov::Strides;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

@@ -92,11 +92,11 @@ public:
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
-        if (m_shape == Shape{0}) {
+        if (m_shape == ov::Shape{0}) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
             // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
-            m_shape = Shape{};
+            m_shape = ov::Shape{};
         }
     }
 
@@ -106,7 +106,7 @@ public:
     Tensor& operator=(const Tensor&) = delete;
     Tensor& operator=(Tensor&&) = delete;
 
-    const Shape& get_shape() const {
+    const ov::Shape& get_shape() const {
         return m_shape;
     }
     template <typename T>
@@ -331,7 +331,7 @@ private:
     }
 
     const ONNX_NAMESPACE::TensorProto* m_tensor_proto;
-    Shape m_shape;
+    ov::Shape m_shape;
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };

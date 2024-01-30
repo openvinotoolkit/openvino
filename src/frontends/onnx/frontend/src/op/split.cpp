@@ -38,7 +38,7 @@ ov::OutputVector split(const ONNX_Node& node) {
         const auto outputs_number = node.get_output_names().size();
         return ov::op::util::split(inputs.at(0), outputs_number, axis);
     } else {
-        const auto axis_node = default_opset::Constant::create(ov::element::Type_t::i64, Shape{}, {axis});
+        const auto axis_node = default_opset::Constant::create(ov::element::Type_t::i64, ov::Shape{}, {axis});
         return {std::make_shared<default_opset::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
     }
 }

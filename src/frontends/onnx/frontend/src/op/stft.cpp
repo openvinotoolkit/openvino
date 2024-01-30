@@ -28,13 +28,13 @@ ov::OutputVector stft(const ONNX_Node& node) {
     CHECK_VALID_NODE(node,
                      ov::op::util::is_constant(frame_step_node.get_node_shared_ptr()) &&
                          ov::shape_size(frame_step_node.get_shape()) <= 1,
-                     "frame_step input must be a scalar or Shape{1} constant.");
+                     "frame_step input must be a scalar or ov::Shape{1} constant.");
     const auto frame_step =
         ov::as_type_ptr<default_opset::Constant>(frame_step_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
     const auto signal_param_shape = signal.get_partial_shape();
     CHECK_VALID_NODE(node,
                      signal_param_shape.is_static() && signal_param_shape.size() == 3,
-                     "Shape of signal input must be static with the rank equal to 3.");
+                     "ov::Shape of signal input must be static with the rank equal to 3.");
 
     int64_t frame_length = signal_param_shape[axis].get_length() / frame_step;  // default value
     if (dft_length_provided) {
@@ -42,7 +42,7 @@ ov::OutputVector stft(const ONNX_Node& node) {
         CHECK_VALID_NODE(node,
                          ov::op::util::is_constant(frame_length_node.get_node_shared_ptr()) &&
                              ov::shape_size(frame_length_node.get_shape()) <= 1,
-                         "frame_length input must be a scalar or Shape{1} constant.");
+                         "frame_length input must be a scalar or ov::Shape{1} constant.");
         frame_length = ov::as_type_ptr<default_opset::Constant>(frame_length_node.get_node_shared_ptr())
                            ->cast_vector<int64_t>()[0];
     }
@@ -71,20 +71,20 @@ ov::OutputVector stft(const ONNX_Node& node) {
     const auto nstfts = static_cast<int64_t>((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
     const auto axis_const = default_opset::Constant::create(ov::element::i64, {}, {axis});
     const auto zero_const = default_opset::Constant::create(ov::element::i64, {}, {0});
-    const auto step = default_opset::Constant::create(ov::element::i64, Shape{2}, {1, 1});
+    const auto step = default_opset::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
     ov::OutputVector all_signals;
     for (int64_t batch = 0; batch < batch_size; ++batch) {
         ov::OutputVector signals_in_batch;
         for (int64_t sig_idx = 0; sig_idx < nstfts; ++sig_idx) {
             const auto start = default_opset::Constant::create(ov::element::i64,
-                                                               Shape{2},
+                                                               ov::Shape{2},
                                                                std::vector<int64_t>{batch, sig_idx * frame_step});
             const auto stop =
                 default_opset::Constant::create(ov::element::i64,
-                                                Shape{2},
+                                                ov::Shape{2},
                                                 std::vector<int64_t>{batch + 1, sig_idx * frame_step + frame_length});
             const auto slice_axes =
-                default_opset::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{0, axis});
+                default_opset::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, axis});
             const auto slice = std::make_shared<default_opset::Slice>(signal, start, stop, step, slice_axes);
             const ov::Output<ov::Node> flatten_slice = std::make_shared<default_opset::Reshape>(
                 slice,

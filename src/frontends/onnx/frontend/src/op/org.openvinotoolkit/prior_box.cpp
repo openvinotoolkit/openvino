@@ -15,6 +15,7 @@
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {

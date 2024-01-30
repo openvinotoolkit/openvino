@@ -24,16 +24,16 @@ ov::OutputVector shrink(const ONNX_Node& node) {
     std::shared_ptr<default_opset::Constant> negative_lambd;
     const auto input_element_type = input.get_element_type();
     if (input_element_type.is_signed()) {
-        negative_lambd = default_opset::Constant::create(input_element_type, Shape{}, {-lambd});
+        negative_lambd = default_opset::Constant::create(input_element_type, ov::Shape{}, {-lambd});
     } else {
         // Passing -lambd to unsigned type constant will cause an overflow.
         // For unsigned types the lowest possible value is 0.
-        negative_lambd = default_opset::Constant::create(input_element_type, Shape{}, {0});
+        negative_lambd = default_opset::Constant::create(input_element_type, ov::Shape{}, {0});
     }
 
-    const auto positive_lambd = default_opset::Constant::create(input_element_type, Shape{}, {lambd});
+    const auto positive_lambd = default_opset::Constant::create(input_element_type, ov::Shape{}, {lambd});
 
-    const auto bias_tensor = default_opset::Constant::create(input_element_type, Shape{}, {bias});
+    const auto bias_tensor = default_opset::Constant::create(input_element_type, ov::Shape{}, {bias});
 
     // Create a mask indicating locations of values that need to be adjusted
     // by adding and subtracting bias

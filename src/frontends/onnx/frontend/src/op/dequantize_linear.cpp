@@ -131,7 +131,7 @@ std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
         target_dims.push_back(1);
     }
 
-    const auto target_shape = v0::Constant::create(ov::element::i64, Shape{target_dims.size()}, target_dims);
+    const auto target_shape = v0::Constant::create(ov::element::i64, ov::Shape{target_dims.size()}, target_dims);
 
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }

@@ -31,8 +31,8 @@ ov::OutputVector trilu(const ONNX_Node& node) {
     }
 
     const auto shape = std::make_shared<default_opset::ShapeOf>(input);
-    const auto zero = default_opset::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto one = default_opset::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto zero = default_opset::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = default_opset::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
     // to choose appropiate values from the input
@@ -64,11 +64,11 @@ ov::OutputVector trilu(const ONNX_Node& node) {
     // N = shape[-2]
     const auto M =
         std::make_shared<default_opset::Gather>(shape,
-                                                default_opset::Constant::create(ov::element::i32, Shape{}, {-1}),
+                                                default_opset::Constant::create(ov::element::i32, ov::Shape{}, {-1}),
                                                 zero);
     const auto N =
         std::make_shared<default_opset::Gather>(shape,
-                                                default_opset::Constant::create(ov::element::i32, Shape{}, {-2}),
+                                                default_opset::Constant::create(ov::element::i32, ov::Shape{}, {-2}),
                                                 zero);
 
     // create 2D tensor with shape [1, M] and values [[0, 1, ..., M - 1]]
@@ -98,7 +98,7 @@ ov::OutputVector trilu(const ONNX_Node& node) {
     return {std::make_shared<default_opset::Select>(
         mask,
         input,
-        default_opset::Constant::create(input.get_element_type(), Shape{}, {0}))};
+        default_opset::Constant::create(input.get_element_type(), ov::Shape{}, {0}))};
 }
 
 }  // namespace set_1

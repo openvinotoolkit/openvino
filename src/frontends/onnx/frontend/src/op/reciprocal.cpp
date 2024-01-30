@@ -8,6 +8,7 @@
 #include "openvino/op/divide.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

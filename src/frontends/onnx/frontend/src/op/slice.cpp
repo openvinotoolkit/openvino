@@ -11,6 +11,8 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 
+using ov::Shape;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
@@ -53,18 +55,18 @@ ov::OutputVector slice(const ONNX_Node& node) {
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 
     const auto starts =
-        std::make_shared<default_opset::Constant>(ov::element::i64, Shape{starts_atr.size()}, starts_atr);
+        std::make_shared<default_opset::Constant>(ov::element::i64, ov::Shape{starts_atr.size()}, starts_atr);
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
     const auto steps = default_opset::Constant::create(ov::element::i64,
-                                                       Shape{starts_atr.size()},
+                                                       ov::Shape{starts_atr.size()},
                                                        std::vector<int64_t>(starts_atr.size(), 1));
 
     if (axes_atr.empty()) {
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps)};
     } else {
         const auto& axes =
-            std::make_shared<default_opset::Constant>(ov::element::i64, Shape{axes_atr.size()}, axes_atr);
+            std::make_shared<default_opset::Constant>(ov::element::i64, ov::Shape{axes_atr.size()}, axes_atr);
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps, axes)};
     }
 }
