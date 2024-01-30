@@ -291,13 +291,13 @@ class TorchScriptPythonDecoder (Decoder):
             node.set_friendly_name(name)
         return node
 
-    def _add_name_to_const(self, outputs, name):
-        if len(outputs) == 0:
+    def _add_name_to_const_and_cache(self, outputs, name):
+        if len(outputs) == 1:
             # set name corresponding to state_dict name
             outputs[0].get_node().set_friendly_name(name)
             self.out_debug_name_overwrites[0] = name
         self.constant_cache[name] = outputs
-    
+
     def try_decode_get_attr(self):
         pt_value, name = get_value_from_getattr(self.graph_element,
                                                 self.pt_module)
@@ -311,7 +311,7 @@ class TorchScriptPythonDecoder (Decoder):
                 res = self.constant_cache[w_name]
             else:
                 res = convert_quantized_tensor(weight, self._shared_memory)
-                self._add_name_to_const(res, w_name)
+                self._add_name_to_const_and_cache(res, w_name)
 
             if isinstance(bias, torch.Tensor):
                 b_name = name + ".bias"
@@ -319,7 +319,7 @@ class TorchScriptPythonDecoder (Decoder):
                     res += self.constant_cache[b_name]
                 else:
                     b_res = ivalue_to_constant(bias)
-                    self._add_name_to_const(b_res, b_name)
+                    self._add_name_to_const_and_cache(b_res, b_name)
                     res += b_res
             else:
                 res += ops.convert_like(ivalue_to_constant(torch.zeros(1))
@@ -348,11 +348,7 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 const = ivalue_to_constant(pt_value,
                                            shared_memory=self._shared_memory)
-                if len(const) > 0:
-                    # set name corresponding to state_dict name
-                    const[0].get_node().set_friendly_name(name)
-                    self.out_debug_name_overwrites[0] = name
-                self.constant_cache[name] = const
+                self._add_name_to_const_and_cache(const, name)
             return const
         else:
             return []
