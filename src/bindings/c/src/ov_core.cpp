@@ -132,13 +132,6 @@ ov_status_e ov_core_read_model_from_memory_buffer(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
-                                           const char* model_str,
-                                           const ov_tensor_t* weights,
-                                           ov_model_t** model) {
-    return ov_core_read_model_from_memory_buffer(core, model_str, strlen(model_str), weights, model);
-}
-
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
