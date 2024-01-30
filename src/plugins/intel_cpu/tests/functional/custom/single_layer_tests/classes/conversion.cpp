@@ -6,7 +6,8 @@
 
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
-
+#include "internal_properties.hpp"
+#include "utils/bfloat16.hpp"
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -16,7 +17,8 @@ std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertL
     InputShape inputShape;
     ov::element::Type inPrc, outPrc;
     CPUSpecificParams cpuParams;
-    std::tie(inputShape, inPrc, outPrc, cpuParams) = obj.param;
+    bool clampTestCase;
+    std::tie(inputShape, inPrc, outPrc, cpuParams, clampTestCase) = obj.param;
 
     std::ostringstream result;
 
@@ -28,6 +30,7 @@ std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertL
     result << "inputPRC=" << inPrc.to_string() << "_";
     result << "targetPRC=" << outPrc.to_string() << "_";
     result << CPUTestsBase::getTestCaseName(cpuParams);
+    result << "clampCase=" << clampTestCase;
 
     return result.str();
 }
@@ -54,15 +57,19 @@ void ConvertCPULayerTest::SetUp() {
 
     InputShape shapes;
     CPUSpecificParams cpuParams;
-    std::tie(shapes, inPrc, outPrc, cpuParams) = GetParam();
+    std::tie(shapes, inPrc, outPrc, cpuParams, clampTestCase) = GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     auto primitive = selectedType;
+
     if (primitive.empty())
         primitive = getPrimitiveType();
-    if (!isInOutPrecisionSupported(inPrc, outPrc))
+    if (!isInOutPrecisionSupported(inPrc, outPrc) || clampTestCase)
         primitive = "ref";
 
+    if (clampTestCase) {
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
+    }
     auto exec_type_precision = inPrc != ov::element::u8 ? inPrc : ov::element::Type(ov::element::i8);
     selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
 
@@ -82,7 +89,7 @@ void ConvertCPULayerTest::SetUp() {
 }
 
 void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    if (outPrc != ov::element::boolean) {
+    if (outPrc != ov::element::boolean && !clampTestCase) {
         SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
         return;
     }
@@ -93,6 +100,7 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     // But the output precision in reference model is literal boolean, the elements are either 0 or 1.
     // Here input floating points values are set to be in the range of [-1, 1], so no extra precision
     // converting between actual output and expected output will be needed from the side of single layer tests.
+    // for clampTestCase, one std::numeric_limits<inPrc>::max() element is used.
     inputs.clear();
     const auto& funcInputs = function->inputs();
 
@@ -103,8 +111,37 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     in_data.start_from = 0;
     in_data.range = 2 * size;
     ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, in_data);
-
-    if (inPrc == ov::element::f32) {
+    if (clampTestCase && size > 0) {
+        switch (inPrc) {
+        case ov::element::f32: {
+            auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<float>::max();
+            break;
+        }
+        case ov::element::i32: {
+            auto* rawBlobDataPtr = static_cast<int*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<int>::max();
+            break;
+        }
+        case ov::element::bf16: {
+            auto* rawBlobDataPtr = static_cast<ov::intel_cpu::bfloat16_t*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<ov::intel_cpu::bfloat16_t>::max();
+            break;
+        }
+        case ov::element::i8: {
+            auto* rawBlobDataPtr = static_cast<int8_t*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<int8_t>::max();
+            break;
+        }
+        case ov::element::u8: {
+            auto* rawBlobDataPtr = static_cast<u_int8_t*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<u_int8_t>::max();
+            break;
+        }
+        default:
+            OPENVINO_THROW("clampTestCase. Unsupported precision");
+        }
+    } else if (inPrc == ov::element::f32) {
         auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
         for (size_t i = 0; i < size; ++i) {
             rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
@@ -115,7 +152,8 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
             rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
         }
     } else {
-        FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
+        FAIL() << "Generating inputs with precision " << inPrc.to_string()
+               << " isn't supported, if output precision is boolean.";
     }
 
     inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});

@@ -31,7 +31,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Dynamic, ConvertCPULayerTe
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
-                                ::testing::ValuesIn(memForm4D_dynamic)),
+                                ::testing::ValuesIn(memForm4D_dynamic),
+                                ::testing::Values(false)),
                         ConvertCPULayerTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> memForm4D_static_common = {
@@ -44,9 +45,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Static, ConvertCPULayerTes
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
-                                ::testing::ValuesIn(memForm4D_static_common)),
+                                ::testing::ValuesIn(memForm4D_static_common),
+                                ::testing::Values(false)),
                         ConvertCPULayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_clampTestCase,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::Values(InputShape({{1, 2, 3, 4}, {{1, 2, 3, 4}}})),
+                                            ::testing::ValuesIn(precisions()),
+                                            ::testing::ValuesIn(precisions()),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                                            ::testing::Values(true)),
+                         ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_clampTestCase_f16,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::Values(InputShape({{1, 2, 3, 4}, {{1, 2, 3, 4}}})),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                                            ::testing::Values(true)),
+                         ConvertCPULayerTest::getTestCaseName);
 }  // namespace Conversion
 }  // namespace test
 }  // namespace ov

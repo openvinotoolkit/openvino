@@ -16,7 +16,8 @@ namespace test {
 using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
                                              ov::element::Type,  // input precision
                                              ov::element::Type,  // output precision
-                                             CPUSpecificParams>;
+                                             CPUSpecificParams,
+                                             bool>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
                             virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -29,6 +30,7 @@ protected:
 
 private:
     ov::element::Type inPrc, outPrc;
+    bool clampTestCase;
 };
 
 namespace Conversion {
