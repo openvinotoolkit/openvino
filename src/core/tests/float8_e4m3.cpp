@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <climits>
+#include <cmath>
 
 #include "common_test_utils/float_util.hpp"
 namespace ov {
@@ -25,7 +26,7 @@ std::vector<std::tuple<int, typename TContainer::value_type>> enumerate(const TC
 
 TEST(F8E4M3Test, f32_inf) {
     const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::infinity());
-
+    // f8 is NaN as there is no infinity
     EXPECT_EQ(f8.to_bits(), 0x7f);
 }
 
@@ -35,10 +36,124 @@ TEST(F8E4M3Test, f32_minus_inf) {
     EXPECT_EQ(f8.to_bits(), 0xff);
 }
 
-TEST(F8E4M3Test, f32_nan) {
+TEST(F8E4M3Test, f8e4m3_num_limits_is_specialized) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::is_specialized;
+    EXPECT_TRUE(val);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_is_signed) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::is_signed;
+    EXPECT_TRUE(val);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_is_integer) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::is_integer;
+    EXPECT_FALSE(val);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_is_exact) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::is_exact;
+    EXPECT_FALSE(val);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_radix) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::radix;
+    EXPECT_EQ(val, 2);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_digits) {
+    const auto val = std::numeric_limits<ov::float8_e4m3>::digits;
+    EXPECT_EQ(val, 4);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_digits10) {
+    const auto f8_dig = std::numeric_limits<ov::float8_e4m3>::digits;
+    const auto f8_dig10 = std::numeric_limits<ov::float8_e4m3>::digits10;
+
+    EXPECT_EQ(f8_dig10, static_cast<int>((f8_dig - 1) * std::log10(2)));
+    EXPECT_EQ(f8_dig10, 0);
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_epsilon) {
+    const auto f8_1 = ov::float8_e4m3(1.f);
+    const auto f8_1_bits = f8_1.to_bits();
+    const auto f8_1_next_bits = f8_1_bits + 1u;
+
+    const auto f8_eps = ov::float8_e4m3::from_bits(f8_1_next_bits - f8_1_bits);
+
+    EXPECT_EQ(f8_eps, std::numeric_limits<ov::float8_e4m3>::epsilon());
+    EXPECT_EQ(f8_eps.to_bits(), std::numeric_limits<ov::float8_e4m3>::epsilon().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_round_error) {
+    const auto f8 = ov::float8_e4m3(0.5f);
+
+    EXPECT_EQ(f8, std::numeric_limits<ov::float8_e4m3>::round_error());
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::round_error().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_quiet_nan) {
+    const auto has_quiet_nan = std::numeric_limits<ov::float8_e4m3>::has_quiet_NaN;
+    EXPECT_TRUE(has_quiet_nan);
+    EXPECT_EQ(std::numeric_limits<ov::float8_e4m3>::quiet_NaN().to_bits(), 0b01111111);
+}
+
+TEST(F8E4M3Test, f32_quiet_nan) {
     const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::quiet_NaN());
 
-    EXPECT_EQ(f8.to_bits(), 0x7f);
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111111);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::quiet_NaN().to_bits());
+}
+
+TEST(F8E4M3Test, f32_sig_nan) {
+    const auto f8 = ov::float8_e4m3(std::numeric_limits<float>::signaling_NaN());
+
+    const auto has_sig_nan = std::numeric_limits<ov::float8_e4m3>::has_signaling_NaN;
+    EXPECT_FALSE(has_sig_nan);
+    EXPECT_TRUE(std::isnan(f8));
+    EXPECT_EQ(f8.to_bits(), 0b01111111);
+    EXPECT_EQ(0, std::numeric_limits<ov::float8_e4m3>::signaling_NaN().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_min_normalized) {
+    const auto f8 = ov::float8_e4m3(0.015625f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00001000);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::min().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_max_normalized) {
+    const auto f8 = ov::float8_e4m3(448.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b01111110);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::max().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_lowest_normalized) {
+    const auto f8 = ov::float8_e4m3(-448.0f);
+
+    EXPECT_EQ(f8.to_bits(), 0b11111110);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::lowest().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_denorm_min) {
+    const auto f8 = ov::float8_e4m3(0.001953125f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+    EXPECT_EQ(f8.to_bits(), std::numeric_limits<ov::float8_e4m3>::denorm_min().to_bits());
+}
+
+TEST(F8E4M3Test, f8e4m3_num_limits_exp) {
+    const auto min_exp = std::numeric_limits<ov::float8_e4m3>::min_exponent;
+    const auto min_exp10 = std::numeric_limits<ov::float8_e4m3>::min_exponent10;
+    const auto max_exp = std::numeric_limits<ov::float8_e4m3>::max_exponent;
+    const auto max_exp10 = std::numeric_limits<ov::float8_e4m3>::max_exponent10;
+
+    EXPECT_EQ(min_exp, -5);
+    EXPECT_EQ(min_exp10, -2);
+    EXPECT_EQ(max_exp, 10);
+    EXPECT_EQ(max_exp10, 2);
 }
 
 TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
