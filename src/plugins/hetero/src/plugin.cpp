@@ -71,15 +71,8 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     DeviceProperties device_properties;
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
-        if (device_properties.end() == properties_it) {
+        if (device_properties.end() == properties_it)
             device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
-            if (device_name == "CPU") {
-                auto it = device_properties[device_name].find(ov::cache_dir.name());
-                if (it != device_properties[device_name].end()) {
-                    device_properties[device_name].erase(it);
-                }
-            }
-        }
     }
     return device_properties;
 }
