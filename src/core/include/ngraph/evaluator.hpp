@@ -18,8 +18,8 @@
 #include <stack>
 #include <utility>
 
-#include "ngraph/deprecated.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
@@ -28,8 +28,10 @@ namespace ngraph {
 ///
 ///
 template <typename V>
-class NGRAPH_API_DEPRECATED Evaluator {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+class OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                          "For instructions on transitioning to the new API, please refer to "
+                          "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html") Evaluator {
+    OPENVINO_SUPPRESS_DEPRECATED_START
 public:
     /// \brief values we compute for outputs
     using value_map = std::map<ov::RawNodeOutput, V>;
@@ -184,6 +186,6 @@ protected:
     op_handler_map m_handlers;
     op_handler m_default_handler;
     value_map& m_value_map;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace ngraph

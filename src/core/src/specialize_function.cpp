@@ -10,7 +10,7 @@
 #include "openvino/op/parameter.hpp"
 
 using namespace ngraph;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::op::v0::Constant;
 

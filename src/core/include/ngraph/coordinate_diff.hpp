@@ -18,7 +18,6 @@
 #include <ostream>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 
 namespace ngraph {

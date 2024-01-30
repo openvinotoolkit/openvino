@@ -14,7 +14,6 @@
 #    endif
 #endif
 
-#include "ngraph/check.hpp"
 #include "openvino/core/enum_names.hpp"
 
 namespace ngraph {
