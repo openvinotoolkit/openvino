@@ -195,7 +195,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                               _))
-            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+            .WillByDefault(Throw(ov::Exception{"GeneralError"}));
     }
     metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
     DeviceInformation devInfo;

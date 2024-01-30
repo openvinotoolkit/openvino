@@ -23,7 +23,7 @@ std::shared_ptr<ov::Model> SqueezeFunction::getOriginal(
 
     const auto squeeze = std::make_shared<ov::opset1::Squeeze>(
         dequantizationOp,
-        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{axes.size()}, axes));
 
     squeeze->set_friendly_name("output");
 
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> SqueezeFunction::getOriginal(
 
     const std::shared_ptr<ov::Node> squeeze = std::make_shared<ov::opset1::Squeeze>(
         fakeQuantize == nullptr ? input : fakeQuantize,
-        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{axes.size()}, axes));
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(squeeze) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SqueezeTransformation");
@@ -63,7 +63,8 @@ std::shared_ptr<ov::Model> SqueezeFunction::getReference(
 
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto squeeze = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Squeeze>>(
-        ov::opset1::Squeeze(dequantizationOpBefore, std::make_shared<ov::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)),
+        ov::opset1::Squeeze(dequantizationOpBefore,
+                            std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape{axes.size()}, axes)),
         precisionAfterOperation);
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(squeeze, dequantizationAfter);
     dequantizationOpAfter->set_friendly_name("output");
