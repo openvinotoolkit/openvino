@@ -30,7 +30,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         subprocess.check_call(
             ["git", "checkout", "850364ac2678b2363f086b7549254b6cb7df2e4d"], cwd=self.repo_dir.name)
 
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)
         sys.path.append(self.repo_dir.name)
         from torchbenchmark import load_model_by_name

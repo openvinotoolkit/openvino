@@ -23,7 +23,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         subprocess.run([sys.executable, "-m", "pip", "install",
                        "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         from detectron2 import model_zoo, export
         from detectron2.modeling import build_model, PanopticFPN
         from detectron2.checkpoint import DetectionCheckpointer

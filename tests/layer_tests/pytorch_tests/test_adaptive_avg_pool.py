@@ -31,6 +31,7 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size):
@@ -61,6 +62,7 @@ class TestAdaptiveAvgPool2D(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool2d(self, ie_device, precision, ir_version, input_shape, output_size):
@@ -91,6 +93,7 @@ class TestAdaptiveAvgPool1D(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool1d(self, ie_device, precision, ir_version, input_shape, output_size):

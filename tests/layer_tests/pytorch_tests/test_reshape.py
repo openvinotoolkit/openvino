@@ -38,5 +38,6 @@ class TestReshape(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_reshape(self, shape, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version)

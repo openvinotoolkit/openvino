@@ -28,7 +28,7 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
         subprocess.check_call(
             ["wget", "-nv", checkpoint_url], cwd=self.repo_dir.name)
 
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         sys.path.append(self.repo_dir.name)
         from gfpgan import GFPGANer
 

@@ -51,6 +51,7 @@ class TestFloorDivide(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
@@ -79,6 +80,7 @@ class TestFloorDivide(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_floor_divide_int(self, input_data, other_data, ie_device, precision, ir_version):
         input_tensor = input_data["tensor"]
         if type(input_tensor) is list:

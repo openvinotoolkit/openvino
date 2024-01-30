@@ -40,6 +40,7 @@ class TestEq(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_eq_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
         self.input_array = input_array 
         self.input_type = types[0]

@@ -190,12 +190,13 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction, torch.export.ExportedProgram)):
             return "pytorch"
         try:
             from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            if isinstance(model, TorchScriptPythonDecoder):
+            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
                 return "pytorch"
         except Exception as e:
             pass

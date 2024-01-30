@@ -40,6 +40,7 @@ class TestResolveConjNeg(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op_type", ["resolve_neg", "resolve_conj"])
     @pytest.mark.parametrize("dtype", ["float32", "int32"])
     def test_reslove(self, op_type, dtype, ie_device, precision, ir_version):
@@ -47,6 +48,7 @@ class TestResolveConjNeg(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op_type", ["resolve_neg", "resolve_conj"])
     @pytest.mark.xfail(reason="complex dtype is not supported yet")
     def test_resolve_complex(self, op_type, ie_device, precision, ir_version):
