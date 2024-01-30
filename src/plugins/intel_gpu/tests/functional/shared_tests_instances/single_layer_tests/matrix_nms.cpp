@@ -58,20 +58,18 @@ void MatrixNmsLayerTestGPU::generate_inputs(const std::vector<ov::Shape>& target
 }
 
 void MatrixNmsLayerTestGPU::GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch) {
-    size_t it = 0;
     size_t numBoxes = 0, numClasses = 0;
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         const auto& dims = inputs[funcInput.get_node_shared_ptr()].get_shape();
 
-        if (it == 1) {
+        if (i == 1) {
             numClasses = dims[1];
         } else {
             numBatches = dims[0];
             numBoxes = dims[1];
         }
-        it++;
     }
 
     ASSERT_TRUE(numBatches > 0 && numBoxes > 0 && numClasses > 0)
@@ -79,7 +77,7 @@ void MatrixNmsLayerTestGPU::GetOutputParams(size_t& numBatches, size_t& maxOutpu
 
     auto realClasses = numClasses;
     if (m_attrs.background_class >= 0 && m_attrs.background_class < static_cast<int>(numClasses)) {
-       realClasses = realClasses - 1;
+       realClasses--;
     }
 
     size_t maxOutputBoxesPerClass = 0;
@@ -124,8 +122,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
         //Compare Selected Outputs & Selected Indices
         if (outputIndex != batchIndex) {
             if (outputIndex == 2) {
-                if (expected.get_size() != actual.get_size())
-                    throw std::runtime_error("Expected and actual size 3rd output have different size");
+                ASSERT_TRUE(expected.get_size() != actual.get_size())
+                    << "Expected and actual size 3rd output have different size";
             }
 
 #define CASE(X, Y, _expected_offset, _actual_offset, _size, _threshold)                                              \
@@ -150,7 +148,7 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                         }
                         const auto fBuffer = static_cast<float*>(actual.data());
                         for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
-                            ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
+                            ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] + 1.f) < 1e-5)
                                 << "Invalid default value: " << fBuffer[i] << " at index: " << i;
                         }
                         break;

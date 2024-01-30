@@ -301,7 +301,6 @@ utils::fill_data_random(tensor.data<ov::element_type_traits<P>::value_type>(), s
             switch (in_prc) {
                 GEN_DATA(ElementType::f32, 30, 20, 1)
                 GEN_DATA(ElementType::f16, 30, 20, 1)
-                GEN_DATA(ElementType::bf16, 30, 20, 1)
                 default:
                     OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the Scores input.");
             }
@@ -309,7 +308,6 @@ utils::fill_data_random(tensor.data<ov::element_type_traits<P>::value_type>(), s
             switch (in_prc) {
                 GEN_DATA(ElementType::f32, 1, 0, 100)
                 GEN_DATA(ElementType::f16, 1, 0, 100)
-                GEN_DATA(ElementType::bf16, 1, 0, 100)
                 default:
                     OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the Scores input.");
             }
@@ -324,7 +322,6 @@ utils::fill_data_random(tensor.data<ov::element_type_traits<P>::value_type>(), s
             switch (in_prc) {
                 FILL_DATA(ElementType::f32,  &m_iou_threshold, 1)
                 FILL_DATA(ElementType::f16,  &m_iou_threshold, 1)
-                FILL_DATA(ElementType::bf16, &m_iou_threshold, 1)
                 default:
                     OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the IouThreshold input.");
             }
@@ -332,7 +329,6 @@ utils::fill_data_random(tensor.data<ov::element_type_traits<P>::value_type>(), s
             switch (in_prc) {
                 FILL_DATA(ElementType::f32,  &m_score_threshold, 1)
                 FILL_DATA(ElementType::f16,  &m_score_threshold, 1)
-                FILL_DATA(ElementType::bf16, &m_score_threshold, 1)
                 default:
                     OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the ScoreThreshold input.");
             }

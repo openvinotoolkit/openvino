@@ -25,15 +25,15 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParamsGPU = std::tuple<std::vector<ov::test::InputShape>,                    // Params using to create inputs
-                                       InputTypes,                                 // Input precisions
-                                       int32_t,                                    // Max output boxes per class
-                                       InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta
-                                       int32_t,                                    // background_class
-                                       int32_t,                                    // keep_top_k
-                                       ov::element::Type,                          // Output type
-                                       ov::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
-                                       InputboolVar,                               // Sort result across batch, normalized
+using MulticlassNmsParamsGPU = std::tuple<std::vector<ov::test::InputShape>,            // Params using to create inputs
+                                       InputTypes,                                      // Input precisions
+                                       int32_t,                                         // Max output boxes per class
+                                       InputfloatVar,                                   // iouThreshold, scoreThreshold, nmsEta
+                                       int32_t,                                         // background_class
+                                       int32_t,                                         // keep_top_k
+                                       ov::element::Type,                               // Output type
+                                       ov::op::util::MulticlassNmsBase::SortResultType, // SortResultType
+                                       InputboolVar,                                    // Sort result across batch, normalized
                                        std::string>;
 
 class MulticlassNmsLayerTestGPU : public testing::WithParamInterface<MulticlassNmsParamsGPU>,
@@ -206,7 +206,7 @@ void MulticlassNmsLayerTestGPU::GetOutputParams(size_t& numBatches, size_t& maxO
 }
 
 void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutputs,
-                                     const std::vector<ov::Tensor> &actualOutputs) {
+                                        const std::vector<ov::Tensor> &actualOutputs) {
     auto batchIndex = -1; // output index for output 'selected_num'
     size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
