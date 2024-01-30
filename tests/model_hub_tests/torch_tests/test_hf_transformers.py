@@ -98,7 +98,7 @@ class TestTransformersModel(TestTorchConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.cuda_available, self.gptq_postinit = None, None
 
-    def load_model(self, name, type):
+    def load_model_impl(self, name, type):
         import torch
         name_suffix = ''
         from transformers import AutoConfig
