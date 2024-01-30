@@ -1,5 +1,5 @@
 [project]
-version = "2023.3"  # TODO: update automatically?
+version = "2023.4"  # TODO: update automatically?
 requires-python = ">=3.8"  # , <3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -24,8 +24,15 @@ dependencies = [
     "openvino-telemetry>=2023.2.1",
 ]
 
-# [tool.pdm.dev-dependencies]  # will either need --dev or --prod usage
 [project.optional-dependencies]
+# Build and wheel dependencies:
+build = [
+    "setuptools >= 65.6.1",
+    "patchelf <= 0.17.2.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "wheel >= 0.38.1",
+]
+
+[tool.pdm.dev-dependencies]  # will either need --dev or --prod usage
 linters = [
     "black",
     "flake8",
@@ -77,12 +84,6 @@ tests = [
     "retrying",
     "tox",
     "types-pkg_resources",
-    "wheel >= 0.38.1",
-]
-# Build and wheel dependencies:
-build = [
-    "setuptools >= 65.6.1",
-    "patchelf <= 0.17.2.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "wheel >= 0.38.1",
 ]
 
