@@ -5,14 +5,14 @@ These tests execute IE samples on pregenerated IR
 You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE and SHARE
 
 To install smoke tests:
-```sh                                            			
+``` bash                                            			
 cd <working directory>/tests/samples_tests/smoke_tests
 mkdir build && cd build
 cmake ../..
 cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -P cmake_install.cmake
 ```
 1. To run tests from install directory required installing some dependencies:
-   ```sh
+   ``` bash
     pip3 install -r  <INSTALL_DIR>\tests\smoke_tests\requirements.txt
    ```
 2. Call setupvars script and then set the environment variables:
@@ -26,11 +26,11 @@ b. Optional:
     - Set WORKSPACE : working directory, e.g. '<INSTALL_DIR>'
     - Set SHARE : path to loaded data with models, e.g. '<INSTALL_DIR>/tests/smoke_tests/samples_smoke_tests_data/' 
 4. Run all test via pytest:
-   ```sh
+   ``` bash
     python -m pytest --env_conf env_config.yml -s
    ```
 5. Run only one sample (for example, classification_sample_async):
-   ```sh
+   ``` bash
     python -m pytest test_classification_sample_async.py  --env_conf env_config.yml -s
    ```
 6. To run performance add pytest key: "performance n", where n is number of perf iteration.
