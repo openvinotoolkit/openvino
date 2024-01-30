@@ -432,7 +432,6 @@ TEST_P(CompressWeightsNoZeroPoint, FakeConvert) {
     }
 
     {
-        // TODO: change when it's allowed to create a fp8 constant from fp32 values
         std::vector<float> weights_data =
             destination_type == "f8e4m3"
                 ? std::vector<float>{-0.8125f,
@@ -499,7 +498,6 @@ TEST_P(CompressWeightsWithZeroPoint, FakeConvert) {
     }
 
     {
-        // TODO: change when it's allowed to create a fp8 constant from fp32 values
         std::vector<float> weights_data =
             destination_type == "f8e4m3"
                 ? std::vector<float>{-1.5f,
