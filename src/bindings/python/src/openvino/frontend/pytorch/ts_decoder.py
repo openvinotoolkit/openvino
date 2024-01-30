@@ -292,8 +292,8 @@ class TorchScriptPythonDecoder (Decoder):
         return node
 
     def try_decode_get_attr(self):
-        pt_value, name = get_value_from_getattr(
-            self.graph_element, self.pt_module)
+        pt_value, name = get_value_from_getattr(self.graph_element,
+                                                self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
         if isinstance(pt_value, torch.ScriptObject):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
@@ -346,11 +346,12 @@ class TorchScriptPythonDecoder (Decoder):
         pt_value = self._raw_output(0)
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
+            return ivalue_to_constant(pt_value.toIValue(),
+                                      shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
-        const = ivalue_to_constant(
-            pt_value.toIValue(), shared_memory=self._shared_memory)
+        const = ivalue_to_constant(pt_value.toIValue(),
+                                   shared_memory=self._shared_memory)
         if len(const) > 0:
             # set name corresponding to state_dict name
             const[0].get_node().set_friendly_name(
@@ -404,8 +405,8 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 in_node = r_input.node()
                 if in_node.kind() == "prim::GetAttr":
-                    pt_value, _ = get_value_from_getattr(
-                        in_node, self.pt_module)
+                    pt_value, _ = get_value_from_getattr(in_node,
+                                                         self.pt_module)
                     return pt_value is None
         return False
 
