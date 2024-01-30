@@ -462,6 +462,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     });
         }
 
+        pass_config->set_callback<ov::pass::ConvertLoopToLSTMSequence,
+                                  ov::pass::FuseReverseLSTMSequence>(
+                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                    return !isSequencePrimitiveSupported(node);
+                });
 
         pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
