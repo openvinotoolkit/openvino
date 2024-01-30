@@ -7,18 +7,17 @@
 
 #include <map>
 #include <string>
-#include "ie_icore.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/threading/itask_executor.hpp"
-#include "openvino/runtime/remote_tensor.hpp"
-#include "openvino/runtime/threading/thread_safe_containers.hpp"
-#include "utils/log_util.hpp"
+
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
-#include "itt.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
