@@ -47,7 +47,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-8-cores-64gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
@@ -201,7 +201,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --verbose --parallel 8
+        run: cmake --build ${OPENVINO_BUILD_DIR} --verbose --parallel
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
