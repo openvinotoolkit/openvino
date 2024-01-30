@@ -1,20 +1,20 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "addon.hpp"
+#include "node/include/addon.hpp"
 
 #include <napi.h>
 
-#include "compiled_model.hpp"
-#include "core_wrap.hpp"
-#include "element_type.hpp"
-#include "infer_request.hpp"
-#include "model_wrap.hpp"
-#include "node_output.hpp"
+#include "node/include/compiled_model.hpp"
+#include "node/include/core_wrap.hpp"
+#include "node/include/element_type.hpp"
+#include "node/include/infer_request.hpp"
+#include "node/include/model_wrap.hpp"
+#include "node/include/node_output.hpp"
+#include "node/include/partial_shape_wrap.hpp"
+#include "node/include/preprocess/preprocess.hpp"
+#include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
-#include "partial_shape_wrap.hpp"
-#include "preprocess/preprocess.hpp"
-#include "tensor.hpp"
 
 void init_class(Napi::Env env,
                 Napi::Object exports,

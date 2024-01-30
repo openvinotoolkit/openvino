@@ -5,10 +5,9 @@
 
 #include <napi.h>
 
-#include "errors.hpp"
-#include "helper.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
-
 
 class PreProcessSteps : public Napi::ObjectWrap<PreProcessSteps> {
 public:
@@ -18,7 +17,7 @@ public:
 
     Napi::Value resize(const Napi::CallbackInfo& info);
 
-    void set_preprocess_info(ov::preprocess::PreProcessSteps& info) ;
+    void set_preprocess_info(ov::preprocess::PreProcessSteps& info);
 
 private:
     ov::preprocess::PreProcessSteps* _preprocess_info;

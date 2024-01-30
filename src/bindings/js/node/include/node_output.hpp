@@ -5,7 +5,6 @@
 
 #include <napi.h>
 
-#include "helper.hpp"
 #include "openvino/core/node_output.hpp"
 
 template <class NodeType>

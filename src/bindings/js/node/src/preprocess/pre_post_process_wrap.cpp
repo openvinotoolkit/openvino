@@ -1,9 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/pre_post_process_wrap.hpp"
+#include "node/include/preprocess/pre_post_process_wrap.hpp"
 
-#include "addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/model_wrap.hpp"
+#include "node/include/preprocess/input_info.hpp"
+#include "node/include/preprocess/output_info.hpp"
 
 PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<PrePostProcessorWrap>(info) {

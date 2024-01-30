@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/output_tensor_info.hpp"
+#include "node/include/preprocess/output_tensor_info.hpp"
 
-#include "errors.hpp"
-#include "helper.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 
 OutputTensorInfo::OutputTensorInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<OutputTensorInfo>(info){};
 
