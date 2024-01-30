@@ -21,6 +21,8 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 class TRANSFORMATIONS_API ConvertLoopToLSTMSequence;
 class TRANSFORMATIONS_API FuseReverseLSTMSequence;
 
+class TRANSFORMATIONS_API FuseLSTMSequencesToBidirectionalLSTMSequence;
+
 }  // namespace pass
 }  // namespace ov
 
@@ -84,4 +86,14 @@ class ov::pass::FuseReverseLSTMSequence : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FuseReverseLSTMSequence", "0");
     FuseReverseLSTMSequence();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Replaces two LSTMSequences to one bidirectional LSTMSequence
+ */
+class ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("FuseLSTMSequencesToBidirectionalLSTMSequence", "0");
+    FuseLSTMSequencesToBidirectionalLSTMSequence();
 };

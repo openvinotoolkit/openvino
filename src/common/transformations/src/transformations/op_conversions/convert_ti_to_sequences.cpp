@@ -1047,6 +1047,221 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
     register_matcher(m, callback);
 }
 
+ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidirectionalLSTMSequence() {
+    MATCHER_SCOPE(FuseLSTMSequencesToBidirectionalLSTMSequence);
+    auto data_label = pattern::any_input();
+
+    // forward pattern
+    auto transpose_forward_label =
+        pattern::wrap_type<op::v1::Transpose>({data_label, pattern::wrap_type<op::v0::Constant>()});
+    auto lstm_sequence_forward_first_input_label =
+        std::make_shared<pattern::op::Or>(OutputVector{transpose_forward_label, data_label});
+    auto shapeof_forward_label = pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_forward_first_input_label});
+    auto gather_forward_label = pattern::wrap_type<op::util::GatherBase>(
+        {shapeof_forward_label, pattern::wrap_type<op::v0::Constant>(), pattern::wrap_type<op::v0::Constant>()});
+    auto max_sequence_len_forward_label = pattern::wrap_type<op::v0::Constant>();
+    auto broadcast_forward_label =
+        pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_forward_label, gather_forward_label});
+    auto const_sequence_lengths_forward_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_lengths_forward_label =
+        std::make_shared<pattern::op::Or>(OutputVector{broadcast_forward_label, const_sequence_lengths_forward_label});
+    auto lstm_sequence_forward_label =
+        pattern::wrap_type<op::v5::LSTMSequence>({lstm_sequence_forward_first_input_label,
+                                                  pattern::any_input(),
+                                                  pattern::any_input(),
+                                                  sequence_lengths_forward_label,
+                                                  pattern::any_input(),
+                                                  pattern::any_input(),
+                                                  pattern::any_input()});
+    auto squeeze_forward_label =
+        pattern::wrap_type<op::v0::Squeeze>({lstm_sequence_forward_label, pattern::wrap_type<op::v0::Constant>()},
+                                            pattern::rank_equals(3));
+
+    // backward pattern
+    auto transpose_reverse_label =
+        pattern::wrap_type<op::v1::Transpose, op::v1::Reshape>({data_label, pattern::wrap_type<op::v0::Constant>()});
+    auto lstm_sequence_reverse_first_input_label =
+        std::make_shared<pattern::op::Or>(OutputVector{transpose_reverse_label, data_label});
+    auto shapeof_reverse_label = pattern::wrap_type<op::util::ShapeOfBase>({lstm_sequence_reverse_first_input_label});
+    auto gather_reverse_label = pattern::wrap_type<op::util::GatherBase>(
+        {shapeof_reverse_label, pattern::wrap_type<op::v0::Constant>(), pattern::wrap_type<op::v0::Constant>()});
+    auto max_sequence_len_reverse_label = pattern::wrap_type<op::v0::Constant>();
+    auto broadcast_reverse_label =
+        pattern::wrap_type<op::v3::Broadcast>({max_sequence_len_reverse_label, gather_reverse_label});
+    auto const_sequence_lengths_reverse_label = pattern::wrap_type<op::v0::Constant>();
+    auto sequence_lengths_reverse_label =
+        std::make_shared<pattern::op::Or>(OutputVector{broadcast_reverse_label, const_sequence_lengths_reverse_label});
+    auto lstm_sequence_reverse_label =
+        pattern::wrap_type<op::v5::LSTMSequence>({lstm_sequence_reverse_first_input_label,
+                                                  pattern::any_input(),
+                                                  pattern::any_input(),
+                                                  sequence_lengths_reverse_label,
+                                                  pattern::any_input(),
+                                                  pattern::any_input(),
+                                                  pattern::any_input()});
+    auto squeeze_reverse_label =
+        pattern::wrap_type<op::v0::Squeeze>({lstm_sequence_reverse_label, pattern::wrap_type<op::v0::Constant>()},
+                                            pattern::rank_equals(3));
+
+    auto concat_label = pattern::wrap_type<op::v0::Concat>({squeeze_forward_label, squeeze_reverse_label});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_map();
+        auto lstm_forward = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_forward_label));
+        auto lstm_reverse = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_reverse_label));
+
+        NodeVector from{lstm_forward, lstm_reverse};
+
+        if (lstm_forward->get_direction() != op::v5::LSTMSequence::direction::FORWARD ||
+            lstm_reverse->get_direction() != op::v5::LSTMSequence::direction::REVERSE)
+            return false;
+
+        if (lstm_forward->get_hidden_size() != lstm_reverse->get_hidden_size())
+            return false;
+        if (lstm_forward->get_activations_alpha() != lstm_reverse->get_activations_alpha())
+            return false;
+        if (lstm_forward->get_activations_beta() != lstm_reverse->get_activations_beta())
+            return false;
+        if (lstm_forward->get_activations() != lstm_reverse->get_activations())
+            return false;
+        if (lstm_forward->get_clip() != lstm_reverse->get_clip())
+            return false;
+
+        auto squeeze_forward = pattern_map.at(squeeze_forward_label);
+        if (squeeze_forward->input_value(0) != lstm_forward->output(0))
+            return false;
+        int64_t squeeze_forward_axis = -1;
+        if (!get_scalar_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
+            squeeze_forward_axis != 1)
+            return false;
+
+        auto squeeze_reverse = pattern_map.at(squeeze_reverse_label);
+        if (squeeze_reverse->input_value(0) != lstm_reverse->output(0))
+            return false;
+        int64_t squeeze_reverse_axis = -1;
+        if (!get_scalar_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
+            squeeze_reverse_axis != 1)
+            return false;
+
+        auto concat = ov::as_type_ptr<op::v0::Concat>(pattern_map.at(concat_label));
+        if (concat->get_axis() != 2)
+            return false;
+
+        from.push_back(squeeze_forward);
+        from.push_back(squeeze_reverse);
+        from.push_back(concat);
+
+        bool has_input_transpose_forward = pattern_map.count(transpose_forward_label) > 0;
+        bool has_input_transpose_reverse = pattern_map.count(transpose_reverse_label) > 0;
+        if (has_input_transpose_forward ^ has_input_transpose_reverse)
+            return false;
+
+        bool is_forward_sequence_lengths_constant = pattern_map.count(const_sequence_lengths_forward_label) > 0;
+        bool is_reverse_sequence_lengths_constant = pattern_map.count(const_sequence_lengths_reverse_label) > 0;
+        if (is_forward_sequence_lengths_constant ^ is_reverse_sequence_lengths_constant)
+            return false;
+
+        if (is_forward_sequence_lengths_constant) {
+            auto sequence_lengths_forward =
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(const_sequence_lengths_forward_label));
+            auto sequence_lengths_reverse =
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(const_sequence_lengths_reverse_label));
+            if (sequence_lengths_forward->get_shape() != sequence_lengths_reverse->get_shape())
+                return false;
+            auto sequence_lengths_forward_values = sequence_lengths_forward->cast_vector<int>();
+            auto sequence_lengths_reverse_values = sequence_lengths_reverse->cast_vector<int>();
+            if (sequence_lengths_forward_values != sequence_lengths_reverse_values)
+                return false;
+            from.push_back(sequence_lengths_forward);
+            from.push_back(sequence_lengths_reverse);
+        } else {
+            auto max_sequence_len_forward =
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(max_sequence_len_forward_label));
+            auto max_sequence_len_reverse =
+                ov::as_type_ptr<op::v0::Constant>(pattern_map.at(max_sequence_len_reverse_label));
+            if (max_sequence_len_forward->get_shape() != max_sequence_len_reverse->get_shape())
+                return false;
+            auto max_sequence_len_forward_values = max_sequence_len_forward->cast_vector<int>();
+            auto max_sequence_len_reverse_values = max_sequence_len_reverse->cast_vector<int>();
+            if (max_sequence_len_forward_values != max_sequence_len_reverse_values)
+                return false;
+
+            auto gather_forward = pattern_map.at(gather_forward_label);
+            int64_t gather_index = -1;
+            int64_t gather_axis = -1;
+            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) ||
+                gather_index != 0)
+                return false;
+            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) ||
+                gather_axis != 0)
+                return false;
+
+            auto gather_reverse = pattern_map.at(gather_reverse_label);
+            gather_index = -1;
+            gather_axis = -1;
+            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) ||
+                gather_index != 0)
+                return false;
+            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) ||
+                gather_axis != 0)
+                return false;
+
+            from.push_back(max_sequence_len_forward);
+            from.push_back(max_sequence_len_reverse);
+            from.push_back(gather_forward);
+            from.push_back(gather_reverse);
+        }
+
+        NodeRegistry node_registry;
+
+        auto new_H =
+            node_registry.make<op::v0::Concat>(OutputVector{lstm_forward->input_value(1), lstm_reverse->input_value(1)},
+                                               1);
+        auto new_C =
+            node_registry.make<op::v0::Concat>(OutputVector{lstm_forward->input_value(2), lstm_reverse->input_value(2)},
+                                               1);
+        auto new_W =
+            node_registry.make<op::v0::Concat>(OutputVector{lstm_forward->input_value(4), lstm_reverse->input_value(4)},
+                                               0);
+        auto new_R =
+            node_registry.make<op::v0::Concat>(OutputVector{lstm_forward->input_value(5), lstm_reverse->input_value(5)},
+                                               0);
+        auto new_B =
+            node_registry.make<op::v0::Concat>(OutputVector{lstm_forward->input_value(6), lstm_reverse->input_value(6)},
+                                               0);
+        auto new_lstm = node_registry.make<op::v5::LSTMSequence>(lstm_forward->input_value(0),
+                                                                 new_H,
+                                                                 new_C,
+                                                                 lstm_forward->input_value(3),
+                                                                 new_W,
+                                                                 new_R,
+                                                                 new_B,
+                                                                 lstm_forward->get_hidden_size(),
+                                                                 op::v5::LSTMSequence::direction::BIDIRECTIONAL,
+                                                                 lstm_forward->get_activations_alpha(),
+                                                                 lstm_forward->get_activations_beta(),
+                                                                 lstm_forward->get_activations(),
+                                                                 lstm_forward->get_clip());
+        if (transformation_callback(new_lstm))
+            return false;
+
+        auto transpose =
+            node_registry.make<op::v1::Transpose>(new_lstm->output(0),
+                                                  op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
+        auto new_shape = node_registry.make<op::v0::Constant>(element::i32, Shape{3}, std::vector<int>{0, 0, -1});
+        auto reshape = node_registry.make<op::v1::Reshape>(transpose, new_shape, true);
+        reshape->set_friendly_name(concat->get_friendly_name());
+
+        copy_runtime_info(from, node_registry.get());
+        replace_node(concat, reshape);
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_label, matcher_name);
+    register_matcher(m, callback);
+}
+
 ov::pass::ConvertTensorIteratorToSequence::ConvertTensorIteratorToSequence() {
     add_matcher<ConvertTensorIteratorToLSTMSequence>();
     add_matcher<ConvertTensorIteratorToRNNSequence>();
@@ -1054,4 +1269,5 @@ ov::pass::ConvertTensorIteratorToSequence::ConvertTensorIteratorToSequence() {
     add_matcher<ConvertLoopToLSTMSequence>();
     add_matcher<EliminateGatherWithRange>();
     add_matcher<FuseReverseLSTMSequence>();
+    add_matcher<FuseLSTMSequencesToBidirectionalLSTMSequence>();
 }

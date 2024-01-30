@@ -402,7 +402,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return !node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::ConvertLoopToLSTMSequence,
-        ov::pass::FuseReverseLSTMSequence);
+        ov::pass::FuseReverseLSTMSequence,
+        ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {

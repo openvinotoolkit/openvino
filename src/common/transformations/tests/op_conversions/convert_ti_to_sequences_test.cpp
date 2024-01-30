@@ -1108,3 +1108,160 @@ TEST_P(FuseReverseLSTMSequenceTest, FusionTest) {
 }
 
 INSTANTIATE_TEST_SUITE_P(FuseReverseLSTMSequence, FuseReverseLSTMSequenceTest, testing::Values(false, true));
+
+class FuseLSTMSequencesToBidirectionalLSTMSequenceTest : public TransformationTestsF,
+                                                         public testing::WithParamInterface<std::tuple<bool, bool>> {};
+
+TEST_P(FuseLSTMSequencesToBidirectionalLSTMSequenceTest, FusionTest) {
+    const auto& params = GetParam();
+    bool with_input_transpose = std::get<0>(params);
+    bool const_sequence_lengths = std::get<1>(params);
+
+    size_t input_size = 3;
+    size_t hidden_size = 2;
+    size_t num_sequences = 5;
+    size_t batch_size = 1;
+
+    {
+        std::shared_ptr<op::v0::Parameter> input;
+        std::shared_ptr<Node> forward_lstm_input;
+        std::shared_ptr<Node> reverse_lstm_input;
+        std::shared_ptr<Node> forward_sequence_lengths;
+        std::shared_ptr<Node> reverse_sequence_lengths;
+        if (with_input_transpose) {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size, num_sequences});
+            forward_lstm_input =
+                std::make_shared<op::v1::Transpose>(input, op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+            reverse_lstm_input =
+                std::make_shared<op::v1::Transpose>(input, op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+        } else {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_sequences, input_size});
+            forward_lstm_input = input;
+            reverse_lstm_input = input;
+        }
+        if (const_sequence_lengths) {
+            forward_sequence_lengths = op::v0::Constant::create(element::i32, Shape{batch_size}, {num_sequences});
+            reverse_sequence_lengths = op::v0::Constant::create(element::i32, Shape{batch_size}, {num_sequences});
+        } else {
+            auto shapeof_forward = std::make_shared<op::v3::ShapeOf>(forward_lstm_input);
+            auto gather_forward =
+                std::make_shared<op::v8::Gather>(shapeof_forward,
+                                                 op::v0::Constant::create(element::i32, Shape{1}, {0}),
+                                                 op::v0::Constant::create(element::i32, Shape{}, {0}));
+            forward_sequence_lengths =
+                std::make_shared<op::v3::Broadcast>(op::v0::Constant::create(element::i32, Shape{}, {num_sequences}),
+                                                    gather_forward);
+            auto shapeof_reverse = std::make_shared<op::v3::ShapeOf>(reverse_lstm_input);
+            auto gather_reverse =
+                std::make_shared<op::v8::Gather>(shapeof_reverse,
+                                                 op::v0::Constant::create(element::i32, Shape{1}, {0}),
+                                                 op::v0::Constant::create(element::i32, Shape{}, {0}));
+            reverse_sequence_lengths =
+                std::make_shared<op::v3::Broadcast>(op::v0::Constant::create(element::i32, Shape{}, {num_sequences}),
+                                                    gather_reverse);
+        }
+        auto H_forward = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {1.0f});
+        auto C_forward = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {2.0f});
+        auto W_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {3.0f});
+        auto R_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {4.0f});
+        auto B_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {5.0f});
+        auto lstm_forward = std::make_shared<op::v5::LSTMSequence>(forward_lstm_input,
+                                                                   H_forward,
+                                                                   C_forward,
+                                                                   forward_sequence_lengths,
+                                                                   W_forward,
+                                                                   R_forward,
+                                                                   B_forward,
+                                                                   hidden_size,
+                                                                   op::v5::LSTMSequence::direction::FORWARD);
+        auto squeeze_forward = std::make_shared<op::v0::Squeeze>(lstm_forward->output(0),
+                                                                 op::v0::Constant::create(element::i32, Shape{}, {1}));
+
+        auto H_reverse = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {6.0f});
+        auto C_reverse = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {7.0f});
+        auto W_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {8.0f});
+        auto R_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {9.0f});
+        auto B_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {10.0f});
+        auto lstm_reverse = std::make_shared<op::v5::LSTMSequence>(reverse_lstm_input,
+                                                                   H_reverse,
+                                                                   C_reverse,
+                                                                   reverse_sequence_lengths,
+                                                                   W_reverse,
+                                                                   R_reverse,
+                                                                   B_reverse,
+                                                                   hidden_size,
+                                                                   op::v5::LSTMSequence::direction::REVERSE);
+        auto squeeze_reverse = std::make_shared<op::v0::Squeeze>(lstm_reverse->output(0),
+                                                                 op::v0::Constant::create(element::i32, Shape{}, {1}));
+
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{squeeze_forward, squeeze_reverse}, 2);
+        model = std::make_shared<Model>(concat, ParameterVector{input});
+
+        manager.register_pass<ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence>();
+    }
+
+    {
+        std::shared_ptr<op::v0::Parameter> input;
+        std::shared_ptr<Node> lstm_input;
+        std::shared_ptr<Node> sequence_lengths;
+        if (with_input_transpose) {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size, num_sequences});
+            lstm_input =
+                std::make_shared<op::v1::Transpose>(input, op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+        } else {
+            input = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_sequences, input_size});
+            lstm_input = input;
+        }
+        if (const_sequence_lengths) {
+            sequence_lengths = op::v0::Constant::create(element::i32, Shape{batch_size}, {num_sequences});
+        } else {
+            auto shapeof = std::make_shared<op::v3::ShapeOf>(lstm_input);
+            auto gather = std::make_shared<op::v8::Gather>(shapeof,
+                                                           op::v0::Constant::create(element::i32, Shape{1}, {0}),
+                                                           op::v0::Constant::create(element::i32, Shape{}, {0}));
+            sequence_lengths =
+                std::make_shared<op::v3::Broadcast>(op::v0::Constant::create(element::i32, Shape{}, {num_sequences}),
+                                                    gather);
+        }
+        auto H_forward = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {1.0f});
+        auto H_reverse = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {6.0f});
+        auto H = std::make_shared<op::v0::Concat>(OutputVector{H_forward, H_reverse}, 1);
+        auto C_forward = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {2.0f});
+        auto C_reverse = op::v0::Constant::create(element::f32, Shape{batch_size, 1, hidden_size}, {7.0f});
+        auto C = std::make_shared<op::v0::Concat>(OutputVector{C_forward, C_reverse}, 1);
+        auto W_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {3.0f});
+        auto W_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, input_size}, {8.0f});
+        auto W = std::make_shared<op::v0::Concat>(OutputVector{W_forward, W_reverse}, 0);
+        auto R_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {4.0f});
+        auto R_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size, hidden_size}, {9.0f});
+        auto R = std::make_shared<op::v0::Concat>(OutputVector{R_forward, R_reverse}, 0);
+        auto B_forward = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {5.0f});
+        auto B_reverse = op::v0::Constant::create(element::f32, Shape{1, 4 * hidden_size}, {10.0f});
+        auto B = std::make_shared<op::v0::Concat>(OutputVector{B_forward, B_reverse}, 0);
+
+        auto lstm = std::make_shared<op::v5::LSTMSequence>(lstm_input,
+                                                           H,
+                                                           C,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size,
+                                                           op::v5::LSTMSequence::direction::BIDIRECTIONAL);
+        auto transpose =
+            std::make_shared<op::v1::Transpose>(lstm->output(0),
+                                                op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
+        auto reshape = std::make_shared<op::v1::Reshape>(transpose,
+                                                         op::v0::Constant::create(element::i32, Shape{3}, {0, 0, -1}),
+                                                         true);
+        model_ref = std::make_shared<Model>(reshape, ParameterVector{input});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseLSTMSequencesToBidirectionalLSTMSequence,
+                         FuseLSTMSequencesToBidirectionalLSTMSequenceTest,
+                         testing::Combine(testing::Values(false, true), testing::Values(false, true)));

@@ -463,7 +463,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ConvertLoopToLSTMSequence,
-                                  ov::pass::FuseReverseLSTMSequence>(
+                                  ov::pass::FuseReverseLSTMSequence,
+                                  ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence>(
                 [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
                     return !isSequencePrimitiveSupported(node);
                 });
