@@ -44,6 +44,7 @@ protected:
     void update_ref_model();
     void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
+    void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
     void TearDown() override {
         if (this->HasFailure() && !is_reported) {
@@ -68,6 +69,8 @@ protected:
     // to provide correct inputs for reference function
     std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Parameter>> matched_parameters;
     precisions_map convert_precisions;
+
+    std::function<void(const std::exception& exp)> callback_exception = nullptr;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
