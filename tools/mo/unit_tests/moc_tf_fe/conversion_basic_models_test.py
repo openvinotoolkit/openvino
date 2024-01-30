@@ -121,7 +121,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     @generate(
         *[
             (
-                    "in1[3]:0->[1 2 3],in2:0[3]->[4 5 6],cond:0->False",
+                    "in1[3]->[1 2 3],in2[3]->[4 5 6],cond->False",
                     {},
                     np.array([4, 5, 6], dtype=np.float32),
                     np.float32,
@@ -133,7 +133,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                      "in2:0": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
                     np.array([2, 4, 6], dtype=np.float32),
                     np.float32,
-                    "cond:0->False",
+                    "cond->False",
                     None,
                     True  # fill a bug to investigate why compilation of this model is hang on
             ),
@@ -143,7 +143,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                     {"in2:0": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
                     np.array([2, 4, 6], dtype=np.float32),
                     np.float32,
-                    "in1:0->[2.0 4.0 6.0],cond:0->True",
+                    "in1->[2.0 4.0 6.0],cond->True",
                     "[3]",
                     False
             ),
@@ -157,14 +157,14 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     @generate(
         *[
             (
-                    "add:0[3],z:0",
+                    "add[3],z",
                     {"add:0": np.array([4, 5, 6], dtype=np.float32), "z:0": np.array([1, 2, 3], dtype=np.float32)},
                     np.array([4, 10, 18], dtype=np.float32),
                     np.float32,
                     None
             ),
             (
-                    "add:0{i32}[3],z:0{i32}",
+                    "add{i32}[3],z{i32}",
                     {"add:0": np.array([4, 5, 6], dtype=np.int32), "z:0": np.array([1, 2, 3], dtype=np.int32)},
                     np.array([4, 10, 18], dtype=np.int32),
                     np.int32,

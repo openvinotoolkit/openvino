@@ -11,7 +11,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
@@ -220,7 +220,7 @@ void InputModel::InputModelTFImpl::load_places() {
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
-            std::vector<std::string> names = {op_name  + ":0"};
+            std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
 
             // In Model Optimizer user can refer to model inputs by a name of Placeholder
@@ -689,7 +689,7 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
                             "TensorFlow Frontend: specify static shape for " + name + " to be frozen.");
     FRONT_END_GENERAL_CHECK(type.is_static(),
                             "TensorFlow Frontend: define static size type for " + name + " to be frozen.");
-    auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     m_tensor_values[name] = constant;
 }

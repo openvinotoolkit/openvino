@@ -978,7 +978,7 @@ class TFGraphDefNames(unittest.TestCase):
             tf.import_graph_def(tf_model, name='')
             for op in graph.get_operations():
                 if op.type == "Placeholder":
-                    input_list.append(op.name)
+                    input_list.append(op.name + ":0")
 
         for input in input_list:
             found = False
