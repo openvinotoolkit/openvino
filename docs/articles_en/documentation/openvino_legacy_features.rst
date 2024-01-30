@@ -29,7 +29,7 @@ offering.
 |
 |   OpenVINO Development Tools used to be the OpenVINO package with tools for
     advanced operations on models, such as Model conversion API, Benchmark Tool,
-    Accuracy Checker, Annotation Converter,
+    Accuracy Checker, Annotation Converter, Post-Training Optimization Tool,
     and Open Model Zoo tools. Most of these tools have been either removed,
     replaced by other solutions, or moved to the OpenVINO Runtime package.
 |   :doc:`See how to install Development Tools <openvino_docs_install_guides_install_dev_tools>`
@@ -60,6 +60,23 @@ offering.
 |   :doc:`See the Open Model ZOO documentation <model_zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
+| **Apache MXNet, Caffe, and Kaldi model formats**
+|   *New solution:* conversion to ONNX via external tools
+|   *Old solution:* model support discontinued with OpenVINO 2024.0
+|
+|   `The last version supporting Apache MXNet, Caffe, and Kaldi model formats <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
+|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
+
+
+| **Post-training Optimization Tool (POT)**
+|   *New solution:* NNCF extended in OpenVINO 2023.0
+|   *Old solution:* POT discontinued with OpenVINO 2024.0
+|
+|   Neural Network Compression Framework (NNCF) now offers the same functionality as POT,
+    apart from its original feature set.
+
+|   :doc:`See how to use NNCF for model optimization <openvino_docs_model_optimization_guide>`
+|   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
 | **Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1
@@ -74,21 +91,21 @@ offering.
 |   Compile tool is now deprecated. If you need to compile a model for inference on
     a specific device, use the following script:
 
-    .. tab-set::
+.. tab-set::
 
-       .. tab-item:: Python
-          :sync: py
+   .. tab-item:: Python
+      :sync: py
 
-          .. doxygensnippet:: docs/snippets/export_compiled_model.py
-             :language: python
-             :fragment: [export_compiled_model]
+      .. doxygensnippet:: docs/snippets/export_compiled_model.py
+         :language: python
+         :fragment: [export_compiled_model]
 
-       .. tab-item:: C++
-          :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-             :language: cpp
-             :fragment: [export_compiled_model]
+      .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+         :language: cpp
+         :fragment: [export_compiled_model]
 
 |   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
 |   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`

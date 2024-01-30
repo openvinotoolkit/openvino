@@ -14,7 +14,7 @@ Convolution
 
 **Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 
-**Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in `Convolutional Neural Networks <http://cs231n.github.io/convolutional-networks/#conv>`__ .
+**Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in `Convolutional Neural Networks <http://cs231n.github.io/convolutional-networks/#conv>`__ and `Convolution operation <https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c>`__ .
 
 For the convolutional layer, the number of output features in each dimension is calculated using the formula:
 

@@ -544,9 +544,8 @@ Here are code examples of how to use these methods with different model formats:
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
 
 
-**MXNet, Caffe, and Kaldi** are legacy formats that need to be converted explicitly to OpenVINO IR or ONNX before running inference.
-OpenVINO **deprecated these formats** and **removed their support entirely**,
-converting them to ONNX for use with OpenVINO should be considered the default path.
+As OpenVINO support for **MXNet, Caffe, and Kaldi formats** has been **discontinued**, converting these legacy formats
+to OpenVINO IR or ONNX before running inference should be considered the default path for use with OpenVINO.
 
 .. note::
 

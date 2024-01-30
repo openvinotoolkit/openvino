@@ -238,11 +238,3 @@ Additional Resources
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
 
-<!---
-   To learn more about converting models from specific frameworks, go to:
-
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your TensorFlow Lite Model <convert model tfl>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->
-

@@ -12,7 +12,7 @@ ReLU
 
 **Category**: *Activation function*
 
-**Short description**: ReLU element-wise activation function.
+**Short description**: ReLU element-wise activation function. (`Reference <http://caffe.berkeleyvision.org/tutorial/layers/relu.html>`__).
 
 **Detailed description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units>`__.
 
