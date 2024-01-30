@@ -12,7 +12,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector adaptive_avg_pooling2d(const Node& node);
+ov::OutputVector adaptive_avg_pooling2d(const ONNX_Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

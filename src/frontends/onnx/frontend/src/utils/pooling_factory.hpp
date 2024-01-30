@@ -31,7 +31,7 @@ namespace pooling {
 class PoolingFactory {
 public:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit PoolingFactory(const Node& node);
+    explicit PoolingFactory(const ONNX_Node& node);
     virtual ~PoolingFactory() = default;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
@@ -52,7 +52,7 @@ public:
 
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    Node m_onnx_node;
+    ONNX_Node m_onnx_node;
     OPENVINO_SUPPRESS_DEPRECATED_END
     const ov::OutputVector m_inputs;
     Shape m_kernel_shape;

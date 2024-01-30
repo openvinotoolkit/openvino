@@ -45,7 +45,7 @@ std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) 
 namespace op {
 namespace set_1 {
 
-ov::OutputVector conv_integer(const Node& node) {
+ov::OutputVector conv_integer(const ONNX_Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     const auto& input = inputs.at(0);

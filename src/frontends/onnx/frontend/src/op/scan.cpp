@@ -117,7 +117,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     return outputs;
 }
 
-ov::OutputVector import_onnx_scan(const Node& node,
+ov::OutputVector import_onnx_scan(const ONNX_Node& node,
                                   int64_t default_axis,
                                   int64_t in_offset,
                                   std::string&& in_directions_attr_name) {
@@ -161,7 +161,7 @@ ov::OutputVector import_onnx_scan(const Node& node,
 
 namespace set_1 {
 
-ov::OutputVector scan(const Node& node) {
+ov::OutputVector scan(const ONNX_Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
     OPENVINO_ASSERT(ov::op::util::is_null(node.get_ng_inputs().at(0)),
@@ -174,7 +174,7 @@ ov::OutputVector scan(const Node& node) {
 
 namespace set_9 {
 
-ov::OutputVector scan(const Node& node) {
+ov::OutputVector scan(const ONNX_Node& node) {
     // Since ONNX Scan-9 the optional `sequence_lens input` was removed,
     // new attributes to specify input/output axes and directions were added.
     return import_onnx_scan(node, 0, 0, "scan_input_directions");

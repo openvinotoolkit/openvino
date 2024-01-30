@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector sqrt(const Node& node) {
+inline ov::OutputVector sqrt(const ONNX_Node& node) {
     return {std::make_shared<default_opset::Sqrt>(node.get_ng_inputs().at(0))};
 }
 

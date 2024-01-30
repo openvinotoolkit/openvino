@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector dynamic_quantize_linear(const Node& node);
+ov::OutputVector dynamic_quantize_linear(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

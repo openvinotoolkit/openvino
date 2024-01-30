@@ -19,7 +19,7 @@ constexpr unsigned version_1{1};
 constexpr unsigned version_7{7};
 constexpr unsigned version_9{9};
 
-void check_mode_support(const onnx_import::Node& node, const std::string& mode, const unsigned op_version) {
+void check_mode_support(const onnx_import::ONNX_Node& node, const std::string& mode, const unsigned op_version) {
     const std::unordered_set<std::string> modes_v1 = {"nearest", "bilinear"};
     const std::unordered_set<std::string> modes_v7 = {"nearest", "linear"};
     const auto& supported_modes = op_version < version_7 ? modes_v1 : modes_v7;
@@ -57,7 +57,7 @@ default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& m
 }  // namespace
 
 namespace set_1 {
-ov::OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::ONNX_Node& node) {
     const auto height_scale = node.get_attribute_value<float>("height_scale");
     const auto width_scale = node.get_attribute_value<float>("width_scale");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
@@ -83,7 +83,7 @@ ov::OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace set_1
 
 namespace set_7 {
-ov::OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::ONNX_Node& node) {
     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_7);
@@ -104,7 +104,7 @@ ov::OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace set_7
 
 namespace set_9 {
-ov::OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::ONNX_Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
 

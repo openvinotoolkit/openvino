@@ -13,12 +13,12 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector constant(const Node& node);
+ov::OutputVector constant(const ONNX_Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector constant(const Node& node);
+ov::OutputVector constant(const ONNX_Node& node);
 
 }  // namespace set_13
 

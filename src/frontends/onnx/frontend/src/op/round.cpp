@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector round(const Node& node) {
+ov::OutputVector round(const ONNX_Node& node) {
     return {std::make_shared<v5::Round>(node.get_ng_inputs().at(0), v5::Round::RoundMode::HALF_TO_EVEN)};
 }
 }  // namespace set_1

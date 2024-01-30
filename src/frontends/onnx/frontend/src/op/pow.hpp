@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector pow(const Node& node);
+ov::OutputVector pow(const ONNX_Node& node);
 
 }  // namespace set_1
 

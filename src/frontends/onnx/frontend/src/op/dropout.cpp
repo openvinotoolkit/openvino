@@ -18,7 +18,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace {
-ov::OutputVector build_dropout(const Node& node, bool training_mode) {
+ov::OutputVector build_dropout(const ONNX_Node& node, bool training_mode) {
     CHECK_VALID_NODE(node, !training_mode, "Training mode is not supported for Dropout op");
 
     const auto input_data = node.get_ng_inputs().at(0);
@@ -35,7 +35,7 @@ ov::OutputVector build_dropout(const Node& node, bool training_mode) {
 }  // namespace
 
 namespace set_12 {
-ov::OutputVector dropout(const Node& node) {
+ov::OutputVector dropout(const ONNX_Node& node) {
     const auto ng_inputs = node.get_ng_inputs();
     // seed attribute and ratio input are ignored because traning mode is not
     // supported anyway
@@ -51,7 +51,7 @@ ov::OutputVector dropout(const Node& node) {
 }  // namespace set_12
 
 namespace set_7 {
-ov::OutputVector dropout(const Node& node) {
+ov::OutputVector dropout(const ONNX_Node& node) {
     // "is_test" attribute was removed
     // ratio attribute is ignored because traning mode is not supported
     const bool training_mode = false;
@@ -61,7 +61,7 @@ ov::OutputVector dropout(const Node& node) {
 }  // namespace set_7
 
 namespace set_1 {
-ov::OutputVector dropout(const Node& node) {
+ov::OutputVector dropout(const ONNX_Node& node) {
     // legacy consumed_inputs attribute ignored
     // ratio attribute is ignored because traning mode is not supported
     const bool training_mode = !node.get_attribute_value<int64_t>("is_test", 0);

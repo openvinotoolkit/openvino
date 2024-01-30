@@ -39,7 +39,7 @@ enum class LSTMInput {
 };
 
 struct LSTMNgInputMap {
-    explicit LSTMNgInputMap(const Node& node) {
+    explicit LSTMNgInputMap(const ONNX_Node& node) {
         const auto& ng_inputs = node.get_ng_inputs();
         // We have input, output, forget and cell gates
         constexpr std::size_t gates_count{4};
@@ -178,7 +178,7 @@ struct LSTMNgInputMap {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct LSTMAttributes {
-    explicit LSTMAttributes(const Node& node)
+    explicit LSTMAttributes(const ONNX_Node& node)
         : m_hidden_size{node.get_attribute_value<std::int64_t>("hidden_size")},
           m_clip_threshold{node.get_attribute_value<float>("clip", 0.f)},
           m_activations{node.get_attribute_value<std::vector<std::string>>("activations", {"sigmoid", "tanh", "tanh"})}
@@ -208,7 +208,7 @@ struct LSTMAttributes {
 }  // anonymous namespace
 
 namespace set_1 {
-ov::OutputVector lstm(const Node& node) {
+ov::OutputVector lstm(const ONNX_Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;

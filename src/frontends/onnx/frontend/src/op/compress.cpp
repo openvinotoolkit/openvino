@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector compress(const Node& node) {
+ov::OutputVector compress(const ONNX_Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto condition = node.get_ng_inputs().at(1);
 

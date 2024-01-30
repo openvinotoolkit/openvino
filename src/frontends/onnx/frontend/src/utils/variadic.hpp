@@ -24,7 +24,7 @@ namespace variadic {
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
 inline ov::OutputVector make_ng_variadic_op(
-    const Node& node,
+    const ONNX_Node& node,
     const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastType::NUMPY) {
     const ov::OutputVector ng_inputs{node.get_ng_inputs()};
 

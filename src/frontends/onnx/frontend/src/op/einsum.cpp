@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector einsum(const Node& node) {
+ov::OutputVector einsum(const ONNX_Node& node) {
     const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
     return ov::OutputVector{std::make_shared<v7::Einsum>(node.get_ng_inputs(), equation)};

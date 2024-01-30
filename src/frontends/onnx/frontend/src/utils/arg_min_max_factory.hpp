@@ -19,7 +19,7 @@ namespace utils {
 class ArgMinMaxFactory {
 public:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit ArgMinMaxFactory(const Node& node);
+    explicit ArgMinMaxFactory(const ONNX_Node& node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~ArgMinMaxFactory() = default;
 

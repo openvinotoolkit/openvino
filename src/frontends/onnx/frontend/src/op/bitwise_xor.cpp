@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector bitwise_xor(const Node& node) {
+ov::OutputVector bitwise_xor(const ONNX_Node& node) {
     const auto inputs = node.get_ng_inputs();
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseXor>(inputs[0], inputs[1])};

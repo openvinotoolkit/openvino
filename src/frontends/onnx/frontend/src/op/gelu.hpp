@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector gelu(const Node& node);
+ov::OutputVector gelu(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

@@ -59,7 +59,7 @@ static int mode_as_int(const std::map<std::string, int>& converting_map, const s
 
 using InterpolateAttrs = v11::Interpolate::InterpolateAttrs;
 
-InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
+InterpolateAttrs get_resize_attrs(const onnx_import::ONNX_Node& node) {
     auto get_str_attr = [&node](const std::string& name, const std::string& default_value) {
         return node.get_attribute_value<std::string>(name, default_value);
     };
@@ -112,7 +112,7 @@ InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
 }  // namespace
 
 namespace set_11 {
-ov::OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const onnx_import::ONNX_Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
     const auto inputs = node.get_ng_inputs();
@@ -133,7 +133,7 @@ ov::OutputVector resize(const onnx_import::Node& node) {
 }  // namespace set_11
 
 namespace set_1 {
-ov::OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const onnx_import::ONNX_Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs.at(0);
     const auto& scales = inputs.at(1);

@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector hannwindow(const Node& node);
+ov::OutputVector hannwindow(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

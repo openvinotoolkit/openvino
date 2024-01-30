@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector image_scaler(const Node& node);
+ov::OutputVector image_scaler(const ONNX_Node& node);
 }
 }  // namespace op
 }  // namespace onnx_import

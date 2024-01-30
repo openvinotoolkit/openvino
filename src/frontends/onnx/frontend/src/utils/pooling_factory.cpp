@@ -35,7 +35,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
 }  // namespace
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-PoolingFactory::PoolingFactory(const Node& node)
+PoolingFactory::PoolingFactory(const ONNX_Node& node)
     : m_onnx_node{node},
       m_inputs{node.get_ng_inputs()},
       m_kernel_shape(node.get_attribute_value<std::vector<std::size_t>>("kernel_shape")),

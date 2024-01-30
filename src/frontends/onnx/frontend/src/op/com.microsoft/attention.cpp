@@ -69,7 +69,7 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector attention(const Node& node) {
+ov::OutputVector attention(const ONNX_Node& node) {
     auto nodes = node.get_ng_inputs();
     const auto& input = nodes[0];
     const auto& weights = nodes[1];

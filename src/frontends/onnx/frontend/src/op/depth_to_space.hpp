@@ -22,7 +22,7 @@ namespace set_1 {
 ///
 /// \return     ov::OutputVector containing Tensor with shape:
 ///             [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
-ov::OutputVector depth_to_space(const Node& node);
+ov::OutputVector depth_to_space(const ONNX_Node& node);
 }  // namespace set_1
 
 }  // namespace op

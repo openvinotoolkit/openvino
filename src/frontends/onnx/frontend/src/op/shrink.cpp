@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector shrink(const Node& node) {
+ov::OutputVector shrink(const ONNX_Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const float bias = node.get_attribute_value<float>("bias", 0.0f);
     const float lambd = node.get_attribute_value<float>("lambd", 0.5f);

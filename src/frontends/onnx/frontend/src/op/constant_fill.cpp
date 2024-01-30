@@ -19,7 +19,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector constant_fill(const Node& node) {
+ov::OutputVector constant_fill(const ONNX_Node& node) {
     ov::Output<ov::Node> target_shape;
     const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
     const auto ng_type = onnx_to_ov_data_type(static_cast<TensorProto_DataType>(dtype));

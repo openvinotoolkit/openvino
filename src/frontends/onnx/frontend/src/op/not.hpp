@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector logical_not(const Node& node) {
+inline ov::OutputVector logical_not(const ONNX_Node& node) {
     return {std::make_shared<ov::op::v1::LogicalNot>(node.get_ng_inputs().at(0))};
 }
 

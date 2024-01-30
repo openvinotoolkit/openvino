@@ -22,7 +22,7 @@ namespace set_1 {
 ///
 /// \return The vector containing Ngraph nodes producing output of ONNX quantizied
 ///         convolution operation.
-ov::OutputVector quant_conv(const Node& node);
+ov::OutputVector quant_conv(const ONNX_Node& node);
 
 }  // namespace set_1
 

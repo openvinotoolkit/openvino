@@ -13,9 +13,9 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector prior_box(const Node& node);
+ov::OutputVector prior_box(const ONNX_Node& node);
 
-ov::OutputVector prior_box_clustered(const Node& node);
+ov::OutputVector prior_box_clustered(const ONNX_Node& node);
 
 }  // namespace set_1
 

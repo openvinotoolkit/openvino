@@ -24,7 +24,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector hardmax(const Node& node) {
+ov::OutputVector hardmax(const ONNX_Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
@@ -62,7 +62,7 @@ ov::OutputVector hardmax(const Node& node) {
 
 }  // namespace set_1
 namespace set_13 {
-ov::OutputVector hardmax(const Node& node) {
+ov::OutputVector hardmax(const ONNX_Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 

@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector if_op(const Node& node) {
+ov::OutputVector if_op(const ONNX_Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 

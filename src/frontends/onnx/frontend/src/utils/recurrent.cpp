@@ -27,7 +27,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace recurrent {
-OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
+OpInputMap::OpInputMap(const onnx_import::ONNX_Node& node, std::size_t gates_count) {
     const auto& ng_inputs = node.get_ng_inputs();
 
     m_map[OpInput::X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
@@ -96,7 +96,7 @@ const ov::Output<ov::Node>& OpInputMap::at(const OpInput& key) const {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-OpAttributes::OpAttributes(const Node& node)
+OpAttributes::OpAttributes(const ONNX_Node& node)
     : m_hidden_size{node.get_attribute_value<std::int64_t>("hidden_size")},
       m_clip_threshold{node.get_attribute_value<float>("clip", 0.f)}
       // Recurrent Operators which have more activation functions should override

@@ -25,7 +25,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector deformable_conv_2d(const Node& node) {
+ov::OutputVector deformable_conv_2d(const ONNX_Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);

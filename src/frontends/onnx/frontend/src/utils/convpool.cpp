@@ -23,7 +23,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace convpool {
-Shape get_kernel_shape(const Node& node) {
+Shape get_kernel_shape(const ONNX_Node& node) {
     const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
@@ -37,7 +37,7 @@ namespace {
 ///
 /// \return     The attribute default value.
 ///
-std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
+std::vector<std::size_t> get_attr_default_value(const ONNX_Node& node, const std::string& attr_name) {
     const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
     const auto data_spatial_dims = data_rank.get_length() - 2;
@@ -56,7 +56,7 @@ std::vector<std::size_t> get_attr_default_value(const Node& node, const std::str
 ///
 /// \return     Read vector attribute if available or default value
 ///
-std::vector<std::size_t> get_attribute_value(const Node& node,
+std::vector<std::size_t> get_attribute_value(const ONNX_Node& node,
                                              const std::string& attr_name,
                                              const std::size_t kernel_rank = 0UL) {
     if (node.has_attribute(attr_name)) {
@@ -69,19 +69,19 @@ std::vector<std::size_t> get_attribute_value(const Node& node,
 }
 }  // namespace
 
-Strides get_strides(const Node& node, const std::size_t kernel_rank) {
+Strides get_strides(const ONNX_Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "strides", kernel_rank);
 }
 
-Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
+Strides get_dilations(const ONNX_Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "dilations", kernel_rank);
 }
 
-ov::op::RoundingType get_rounding_type(const Node& node) {
+ov::op::RoundingType get_rounding_type(const ONNX_Node& node) {
     return static_cast<ov::op::RoundingType>(node.get_attribute_value<std::int64_t>("ceil_mode", 0));
 }
 
-ov::op::PadType get_auto_pad(const Node& node) {
+ov::op::PadType get_auto_pad(const ONNX_Node& node) {
     // Default value means use explicitly provided padding values.
     ov::op::PadType pad_type{ov::op::PadType::NOTSET};
     if (node.has_attribute("auto_pad")) {
@@ -105,7 +105,7 @@ ov::op::PadType get_auto_pad(const Node& node) {
     return pad_type;
 }
 
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_t kernel_rank) {
+std::pair<CoordinateDiff, CoordinateDiff> get_pads(const ONNX_Node& node, const size_t kernel_rank) {
     CoordinateDiff pads(kernel_rank, 0);
     if (node.has_attribute("pads")) {
         auto pads_int64 = node.get_attribute_value<std::vector<int64_t>>("pads");
@@ -125,7 +125,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
     }
 }
 
-std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node) {
+std::pair<CoordinateDiff, CoordinateDiff> get_pads(const ONNX_Node& node) {
     const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "The rank of node must be static in order to calculate pads");
     const auto data_spatial_dims = data_rank.get_length() - 2;

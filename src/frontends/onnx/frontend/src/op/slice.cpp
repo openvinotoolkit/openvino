@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_10 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ONNX_Node& node) {
     using ov::op::util::is_null;
 
     ov::OutputVector inputs{node.get_ng_inputs()};
@@ -47,7 +47,7 @@ ov::OutputVector slice(const Node& node) {
 }  // namespace set_10
 
 namespace set_1 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ONNX_Node& node) {
     ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");

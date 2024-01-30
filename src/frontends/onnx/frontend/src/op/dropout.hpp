@@ -13,15 +13,15 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_12 {
-ov::OutputVector dropout(const Node& node);
+ov::OutputVector dropout(const ONNX_Node& node);
 }  // namespace set_12
 
 namespace set_7 {
-ov::OutputVector dropout(const Node& node);
+ov::OutputVector dropout(const ONNX_Node& node);
 }  // namespace set_7
 
 namespace set_1 {
-ov::OutputVector dropout(const Node& node);
+ov::OutputVector dropout(const ONNX_Node& node);
 }  // namespace set_1
 
 }  // namespace op

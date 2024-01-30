@@ -7,7 +7,7 @@
 #include <utils/common.hpp>
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-ov::frontend::onnx::NodeContext::NodeContext(const ngraph::onnx_import::Node& context)
+ov::frontend::onnx::NodeContext::NodeContext(const ngraph::onnx_import::ONNX_Node& context)
     : ov::frontend::NodeContext(context.op_type()),
       m_context(context),
       m_inputs(context.get_ng_inputs()) {}

@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector gemm(const Node& node) {
+ov::OutputVector gemm(const ONNX_Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
@@ -61,7 +61,7 @@ ov::OutputVector gemm(const Node& node) {
 }  // namespace set_1
 
 namespace set_6 {
-ov::OutputVector gemm(const Node& node) {
+ov::OutputVector gemm(const ONNX_Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);

@@ -25,7 +25,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector aten(const Node& node) {
+ov::OutputVector aten(const ONNX_Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
 
     const auto operator_name = node.get_attribute_value<std::string>("operator", "");

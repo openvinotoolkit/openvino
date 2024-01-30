@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector add(const Node& node) {
+ov::OutputVector add(const ONNX_Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Add op is not supported");
@@ -24,13 +24,13 @@ ov::OutputVector add(const Node& node) {
 }  // namespace set_1
 
 namespace set_6 {
-ov::OutputVector add(const Node& node) {
+ov::OutputVector add(const ONNX_Node& node) {
     return common::handle_opset6_binary_op<v1::Add>(node);
 }
 }  // namespace set_6
 
 namespace set_7 {
-ov::OutputVector add(const Node& node) {
+ov::OutputVector add(const ONNX_Node& node) {
     return {std::make_shared<v1::Add>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 }  // namespace set_7

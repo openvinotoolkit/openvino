@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector max_roi_pool(const Node& node);
+ov::OutputVector max_roi_pool(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

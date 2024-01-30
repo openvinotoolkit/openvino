@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector mod(const Node& node) {
+ov::OutputVector mod(const ONNX_Node& node) {
     ov::Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
     ov::Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
 

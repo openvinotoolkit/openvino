@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector matmul_integer(const Node& node) {
+ov::OutputVector matmul_integer(const ONNX_Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     const auto& A = inputs.at(0);

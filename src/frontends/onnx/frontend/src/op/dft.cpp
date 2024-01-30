@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector dft(const Node& node) {
+ov::OutputVector dft(const ONNX_Node& node) {
     const ov::OutputVector ng_inputs{node.get_ng_inputs()};
     const ov::Output<ov::Node> data = ng_inputs.at(0);
 

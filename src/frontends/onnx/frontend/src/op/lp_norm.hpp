@@ -25,7 +25,7 @@ namespace set_1 {
 ///
 /// \return     Vector of nodes containting resulting OV nodes.
 ///
-ov::OutputVector lp_norm(const Node& node);
+ov::OutputVector lp_norm(const ONNX_Node& node);
 }  // namespace set_1
 
 }  // namespace op

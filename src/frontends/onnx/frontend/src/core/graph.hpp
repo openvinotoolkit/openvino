@@ -52,7 +52,7 @@ public:
     virtual bool is_ov_node_in_cache(const std::string& name) const;
     virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::OutputVector make_ov_nodes(const Node& onnx_node);
+    ov::OutputVector make_ov_nodes(const ONNX_Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
@@ -69,12 +69,12 @@ protected:
           ov::frontend::ExtensionHolder extensions = {});
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    void set_friendly_names(const Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
+    void set_friendly_names(const ONNX_Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::OutputVector make_framework_nodes(const Node& onnx_node);
+    ov::OutputVector make_framework_nodes(const ONNX_Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     void decode_to_framework_nodes();
     void convert_to_ov_nodes();
@@ -89,7 +89,7 @@ protected:
 
 private:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    std::vector<Node> m_nodes;
+    std::vector<ONNX_Node> m_nodes;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;

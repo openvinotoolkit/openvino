@@ -19,7 +19,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector instance_norm(const Node& node) {
+ov::OutputVector instance_norm(const ONNX_Node& node) {
     ov::Output<ov::Node> data(node.get_ng_inputs().at(0));
     ov::Output<ov::Node> scale(node.get_ng_inputs().at(1));
     ov::Output<ov::Node> bias(node.get_ng_inputs().at(2));

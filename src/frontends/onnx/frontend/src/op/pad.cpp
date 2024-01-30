@@ -37,7 +37,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector pad(const Node& node) {
+ov::OutputVector pad(const ONNX_Node& node) {
     auto data = node.get_ng_inputs().at(0);
 
     const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
@@ -62,7 +62,7 @@ ov::OutputVector pad(const Node& node) {
 
 }  // namespace set_1
 namespace set_11 {
-ov::OutputVector pad(const Node& node) {
+ov::OutputVector pad(const ONNX_Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];

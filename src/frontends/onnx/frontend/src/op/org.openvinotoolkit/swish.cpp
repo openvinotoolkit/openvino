@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector swish(const Node& node) {
+ov::OutputVector swish(const ONNX_Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
 
     ov::Output<ov::Node> beta;

@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector shape(const Node& node);
+ov::OutputVector shape(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

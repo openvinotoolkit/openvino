@@ -14,14 +14,14 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector min(const Node& node) {
+inline ov::OutputVector min(const ONNX_Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
-inline ov::OutputVector min(const Node& node) {
+inline ov::OutputVector min(const ONNX_Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node);
 }
 

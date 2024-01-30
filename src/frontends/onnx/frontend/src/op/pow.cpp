@@ -15,7 +15,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector pow(const Node& node) {
+ov::OutputVector pow(const ONNX_Node& node) {
     auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
 

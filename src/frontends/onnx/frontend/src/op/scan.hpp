@@ -22,11 +22,11 @@ namespace set_1 {
 ///
 /// \return     ov::OutputVector of resulting OpenVino nodes.
 ///
-ov::OutputVector scan(const Node& node);
+ov::OutputVector scan(const ONNX_Node& node);
 }  // namespace set_1
 
 namespace set_9 {
-ov::OutputVector scan(const Node& node);
+ov::OutputVector scan(const ONNX_Node& node);
 }  // namespace set_9
 
 }  // namespace op

@@ -19,7 +19,7 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX If
 ///        operation.
-ov::OutputVector if_op(const Node& node);
+ov::OutputVector if_op(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

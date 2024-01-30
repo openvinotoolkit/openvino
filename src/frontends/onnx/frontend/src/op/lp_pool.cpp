@@ -20,7 +20,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector global_lp_pool(const Node& node) {
+ov::OutputVector global_lp_pool(const ONNX_Node& node) {
     const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const std::size_t channel_axis{1};
 

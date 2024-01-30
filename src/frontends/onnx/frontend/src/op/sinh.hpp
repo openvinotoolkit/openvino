@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector sinh(const Node& node) {
+inline ov::OutputVector sinh(const ONNX_Node& node) {
     return {std::make_shared<default_opset::Sinh>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1

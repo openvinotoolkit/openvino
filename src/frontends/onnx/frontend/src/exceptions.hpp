@@ -17,7 +17,7 @@ namespace onnx_error {
 
 namespace detail {
 OPENVINO_SUPPRESS_DEPRECATED_START
-std::string get_error_msg_prefix(const ngraph::onnx_import::Node& node);
+std::string get_error_msg_prefix(const ngraph::onnx_import::ONNX_Node& node);
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace detail
 
@@ -26,7 +26,7 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_START [[noreturn]] static void create(const char* file,
                                                                        int line,
                                                                        const char* check_string,
-                                                                       const ngraph::onnx_import::Node& node,
+                                                                       const ngraph::onnx_import::ONNX_Node& node,
                                                                        const std::string& explanation);
     OPENVINO_SUPPRESS_DEPRECATED_END
 

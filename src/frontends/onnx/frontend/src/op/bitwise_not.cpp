@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector bitwise_not(const Node& node) {
+ov::OutputVector bitwise_not(const ONNX_Node& node) {
     return {std::make_shared<v13::BitwiseNot>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1

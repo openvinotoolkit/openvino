@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector is_inf(const Node& node) {
+ov::OutputVector is_inf(const ONNX_Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     ov::opset10::IsInf::Attributes attributes{};

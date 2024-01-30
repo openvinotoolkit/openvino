@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector trilu(const Node& node) {
+ov::OutputVector trilu(const ONNX_Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto num_inputs = inputs.size();
 

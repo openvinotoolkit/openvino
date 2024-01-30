@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector is_finite(const Node& node);
+ov::OutputVector is_finite(const ONNX_Node& node);
 
 }  // namespace set_1
 }  // namespace op

@@ -98,7 +98,7 @@ void validate_scalar_input(const char* input_name,
 }
 
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const Node& node) {
+ov::OutputVector handle_opset6_binary_op(const ONNX_Node& node) {
     const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
     ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
@@ -127,11 +127,11 @@ ov::OutputVector handle_opset6_binary_op(const Node& node) {
     return {std::make_shared<T>(lhs_node, rhs_node)};
 }
 
-template ov::OutputVector handle_opset6_binary_op<v1::Add>(const Node& node);
-template ov::OutputVector handle_opset6_binary_op<v1::Divide>(const Node& node);
-template ov::OutputVector handle_opset6_binary_op<v1::Multiply>(const Node& node);
-template ov::OutputVector handle_opset6_binary_op<v1::Subtract>(const Node& node);
-template ov::OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Add>(const ONNX_Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Divide>(const ONNX_Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Multiply>(const ONNX_Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::Subtract>(const ONNX_Node& node);
+template ov::OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const ONNX_Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 

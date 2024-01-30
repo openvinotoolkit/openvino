@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector fusedgemm(const Node& node);
+ov::OutputVector fusedgemm(const ONNX_Node& node);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import

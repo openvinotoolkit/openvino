@@ -15,14 +15,14 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector sum(const Node& node) {
+inline ov::OutputVector sum(const ONNX_Node& node) {
     return variadic::make_ng_variadic_op<default_opset::Add>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
-inline ov::OutputVector sum(const Node& node) {
+inline ov::OutputVector sum(const ONNX_Node& node) {
     return variadic::make_ng_variadic_op<default_opset::Add>(node);
 }
 

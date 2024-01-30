@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector crop(const Node& node) {
+ov::OutputVector crop(const ONNX_Node& node) {
     // Crop is an obsolete experimental ONNX operation.
     // Crops an image's spatial dimensions.
 

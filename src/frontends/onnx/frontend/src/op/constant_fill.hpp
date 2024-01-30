@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 // ConstantFill is a deprecated experimental operator removed in ONNX 1.4
-ov::OutputVector constant_fill(const Node& node);
+ov::OutputVector constant_fill(const ONNX_Node& node);
 }  // namespace set_1
 
 }  // namespace op

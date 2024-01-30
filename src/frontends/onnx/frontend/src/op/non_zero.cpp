@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector non_zero(const Node& node) {
+ov::OutputVector non_zero(const ONNX_Node& node) {
     auto data = node.get_ng_inputs().at(0);
     return {std::make_shared<v3::NonZero>(data, ov::element::i64)};
 }

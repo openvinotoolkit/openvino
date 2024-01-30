@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-ov::OutputVector skip_layer_normalization(const Node& node) {
+ov::OutputVector skip_layer_normalization(const ONNX_Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
     FRONT_END_GENERAL_CHECK(num_nodes >= 3 && num_nodes <= 5,
