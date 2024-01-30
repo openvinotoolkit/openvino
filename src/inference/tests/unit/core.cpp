@@ -115,7 +115,7 @@ public:
     }
 
     std::string lib_name = ov::util::make_plugin_library_name({}, std::string("test_name"));  // libtest_name.so
-    std::string lib_path = ov::util::get_absolute_file_path(lib_name);                      // CWD/libtest_name.so
+    std::string lib_path = ov::util::get_absolute_file_path(lib_name);                        // CWD/libtest_name.so
 };
 
 TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
