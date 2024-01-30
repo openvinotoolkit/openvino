@@ -55,7 +55,7 @@ protected:
 
         // VariadicSplit(X, axis, split_lengths) = Xw, Xv
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {13696, -1});
+        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {48, -1});
         auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis_const, split_lengths_const);
 
         // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
