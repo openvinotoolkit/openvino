@@ -406,6 +406,18 @@ class TorchScriptPythonDecoder (Decoder):
     def inlined_inputs(self, index):
         return []
 
+    def inlined_input(self, index):
+        return []
+
+    def is_input_inlined(self, index):
+        return False
+
+    def get_attribute(self, name):
+        return OVAny(None)
+
+    def get_named_input(self, name):
+        raise RuntimeError("There is no named inputs in TS graph")
+
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
         # Function replaces prim::Constant containing List of Tensors with
