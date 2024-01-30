@@ -16,13 +16,14 @@ import torch
 
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False):
+    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False, constant_cache=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
+        self.constant_cache = constant_cache if constant_cache is not None else dict()
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(
@@ -225,8 +226,11 @@ class TorchScriptPythonDecoder (Decoder):
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
-            decoder = TorchScriptPythonDecoder(
-                self.pt_module, node, alias_db=self.alias_db, shared_memory=self._shared_memory)
+            decoder = TorchScriptPythonDecoder(self.pt_module,
+                                               node,
+                                               alias_db=self.alias_db,
+                                               shared_memory=self._shared_memory,
+                                               constant_cache=self.constant_cache)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -246,8 +250,10 @@ class TorchScriptPythonDecoder (Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs(
-        )[index], alias_db=self.alias_db, shared_memory=self._shared_memory)
+        decoder = TorchScriptPythonDecoder(self.pt_module,
+                                           self.get_subgraphs()[index],
+                                           alias_db=self.alias_db,
+                                           shared_memory=self._shared_memory)
         self.m_decoders.append(decoder)
         return decoder
 
@@ -286,7 +292,8 @@ class TorchScriptPythonDecoder (Decoder):
         return node
 
     def try_decode_get_attr(self):
-        pt_value, name = get_value_from_getattr(self.graph_element, self.pt_module)
+        pt_value, name = get_value_from_getattr(
+            self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
         if isinstance(pt_value, torch.ScriptObject):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
@@ -316,11 +323,17 @@ class TorchScriptPythonDecoder (Decoder):
                 pass
             return res
         elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
-            const = ivalue_to_constant(pt_value, shared_memory=self._shared_memory)
-            if len(const) > 0:
-                # set name corresponding to state_dict name
-                const[0].get_node().set_friendly_name(name)
-                self.out_debug_name_overwrites[0] = name
+            # this tensor can be used multiple times in the model, so we have to reuse constants
+            if name in self.constant_cache:
+                const = self.constant_cache[name]
+            else:
+                const = ivalue_to_constant(pt_value,
+                                           shared_memory=self._shared_memory)
+                if len(const) > 0:
+                    # set name corresponding to state_dict name
+                    const[0].get_node().set_friendly_name(name)
+                    self.out_debug_name_overwrites[0] = name
+                self.constant_cache[name] = const
             return const
         else:
             return []
@@ -336,10 +349,12 @@ class TorchScriptPythonDecoder (Decoder):
             return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
-        const = ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
+        const = ivalue_to_constant(
+            pt_value.toIValue(), shared_memory=self._shared_memory)
         if len(const) > 0:
             # set name corresponding to state_dict name
-            const[0].get_node().set_friendly_name(self.get_output_debug_name(0))
+            const[0].get_node().set_friendly_name(
+                self.get_output_debug_name(0))
         return const
 
     def as_string(self):
@@ -389,7 +404,8 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 in_node = r_input.node()
                 if in_node.kind() == "prim::GetAttr":
-                    pt_value, _ = get_value_from_getattr(in_node, self.pt_module)
+                    pt_value, _ = get_value_from_getattr(
+                        in_node, self.pt_module)
                     return pt_value is None
         return False
 
