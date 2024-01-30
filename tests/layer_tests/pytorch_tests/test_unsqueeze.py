@@ -40,5 +40,5 @@ class TestUnsqueeze(PytorchLayerTest):
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_relu(self, inplace, dim, ie_device, precision, ir_version):
+    def test_unsqueeze(self, inplace, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(inplace, dim), ie_device, precision, ir_version)

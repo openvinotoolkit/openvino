@@ -3,7 +3,6 @@
 //
 
 #include "include/auto_unit_test.hpp"
-
 using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>>;
@@ -181,7 +180,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        .WillByDefault(Throw(ov::Exception{"GeneralError"}));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
