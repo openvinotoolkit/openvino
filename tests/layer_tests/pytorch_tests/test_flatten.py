@@ -38,6 +38,6 @@ class TestFlatten(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_relu(self, dim0, dim1, ie_device, precision, ir_version):
+    def test_flatten(self, dim0, dim1, ie_device, precision, ir_version):
         self._test(*self.create_model(dim0, dim1),
                    ie_device, precision, ir_version)
