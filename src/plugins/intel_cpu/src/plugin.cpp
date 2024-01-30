@@ -201,7 +201,7 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     if (!((0 == streams_set) && config.streamsChanged)) {
         get_num_streams(streams, model, config);
     } else {
-        config.streamExecutorConfig.set_config_zero_stream();
+        ov::threading::IStreamsExecutor::Config::set_config_zero_stream(config.streamsInfoTable, config.cpuReservation);
     }
 }
 

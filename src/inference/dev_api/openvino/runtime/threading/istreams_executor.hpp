@@ -219,8 +219,10 @@ public:
         /**
          * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
          *        that is, only create one thread with TBB
+         * @param streamsInfoTable streams info table
+         * @param cpu_reservation cpu reservation
          */
-        void set_config_zero_stream();
+        static void set_config_zero_stream(std::vector<std::vector<int>>& streamsInfoTable, bool& cpu_reservation);
     };
 
     /**

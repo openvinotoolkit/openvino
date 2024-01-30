@@ -34,7 +34,6 @@ struct Configuration {
     bool perf_count = false;
     ov::threading::IStreamsExecutor::Config streams_executor_config;
     int streams = 1;
-    bool streams_changed = false;
     int threads = 0;
     int threads_per_stream = 0;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;

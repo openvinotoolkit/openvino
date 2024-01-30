@@ -99,10 +99,14 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
-    fullConfig.streams_executor_config =
-        ov::threading::IStreamsExecutor::Config{stream_executor_name, m_cfg.streams, m_cfg.threads_per_stream};
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
     auto compiled_model = std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
@@ -139,8 +143,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     }
 
     auto fullConfig = Configuration{_properties, m_cfg};
-    fullConfig.streams_executor_config =
-        ov::threading::IStreamsExecutor::Config{stream_executor_name, m_cfg.streams, m_cfg.threads_per_stream};
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -159,6 +164,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     auto ov_model = get_core()->read_model(xmlString, weights);
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
