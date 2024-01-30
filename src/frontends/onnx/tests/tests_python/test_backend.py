@@ -505,8 +505,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_example_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_random_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_example_cpu",
     ),
     (
