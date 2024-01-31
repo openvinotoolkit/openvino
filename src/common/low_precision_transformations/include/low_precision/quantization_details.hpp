@@ -27,6 +27,13 @@ enum levels : size_t {
     int32_narrow_range = 4294967295
 };
 
+static std::set<levels> all_levels = {
+    levels::int4,  levels::int4_narrow_range,
+    levels::int8,  levels::int8_narrow_range,
+    levels::int16, levels::int16_narrow_range,
+    levels::int32, levels::int32_narrow_range
+};
+
 class LP_TRANSFORMATIONS_API QuantizationDetails {
 public:
     QuantizationDetails();
@@ -64,12 +71,7 @@ public:
 
     static bool isSupportedLevel(
         const size_t level,
-        const std::set<levels>& supported_levels = {
-            levels::int4,  levels::int4_narrow_range,
-            levels::int8,  levels::int8_narrow_range,
-            levels::int16, levels::int16_narrow_range,
-            levels::int32, levels::int32_narrow_range
-        });
+        const std::set<levels>& supported_levels = all_levels);
 
     const size_t levels;
     const std::vector<float> inputLowValues;
