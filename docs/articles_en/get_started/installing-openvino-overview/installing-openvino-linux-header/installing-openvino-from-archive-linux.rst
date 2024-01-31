@@ -187,7 +187,7 @@ Step 1: Download and Install the OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/2024.0.0-13770-9b52171d290/l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_arm64.tgz -O openvino_2023.3.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.3/linux/l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_arm64.tgz -O openvino_2023.3.0.tgz
             tar -xf openvino_2023.3.0.tgz
             sudo mv l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_arm64 /opt/intel/openvino_2023.3.0
 

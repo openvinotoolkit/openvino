@@ -4,8 +4,6 @@
 #pragma once
 #include <napi.h>
 
-#include "helper.hpp"
-
 namespace element {
 /** @brief Exports JavaScript element enum. */
 Napi::Object init(Napi::Env env, Napi::Object exports);

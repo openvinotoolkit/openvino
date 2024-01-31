@@ -10,6 +10,9 @@ from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
+from openvino import convert_model
+from torch.export import export
+from packaging import version
 
 
 def filter_timm(timm_list: list) -> list:
@@ -47,7 +50,7 @@ torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
         shape = [1] + list(cfg.input_size)
@@ -78,11 +81,14 @@ class TestTimmConvertModel(TestTorchConvertModel):
                                       "sequencer2d_l.in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
+        self.mode = "trace"
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
+    @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.parametrize("name", get_all_models())
-    def test_convert_model_all_models(self, name, ie_device):
+    def test_convert_model_all_models(self, mode, name, ie_device):
+        self.mode = mode
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
