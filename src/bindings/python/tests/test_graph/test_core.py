@@ -333,8 +333,8 @@ def test_partial_shape_eq(shape):
 
 @pytest.mark.parametrize("shape", [[1, 2, 3], (1, 2, 3)])
 def test_shape_eq(shape):
-    sp = Shape(shape)
-    assert shape== sp
+    ps = Shape(shape)
+    assert shape == ps
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])

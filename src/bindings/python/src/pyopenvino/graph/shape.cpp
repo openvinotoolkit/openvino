@@ -40,9 +40,7 @@ void regclass_graph_Shape(py::module m) {
     },
     py::is_operator());
 
-shape.def(
-    "__eq__",
-     {
+    shape.def("__eq__",{
         if (a.size() != py::len(b)) {
             return false;
         }

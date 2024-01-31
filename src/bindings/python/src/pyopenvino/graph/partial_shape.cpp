@@ -145,7 +145,7 @@ void regclass_graph_PartialShape(py::module m) {
         )");
 
     shape.def(
-    "__eq__",
+     "__eq__",
     [](const ov::PartialShape& a, const py::tuple& b) {
         if (a.size() != py::len(b)) {
             return false;
