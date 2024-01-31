@@ -9,7 +9,6 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-#include "ngraph/evaluator.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
@@ -656,24 +655,6 @@ std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
     return {inputs.at(0)};
 }
 }  // namespace
-
-std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value) {
-    static ngraph::Evaluator<MaxValue>::op_handler_map handlers = {
-        {ov::op::v0::Concat::get_type_info_static(), exec_concat},
-        {ov::op::v0::Constant::get_type_info_static(), exec_constant},
-        {ov::op::v0::Convert::get_type_info_static(), exec_nop},
-        {ov::op::v1::Gather::get_type_info_static(), exec_gather},
-        {ov::op::v1::Minimum::get_type_info_static(), exec_minimum},
-        {ov::op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
-        {ov::op::v1::Reshape::get_type_info_static(), exec_nop},
-        {ov::op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
-        {ov::op::v0::Squeeze::get_type_info_static(), exec_nop},
-        {ov::op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
-    Evaluator<MaxValue>::value_map value_map;
-    Evaluator<MaxValue> evaluator(handlers, value_map);
-    auto val = evaluator.evaluate(value);
-    return std::pair<bool, uint64_t>(val.m_value < std::numeric_limits<uint64_t>::max(), val.m_value);
-}
 
 std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
     auto tensor = ov::util::make_tensor_of_max_value(t);
