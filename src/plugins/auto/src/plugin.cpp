@@ -297,7 +297,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    m_plugin_config.set_property(properties);
+    auto property_to_set = properties;
+    m_plugin_config.set_property(property_to_set);
 }
 
 // ! [plugin:create_plugin_engine]
