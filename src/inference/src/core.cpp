@@ -22,15 +22,15 @@ std::string find_plugins_xml(const std::string& xml_file) {
         // Default plugin xml file name.
         xml_file_name = "plugins.xml";
     } else {
-        // Exclude relative path
-        const auto relative_path_symbol = std::string("..") + util::FileTraits<char>().file_separator;
-        if (xml_file_name.find(relative_path_symbol) != xml_file_name.npos) {
-            OPENVINO_THROW("Unsupport plugin xml file relative path: ", xml_file_name.c_str());
+        // Check plugin xml extension name.
+        if (!ov::util::ends_with(xml_file_name, "xml") && !ov::util::ends_with(xml_file_name, "XML")) {
+            OPENVINO_THROW("Unsupport plugin xml file with non-xml extension name(.xml or .XML): ",
+                           xml_file_name.c_str());
         }
 
-        // Check plugin xml extension name
-        if (!ov::util::ends_with(xml_file_name, "xml") && !ov::util::ends_with(xml_file_name, "XML")) {
-            OPENVINO_THROW("Unsupport plugin xml file with non-xml extension name: ", xml_file_name.c_str());
+        // If the xml file exists, will use it; else will search it only in ov folder.
+        if (ov::util::file_exists(xml_file_name)) {
+            return xml_file_name;
         }
     }
     const auto ov_library_path = ov::util::get_ov_lib_path();
