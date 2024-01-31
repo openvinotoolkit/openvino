@@ -898,14 +898,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto plugin = get_plugin(parsed._deviceName);
-    // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
-    // it from config
-    if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
-        !is_virtual_device(plugin.get_name())) {
-        parsed._config.erase(ov::cache_dir.name());
-    }
-    return plugin.query_model(model, parsed._config);
+    return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
@@ -973,7 +966,8 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
 }
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
-                                                const ov::AnyMap& user_properties) const {
+                                                const ov::AnyMap& user_properties,
+                                                const bool keep_core_property) const {
     if (is_virtual_device(full_device_name)) {
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
@@ -1008,7 +1002,10 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
-    std::vector<std::string> supported_config_keys = core_level_properties;
+    std::vector<std::string> supported_config_keys;
+    if (keep_core_property) {
+        supported_config_keys = core_level_properties;
+    }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
