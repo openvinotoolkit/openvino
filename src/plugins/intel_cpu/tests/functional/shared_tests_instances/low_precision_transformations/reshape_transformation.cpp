@@ -170,7 +170,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, 4, 8 },
         { 65536ul, ov::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "fp32",
+        "f32",
         { "Reshape", "Output" }
     },
 };
