@@ -77,9 +77,9 @@ void RandomUniformLayerTest::SetUp() {
                                                                           precision,
                                                                           global_seed,
                                                                           op_seed);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input}, "random_uniform");
+    function = std::make_shared<ov::Model>(results, ngraph::ParameterVector{input}, "random_uniform");
 }
 
 void RandomUniformLayerTest::ConvertRefsParams() {

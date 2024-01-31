@@ -4,17 +4,18 @@
 
 #include "op/split.hpp"
 
-#include <vector>
-
-#include "default_opset.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "ov_models/ov_builders/split.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector split(const Node& node) {
+ov::OutputVector split(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
@@ -30,7 +31,7 @@ OutputVector split(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector split(const Node& node) {
+ov::OutputVector split(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
@@ -38,8 +39,8 @@ OutputVector split(const Node& node) {
         const auto outputs_number = node.get_output_names().size();
         return ov::op::util::split(inputs.at(0), outputs_number, axis);
     } else {
-        const auto axis_node = default_opset::Constant::create(ov::element::Type_t::i64, Shape{}, {axis});
-        return {std::make_shared<default_opset::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
+        const auto axis_node = v0::Constant::create(ov::element::Type_t::i64, Shape{}, {axis});
+        return {std::make_shared<v1::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
     }
 }
 

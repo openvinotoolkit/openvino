@@ -352,7 +352,7 @@ ov::NodeVector find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Nod
         node1_args.insert(node);
     };
 
-    traverse_nodes({std::move(node1)}, compute_node1_args, NodeVector{});
+    traverse_nodes({std::move(node1)}, compute_node1_args, ov::NodeVector{});
 
     std::unordered_set<std::shared_ptr<Node>> node2_args;
 
@@ -360,9 +360,9 @@ ov::NodeVector find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Nod
         node2_args.insert(node);
     };
 
-    traverse_nodes({std::move(node2)}, compute_node2_args, NodeVector{});
+    traverse_nodes({std::move(node2)}, compute_node2_args, ov::NodeVector{});
 
-    NodeVector common_args;
+    ov::NodeVector common_args;
     for (const auto& e : node1_args) {
         if (node2_args.count(e) > 0) {
             common_args.push_back(e);
@@ -403,7 +403,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
     for (const auto& node : sorted_nodes) {
         if (node_map.count(node.get()) == 0) {
             // get (already) cloned arguments and clone the node
-            OutputVector cloned_args;
+            ov::OutputVector cloned_args;
             for (auto input : node->inputs()) {
                 ov::Output<Node> output = input.get_source_output();
                 cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
@@ -448,7 +448,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }
 
 std::list<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                                 RawNodeOutputMap& output_map) {
+                                                 ov::RawNodeOutputMap& output_map) {
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
     std::list<std::shared_ptr<Node>> cloned_nodes;
@@ -458,11 +458,11 @@ std::list<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_p
             if (output_map.count(value) == 0) {
                 // We need this node cloned
                 // get (already) cloned arguments and clone the node
-                OutputVector cloned_args;
+                ov::OutputVector cloned_args;
                 for (const auto& value : node->input_values()) {
                     cloned_args.push_back(output_map.at(value));
                 }
-                NodeVector cloned_dependencies;
+                ov::NodeVector cloned_dependencies;
                 for (auto& dependency : node->get_control_dependencies()) {
                     for (const auto& dependency_value : dependency->outputs()) {
                         std::shared_ptr<Node> dependent = output_map.at(dependency_value).get_node_shared_ptr();
@@ -520,8 +520,8 @@ std::pair<std::shared_ptr<ov::op::v0::Result>, std::shared_ptr<ov::op::v0::Param
     }
 
     // Make parameter node
-    std::shared_ptr<op::Parameter> par_node =
-        std::make_shared<op::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
+    std::shared_ptr<ov::op::v0::Parameter> par_node =
+        std::make_shared<ov::op::v0::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
     std::vector<ov::Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
@@ -636,14 +636,14 @@ bool is_one(const ov::Output<Node>& reduce_constant) {
     return result_bool;
 }
 
-ov::NodeVector get_subgraph_outputs(const NodeVector& nodes,
-                                    const NodeVector& exclusions,
+ov::NodeVector get_subgraph_outputs(const ov::NodeVector& nodes,
+                                    const ov::NodeVector& exclusions,
                                     bool ignore_unused,
                                     bool ignore_output_duplicates) {
     std::set<std::shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
     std::set<std::shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
 
-    NodeVector outputs;
+    ov::NodeVector outputs;
 
     for (const auto& n : nodes) {
         if (exclusions_set.count(n) != 0) {
@@ -662,8 +662,8 @@ ov::NodeVector get_subgraph_outputs(const NodeVector& nodes,
     return outputs;
 }
 
-ov::NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args) {
-    NodeVector subgraph;
+ov::NodeVector extract_subgraph(const ov::NodeVector& results, const ov::NodeVector& args) {
+    ov::NodeVector subgraph;
     traverse_nodes(
         results,
         [&](const std::shared_ptr<Node>& n) {
@@ -720,7 +720,7 @@ bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_
     return false;
 }
 
-void plot_graph(std::shared_ptr<Function> f,
+void plot_graph(std::shared_ptr<ov::Model> f,
                 const std::string& filename,
                 std::function<void(const Node& node, std::vector<std::string>& attributes)> attributes) {
     ov::pass::Manager pass_manager;

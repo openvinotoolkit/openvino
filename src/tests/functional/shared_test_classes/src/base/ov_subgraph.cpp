@@ -79,8 +79,14 @@ void SubgraphBaseTest::run() {
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = ov::test::utils::PassRate::Statuses::FAILED;
-            errorMessage = ex.what();
+            if (callback_exception != nullptr) {
+                // exception will be checked by callback.
+                callback_exception(ex);
+                return;
+            } else {
+                status = ov::test::utils::PassRate::Statuses::FAILED;
+                errorMessage = ex.what();
+            }
         } catch (...) {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";

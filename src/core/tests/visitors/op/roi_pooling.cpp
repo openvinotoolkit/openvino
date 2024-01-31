@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, roi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::ROIPooling>();
+    NodeBuilder::opset().insert<ov::op::v0::ROIPooling>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
     const auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5});
 
