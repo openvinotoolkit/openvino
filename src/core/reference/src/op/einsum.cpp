@@ -926,8 +926,8 @@ void contract_two_inputs(ov::TensorVector& inputs,
 
 template <typename T>
 void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, const std::string& equation) {
-    std::vector<std::string> input_subscripts;
-    std::string output_subscript;
+    std::vector<std::string> input_subscripts{};
+    std::string output_subscript = "";
     ov::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
 
     // compute einsum path that is used to contract a pair of operands
