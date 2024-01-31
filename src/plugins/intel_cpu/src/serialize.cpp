@@ -55,12 +55,19 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     std::string xmlString;
     ov::Tensor dataBlob;
 
+    // get file size before seek content
+    _istream.seekg(0, _istream.end);
+    const size_t file_size = _istream.tellg();
+    _istream.seekg(0, _istream.beg);
+
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
     // check if model header contains valid data
-    bool isValidModel = (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
-                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset);
+    bool isValidModel = (hdr.custom_data_offset == sizeof(hdr)) &&
+                        (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                        (hdr.model_size = file_size - hdr.model_offset);
     if (!isValidModel) {
         OPENVINO_THROW("import_model only accepts model saved from export_model");
     }

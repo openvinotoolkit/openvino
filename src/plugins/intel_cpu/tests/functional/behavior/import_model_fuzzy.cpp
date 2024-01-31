@@ -8,7 +8,9 @@
 #include <fstream>
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/serialize.hpp"
 
