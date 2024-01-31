@@ -128,7 +128,11 @@ jobs:
           version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       #
       # Build
