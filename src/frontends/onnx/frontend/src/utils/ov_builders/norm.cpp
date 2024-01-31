@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/ov_builders/norm.hpp"
+#include "utils/ov_builders/norm.hpp"
 
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"

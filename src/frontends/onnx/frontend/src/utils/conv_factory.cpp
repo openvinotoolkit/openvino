@@ -8,9 +8,9 @@
 #include "exceptions.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
+#include "utils/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {

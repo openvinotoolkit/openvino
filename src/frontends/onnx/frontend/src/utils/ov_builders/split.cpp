@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/ov_builders/split.hpp"
+#include "utils/ov_builders/split.hpp"
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"

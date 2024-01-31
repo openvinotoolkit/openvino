@@ -5,7 +5,7 @@
 #include "op/flatten.hpp"
 
 #include "exceptions.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/ov_builders/reshape.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;

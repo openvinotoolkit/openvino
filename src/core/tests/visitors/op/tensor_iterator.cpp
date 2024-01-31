@@ -6,10 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/multiply.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "visitors/visitors.hpp"
 
 using namespace std;

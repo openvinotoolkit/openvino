@@ -12,8 +12,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/topk.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
+#include "utils/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 #include "validation_util.hpp"
 

@@ -5,7 +5,7 @@
 #include "op/rnn.hpp"
 
 #include "openvino/op/rnn_sequence.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/ov_builders/reshape.hpp"
 #include "utils/recurrent.hpp"
 
 using namespace ov::op;

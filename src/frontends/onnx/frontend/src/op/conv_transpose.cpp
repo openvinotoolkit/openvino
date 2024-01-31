@@ -16,8 +16,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/convpool.hpp"
+#include "utils/ov_builders/reshape.hpp"
 
 using namespace ov::op;
 using ov::CoordinateDiff;

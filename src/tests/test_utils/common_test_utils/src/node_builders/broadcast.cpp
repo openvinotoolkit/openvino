@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/broadcast.hpp"
 
+#include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -11,7 +12,6 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 
 namespace ov {
 namespace op {

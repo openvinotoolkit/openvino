@@ -6,10 +6,10 @@
 
 #include <map>
 
+#include "common_test_utils/node_builders/reshape.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset5.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 
 using namespace std;
 using namespace ov;

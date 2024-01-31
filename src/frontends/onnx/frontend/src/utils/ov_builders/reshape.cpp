@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/ov_builders/reshape.hpp"
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"

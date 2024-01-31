@@ -9,8 +9,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
+#include "utils/ov_builders/split.hpp"
 #include "utils/reshape.hpp"
 
 namespace {
