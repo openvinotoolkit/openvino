@@ -255,7 +255,8 @@ class KVCacheTests: public ::testing::Test {
                                                 bool fuse_cache_reorder,
                                                 bool build_state_initializer,
                                                 size_t batch = 1,
-                                                ov::element::Type model_element_type = ov::element::f16) {
+                                                ov::element::Type model_element_type = ov::element::f16,
+                                                size_t num_iter = 10) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -411,10 +412,9 @@ class KVCacheTests: public ::testing::Test {
             }
 
             const size_t input_tokens = 1;
-            const size_t niters = 10;
             const ov::Shape new_token_size = {batch, input_tokens, n_heads, n_features};
             size_t context_length = cache_size + input_tokens;
-            for (size_t i = 0; i < niters; i++, context_length += input_tokens) {
+            for (size_t i = 0; i < num_iter; i++, context_length += input_tokens) {
                 ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
                 auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
                 auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
@@ -477,8 +477,13 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_c
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_f32) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 1, ov::element::f32);
 }
+
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_3) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 3);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_same_shape_after_reset) {
+    this->test_smoke_multipleIterations_stateful(false, false, false, 1, ov::element::f16, 0);
 }
 
 } // namespace
