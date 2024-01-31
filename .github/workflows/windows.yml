@@ -159,6 +159,19 @@ jobs:
       - name: Clean sccache stats
         run: '& "$Env:SCCACHE_PATH" --zero-stats'
 
+        # to get more information on the issue
+        # described in the next step
+      - name: Show which network ports are used
+        run: netstat -ban
+
+        # the case is the following:
+        # sccache: error: An attempt was made to access a socket in a way forbidden by its access permissions. (os error 10013)
+        # This looks like the attempt to use
+        # a port below 1024 or a port
+        # which is occupied by another app
+      - name: Stop sccache server just in case
+        run: '& "$Env:SCCACHE_PATH" --stop-server'
+
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
@@ -201,8 +214,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
 

@@ -314,7 +314,45 @@ def test_state_dict_names():
     for n in om.get_ops():
         if "Constant" in n.get_type_name():
             for name in n.output(0).names:
-                matches = [k for k in state_dict_keys if name.startswith("self." + k)]
+                matches = [
+                    k for k in state_dict_keys if name.startswith("self." + k)]
                 if (len(matches) > 0):
                     common_names.update(matches)
     assert state_dict_keys == common_names, f"Not all names exist:\nstate_dict:{state_dict_keys}"
+
+
+class ShareWeghtsConvAndShareLinearModel(torch.nn.Module):
+    INPUT_SIZE = [1, 1, 4, 4]
+
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Conv2d(1, 1, 1)
+        self.linear = torch.nn.Linear(4, 4)
+        self.linear.weight.data = torch.randn((4, 4), dtype=torch.float32)
+        self.linear.bias.data = torch.randn((1, 4), dtype=torch.float32)
+
+    def forward(self, x):
+        for _ in range(2):
+            x = self.conv(x)
+            x = self.linear(x)
+        return x
+
+
+def test_shared_consts_reused():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model = ShareWeghtsConvAndShareLinearModel()
+    decoder = TorchScriptPythonDecoder(model, example_input=(torch.rand(model.INPUT_SIZE),))
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    om = fe.convert(im)
+    const_names = ["self.conv.weight", "self.linear.weight", "self.linear.bias"]
+    # self.conv.bias is not reused because of ConstantFolding
+    for n in om.get_ops():
+        if "Constant" in n.get_type_name():
+            for name in n.output(0).names:
+                if name in const_names:
+                    const_names.remove(name)
+                    assert len(n.output(0).get_target_inputs()) == 2, f"Constant {n} is not reused"
+    assert len(const_names) == 0, f"Not all constants were found: {const_names}"
