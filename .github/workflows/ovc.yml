@@ -34,6 +34,7 @@ jobs:
           # For UT
           pip install unittest-xml-reporting==3.0.2
           pip install pylint>=2.7.0
+          pip install pyenchant>=3.0.0
 
         working-directory: tools/ovc
 
