@@ -519,7 +519,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
-        auto p = reinterpret_cast<uint8_t*>(attn_input->getData());
+        auto p = attn_input->getDataAs<uint8_t>();
         for (size_t i = 0; i < attn_input->getSize(); i++)
             attn_buf.data<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
@@ -558,7 +558,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             }
             // if has scale, attn_mask must be present
             if (input_num > 4) {
-                scale_input = *reinterpret_cast<float*>(inputs[4]->getData());
+                scale_input = *inputs[4]->getDataAs<float>();
             }
         }
 
@@ -753,15 +753,15 @@ void ScaledDotProductAttention::createPrimitive() {
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
-    auto output = getChildEdgeAt(0)->getMemoryPtr();
+    auto output = getDstMemoryAtPort(0);
     MemoryPtr presentk_input, presentv_input, beam_input;
     for (size_t i = 0; i < orginSDPInputNumber; i++) {
-        inputs[i] = getParentEdgeAt(i)->getMemoryPtr();
+        inputs[i] = getSrcMemoryAtPort(i);
     }
 
     if (m_config.config.fuse_concat) {
         // initialization will be also completed in this func
-        gatherConcatPastkv(inputs[1], inputs[2], getParentEdgeAt(orginSDPInputNumber)->getMemoryPtr());
+        gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));
 
         presentk_input = m_k_state->internal_state_mem();
         presentv_input = m_v_state->internal_state_mem();
@@ -1172,8 +1172,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     }
     if (L0 > 0 && is_reset) {
         auto inputNumber = getOriginalInputsNumber();
-        auto k_mem = getParentEdgeAt(inputNumber - 2)->getMemoryPtr();
-        auto v_mem = getParentEdgeAt(inputNumber - 1)->getMemoryPtr();
+        auto k_mem = getSrcMemoryAtPort(inputNumber - 2);
+        auto v_mem = getSrcMemoryAtPort(inputNumber - 1);
         auto&& k_shape = k_mem->getShape();
         auto&& v_shape = v_mem->getShape();
         if (!k_shape.hasZeroDims() && !v_shape.hasZeroDims()) {

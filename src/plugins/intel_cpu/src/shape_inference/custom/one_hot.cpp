@@ -18,7 +18,7 @@ namespace node {
 Result OneHotShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData())[0];
+    auto depth = data_dependency.at(1)->getDataAs<int32_t>()[0];
     if (depth < 0) {
         OPENVINO_THROW("OneHot depth value can't be negative.");
     }

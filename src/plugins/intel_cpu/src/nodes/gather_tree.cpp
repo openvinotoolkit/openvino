@@ -79,24 +79,24 @@ void GatherTree::execute(dnnl::stream strm) {
         OPENVINO_THROW(errorPrefix, " has not compiled executor.");
 
     if (precision == ov::element::f32)
-        execPtr->exec<float>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
-                             getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr(),
-                             getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr(),
-                             getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr(),
-                             getChildEdgeAt(0)->getMemoryPtr());
+        execPtr->exec<float>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
+                             getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
+                             getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
+                             getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
+                             getDstMemoryAtPort(0));
     else
-        execPtr->exec<int32_t>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
-                               getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr(),
-                               getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr(),
-                               getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr(),
-                               getChildEdgeAt(0)->getMemoryPtr());
+        execPtr->exec<int32_t>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
+                               getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
+                               getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
+                               getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
+                               getDstMemoryAtPort(0));
 }
 
 void GatherTree::prepareParams() {
-    const auto& stepIdxMemPtr = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr();
-    const auto& parentIdxMemPtr = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr();
-    const auto& maxSeqLenMemPtr = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& stepIdxMemPtr = getSrcMemoryAtPort(GATHER_TREE_STEP_IDX);
+    const auto& parentIdxMemPtr = getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX);
+    const auto& maxSeqLenMemPtr = getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!stepIdxMemPtr || !stepIdxMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'step_ids'.");
@@ -139,11 +139,11 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
 template<typename DATA_T>
 void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
     const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, const MemoryPtr& dstMemPtr) {
-    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->getData());
-    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->getData());
-    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->getData());
-    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->getData()))[0];
-    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->getData());
+    const auto *stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
+    const auto *parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
+    const auto *maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();
+    const auto endToken = (endTokenMemPtr->getDataAs<DATA_T>())[0];
+    auto *finalIdx = dstMemPtr->getDataAs<DATA_T>();
 
     bool incorrectResult = false;
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {

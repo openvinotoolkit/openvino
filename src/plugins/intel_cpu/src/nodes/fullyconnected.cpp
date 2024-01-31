@@ -284,18 +284,18 @@ void FullyConnected::prepackMLASWeight() {
     auto prepareMLASWeight = [&](const int64_t N, const int64_t K) {
         if (!getParentEdgeAt(WEIGHTS_ID)->getParent()->isConstant())
             OPENVINO_THROW("Weight input is not const for node ", getName(), ".");
-        auto weightsMem = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
+        auto weightsMem = getSrcMemoryAtPort(WEIGHTS_ID);
         if (!weightsMem)
             OPENVINO_THROW("Cannot get const weights edgeMem for node ", getName(), ".");
         auto packedBsize = mlas_sgemm_pack_get_size(N, K);
         MemoryPtr ptr;
         auto create = [&]() {
-            float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
+            float* weightPtr = weightsMem->getDataAs<float>();
             size_t ldb = weightsNonTransposed ? N : K;
             MemoryPtr _ptr =
                 std::make_shared<Memory>(getEngine(),
                                          intel_cpu::CpuBlockedMemoryDesc(ov::element::i8, intel_cpu::Shape{packedBsize}));
-            float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
+            float* prepackedDst = _ptr->getDataAs<float>();
             mlas_sgemm_pack(weightsNonTransposed ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
@@ -304,7 +304,7 @@ void FullyConnected::prepackMLASWeight() {
         if (weightCache != nullptr) {
             std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
             const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->getSize()) +
-                                            "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
+                                            "_" + std::to_string(*weightsMem->getDataAs<uint64_t>());
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
@@ -312,7 +312,7 @@ void FullyConnected::prepackMLASWeight() {
         }
         return ptr;
     };
-    const auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
+    const auto& wgtDims = getSrcMemoryAtPort(WEIGHTS_ID)->getStaticDims();
     // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
     // the weight is reshaped to [-1, K] in ConvertMatMulToFC
@@ -502,15 +502,15 @@ void FullyConnected::createPrimitive() {
 }
 
 void FullyConnected::prepareParams() {
-    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory hasn't been allocated.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW("Input memory hasn't been allocated.");
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
-        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+        biasMemPtr = getSrcMemoryAtPort(2);
         if (!biasMemPtr || !biasMemPtr->isAllocated())
             OPENVINO_THROW("Input memory hasn't been allocated.");
     }
@@ -582,7 +582,7 @@ void FullyConnected::prepareParams() {
 #ifdef CPU_DEBUG_CAPS
             // execPtr expects different weight layout.
             if (prevExecPtr) {
-                const Shape weiShape{getParentEdgesAtPort(1)[0]->getMemoryPtr()->getStaticDims()};
+                const Shape weiShape{getSrcMemoryAtPort(1)->getStaticDims()};
                 DEBUG_LOG("##", getName(), " weight desc is not compatible with previous inner product execPtr!");
                 DEBUG_LOG("#", static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / static_cast<float>(1<<20),
                            "#", weiShape.toString(),
@@ -628,9 +628,9 @@ void FullyConnected::prepareParams() {
 
 #ifdef OV_CPU_WITH_MLAS
 void FullyConnected::executeMLAS() {
-    const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    const auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
+    const auto dstMemPtr = getDstMemoryAtPort(0);
+    const auto src0MemPtr = getSrcMemoryAtPort(0);
+    const auto biasMemPtr = withBiases ? getSrcMemoryAtPort(BIAS_ID) : nullptr;
     int64_t lda = K;
     int64_t ldb = K;
     int64_t ldc = N;
@@ -640,14 +640,14 @@ void FullyConnected::executeMLAS() {
                        N,
                        K,
                        1.0f,
-                       reinterpret_cast<float*>(src0MemPtr->getData()),
+                       src0MemPtr->getDataAs<float>(),
                        lda,
-                       reinterpret_cast<float*>(mlasPackedPtr->getData()),
+                       mlasPackedPtr->getDataAs<float>(),
                        ldb,
                        0.0f,
-                       reinterpret_cast<float*>(dstMemPtr->getData()),
+                       dstMemPtr->getDataAs<float>(),
                        ldc,
-                       withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
+                       withBiases ? biasMemPtr->getDataAs<float>() : nullptr);
 }
 
 #endif
@@ -671,10 +671,10 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
             if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() > 2 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+                primArgs.at(argType).set_data_handle(getSrcDataAtPort(0));
             }
             if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() > 2 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+                primArgs.at(argType).set_data_handle(getDstDataAtPort(0));
             }
         }
     };
@@ -1026,7 +1026,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == ov::element::f32 &&
         one_of(inRank, 2u, 3u) && weightRank == 2) {
-        auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(0);
         DnnlMemoryDescCPtr outDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>();
         // brg convolution does not support stride
         dnnl::impl::memory_desc_wrapper wrapped(outDesc->getDnnlDesc().get());
@@ -1035,9 +1035,9 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     if (retVal) {
-        auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+        auto srcMemPtr = getSrcMemoryAtPort(0);
         const auto& srcDims = srcMemPtr->getStaticDims();
-        auto weightMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+        auto weightMemPtr = getSrcMemoryAtPort(1);
         const auto& weightDims = weightMemPtr->getStaticDims();
         // for original inner product semantics:
         //  when input is 2D tensor
@@ -1095,7 +1095,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
     if (blb == nullptr)
         OPENVINO_THROW("Cannot get const blob for node ", getName(), ".");
 
-    auto weightsData = reinterpret_cast<const int8_t*>(blb->getData());
+    auto weightsData = blb->getDataAs<const int8_t>();
     auto elementsCount = blb->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
     for (size_t i = 0; i < elementsCount; i++) {
@@ -1146,7 +1146,7 @@ void FullyConnected::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryC
 DnnlMemoryDescPtr FullyConnected::makeTransposedWeightDescriptor(DnnlMemoryDescPtr desc) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         OPENVINO_THROW("Weight input is not const for node ", getName(), ".");
-    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    auto edgeMem = getSrcMemoryAtPort(1);
     if (!edgeMem)
         OPENVINO_THROW("Cannot get const weights edgeMem for node ", getName(), ".");
 

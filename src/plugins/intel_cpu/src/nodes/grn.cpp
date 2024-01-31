@@ -58,8 +58,8 @@ void GRN::initSupportedPrimitiveDescriptors() {
 }
 
 void GRN::prepareParams() {
-    const auto& dataMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& dataMemPtr = getSrcMemoryAtPort(0);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " has not allocated input memory");
@@ -91,8 +91,8 @@ void GRN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void GRN::execute(dnnl::stream strm) {
-    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const float* src_data = getSrcDataAtPortAs<const float>(0);
+    float* dst_data = getDstDataAtPortAs<float>(0);
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

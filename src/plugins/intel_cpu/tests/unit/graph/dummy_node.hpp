@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "cpu_shape.h"
 #include "node.h"
-#include "graph.h"
+#include "graph_context.h"
 #include "edge.h"
-
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,20 +16,25 @@ namespace cpu_unit_test {
 
 class DummyNode : public Node {
 public:
+    // dummy node of the same shape and precision to both input and output.
     DummyNode(const ov::Shape& shape,
-            const ov::element::Type_t& prc,
-            const std::string& name,
-            const std::string& type,
-            const GraphContext::CPtr context,
-            LayoutType layout = LayoutType::ncsp,
-            int in_place_direction = Edge::LOOK::LOOK_UP,
-            bool is_executable = false) :
-        Node(type, name, context), m_layout(layout), m_inplace(in_place_direction), m_is_executable(is_executable) {
-        // dummy node of the same shape and precision to both input and output.
-        outputShapes.emplace_back(shape);
-        inputShapes.emplace_back(shape);
-        addOriginalOutputPrecision(prc);
-        addOriginalInputPrecision(prc);
+              const ov::element::Type_t& prc,
+              const std::string& name,
+              const std::string& type,
+              const GraphContext::CPtr context,
+              LayoutType layout = LayoutType::ncsp,
+              int in_place_direction = Edge::LOOK::LOOK_UP,
+              bool is_executable = false) :
+        Node(type,
+             {ov::intel_cpu::Shape(shape)},
+             {ov::intel_cpu::Shape(shape)},
+             {prc},
+             {prc},
+             name,
+             context),
+        m_layout(layout),
+        m_inplace(in_place_direction),
+        m_is_executable(is_executable) {
     }
 
     void getSupportedDescriptors() override {

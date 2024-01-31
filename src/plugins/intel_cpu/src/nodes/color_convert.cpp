@@ -979,23 +979,23 @@ ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
 }
 
 ov::element::Type ColorConvert::Converter::inputPrecision(size_t idx) const {
-    return _node->getParentEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
+    return _node->getParentEdgeAt(idx)->getMemory().getDesc().getPrecision();
 }
 
 ov::element::Type ColorConvert::Converter::outputPrecision(size_t idx) const {
-    return _node->getChildEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
+    return _node->getChildEdgeAt(idx)->getMemory().getDesc().getPrecision();
 }
 
 const void * ColorConvert::Converter::input(size_t idx) const {
-    return _node->getParentEdgeAt(idx)->getMemoryPtr()->getData();
+    return _node->getSrcDataAtPort(idx);
 }
 
 void * ColorConvert::Converter::output(size_t idx) const {
-    return _node->getChildEdgeAt(idx)->getMemoryPtr()->getData();
+    return _node->getDstDataAtPort(idx);
 }
 
 const VectorDims & ColorConvert::Converter::inputDims(size_t idx) const {
-    return _node->getParentEdgesAtPort(idx)[0]->getMemory().getStaticDims();
+    return _node->getParentEdgeAt(idx)->getMemory().getStaticDims();
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

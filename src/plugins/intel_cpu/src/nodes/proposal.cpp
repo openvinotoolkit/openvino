@@ -162,13 +162,13 @@ void Proposal::executeDynamicImpl(dnnl::stream strm) {
 
 void Proposal::execute(dnnl::stream strm) {
     try {
-        const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->getData());
-        const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->getData());
-        const float* imgInfoData = reinterpret_cast<const float *>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->getData());
-        float* outRoiData = reinterpret_cast <float *>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->getData());
+        const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
+        const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
+        const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
+        float* outRoiData = reinterpret_cast <float *>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
         if (store_prob)
-            outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->getData());
+            outProbData = reinterpret_cast <float *>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];

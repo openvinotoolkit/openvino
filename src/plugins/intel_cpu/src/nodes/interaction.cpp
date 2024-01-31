@@ -237,10 +237,10 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(dnnl::stream strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    uint8_t* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->getData());
+        auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
     std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
@@ -248,10 +248,10 @@ void Interaction::execRef(dnnl::stream strm) {
                                             {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
-        cat(reinterpret_cast<uint8_t*>(inputMemPtr->getData()), inputPtrs, featureSizes, start, dataPrecision.size());
+        cat(inputMemPtr->getDataAs<uint8_t>(), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
-        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->getData()),
-                      reinterpret_cast<uint8_t*>(flatMemPtr->getData()),
+        flat_triangle(outputMemPtr->getDataAs<const uint8_t>(),
+                      flatMemPtr->getDataAs<uint8_t>(),
                       inputSizes,
                       dataPrecision.size());
         // in1 dense feature

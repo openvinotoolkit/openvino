@@ -360,10 +360,10 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
 
         // Prepare memory
-        const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
-        const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
-        const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->getData());
-        const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
+        const float *p_deltas_item  = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const float *p_scores_item  = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const float *p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const float *p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
         const int anchors_num = scoreDims[1];
 
@@ -451,12 +451,12 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
         // copy to out memory
         redefineOutputMemory({VectorDims{total_num_rois, 4}, VectorDims{total_num_rois}, VectorDims{batch_size}});
-        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
-        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
-        uint8_t* p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getData());
+        float *p_roi_item       = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        float *p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        uint8_t* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
         memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
-        memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getSize());
+        memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
         OPENVINO_THROW(errorMsg);

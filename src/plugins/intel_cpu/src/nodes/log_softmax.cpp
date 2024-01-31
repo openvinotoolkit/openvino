@@ -63,7 +63,7 @@ void LogSoftmax::initSupportedPrimitiveDescriptors() {
 }
 
 void LogSoftmax::prepareParams() {
-    const auto &dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto &dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     reducedAxisStride = 1;
     axisStep = 1;
     isLastDim = false;
@@ -86,8 +86,8 @@ void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void LogSoftmax::execute(dnnl::stream strm) {
-    const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const float *srcData = getSrcDataAtPortAs<const float>(0);
+    float* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {

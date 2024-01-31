@@ -168,9 +168,9 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
 }
 
 void NonMaxSuppression::prepareParams() {
-    const auto& boxesDims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
+    const auto& boxesDims = isDynamicNode() ? getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims() :
                                                getInputShapeAtPort(NMS_BOXES).getStaticDims();
-    const auto& scoresDims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
+    const auto& scoresDims = isDynamicNode() ? getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims() :
                                                 getInputShapeAtPort(NMS_SCORES).getStaticDims();
 
     m_batches_num = boxesDims[0];
@@ -207,9 +207,9 @@ void NonMaxSuppression::createJitKernel() {
 
 void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAX_OUTPUT_BOXES_PER_CLASS &&
-            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAX_OUTPUT_BOXES_PER_CLASS)->getMemoryPtr()->getData())[0] == 0)) {
+            getSrcDataAtPortAs<int>(NMS_MAX_OUTPUT_BOXES_PER_CLASS)[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
-        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->getData()) = 0;
+        *getDstDataAtPortAs<int>(NMS_VALID_OUTPUTS) = 0;
         return;
     }
     execute(strm);
@@ -220,7 +220,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
     if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
-        auto val = reinterpret_cast<int32_t *>(getParentEdgeAt(NMS_MAX_OUTPUT_BOXES_PER_CLASS)->getMemoryPtr()->getData())[0];
+        auto val = getSrcDataAtPortAs<int32_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS)[0];
         m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
         m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
         max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
@@ -231,21 +231,21 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (inputs_num > NMS_IOU_THRESHOLD) {
-        m_iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOU_THRESHOLD)->getMemoryPtr()->getData())[0];
+        m_iou_threshold = getSrcDataAtPortAs<float>(NMS_IOU_THRESHOLD)[0];
     }
     if (inputs_num > NMS_SCORE_THRESHOLD) {
-        m_score_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORE_THRESHOLD)->getMemoryPtr()->getData())[0];
+        m_score_threshold = getSrcDataAtPortAs<float>(NMS_SCORE_THRESHOLD)[0];
     }
     if (inputs_num > NMS_SOFT_NMS_SIGMA) {
-        m_soft_nms_sigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFT_NMS_SIGMA)->getMemoryPtr()->getData())[0];
+        m_soft_nms_sigma = getSrcDataAtPortAs<float>(NMS_SOFT_NMS_SIGMA)[0];
         m_scale = (m_soft_nms_sigma > 0.f) ? (-0.5f / m_soft_nms_sigma) : 0.f;
     }
 
-    auto boxes_memory = getParentEdgeAt(NMS_BOXES)->getMemoryPtr();
-    auto scores_memory = getParentEdgeAt(NMS_SCORES)->getMemoryPtr();
+    auto boxes_memory = getSrcMemoryAtPort(NMS_BOXES);
+    auto scores_memory = getSrcMemoryAtPort(NMS_SCORES);
 
-    auto boxes = reinterpret_cast<const float *>(boxes_memory->getData());
-    auto scores = reinterpret_cast<const float *>(scores_memory->getData());
+    auto boxes = boxes_memory->getDataAs<const float>();
+    auto scores = scores_memory->getDataAs<const float>();
 
     const auto& boxes_strides = boxes_memory->getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& scores_strides = scores_memory->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -292,7 +292,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (m_defined_outputs[NMS_SELECTED_INDICES]) {
-        auto out_ptr = reinterpret_cast<int32_t *>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->getData());
+        auto out_ptr = getDstDataAtPortAs<int32_t>(NMS_SELECTED_INDICES);
         int32_t* boxes_ptr = &(m_filtered_boxes[0].batch_index);
 
         size_t idx = 0lu;
@@ -308,7 +308,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (m_defined_outputs[NMS_SELECTED_SCORES]) {
-        auto out_ptr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTED_SCORES)[0]->getMemoryPtr()->getData());
+        auto out_ptr = getDstDataAtPortAs<float>(NMS_SELECTED_SCORES);
 
         size_t idx = 0lu;
         for (; idx < valid_outputs; idx++) {
@@ -324,7 +324,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (m_defined_outputs[NMS_VALID_OUTPUTS]) {
-        auto out_ptr = reinterpret_cast<int32_t *>(getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->getData());
+        auto out_ptr = getDstDataAtPortAs<int32_t>(NMS_VALID_OUTPUTS);
         *out_ptr = static_cast<int32_t>(valid_outputs);
     }
 }

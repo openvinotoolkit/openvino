@@ -109,8 +109,8 @@ void CumSum::execute(dnnl::stream strm) {
 
 template <typename dataType>
 void CumSum::exec() {
-    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->getData());
-    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const auto *input = getSrcDataAtPortAs<const dataType>(CUM_SUM_DATA);
+    auto *output = getDstDataAtPortAs<dataType>(0);
     const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if (reverse) {
@@ -132,7 +132,7 @@ template <bool reverse, bool exclusive, typename dataType>
 void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
     VectorDims iterationRange(numOfDims - 1);
     size_t j = 0;
-    const auto &shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
+    const auto &shape = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
         if (i == axis)
             continue;
@@ -232,12 +232,12 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
         case ov::element::i32 : {
-            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.getData());
+            const auto *axisPtr = _axis.getDataAs<const int32_t>();
             axisValueFromBlob = static_cast<int64_t>(axisPtr[0]);
             break;
         }
         case ov::element::i64 : {
-            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.getData());
+            const auto *axisPtr = _axis.getDataAs<const int64_t>();
             axisValueFromBlob = axisPtr[0];
             break;
         }

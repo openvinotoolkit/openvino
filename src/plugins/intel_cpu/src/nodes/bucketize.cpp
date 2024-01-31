@@ -186,9 +186,9 @@ void Bucketize::execute(dnnl::stream strm) {
 }
 
 void Bucketize::prepareParams() {
-    auto inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
-    auto inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
+    auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory didn't allocate.");
     if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())
@@ -222,9 +222,9 @@ bool Bucketize::isExecutable() const {
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>
 void Bucketize::bucketize() {
-    const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const auto *boundaries_data = reinterpret_cast<const T_BOUNDARIES *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    auto *output_data = reinterpret_cast<T_IND *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const auto *input_data = getSrcDataAtPortAs<const T>(0);
+    const auto *boundaries_data = getSrcDataAtPortAs<const T_BOUNDARIES>(1);
+    auto *output_data = getDstDataAtPortAs<T_IND>(0);
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));

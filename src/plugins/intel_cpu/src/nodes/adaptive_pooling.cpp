@@ -85,7 +85,7 @@ void AdaptivePooling::getSupportedDescriptors() {
 }
 
 bool AdaptivePooling::needShapeInfer() const {
-    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->getData());
+    const auto newSpatialDimsPtr = getSrcDataAtPortAs<int32_t>(1);
     for (int i = 0; i < spatialDimsCount; i++) {
         if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
@@ -139,7 +139,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     int *indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
-        indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->getData());
+        indexDst = getDstDataAtPortAs<int>(1);
     }
 
     auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
@@ -149,9 +149,9 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
-    const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *src = getSrcDataAtPortAs<const float>(0);
+    const auto *srcPooledSpatialShapes = getSrcDataAtPortAs<const int>(1);
+    auto *dst = getDstDataAtPortAs<float>(0);
 
     if (static_cast<int>(srcMemory1.getShape().getElementsCount()) != spatialDimsCount)
         OPENVINO_THROW(errorPrefix,
@@ -182,7 +182,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
         OPENVINO_THROW(errorPrefix, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
     auto srcStrides = srcBlockDesc->getStrides();
-    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto dstStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);

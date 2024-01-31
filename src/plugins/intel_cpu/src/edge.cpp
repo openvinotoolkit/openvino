@@ -70,7 +70,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
         if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = childNode->getChildEdgesAtPort(peerInPlacePort);
+            auto vecChildEdges = getChild()->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
@@ -510,7 +510,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge;
     } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
-        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0];
+        return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);

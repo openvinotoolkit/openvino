@@ -83,14 +83,14 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
         }
         Node::redefineOutputMemory(newOutputDims);
         for (size_t i = 0; i < outputShapes.size(); ++i) {
-            auto memory = getChildEdgesAtPort(i)[0]->getMemoryPtr();
+            auto memory = getDstMemoryAtPort(i);
             auto& tensor = outputs[i];
             if (memory->getSize() != tensor.get_byte_size()) {
                 THROW_CPU_NODE_ERR("output tensor data size mismatch occurred during the inference on output port number ", i);
             }
             if (tensor.get_element_type() == element::string) {
                 auto srcPtr = tensor.data<StringMemory::OvString>();
-                auto dstPtr = reinterpret_cast<StringMemory::OvString *>(memory->getData());
+                auto dstPtr = memory->getDataAs<StringMemory::OvString>();
                 std::copy(srcPtr, srcPtr + tensor.get_size(), dstPtr);
             } else {
                 cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
@@ -110,9 +110,9 @@ bool Reference::needShapeInfer() const {
 ov::TensorVector Reference::prepareInputs() const {
     ov::TensorVector inputs;
     for (size_t i = 0lu; i < inputShapes.size(); i++) {
-        void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().getData();
+        void *srcDataPtr = getParentEdgeAt(i)->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_input_partial_shape(i).rank().get_length() == 0 ?
-                ov::Shape{} : getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+                ov::Shape{} : getParentEdgeAt(i)->getMemory().getStaticDims();
 
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
             inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
@@ -127,9 +127,9 @@ ov::TensorVector Reference::prepareInputs() const {
 ov::TensorVector Reference::prepareOutputs() const {
     ov::TensorVector outputs;
     for (size_t i = 0lu; i < outputShapes.size(); i++) {
-        void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().getData();
+        void *dstDataPtr = getChildEdgeAt(i)->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0 ?
-                ov::Shape{} : getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
+                ov::Shape{} : getChildEdgeAt(i)->getMemory().getStaticDims();
 
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
             outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));

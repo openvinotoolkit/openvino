@@ -73,10 +73,10 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
 }
 
 void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
-    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->getData());
-    const int* sequenceLengths = reinterpret_cast<const int *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->getData());
-    int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->getData());
-    int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->getData());
+    const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
+    const int* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
+    int* decodedClasses =  getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
+    int* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
 
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];;
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];;
@@ -85,7 +85,7 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
 
     int blankIndex = C - 1;
     if (inputShapes.size() > BLANK_INDEX)
-        blankIndex = (reinterpret_cast<const int  *>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->getData()))[0];
+        blankIndex = (getSrcDataAtPortAs<const int >(BLANK_INDEX))[0];
 
     size_t workAmount = 0;
     for (size_t b = 0; b < B; b++) {
@@ -93,7 +93,7 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
+                                   + std::to_string(getChildEdgeAt(DECODED_CLASSES_INDEX)->getMemory().getStaticDims()[1]);
             OPENVINO_THROW(errorMsg);
         }
         workAmount += sequenceLengths[b];
