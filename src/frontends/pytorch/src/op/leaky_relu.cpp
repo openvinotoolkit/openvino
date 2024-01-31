@@ -16,7 +16,7 @@ using namespace ov::op;
 OutputVector translate_leaky_relu_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
-    float default_negative_slope = 1e-2;
+    float default_negative_slope = 0.01F;
     Output<Node> negative_slope = ov::op::v0::Constant::create(element::f32, Shape{1}, {default_negative_slope});
     if (context.get_input_size() == 1) {
         negative_slope = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(negative_slope, x));
