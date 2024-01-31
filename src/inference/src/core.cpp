@@ -16,10 +16,14 @@
 namespace ov {
 
 std::string find_plugins_xml(const std::string& xml_file) {
-    auto xml_file_name = xml_file;
+    std::string xml_file_name = xml_file;
     if (xml_file_name.empty()) {
         // Default plugin xml file name.
         xml_file_name = "plugins.xml";
+    } else {
+        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
+            OPENVINO_THROW("Unsupport plugin xml relative path: ", xml_file_name.c_str());
+        }
     }
     const auto ov_library_path = ov::util::get_ov_lib_path();
 
