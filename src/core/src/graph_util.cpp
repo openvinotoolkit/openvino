@@ -14,6 +14,8 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -328,9 +330,18 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
 
+static bool is_model_optimized(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node) || ov::is_type<ov::op::v13::FakeConvert>(node)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     ov::pass::Manager manager;
-    if (compress_to_fp16) {
+    if (compress_to_fp16 && !is_model_optimized(m)) {
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>(/*postponed=*/true);
     }
