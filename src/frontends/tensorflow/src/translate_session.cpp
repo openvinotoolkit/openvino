@@ -12,10 +12,10 @@
 #include "helper_ops/switch.hpp"
 #include "input_model.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -66,11 +66,11 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
                               const std::shared_ptr<std::map<std::string, std::string>>& saved_model_output_names) {
     // 1. check if it is the input or output tensor of the model
     // perform the adjustment only for the input and output tensors of the model
-    auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(ov_output.get_node_shared_ptr());
+    auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(ov_output.get_node_shared_ptr());
     bool is_input_tensor = (param_node ? true : false);
     ov::ResultVector results;
     for (const auto& consumer : ov_output.get_target_inputs()) {
-        if (const auto& result = ov::as_type_ptr<ov::op::v0::Result>(consumer.get_node()->shared_from_this())) {
+        if (const auto& result = ov::as_type_ptr<ov::opset10::Result>(consumer.get_node()->shared_from_this())) {
             results.push_back(result);
         }
     }
@@ -165,9 +165,9 @@ size_t get_flat_index_by_name_and_id(const ov::frontend::NamedOutputVector& outp
 }
 
 // create Parameter node that will produce given tensor
-std::shared_ptr<ov::op::v0::Parameter> create_parameter_node_for_tensor(ov::Output<ov::Node> output_tensor) {
+std::shared_ptr<ov::opset8::Parameter> create_parameter_node_for_tensor(ov::Output<ov::Node> output_tensor) {
     auto param =
-        std::make_shared<ov::op::v0::Parameter>(output_tensor.get_element_type(), output_tensor.get_partial_shape());
+        std::make_shared<ov::opset8::Parameter>(output_tensor.get_element_type(), output_tensor.get_partial_shape());
     param->output(0).set_names(output_tensor.get_names());
     output_tensor.replace(param->output(0));
     return param;
@@ -297,9 +297,9 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
             next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
         }
 
-        auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(0).get_node_shared_ptr());
         if (!param_node) {
-            param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(1).get_node_shared_ptr());
+            param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(1).get_node_shared_ptr());
         }
 
         if (!next_iteration || !param_node) {
@@ -321,9 +321,9 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
             next_iteration = ov::as_type_ptr<NextIteration>(merge->input_value(1).get_node_shared_ptr());
         }
 
-        auto param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(0).get_node_shared_ptr());
+        auto param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(0).get_node_shared_ptr());
         if (!param_node) {
-            param_node = ov::as_type_ptr<ov::op::v0::Parameter>(merge->input_value(1).get_node_shared_ptr());
+            param_node = ov::as_type_ptr<ov::opset8::Parameter>(merge->input_value(1).get_node_shared_ptr());
         }
 
         if (!next_iteration || !param_node) {
@@ -431,6 +431,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
+
+        std::string operation_name;
+        std::string port_type;
+        size_t port_index;
+        ov::frontend::tensorflow::extract_operation_name_and_port(input_name,
+                                                                    operation_name,
+                                                                    port_index,
+                                                                    port_type);
+
+
         if (ov_tensors_map->count(input_name)) {
             // probably this input is frozen
             continue;
@@ -445,8 +455,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             input_type = element::f32;
         }
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-        set_node_name(input_name, param);
+        auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+        set_node_name(operation_name, param);
         params.push_back(param);
         (*ov_tensors_map)[input_name] = {NamedOutput(param)};
     }
@@ -637,11 +647,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = as_type_ptr<ov::op::v0::Result>(output.port.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::opset10::Result>(output.port.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = as_type_ptr<ov::op::v0::Parameter>(output.port.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::opset8::Parameter>(output.port.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
                 if (param && std::find(params.begin(), params.end(), param) == params.end() && !is_body_graph) {
                     params.push_back(param);
@@ -666,7 +676,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named((*ov_tensors_map)[operation_name])) {
-                    auto result_node = std::make_shared<ov::op::v0::Result>(node_output);
+                    auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                     result_node->set_friendly_name(model_output_name + ":0");
@@ -675,7 +685,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } else if (port_type == "out") {
                 const auto& node_outputs = indexed_from_named((*ov_tensors_map)[operation_name]);
                 if (node_outputs.size() > port_index) {
-                    auto result_node = std::make_shared<ov::op::v0::Result>(node_outputs[port_index]);
+                    auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
                     result_node->set_friendly_name(model_output_name);
                     results.push_back(result_node);
                 }
@@ -714,7 +724,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
-                auto result_node = std::make_shared<ov::op::v0::Result>(node_outputs[producer_port_idx]);
+                auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
                 // to be aligned with Legacy Frontend we set a name of the output tensor name
                 // of the producer to the Result node
                 // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
@@ -731,10 +741,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
                 auto output = node_output_vector.second[output_ind].port;
                 if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<ov::op::v0::Result>(output.get_node_shared_ptr())) {
+                    !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
                     auto model_output_name =
                         output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
-                    auto result_node = std::make_shared<ov::op::v0::Result>(output);
+                    auto result_node = std::make_shared<ov::opset8::Result>(output);
                     result_node->set_friendly_name(model_output_name);
                     results.push_back(result_node);
                 }
