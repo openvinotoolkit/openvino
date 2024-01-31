@@ -15,8 +15,8 @@
 #include "openvino/op/rdft.hpp"
 #include "openvino/op/irdft.hpp"
 
-namespace ov {
-namespace test {
+namespace {
+using ov::test::InputShape;
 
 using DFTLayerGPUTestParams = std::tuple<std::vector<InputShape>,
                                     std::vector<std::vector<int64_t>>,  // axes
@@ -187,7 +187,6 @@ TEST_P(DFTLayerGPUTest, CompareWithRefs) {
     run();
 }
 
-namespace {
 std::vector<ov::element::Type> precisions{ov::element::f32, ov::element::f16};
 
 std::vector<DFTLayerGPUTestParams> getParams4D_DFT() {
@@ -255,5 +254,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_GPU_4D,
                          ::testing::Combine(::testing::ValuesIn(precisions), ::testing::ValuesIn(getParams4D_IRDFT())),
                          DFTLayerGPUTest::getTestCaseName);
 }  // namespace
-}  // namespace test
-}  // namespace ov
