@@ -95,6 +95,24 @@ class Computation(object):
             if parameter.get_output_element_type(0) == Type.bf16:
                 input_tensors.append(Tensor(Type.bf16, input_val.shape))
                 input_tensors[-1].data[:] = input_val.view(np.float16)
+            elif parameter.get_output_element_type(0) == Type.f8e5m2:
+                input_tensors.append(Tensor(Type.f8e5m2, input_val.shape))
+                input_tensors[-1].data[:] = np.frombuffer(input_val.astype(dtype=np.float16).tobytes()[1::2], dtype=np.uint8).reshape(input_val.shape)
+            elif parameter.get_output_element_type(0) == Type.f8e4m3:
+                input_tensors.append(Tensor(Type.f8e4m3, input_val.shape))
+                data_f16 = input_val.astype(dtype=np.float16).tobytes()
+                data_f8 = bytearray()
+                for idx in range(0, len(data_f16)//2):
+                  hb = data_f16[idx*2+1]
+                  lb = data_f16[idx*2]
+                  val = (hb << 8) | lb
+                  # detecting NaN and -NaN
+                  if val == 0x7E00 or val == 0xFE00:
+                    val = 0x7F | (hb & 0x80)
+                  else:
+                    val = (((val << 1) & 0x3FFF) >> 8) | (hb & 0xC0)
+                  data_f8.append(val)
+                input_tensors[-1].data[:] = np.frombuffer(data_f8, dtype=np.uint8).reshape(input_val.shape)
             else:
                 input_tensors.append(Tensor(input_val))
         return input_tensors
@@ -123,7 +141,8 @@ class Computation(object):
 
         compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
-        if is_bfloat16:
+        is_float8 = any(parameter.get_output_element_type(0) == Type.f8e4m3 or parameter.get_output_element_type(0) == Type.f8e5m2 for parameter in self.parameters)
+        if is_bfloat16 or is_float8:
             input_values = self.convert_to_tensors(input_values)
         request = compiled_model.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))
