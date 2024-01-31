@@ -11,6 +11,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -21,8 +22,15 @@ std::string find_plugins_xml(const std::string& xml_file) {
         // Default plugin xml file name.
         xml_file_name = "plugins.xml";
     } else {
-        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
-            OPENVINO_THROW("Unsupport plugin xml relative path: ", xml_file_name.c_str());
+        // Exclude relative path
+        const auto relative_path_symbol = std::string("..") + util::FileTraits<char>().file_separator;
+        if (xml_file_name.find(relative_path_symbol) != xml_file_name.npos) {
+            OPENVINO_THROW("Unsupport plugin xml file relative path: ", xml_file_name.c_str());
+        }
+
+        // Check plugin xml extension name
+        if (!ov::util::ends_with(xml_file_name, "xml") && !ov::util::ends_with(xml_file_name, "XML")) {
+            OPENVINO_THROW("Unsupport plugin xml file with non-xml extension name: ", xml_file_name.c_str());
         }
     }
     const auto ov_library_path = ov::util::get_ov_lib_path();
