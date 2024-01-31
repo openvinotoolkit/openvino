@@ -21,12 +21,10 @@ OpenVINO PYTHON API has the following structure:
 
 * [docs](./docs/) - folder that contains developer documentation and code examples.
 * [src](./src/) - folder with all source files for Python API.
-    * [src/compatibility](./src/compatibility/) - sources for compatibility API, including older modules like `ngraph` and `openvino.inference_engine`.
-    * [src/openvino](./src/openvino/) - Python sources for current API.
+    * [src/openvino](./src/openvino/) - Python sources.
     * [src/openvino/preprocess](./src/openvino/preprocess/) - Torchvision to OpenVINO preprocessing converter.
-    * [src/pyopenvino](./src/pyopenvino/) - C++ sources for current API.
-* [tests](./tests/) - tests directory for current API.
-* [tests_compatibility](./tests_compatibility/) - tests directory for compatibility API.
+    * [src/pyopenvino](./src/pyopenvino/) - C++ sources.
+* [tests](./tests/) - tests directory for OpenVINO Python API.
 * [thirdparty](./thirdparty/) - folder that contains third-party modules like `pybind11`.
 * [wheel](./wheel/) - wheel-specific directory that contains all specific requirements and files used during wheel creation.
 
@@ -43,8 +41,8 @@ If you want to contribute to OpenVINO Python API, here is the list of learning m
 
 * [OpenVINO™ README](../../../README.md)
 * [OpenVINO™ Core Components](../../README.md)
-* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2023.2/api/ie_python_api/api.html)
-* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_Python_API_inference.html)
-* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_Python_API_exclusives.html)
+* [OpenVINO™ Python API Reference](https://docs.openvino.ai/2023.3/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Advanced Inference](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_inference.html)
+* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html)
 * [pybind11 repository](https://github.com/pybind/pybind11)
 * [pybind11 documentation](https://pybind11.readthedocs.io/en/stable/)

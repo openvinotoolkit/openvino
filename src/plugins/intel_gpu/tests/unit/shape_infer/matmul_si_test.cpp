@@ -42,7 +42,9 @@ TEST_P(gemm_test, shape_infer) {
     auto matrix_a_layout_prim = std::make_shared<input_layout>("matrix_a", p.matrix_a_layout);
     auto matrix_b_layout_prim = std::make_shared<input_layout>("matrix_b", p.matrix_b_layout);
     auto gemm_prim = std::make_shared<gemm>("output", std::vector<input_info>{ input_info("matrix_a"), input_info("matrix_b") },
-                                            p.data_type, p.transpose_a, p.transpose_b);
+                                            p.data_type, p.transpose_a, p.transpose_b, 1.0f, 0.0f,
+                                            p.matrix_a_layout.get_partial_shape().rank().get_length(),
+                                            p.matrix_b_layout.get_partial_shape().rank().get_length());
 
     cldnn::program prog(engine);
 
@@ -110,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_test,
         {
             layout{ov::PartialShape{10, 1024}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{1000, 1024}, data_types::f32, format::bfyx},
-            data_types::i32, false, false,
+            data_types::f32, false, false,
             layout{ov::PartialShape{10, 1000}, data_types::f32, format::bfyx}
         },
         {
@@ -166,7 +168,9 @@ TEST_P(gemm_test_preferred_output_format, shape_infer) {
     auto matrix_a_layout_prim = std::make_shared<input_layout>("matrix_a", p.matrix_a_layout);
     auto matrix_b_layout_prim = std::make_shared<input_layout>("matrix_b", p.matrix_b_layout);
     auto gemm_prim = std::make_shared<gemm>("output", std::vector<input_info>{ input_info("matrix_a"), input_info("matrix_b") },
-                                            p.data_type, p.transpose_a, p.transpose_b);
+                                            p.data_type, p.transpose_a, p.transpose_b, 1.0f, 0.0f,
+                                            p.matrix_a_layout.get_partial_shape().rank().get_length(),
+                                            p.matrix_b_layout.get_partial_shape().rank().get_length());
 
     cldnn::program prog(engine, {ov::intel_gpu::allow_new_shape_infer(true)});
 

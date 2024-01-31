@@ -10,7 +10,6 @@
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 
@@ -81,20 +80,16 @@ CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     EXEC_NET_CALL_STATEMENT(return CNNNetwork{_impl->GetExecGraphInfo()});
 }
 
-void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
+void ExecutableNetwork::SetConfig(const ov::AnyMap& config) {
     EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
+ov::Any ExecutableNetwork::GetConfig(const std::string& name) const {
     EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), {_so}});
 }
 
-Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+ov::Any ExecutableNetwork::GetMetric(const std::string& name) const {
     EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), {_so}});
-}
-
-RemoteContext::Ptr ExecutableNetwork::GetContext() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
 }
 
 bool ExecutableNetwork::operator!() const noexcept {

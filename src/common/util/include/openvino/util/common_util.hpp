@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -117,6 +118,39 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
     return std::any_of(vec.begin(), vec.end(), [&](const T& x) {
         return x == v;
     });
+}
+
+/**
+ * @brief multiply vector's values
+ * @param vec - vector with values
+ * @return result of multiplication
+ */
+template <typename T, typename A>
+T product(std::vector<T, A> const& vec) {
+    if (vec.empty())
+        return 0;
+    T ret = vec[0];
+    for (size_t i = 1; i < vec.size(); ++i)
+        ret *= vec[i];
+    return ret;
+}
+
+/**
+ * @brief Associative containers doesnt work with remove_if algorithm
+ * @tparam ContainerT
+ * @tparam PredicateT
+ * @param data An associative container
+ * @param predicate A predicate to remove values conditionally
+ */
+template <typename Container, typename PredicateT>
+inline void erase_if(Container& data, const PredicateT& predicate) {
+    for (auto it = std::begin(data); it != std::end(data);) {
+        if (predicate(*it)) {
+            it = data.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);

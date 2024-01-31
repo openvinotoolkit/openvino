@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "utils/legacy_conversion_extension.hpp"
 #include "utils/tensor_external_data.hpp"
@@ -20,43 +20,41 @@ namespace ngraph {
 namespace onnx_import {
 namespace detail {
 /// \brief      Imports and converts an serialized ONNX model from a ModelProto
-///             to an nGraph Function representation.
+///             to an ov::Model representation.
 ///
 /// \note       The function can be used only internally by OV components!
 ///             Passing ModelProto between componets which use different protobuf
 ///             library can cause segfaults. If stream parsing fails or the ONNX model
-///             contains unsupported ops, the function throws an ngraph_error exception.
+///             contains unsupported ops, the function throws an ov::Exception.
 ///
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.
 ///                         It is required if the imported model uses data saved in external files.
 /// \param      enable_mmap Enable mapping files with external weights instead of reading.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
-/// \return     An nGraph function that represents a single output from the created
+/// \return     An ov::Model that represents a single output from the created
 /// graph.
-std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path,
-                                            detail::MappedMemoryHandles mmap_cache,
-                                            ov::frontend::ExtensionHolder extensions = {});
+std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                             const std::string& model_path,
+                                             detail::MappedMemoryHandles mmap_cache,
+                                             ov::frontend::ExtensionHolder extensions = {});
 
-/// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
+/// \brief      Decode ONNX model to ov::Model with ONNXFrameworkNode(s)
 ///
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.
 ///                         It is required if the imported model uses data saved in external files.
 /// \param      enable_mmap Enable mapping files with external weights instead of reading.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
-/// \return     A nGraph function with ONNXFrameworkNodes
-std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path,
-                                                    detail::MappedMemoryHandles mmap_cache,
-                                                    ov::frontend::ExtensionHolder extensions = {});
+/// \return     A ov::Model with ONNXFrameworkNodes
+std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                                     const std::string& model_path,
+                                                     detail::MappedMemoryHandles mmap_cache,
+                                                     ov::frontend::ExtensionHolder extensions = {});
 
-/// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))
+/// \brief     Converts a ov::Model (onnx model decoded to function with ONNXFrameworkNode(s))
 ///            to a complete function with actual compute operations
-///
-/// \return    A nGraph function.
-void convert_decoded_function(std::shared_ptr<Function> function);
+void convert_decoded_model(std::shared_ptr<ov::Model> model);
 
 /// \brief Get the legacy conversion extension.
 ///

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #include "test_utils/properties_test.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -29,8 +31,11 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::available_devices.name()),
         RO_property(ov::range_for_async_infer_requests.name()),
         RO_property(ov::range_for_streams.name()),
+        RO_property(ov::execution_devices.name()),
         RO_property(ov::device::full_name.name()),
         RO_property(ov::device::capabilities.name()),
+        RO_property(ov::device::type.name()),
+        RO_property(ov::device::architecture.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::affinity.name()),
@@ -45,6 +50,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),
+        RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
     };
 
@@ -281,6 +287,72 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
     expect_execution_mode(ov::hint::ExecutionMode::ACCURACY);
     expect_inference_precision(bf16_if_can_be_emulated);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
+    ov::Core ie;
+    //check default value
+    ov::Any value;
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+    ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
+
+    //check set and get
+    const std::vector<ov::log::Level> logLevels = {
+        ov::log::Level::ERR,
+        ov::log::Level::NO,
+        ov::log::Level::WARNING,
+        ov::log::Level::INFO,
+        ov::log::Level::DEBUG,
+        ov::log::Level::TRACE};
+
+    for (unsigned int i = 0; i < logLevels.size(); i++) {
+        ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
+        ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+        ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
+    }
+
+    // check throwing message
+    auto property = ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RW);
+    const std::string expect_message = std::string("Wrong value DUMMY VALUE for property key ")  +
+        ov::log::level.name() + ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.";
+    OV_EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}),
+            ov::Exception,
+            testing::HasSubstr(expect_message));
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
+    ASSERT_EQ(value.as<std::string>(), "CPU");
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceType) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
+    ASSERT_EQ(value.as<ov::device::Type>(), ov::device::Type::INTEGRATED);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
+    ov::Core ie;
+    ov::Any value;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
+
+#if defined(OPENVINO_ARCH_X86_64)
+    ASSERT_EQ(value.as<std::string>(), "intel64");
+#elif defined(OPENVINO_ARCH_X86)
+    ASSERT_EQ(value.as<std::string>(), "ia32");
+#elif defined(OPENVINO_ARCH_ARM)
+    ASSERT_EQ(value.as<std::string>(), "armhf");
+#elif defined(OPENVINO_ARCH_ARM64)
+    ASSERT_EQ(value.as<std::string>(), "arm64");
+#elif defined(OPENVINO_ARCH_RISCV64)
+    ASSERT_EQ(value.as<std::string>(), "riscv");
+#endif
 }
 
 } // namespace

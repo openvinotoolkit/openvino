@@ -3,6 +3,7 @@
 
 #pragma once
 #include <napi.h>
+
 #include <thread>
 
 #include "openvino/runtime/infer_request.hpp"
@@ -32,12 +33,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript InferRequest class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript InferRequest class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     void set_infer_request(const ov::InferRequest& infer_request);
     /**
@@ -106,8 +102,11 @@ public:
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
     Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
 
+// 128760
+#ifndef _WIN32
     /** @brief  Checks incoming Napi::Value and asynchronously returns the result of inference. */
     Napi::Value infer_async(const Napi::CallbackInfo& info);
+#endif
 
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)

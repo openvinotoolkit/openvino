@@ -4,12 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <vector>
-#include <memory>
 #include "input.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {

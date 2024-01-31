@@ -57,6 +57,18 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetSupportedRWMetricsPropsTests,
                         ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues())),
         OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckSetIncorrectRWMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::Values(targetDevice),
+                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWMandatoryPropertiesValues())),
+        OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetIncorrectRWMetricsPropsTests,
+        ::testing::Combine(
+                        ::testing::Values(targetDevice),
+                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWOptionalPropertiesValues())),
+        OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
         ::testing::Combine(
                 ::testing::Values(targetDevice),
@@ -100,6 +112,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin_remove_mandatory, OVBasicPropertiesTestsP,
+        ov_plugin_mandatory, OVBasicPropertiesTestsP,
         ::testing::ValuesIn(generate_ov_pairs_plugin_name_by_device()));
 } // namespace

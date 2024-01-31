@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/mha.hpp"
-#include "subgraph_mha.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
+
 #include <common_test_utils/ov_tensor_utils.hpp>
+
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_mha.hpp"
 
 namespace ov {
 namespace test {
@@ -20,14 +22,22 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     size_t thread_count;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, elem_types, prc, withMul, thread_count, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(inputShapes,
+             elem_types,
+             prc,
+             withMul,
+             thread_count,
+             num_nodes,
+             num_subgraphs,
+             targetDevice,
+             additionalConfig) = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
         result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
-        result << "T[" << i <<"]=" << elem_types[i] << "_";
+        result << "T[" << i << "]=" << elem_types[i] << "_";
     result << "Mul=" << withMul << "_";
     result << "ThreadNum=" << thread_count << "_";
     result << "PRC=" << prc << "_";
@@ -37,8 +47,8 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
 
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
-        for (auto &item : additionalConfig) {
-            result << "_" << item.first << "=" << item.second;
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
     return result.str();
@@ -47,9 +57,16 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
 void MHA::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
     ov::element::Type prc;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, m_input_types, prc, m_with_mul, m_thread_count,
-             ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(inputShapes,
+             m_input_types,
+             prc,
+             m_with_mul,
+             m_thread_count,
+             ref_num_nodes,
+             ref_num_subgraphs,
+             targetDevice,
+             additionalConfig) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
     const auto subgraph_model = get_subgraph();
@@ -83,7 +100,8 @@ void MHA::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes)
         in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
         in_data.range = 2;
         in_data.resolution = 256;
-        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
+        tensor =
+            ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -106,14 +124,18 @@ void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticS
             in_data.range = 5 + seed;
             in_data.resolution = 10;
             in_data.seed = seed;
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(),
+                                                             model_input.get_shape(),
+                                                             in_data);
             seed++;
         } else {
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -1;
             in_data.range = 2;
             in_data.resolution = 256;
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(),
+                                                             model_input.get_shape(),
+                                                             in_data);
         }
         inputs.insert({node_input, tensor});
     }
@@ -225,6 +247,6 @@ TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

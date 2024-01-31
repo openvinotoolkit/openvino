@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, ctc_greedy_decoder_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::CTCGreedyDecoder>();
+    NodeBuilder::opset().insert<ov::op::v0::CTCGreedyDecoder>();
     bool m_ctc_merge_repeated = false;
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 1, 3});
     auto masks = make_shared<ov::op::v0::Parameter>(element::i32, Shape{3, 1});

@@ -30,8 +30,8 @@ Notebook contains the following steps:
    `NNCF <https://github.com/openvinotoolkit/nncf/>`__ quantization.
 4. Compare results of original and optimized pipelines.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
@@ -47,7 +47,7 @@ Notebook contains the following steps:
    -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
    -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#compare-inference-time-of-the-fp-and-int-models>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
 
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
@@ -101,7 +101,7 @@ Convert Models to OpenVINO IR
 
 
 OpenVINO supports PyTorch models using `Model Conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 to convert the model to IR format. ``ov.convert_model`` function accepts
 PyTorch model object and example input and then converts it to
 ``ov.Model`` class instance that ready to use for loading on device or

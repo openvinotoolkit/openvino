@@ -17,9 +17,6 @@
 #include <cstddef>
 #include <ostream>
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 namespace ngraph {

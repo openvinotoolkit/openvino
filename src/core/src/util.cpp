@@ -197,7 +197,7 @@ AxisVector get_default_order(const Shape& shape) {
     return get_default_order(shape.size());
 }
 
-AxisVector get_default_order(const PartialShape& shape) {
+AxisVector get_default_order(const ov::PartialShape& shape) {
     return get_default_order(shape.rank());
 }
 
@@ -207,7 +207,7 @@ AxisVector get_default_order(size_t rank) {
     return default_order;
 }
 
-AxisVector get_default_order(const Rank& rank) {
+AxisVector get_default_order(const ov::Rank& rank) {
     OPENVINO_ASSERT(rank.is_static(), "Can not calculate default order for dynamic rank");
 
     AxisVector default_order(rank.get_length());
@@ -262,7 +262,7 @@ void parse_version_string(std::string version, size_t& major, size_t& minor, siz
 }
 }  // namespace ngraph
 
-std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<float> read_float_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<float> float_vec;
     ov::element::Type element_type = tv->get_element_type();
 
@@ -338,7 +338,7 @@ std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv
     return float_vec;
 }
 
-std::vector<int64_t> read_index_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<int64_t> read_index_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<int64_t> index_vec;
     ov::element::Type element_type = tv->get_element_type();
 

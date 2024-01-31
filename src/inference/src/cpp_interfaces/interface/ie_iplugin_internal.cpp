@@ -23,39 +23,22 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "dev/converter_utils.hpp"
-#include "exec_graph_info.hpp"
-#include "ie_algorithm.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
+#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
-
-PreProcessInfo copyPreProcess(const PreProcessInfo& from) {
-    PreProcessInfo to = from;
-    if (from.getMeanVariant() == MEAN_IMAGE) {
-        for (size_t i = 0; i < from.getNumberOfChannels(); i++) {
-            auto& from_blob = from[i]->meanData;
-            auto to_blob = make_blob_with_precision(from[i]->meanData->getTensorDesc());
-            to_blob->allocate();
-            ie_memcpy(to_blob->buffer(), to_blob->byteSize(), from_blob->cbuffer(), from_blob->byteSize());
-
-            to.setMeanImageForChannel(to_blob, i);
-        }
-    }
-    return to;
-}
 
 InputsDataMap copyInfo(const InputsDataMap& networkInputs) {
     InputsDataMap _networkInputs;
@@ -63,7 +46,6 @@ InputsDataMap copyInfo(const InputsDataMap& networkInputs) {
         InputInfo::Ptr newPtr;
         if (it.second) {
             newPtr = std::make_shared<InputInfo>();
-            newPtr->getPreProcess() = it.second->getPreProcess();
             newPtr->setInputData(std::make_shared<Data>(*it.second->getInputData()));
         }
         _networkInputs.emplace(it.first, newPtr);
@@ -118,12 +100,6 @@ void IInferencePlugin::SetName(const std::string& pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const CNNNetwork& network,
-    const std::map<std::string, std::string>& config) {
-    return LoadNetwork(network, config, nullptr);
-}
-
 template <typename T>
 std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<std::string, std::shared_ptr<T>>& map) {
     std::map<std::string, std::shared_ptr<const T>> res;
@@ -134,8 +110,7 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const CNNNetwork& orig_network,
-    const std::map<std::string, std::string>& config,
-    const std::shared_ptr<RemoteContext>& context) {
+    const std::map<std::string, std::string>& config) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
 
     // if IR `version` is not set, suppose it's IR v10 for old API
@@ -163,14 +138,12 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            auto new_impl =
-                std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
+            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function, IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
                 toInfo->setPrecision(inputInfo.second->getPrecision());
                 toInfo->setLayout(inputInfo.second->getLayout());
-                toInfo->getPreProcess() = inputInfo.second->getPreProcess();
             }
             for (const auto& outputInfo : orig_network.getOutputsInfo()) {
                 auto toInfo = network.getOutputsInfo().at(outputInfo.first);
@@ -181,11 +154,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         }
     }
 
-    if (nullptr == context) {
-        impl = LoadExeNetworkImpl(network, config);
-    } else {
-        impl = LoadExeNetworkImpl(network, context, config);
-    }
+    impl = LoadExeNetworkImpl(network, config);
 
     SetExeNetworkInfo(impl, const_map_cast(network.getInputsInfo()), const_map_cast(network.getOutputsInfo()));
     if (function) {
@@ -213,19 +182,11 @@ void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
     SetConfig(any_copy(config));
 }
 
-Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
+ov::Any IInferencePlugin::GetConfig(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 
-Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::string, Parameter>&) const {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
+ov::Any IInferencePlugin::GetMetric(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 
@@ -243,13 +204,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     std::istream& networkModel,
-    const std::map<std::string, std::string>& config) {
-    IE_THROW(NotImplemented);
-}
-
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
-    std::istream& networkModel,
-    const std::shared_ptr<RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
@@ -285,13 +239,6 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(
-    const CNNNetwork&,
-    const std::shared_ptr<RemoteContext>&,
-    const std::map<std::string, std::string>&) {
-    IE_THROW(NotImplemented);
-}
-
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
@@ -323,7 +270,7 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
     }
 
     for (auto&& originalNode : originalFunction->get_ops()) {
-        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+        if (transformedNodeNames.find(originalNode->get_friendly_name()) == transformedNodeNames.end())
             result.emplace(originalNode->get_friendly_name());
     }
 
@@ -333,7 +280,7 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
 std::unordered_set<std::string> GetSupportedNodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
-    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported) {
     return ov::get_supported_nodes(model, transform, is_node_supported);
 }
 

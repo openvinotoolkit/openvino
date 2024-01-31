@@ -4,9 +4,8 @@
 
 #include "shared_test_classes/single_layer/reverse.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/single_layer/reverse.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -39,7 +38,7 @@ void ReverseLayerTest::SetUp() {
     std::tie(inputShape, axes, mode, netPrecision, targetDevice) = GetParam();
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    ngraph::ParameterVector paramsVector;
+    ov::ParameterVector paramsVector;
     const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::shared_ptr<ov::op::v0::Constant> axes_constant;
     if (mode == "index") {
@@ -53,6 +52,6 @@ void ReverseLayerTest::SetUp() {
             std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{axesMask.size()}, axesMask);
     }
     const auto reverse = std::make_shared<ov::op::v1::Reverse>(params[0], axes_constant, mode);
-    function = std::make_shared<ngraph::Function>(reverse->outputs(), params, "reverse");
+    function = std::make_shared<ov::Model>(reverse->outputs(), params, "reverse");
 }
 }  // namespace LayerTestsDefinitions

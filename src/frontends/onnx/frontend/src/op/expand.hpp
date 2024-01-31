@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -17,7 +16,7 @@ namespace set_1
 // Expand operator has been available since version 8 of the default ONNX operator set.
 // Currently, Expand is assigned to version 1 due to temporary reason.
 {
-OutputVector expand(const Node& node);
+ov::OutputVector expand(const Node& node);
 
 }  // namespace set_1
 

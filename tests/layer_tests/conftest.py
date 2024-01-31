@@ -66,11 +66,6 @@ def pytest_addoption(parser):
         action="store_true",
         help="Use Model Optimizer with new FrontEnd")
     parser.addoption(
-        "--use_old_api",
-        action="store_true",
-        help="Use old API for model processing in Inference Engine",
-    )
-    parser.addoption(
         "--tflite",
         required=False,
         action="store_true",
@@ -90,21 +85,9 @@ def use_new_frontend(request):
 
 
 @pytest.fixture(scope="session")
-def use_old_api(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_old_api')
-
-
-@pytest.fixture(scope="session")
 def tflite(request):
     """Fixture function for command-line option."""
     return request.config.getoption('tflite')
-
-
-@pytest.fixture(scope="session", autouse=True)
-def checks_for_keys_usage(request):
-    if request.config.getoption('use_old_api') and request.config.getoption('use_new_frontend'):
-        pytest.fail("Old API and new FrontEnd usage detected. Old API doesn't support new FrontEnd")
 
 
 @pytest.fixture(scope="function")

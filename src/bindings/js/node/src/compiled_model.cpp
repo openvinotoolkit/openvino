@@ -1,18 +1,18 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "compiled_model.hpp"
+#include "node/include/compiled_model.hpp"
 
-#include "addon.hpp"
-#include "errors.hpp"
-#include "infer_request.hpp"
-#include "node_output.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/infer_request.hpp"
+#include "node/include/node_output.hpp"
 
 CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
       _compiled_model{} {}
 
-Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "CompiledModel",
                        {InstanceMethod("createInferRequest", &CompiledModelWrap::create_infer_request),
@@ -22,25 +22,13 @@ Napi::Function CompiledModelWrap::get_class_constructor(Napi::Env env) {
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object CompiledModelWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->compiled_model_prototype = ref;
-
-    exports.Set("CompiledModel", prototype);
-    return exports;
-}
-
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->compiled_model_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
     }
-    auto obj = prototype->New({});
+    auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->_compiled_model = compiled_model;
     return obj;
@@ -82,7 +70,7 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _compiled_model.outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 
@@ -116,7 +104,7 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _compiled_model.inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_inputs)
         js_inputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 

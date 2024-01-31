@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape_util.hpp"
 
 namespace ov {
