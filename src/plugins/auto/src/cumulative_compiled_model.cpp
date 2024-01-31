@@ -12,7 +12,6 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
-#include "ie_plugin_config.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -36,9 +35,6 @@ std::shared_ptr<const ov::Model> AutoCumuCompiledModel::get_runtime_model() cons
 }
 
 ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -54,13 +50,6 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{ov::device::priorities};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (name == ov::supported_properties) {
         auto ro_properties = default_ro_properties();
@@ -89,15 +78,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = m_context->m_model_priority;
-        if (m_context->m_ov_core->is_new_api()) {
-            return value ? ((value > 1) ? ov::hint::Priority::LOW :
-                    ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
-        } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(
-                        MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
+        return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         unsigned int res = 0u;
@@ -129,16 +110,6 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
             }
         }
         OPENVINO_THROW("No valid compiled model found to get", name);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        auto ro_properties = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), ro_properties);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), ro_properties);
-        return to_string_vector(ro_properties);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        auto rw_properties = default_rw_properties();
-        return to_string_vector(rw_properties);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         bool loaded_from_cache = true;
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);

@@ -14,11 +14,16 @@
 #    endif
 #endif
 
-#include "ngraph/function.hpp"
+#include <memory>
+
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ngraph {
 /// \brief Creates a "specialized" clone of a function. The partial shapes and element types of
-///        the function's parameters may be narrowed to more specific shapes and element types,
+///        the function's parameters may be narrowed to more specific shapes and element type
 ///        and constant values may optionally be substituted for any or all of the parameters.
 /// \param f The function to be cloned.
 /// \param parameter_element_types The new parameter element types to substitute. Length must
@@ -99,10 +104,12 @@ namespace ngraph {
 ///       which a Constant node with element type parameter_element_types[i] and shape
 ///       parameter_shapes[i] can be created.
 ///
-NGRAPH_API_DEPRECATED
-NGRAPH_API
-std::shared_ptr<Function> specialize_function(std::shared_ptr<Function> f,
-                                              const std::vector<ov::element::Type>& parameter_element_types,
-                                              const std::vector<ov::PartialShape>& parameter_shapes,
-                                              const std::vector<void*>& parameter_values);
+OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
+                    "For instructions on transitioning to the new API, please refer to "
+                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+OPENVINO_API
+std::shared_ptr<ov::Model> specialize_function(std::shared_ptr<ov::Model> f,
+                                               const std::vector<ov::element::Type>& parameter_element_types,
+                                               const std::vector<ov::PartialShape>& parameter_shapes,
+                                               const std::vector<void*>& parameter_values);
 }  // namespace ngraph

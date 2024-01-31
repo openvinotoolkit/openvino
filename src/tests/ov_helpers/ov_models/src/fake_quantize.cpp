@@ -14,7 +14,7 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& constantType,
+                                       const ov::element::Type& constantType,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const std::vector<float>& inputLowData,

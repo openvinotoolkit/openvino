@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector non_max_suppression(const Node& node);
+ov::OutputVector non_max_suppression(const Node& node);
 }  // namespace set_1
 
 }  // namespace op

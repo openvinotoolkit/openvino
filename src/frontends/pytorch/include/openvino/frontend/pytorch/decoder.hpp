@@ -19,7 +19,7 @@ public:
     // fundamental types like int, float etc.
     virtual Any const_input(size_t index) const = 0;
 
-    // Using size_t for input/output unuque ids are in sync with torch code, see def in
+    // Using size_t for input/output unique ids are in sync with torch code, see def in
     // torch/include/torch/csrc/jit/ir/ir.h, Value::unique_
 
     // TODO: set of input and output methods are not aligned; also they are not aligned with the rest of FEs
@@ -89,7 +89,7 @@ public:
     virtual size_t output(size_t index) const = 0;
 
     // Embed mapping to/from the original node representation from/to node passed as a parameter
-    // the representation of this mapping is specific for particular decored type and may be NOP
+    // the representation of this mapping is specific for particular decorated type and may be NOP
     // returns the same node as syntactically convenient way to make nested sentences in code
     virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const = 0;
 
@@ -109,9 +109,19 @@ public:
 
     /// Returns new nodes for inputs inlined in the op itself
     // Used in Torch.FX decoder
-    virtual OutputVector inlined_inputs(size_t start_index) const = 0;
+    virtual OutputVector inlined_input(size_t index) const = 0;
 
-    /// Returns the id of the deccoder type (0: TorchFX, 1: TorchScript)
+    /// Returns if input is inlined
+    // Used in Torch.FX decoder
+    virtual bool is_input_inlined(size_t index) const = 0;
+
+    /// Returns named attribute as Any. For example kwargs input for FX graph
+    virtual ov::Any get_attribute(const std::string& name) const = 0;
+
+    /// Returns index of named input. For example kwargs input for FX graph
+    virtual size_t get_named_input(const std::string& name) const = 0;
+
+    /// Returns the id of the decoder type ("fx": TorchFX, "ts": TorchScript)
     virtual const std::string& decoder_type_name() const = 0;
 };
 

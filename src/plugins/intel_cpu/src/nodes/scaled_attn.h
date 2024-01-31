@@ -15,7 +15,7 @@ namespace node {
 
 class ScaledDotProductAttention : public Node {
 public:
-    ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ScaledDotProductAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
@@ -34,7 +34,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     void createPrimitive() override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
 

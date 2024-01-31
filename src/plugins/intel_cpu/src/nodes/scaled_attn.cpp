@@ -643,7 +643,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     }
 };
 
-ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, SDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -781,7 +781,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
     m_executor->execute(strm, m_config, inputs, output, presentk_input, presentv_input, beam_input, k_scale_zp, v_scale_zp);
 }
 
-bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
             !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
