@@ -29,9 +29,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -249,30 +249,6 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 size_t round_up(size_t size, size_t alignment);
-
-OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-AxisVector get_default_order(size_t rank);
-
-OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-AxisVector get_default_order(const ov::Rank& rank);
-
-OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-AxisVector get_default_order(const ov::Shape& shape);
-
-OPENVINO_API
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-AxisVector get_default_order(const ov::PartialShape& shape);
 
 /// \brief Function to query parsed version information of the version of ngraph which
 /// contains this function. Version information strictly follows Semantic Versioning
