@@ -965,7 +965,8 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
 }
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
-                                                const ov::AnyMap& user_properties) const {
+                                                const ov::AnyMap& user_properties,
+                                                const bool keep_core_property) const {
     if (is_virtual_device(full_device_name)) {
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
@@ -1000,7 +1001,10 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
-    std::vector<std::string> supported_config_keys = core_level_properties;
+    std::vector<std::string> supported_config_keys;
+    if (keep_core_property) {
+        supported_config_keys = core_level_properties;
+    }
 
     // try to search against OV API 2.0' mutable supported_properties
     try {

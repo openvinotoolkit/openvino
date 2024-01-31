@@ -224,8 +224,8 @@ void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MultiClassNms::execute(dnnl::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
+    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -236,9 +236,9 @@ void MultiClassNms::execute(dnnl::stream strm) {
     const bool has_roinum = getOriginalInputsNumber() == 3;
     const auto shared = dims_scores.size() == 3;  // bboxes shared among classes
 
-    auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr();
-    auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
-    auto validOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr();
+    auto selectedOutputsMemPtr = getDstMemoryAtPort(NMS_SELECTEDOUTPUTS);
+    auto selectedIndicesMemPtr = getDstMemoryAtPort(NMS_SELECTEDINDICES);
+    auto validOutputsMemPtr = getDstMemoryAtPort(NMS_SELECTEDNUM);
 
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -246,7 +246,7 @@ void MultiClassNms::execute(dnnl::stream strm) {
     int* roisnum = nullptr;
     VectorDims roisnumStrides;
     if (has_roinum) {
-        roisnum = reinterpret_cast<int*>(getParentEdgeAt(NMS_ROISNUM)->getMemoryPtr()->getData());
+        roisnum = getSrcDataAtPortAs<int>(NMS_ROISNUM);
         roisnumStrides = getParentEdgeAt(NMS_ROISNUM)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     }
 
@@ -349,9 +349,9 @@ void MultiClassNms::execute(dnnl::stream strm) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    int* selected_indices = reinterpret_cast<int*>(selectedIndicesMemPtr->getData());
-    float* selected_outputs = reinterpret_cast<float*>(selectedOutputsMemPtr->getData());
-    int* selected_num = reinterpret_cast<int*>(validOutputsMemPtr->getData());
+    int* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
+    float* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
+    int* selected_num = validOutputsMemPtr->getDataAs<int>();
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
         return batch_idx * num_box + box_idx;

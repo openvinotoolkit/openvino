@@ -164,7 +164,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         .WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
-    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
+    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
         if (item != fullConfigs.end()) {
