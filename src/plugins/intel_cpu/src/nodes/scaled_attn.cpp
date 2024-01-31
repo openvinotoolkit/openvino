@@ -27,7 +27,7 @@
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/brgemm_executor.hpp"
+#include "kernels/x64/brgemm_kernel.hpp"
 #include "nodes/common/cpu_convert.h"
 
 #include <algorithm>
@@ -243,8 +243,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
     };
 
-    std::shared_ptr<brgemmExecutor> qk_gemm_ptr = nullptr;
-    std::shared_ptr<brgemmExecutor> wv_gemm_ptr = nullptr;
+    std::shared_ptr<BrgemmKernel> qk_gemm_ptr = nullptr;
+    std::shared_ptr<BrgemmKernel> wv_gemm_ptr = nullptr;
 
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx)
@@ -276,8 +276,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto kv_len = present_key.size(2);
         auto Hk = present_key.size(1);
         brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true};
-        auto builder = [](const brgemmKey& key) -> std::shared_ptr<brgemmExecutor> {
-            return std::make_shared<brgemmExecutor>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed);
+
+        auto builder = [](const brgemmKey& key) -> std::shared_ptr<BrgemmKernel> {
+            return std::make_shared<BrgemmKernel>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed);
         };
 
         auto cache = this->context->getParamsCache();

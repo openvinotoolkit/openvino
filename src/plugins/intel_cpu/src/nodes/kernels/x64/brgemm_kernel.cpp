@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "brgemm_executor.hpp"
+#include "brgemm_kernel.hpp"
 
 #include "dnnl_extension_utils.h"
 #include "utils/cpu_utils.hpp"
@@ -17,13 +17,7 @@ using namespace dnnl::impl::cpu::x64::matmul;
 namespace ov {
 namespace intel_cpu {
 
-brgemmExecutor::brgemmExecutor(size_t M,
-                               size_t N,
-                               size_t K,
-                               size_t lda,
-                               size_t ldb,
-                               size_t ldc,
-                               bool b_transposed)
+BrgemmKernel::BrgemmKernel(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc, bool b_transposed)
     : M(M),
       K(K),
       N(N),
@@ -36,6 +30,8 @@ brgemmExecutor::brgemmExecutor(size_t M,
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
     brgVnniFactor = 4 / inType.size();
+    if (!mayiuse(avx512_core_bf16))
+        THROW_ERROR("brgemm bf16bf16f32 kernel could only be used above avx512_bf16");
     bool isAMXSupported = mayiuse(avx512_core_amx);
     // blocing N
     N_tail = N % N_blk;
@@ -110,18 +106,17 @@ brgemmExecutor::brgemmExecutor(size_t M,
     }
 }
 
-const size_t brgemmExecutor::get_scratch_a_size() const {
+const size_t BrgemmKernel::get_scratch_a_size() const {
     return packedASize;
 }
 
-const size_t brgemmExecutor::get_scratch_b_size() const {
+const size_t BrgemmKernel::get_scratch_b_size() const {
     return packedBSize;
 }
 
-void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
+void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                  std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                                  bool use_amx) {
-#ifdef OPENVINO_ARCH_X86_64
     brgemm_t brgDesc;
 
     const bool is_int8 =
@@ -164,11 +159,8 @@ void brgemmExecutor::init_brgemm(brgemmCtx& ctx,
         THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
-#else
-    THROW_ERROR("is not supported on non-x86_64");
-#endif  // OPENVINO_ARCH_X86_64
 }
-void brgemmExecutor::init_brgemm_copy_a(
+void BrgemmKernel::init_brgemm_copy_a(
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
     size_t K,
     size_t K_blk,
@@ -197,12 +189,10 @@ void brgemmExecutor::init_brgemm_copy_a(
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = avx512_core_amx;
 
-#if defined(OPENVINO_ARCH_X86_64)
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
-#endif  // OPENVINO_ARCH_X86_64
 }
 
-void brgemmExecutor::init_brgemm_copy_b(
+void BrgemmKernel::init_brgemm_copy_b(
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
     size_t N,
     size_t N_blk,
@@ -247,14 +237,12 @@ void brgemmExecutor::init_brgemm_copy_b(
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-#if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if (ret != dnnl::impl::status_t::dnnl_success)
         THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");
-#endif  // OPENVINO_ARCH_X86_64
 }
 
-void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
+void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
     auto ptr_b = reinterpret_cast<uint8_t*>(b);
     auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     if (brgCopyBKernel) {
@@ -279,7 +267,7 @@ void brgemmExecutor::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void brgemmExecutor::executeGemmPackedB(bool is_M_tail, void* a, void* repacked_b, void* c, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemmPackedB(bool is_M_tail, void* a, void* repacked_b, void* c, void* wsp, void* scratch_a) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
     auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -342,7 +330,7 @@ void brgemmExecutor::executeGemmPackedB(bool is_M_tail, void* a, void* repacked_
     }
 }
 
-void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
+void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_B = reinterpret_cast<uint8_t*>(b);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
@@ -356,13 +344,12 @@ void brgemmExecutor::executeGemm(void* a, void* b, void* c, void* wsp, void* scr
         executeGemmPackedB(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
     }
 }
-void brgemmExecutor::callBrgemm(brgemmCtx& ctx,
+void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                                 std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                                 const void* pin0,
                                 const void* pin1,
                                 void* pout,
                                 void* wsp) {
-#if defined(OPENVINO_ARCH_X86_64)
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
@@ -374,9 +361,6 @@ void brgemmExecutor::callBrgemm(brgemmCtx& ctx,
         addr_batch.ptr.B = pin1;
         brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp, nullptr);
     }
-#else
-    THROW_ERROR("is not supported on non-x64 platforms");
-#endif  // OPENVINO_ARCH_X86_64
 }
 
 }  // namespace intel_cpu

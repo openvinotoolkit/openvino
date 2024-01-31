@@ -4,17 +4,17 @@
 
 #include <utility>
 #include <gtest/gtest.h>
-#include "nodes/kernels/scaled_attn/brgemm_executor.hpp"
+#include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
-TEST(BrgemmExecutor, gemm_test) {
+TEST(BrgemmKernel, simple_gemm_test) {
     if (!ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     size_t M = 33;
     size_t N = 32;
     size_t K = 33;
-    ov::intel_cpu::brgemmExecutor gemm(M, N, K, K, N, N, false);
+    ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false);
     std::vector<ov::bfloat16> a_data(M * K, (1.0f/33));
     std::vector<ov::bfloat16> b_data(K * N, 4.0f);
     size_t nthr = 8;

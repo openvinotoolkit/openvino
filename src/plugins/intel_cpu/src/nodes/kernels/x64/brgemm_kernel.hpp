@@ -13,7 +13,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class brgemmExecutor {
+class BrgemmKernel {
 public:
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
@@ -21,13 +21,7 @@ public:
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
-    brgemmExecutor(size_t M,
-                   size_t N,
-                   size_t K,
-                   size_t lda,
-                   size_t ldb,
-                   size_t ldc,
-                   bool b_transposed = false);
+    BrgemmKernel(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc, bool b_transposed = false);
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute m_blk
