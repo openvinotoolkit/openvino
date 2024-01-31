@@ -106,7 +106,7 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
     : parent(network, node) {
     if (node.is_dynamic()) return;
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
 
     auto output_layout = node.get_output_layout();
 

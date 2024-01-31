@@ -10,7 +10,6 @@
 #include <string>
 
 #include "transformations/init_node_info.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
@@ -51,7 +50,7 @@ void ConcatTransformation::SetUp() {
     }
     init_input_shapes(inputs);
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
+    function = ov::builder::subgraph::ConcatFunction::getOriginal(
         precision,
         inputShape,
         testValues.input_constant1,

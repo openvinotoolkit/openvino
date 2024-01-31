@@ -51,7 +51,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     # USE_STATIC_IE is passed
     if(ARGN)
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE openvino_runtime_s)
     endif()
 
     ov_build_target_faster(${ADD_TARGET_NAME}

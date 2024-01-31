@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/auto_batching_tests.hpp"
+#include "behavior/ov_plugin/auto_batching_tests.hpp"
 
-#include "behavior/plugin/configuration_tests.hpp"
+#include "behavior/compiled_model/properties.hpp"
 
-using namespace AutoBatchingTests;
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::behavior;
 
 namespace {
 const std::vector<bool> get_vs_set{true, false};
@@ -32,28 +31,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
+const std::vector<ov::AnyMap> default_properties = {
+    {ov::auto_batch_timeout(1000)},
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test,
-                         DefaultConfigurationTest,
+                         OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
                                                               ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(DefaultParameter{CONFIG_KEY(AUTO_BATCH_TIMEOUT),
-                                                                               InferenceEngine::Parameter{"1000"}})),
-                         DefaultConfigurationTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_string,
-                         DefaultConfigurationTest,
-                         ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                              ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                                               InferenceEngine::Parameter{"1000"}})),
-                         DefaultConfigurationTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_AutoBatching_test_uint,
-    DefaultConfigurationTest,
-    ::testing::Combine(
-        ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_TEMPLATE),
-        ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(), InferenceEngine::Parameter{uint32_t(1000)}})),
-    DefaultConfigurationTest::getTestCaseName);
+                                            ::testing::ValuesIn(default_properties)),
+                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 
 }  // namespace

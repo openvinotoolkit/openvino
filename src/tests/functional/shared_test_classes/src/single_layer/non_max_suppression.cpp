@@ -19,7 +19,7 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::string targetDevice;
     std::tie(inShapeParams,
              inPrecisions,
@@ -72,7 +72,7 @@ void NmsLayerTest::GenerateInputs() {
 }
 
 void NmsLayerTest::Compare(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
@@ -111,7 +111,7 @@ public:
  * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
  */
 void NmsLayerTest::CompareBBoxes(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -291,7 +291,7 @@ void NmsLayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,
@@ -313,7 +313,7 @@ void NmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
@@ -330,7 +330,7 @@ void NmsLayerTest::SetUp() {
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (targetDevice == ov::test::utils::DEVICE_CPU) {
-        function = std::make_shared<Function>(nms, params, "NMS");
+        function = std::make_shared<ov::Model>(nms, params, "NMS");
     } else {
         auto nms_0_identity =
             std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(outType, Shape{1}, {1}));
@@ -342,7 +342,7 @@ void NmsLayerTest::SetUp() {
         nms_1_identity->set_friendly_name("Multiply_1");
         nms_2_identity->set_friendly_name("Multiply_2");
         function =
-            std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
+            std::make_shared<ov::Model>(ov::OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
     }
 }
 
@@ -352,7 +352,7 @@ void Nms9LayerTest::SetUp() {
     float iouThr, scoreThr, softNmsSigma;
     ov::op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
-    element::Type outType;
+    ov::element::Type outType;
     std::tie(inShapeParams,
              inPrecisions,
              maxOutBoxesPerClass,
@@ -374,7 +374,7 @@ void Nms9LayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
@@ -391,7 +391,7 @@ void Nms9LayerTest::SetUp() {
                                 ngraph::builder::NmsVersion::NmsVersion9);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    function = std::make_shared<Function>(nms, params, "NMS");
+    function = std::make_shared<ov::Model>(nms, params, "NMS");
 }
 
 }  // namespace LayerTestsDefinitions

@@ -44,7 +44,7 @@ void GroupConvolutionQDqTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         param.fakeQuantizeOnData,

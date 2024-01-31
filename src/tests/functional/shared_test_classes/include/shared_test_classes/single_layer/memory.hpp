@@ -27,7 +27,7 @@ public:
     void Run() override;
 
 protected:
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
     void SetUp() override;
     void Infer() override;
     virtual std::shared_ptr<ov::op::util::ReadValueBase> CreateReadValueOp(
@@ -49,7 +49,7 @@ private:
     void ApplyLowLatency();
 
     InferenceEngine::Precision netPrecision;
-    ngraph::EvaluationContext eval_context;
+    ov::EvaluationContext eval_context;
     ngraph::helpers::MemoryTransformation transformation;
 
     int64_t iteration_count;

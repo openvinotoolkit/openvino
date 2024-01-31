@@ -7,16 +7,16 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<element::Type> precisions = {
-        element::f32,
-        // element::f16 // TODO: temporarily commented due to failing in GPU Plugin on constant folding stage
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    // ov::element::f16 // TODO: temporarily commented due to failing in GPU Plugin on constant folding stage
 };
 
 const std::vector<ov::PartialShape>inputAndQuantizationShapes = {
         { 1, 4, 16, 16 },
 };
 
-const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
+const std::vector<ov::builder::subgraph::DequantizationOperations> deqOperations = {
         {
                 { ov::element::f32 },
                 {1.f},
