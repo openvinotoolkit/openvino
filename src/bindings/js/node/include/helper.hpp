@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include <variant>
 
-#include "element_type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/openvino.hpp"
 
