@@ -39,17 +39,32 @@ SwiGLUFusion::SwiGLUFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto input = pattern_map.at(data);
 
+        auto vsplit = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split).get_node_shared_ptr());
+        if (!vsplit)
+            return false;
+        auto vsplit_intput_pshape = vsplit->get_input_partial_shape(0);
+        auto last_dim = vsplit_intput_pshape.rank().get_length() - 1;
+        if (vsplit_intput_pshape[last_dim].is_dynamic())
+            return false;
+
         auto axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(const_axis).get_node_shared_ptr());
         if (!axis)
             return false;
-        if (!ov::op::util::has_constant_value<int64_t>(axis, -1))
+        bool valid_axis_const_values = ov::op::util::has_constant_value<int64_t>(axis, -1) ||
+                                       ov::op::util::has_constant_value<int64_t>(axis, last_dim);
+        if (!valid_axis_const_values)
             return false;
+
         auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(const_split_lengths).get_node_shared_ptr());
         if (!split_lengths)
             return false;
 
         auto axis_value = axis->cast_vector<int64_t>();
         auto split_lengths_value = split_lengths->cast_vector<int64_t>();
+        // Allow only case that exactly splits in half along the last dimension
+        auto split_length = vsplit_intput_pshape[last_dim].get_length() / 2;
+        if (split_lengths_value[0] != split_length)
+            return false;
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
