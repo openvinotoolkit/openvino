@@ -472,13 +472,27 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
 private:
+    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
+        if (events.size() == 1 && !is_output)
+            return events[0];
+
+        if (group && !is_output)
+            return stream.group_events(events);
+
+        return events.empty() ? stream.create_user_event(true)
+                              : stream.enqueue_marker(events, is_output);
+    }
+
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)
             throw std::invalid_argument(
                 "Trying to execute primitive implementation with mismatching primitive instance");
-
+        if (is_cpu() && instance.can_be_optimized()) {
+            auto& stream = instance.get_network().get_stream();
+            return aggregate_events(event, stream, false, instance.is_output());
+        }
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
