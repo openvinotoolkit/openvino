@@ -60,6 +60,7 @@ jobs:
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/openvino/sccache_log.txt
       SCCACHE_LOG: 'debug'
+      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
