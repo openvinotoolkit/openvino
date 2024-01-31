@@ -5,6 +5,7 @@
 
 #include "dummy_node.hpp"
 
+#include "graph.h"
 #include "nodes/memory.hpp"
 #include "nodes/softmax.h"
 #include "nodes/shapeof.h"
@@ -153,8 +154,8 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
         auto memory_output = find_node_type(graph, Type::MemoryOutput);
 
-        auto second_dummy_out_mem = second_dummy->getChildEdgeAt(0)->getMemoryPtr()->getData();
-        auto memory_output_inp_mem = memory_output->getParentEdgeAt(0)->getMemoryPtr()->getData();
+        auto second_dummy_out_mem = second_dummy->getDstDataAtPort(0);
+        auto memory_output_inp_mem = memory_output->getSrcDataAtPort(0);
         //otherwise the memory will be modified by the dummy_look_up
         ASSERT_NE(second_dummy_out_mem, memory_output_inp_mem);
 
@@ -185,8 +186,8 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
         auto memory_output = find_node_type(graph, Type::MemoryOutput);
 
-        auto second_dummy_out_mem = second_dummy->getChildEdgeAt(0)->getMemoryPtr()->getData();
-        auto memory_output_inp_mem = memory_output->getParentEdgeAt(0)->getMemoryPtr()->getData();
+        auto second_dummy_out_mem = second_dummy->getDstDataAtPort(0);
+        auto memory_output_inp_mem = memory_output->getSrcDataAtPort(0);
         //otherwise the memory will be modified by the dummy_look_up
         ASSERT_NE(second_dummy_out_mem, memory_output_inp_mem);
 

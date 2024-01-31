@@ -80,9 +80,9 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
 }
 
 void ReverseSequence::prepareParams() {
-    const auto& dataMemPtr = getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr();
-    const auto& seqLengthsMemPtr = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& dataMemPtr = getSrcMemoryAtPort(REVERSESEQUENCE_DATA);
+    const auto& seqLengthsMemPtr = getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'data'");
@@ -128,9 +128,9 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 template<typename T>
 void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr) {
     const VectorDims& srcDims = dataMemPtr->getStaticDims();
-    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->getData());
-    auto *dstData = reinterpret_cast<float *>(dstMemPtr->getData());
-    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->getData());
+    const auto *srcData = dataMemPtr->getDataAs<const float>();
+    auto *dstData = dstMemPtr->getDataAs<float>();
+    auto *seqLengthsData = seqLengthsMemPtr->getDataAs<T>();
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
         if (static_cast<int32_t>(seqLengthsData[i]) > static_cast<int>(srcDims[seqAxis])) {
@@ -174,13 +174,13 @@ void ReverseSequence::execute(dnnl::stream strm) {
         OPENVINO_THROW("ReverseSequence layer does not support ", precision , " precision");
 
     if (precision == ov::element::f32)
-        execPtr->exec<float>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr(),
-                             getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr(),
-                             getChildEdgeAt(0)->getMemoryPtr());
+        execPtr->exec<float>(getSrcMemoryAtPort(REVERSESEQUENCE_DATA),
+                             getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS),
+                             getDstMemoryAtPort(0));
     else
-        execPtr->exec<int32_t>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr(),
-                               getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr(),
-                               getChildEdgeAt(0)->getMemoryPtr());
+        execPtr->exec<int32_t>(getSrcMemoryAtPort(REVERSESEQUENCE_DATA),
+                               getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS),
+                               getDstMemoryAtPort(0));
 }
 
 bool ReverseSequence::created() const {

@@ -171,15 +171,15 @@ void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void DetectionOutput::execute(dnnl::stream strm) {
-    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    float *dstData = getDstDataAtPortAs<float>(0);
 
-    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->getData());
-    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->getData());
-    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->getData());
+    const float *locData     = getSrcDataAtPortAs<const float>(ID_LOC);
+    const float *confData    = getSrcDataAtPortAs<const float>(ID_CONF);
+    const float *priorData   = getSrcDataAtPortAs<const float>(ID_PRIOR);
     const float *ARMConfData = inputShapes.size() > 3 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->getData()) : nullptr;
+            getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
     const float *ARMLocData = inputShapes.size() > 4 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->getData()) : nullptr;
+            getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
 
     float *reorderedConfData = reorderedConf.data();
     int *reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
@@ -827,7 +827,7 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
 
 inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
     float* dstData) {
-    const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
@@ -842,7 +842,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     else
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
+    if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {
         OPENVINO_THROW(errorPrefix, ": OUT_OF_BOUNDS");
     }
     memset(dstData, 0, dstDataSize);

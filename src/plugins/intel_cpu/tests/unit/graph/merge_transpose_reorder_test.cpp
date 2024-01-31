@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/reorder.h"
 #include "nodes/input.h"
 #include "nodes/transpose.h"

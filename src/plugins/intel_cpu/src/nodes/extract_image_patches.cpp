@@ -370,8 +370,8 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
 }
 
 void ExtractImagePatches::prepareParams() {
-    const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
         OPENVINO_THROW("Input memory has not been allocated.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -380,7 +380,7 @@ void ExtractImagePatches::prepareParams() {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
-    const auto& out_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
     ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
     const auto isJit = mayiuse(x64::sse41);
@@ -423,10 +423,10 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
-        auto src = getParentEdgeAt(0)->getMemoryPtr()->getData();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData();
+        auto src = getSrcDataAtPort(0);
+        auto dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
         OPENVINO_THROW("Can't execute extract image patches node. Primitive wasn't created");

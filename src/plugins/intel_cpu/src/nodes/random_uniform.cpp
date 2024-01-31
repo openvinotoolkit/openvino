@@ -88,10 +88,10 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
 
 void RandomUniform::createPrimitive() {
     if (m_const_inputs[MIN_VAL]) {
-        initEdgeValues(m_min_val, getParentEdgeAt(MIN_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        initEdgeValues(m_min_val, getSrcDataAtPort(MIN_VAL), m_output_prc);
     }
     if (m_const_inputs[MAX_VAL]) {
-        initEdgeValues(m_max_val, getParentEdgeAt(MAX_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        initEdgeValues(m_max_val, getSrcDataAtPort(MAX_VAL), m_output_prc);
         evalRange();
     }
 
@@ -124,14 +124,14 @@ void RandomUniform::createPrimitive() {
 }
 
 bool RandomUniform::needPrepareParams() const {
-    if (m_out_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims()) {
+    if (m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims()) {
         return true;
     }
     return false;
 }
 
 void RandomUniform::prepareParams() {
-    m_out_shape = getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims();
+    m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
     m_out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
 
     if (m_algo == PHILOX) {
@@ -182,17 +182,17 @@ void RandomUniform::prepareParams() {
 
 void RandomUniform::execute(dnnl::stream strm) {
     if (!m_const_inputs[MIN_VAL]) {
-        initEdgeValues(m_min_val, getParentEdgeAt(MIN_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        initEdgeValues(m_min_val, getSrcDataAtPort(MIN_VAL), m_output_prc);
         if (m_const_inputs[MAX_VAL]) {
             evalRange();
         }
     }
     if (!m_const_inputs[MAX_VAL]) {
-        initEdgeValues(m_max_val, getParentEdgeAt(MAX_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        initEdgeValues(m_max_val, getSrcDataAtPort(MAX_VAL), m_output_prc);
         evalRange();
     }
 
-    auto data = getChildEdgeAt(0)->getMemoryPtr()->getData();
+    auto data = getDstDataAtPort(0);
 
     if (m_algo == PHILOX) {
         m_state = computePhilox(data, m_out_el_num, m_state);

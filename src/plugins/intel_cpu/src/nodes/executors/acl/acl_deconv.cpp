@@ -91,7 +91,7 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
 }
 
 static void transpose_to_1023(const MemoryCPtr& srcMemPtr, std::vector<float>& dst_data) {
-    const auto src_data = reinterpret_cast<float*>(srcMemPtr->getData());
+    const auto src_data = srcMemPtr->getDataAs<float>();
 
     const int DIM0 = srcMemPtr->getStaticDims()[0];
     const int DIM1 = srcMemPtr->getStaticDims()[1];

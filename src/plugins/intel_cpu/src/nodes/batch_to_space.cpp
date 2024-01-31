@@ -100,24 +100,24 @@ static std::vector<size_t> getShape5D(const VectorDims &shape) {
 
 template<typename T>
 void BatchToSpace::batchToSpaceKernel() {
-    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getShape().getRank();
+    const auto *srcData = getSrcDataAtPortAs<const T>(0);
+    const auto *blockShapesPtr = getSrcDataAtPortAs<int>(1);
+    size_t dataRank = getSrcMemoryAtPort(0)->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
-    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    const auto *padsBeginPtr = getSrcDataAtPortAs<int>(2);
     cropsBeginIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         cropsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dstData = getDstDataAtPortAs<T>(0);
 
-    const auto &inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    const auto &outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    const auto &outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 

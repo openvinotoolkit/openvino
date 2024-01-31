@@ -172,7 +172,15 @@ public:
     void remove();
 
     void addParentEdge(const EdgePtr& edge) {
-        parentEdges.push_back(edge);
+        assert(std::none_of(parentEdges.begin(), parentEdges.end(),
+                            [&edge](const EdgeWeakPtr& _edge){
+                                return _edge.lock()->getOutputNum() == edge->getOutputNum();
+                            }));
+        parentEdges.insert(std::upper_bound(parentEdges.begin(), parentEdges.end(), edge,
+                                            [](const EdgeWeakPtr& lhs, const EdgeWeakPtr& rhs) {
+                                                return lhs.lock()->getOutputNum() < rhs.lock()->getOutputNum();
+                                            }),
+                           edge);
         updateConstantType();
     }
 
@@ -197,11 +205,53 @@ public:
         return childEdges;
     }
 
-    const EdgePtr getParentEdgeAt(size_t idx) const;
-    virtual const EdgePtr getChildEdgeAt(size_t idx) const;
+    EdgePtr getParentEdgeAt(size_t idx) const;
 
-    const std::vector<EdgePtr> getParentEdgesAtPort(size_t idx) const;
-    const std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
+    /**
+     * Returns all the child edges by input port number.
+     *
+     * Safe way of getting all the child edges at port.
+     * Does not require a vector of the child edges to be sorted.
+     * Allocates a storage (vector) to collect the child edges.
+     */
+    std::vector<EdgePtr> getChildEdgesAtPort(int inputNum) const;
+
+    /**
+     * Returns a child edge by index.
+     *
+     * @attention !!! Can only be used after Graph::SortTopologically is performed !!!
+     * Optimized way of accessing a child edge at port.
+     * If node contains multiple child edges at port, a random one is returned.
+     * Has less overhead in comparison with calling getChildEdgesAtPort(idx)[0].
+     * The main use case is accessing Memory from edge with less overhead.
+     */
+    EdgePtr getChildEdgeAt(size_t idx) const;
+
+    MemoryPtr getSrcMemoryAtPort(size_t idx) const {
+        return getParentEdgeAt(idx)->getMemoryPtr();
+    }
+
+    MemoryPtr getDstMemoryAtPort(size_t idx) const {
+        return getChildEdgeAt(idx)->getMemoryPtr();
+    }
+
+    void* getSrcDataAtPort(size_t idx) const {
+        return getSrcMemoryAtPort(idx)->getData();
+    }
+
+    template<typename T>
+    T* getSrcDataAtPortAs(size_t idx) const {
+        return getSrcMemoryAtPort(idx)->getDataAs<T>();
+    }
+
+    void* getDstDataAtPort(size_t idx) const {
+        return getDstMemoryAtPort(idx)->getData();
+    }
+
+    template<typename T>
+    T* getDstDataAtPortAs(size_t idx) const {
+        return getDstMemoryAtPort(idx)->getDataAs<T>();
+    }
 
     int inPlaceInputPort(int portIdx) const;
     int inPlaceOutPort(int portIdx) const;
@@ -246,7 +296,7 @@ public:
     virtual void fuseInto(NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
+            if (getParentEdgeAt(i)->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
             }
@@ -255,7 +305,7 @@ public:
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
             for (size_t i = 0; i < getParentEdges().size(); i++) {
-                if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
+                if (getParentEdgeAt(i)->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
                 }
@@ -266,7 +316,7 @@ public:
             OPENVINO_THROW("Cannot determine fusing port between nodes: ", parentNode->getName(), " and ", getName());
         }
 
-        parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
+        parentNode->addFusedNode(getParentEdgeAt(getFusingPort())->getChild());
         parentNode->addOriginalLayer(getOriginalLayers());
     }
 
@@ -606,7 +656,13 @@ protected:
     std::string originalLayers;  // contains names of the original layers separated by comma
 
     Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
-    Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
+    Node(const std::string& type,
+         std::vector<Shape> inputShapes,
+         std::vector<Shape> outputShapes,
+         std::vector<ov::element::Type> originalInputPrecisions,
+         std::vector<ov::element::Type> originalOutputPrecisions,
+         const std::string& name,
+         const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
 

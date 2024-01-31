@@ -347,13 +347,13 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
             OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
 
         // Prepare memory
-        const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
-        const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
-        const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->getData());
-        const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
+        const float *p_deltas_item  = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const float *p_scores_item  = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const float *p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const float *p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
-        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
+        float *p_roi_item       = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        float *p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
         const int anchors_num = scoreDims[0];
 

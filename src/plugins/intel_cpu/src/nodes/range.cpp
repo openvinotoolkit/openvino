@@ -116,9 +116,9 @@ size_t Range::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) 
         stopPtr = &limit;
     if (stepPtr == nullptr)
         stepPtr = &delta;
-    *startPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->getData())[0];
-    *stopPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->getData())[0];
-    *stepPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->getData())[0];
+    *startPtr = getSrcDataAtPortAs<const data_t>(RANGE_START)[0];
+    *stopPtr = getSrcDataAtPortAs<const data_t>(RANGE_LIMIT)[0];
+    *stepPtr = getSrcDataAtPortAs<const data_t>(RANGE_DELTA)[0];
     const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
     if (std::is_same<data_t, int>::value) {
@@ -138,7 +138,7 @@ Range::StatusCode Range::rangeKernel() {
         VectorDims newOutputShape {work_amount_dst};
         redefineOutputMemory({newOutputShape});
     }
-    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    data_t* dst_data = getDstDataAtPortAs<data_t>(0);
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t iwork = 0, end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);

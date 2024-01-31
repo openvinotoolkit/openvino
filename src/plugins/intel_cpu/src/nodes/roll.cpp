@@ -97,10 +97,10 @@ void Roll::initSupportedPrimitiveDescriptors() {
 }
 
 void Roll::prepareParams() {
-    const auto& dataMemPtr = getParentEdgeAt(DATA_INDEX)->getMemoryPtr();
-    const auto& shiftMemPtr = getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr();
-    const auto& axesMemPtr = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& dataMemPtr = getSrcMemoryAtPort(DATA_INDEX);
+    const auto& shiftMemPtr = getSrcMemoryAtPort(SHIFT_INDEX);
+    const auto& axesMemPtr = getSrcMemoryAtPort(AXES_INDEX);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         OPENVINO_THROW(layerErrorPrefix, " has not allocated input memory of 'data'");
@@ -133,24 +133,24 @@ void Roll::execute(dnnl::stream strm) {
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(element_type_traits<ov::element::i8>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
-                                                                     getChildEdgeAt(0)->getMemoryPtr());
+            execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                     getSrcMemoryAtPort(AXES_INDEX),
+                                                                     getDstMemoryAtPort(0));
             break;
         }
         case sizeof(element_type_traits<ov::element::i16>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
-                                                                     getChildEdgeAt(0)->getMemoryPtr());
+            execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                     getSrcMemoryAtPort(AXES_INDEX),
+                                                                     getDstMemoryAtPort(0));
             break;
         }
         case sizeof(element_type_traits<ov::element::i32>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
-                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
-                                                                     getChildEdgeAt(0)->getMemoryPtr());
+            execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                     getSrcMemoryAtPort(AXES_INDEX),
+                                                                     getDstMemoryAtPort(0));
             break;
         }
         default:
@@ -176,10 +176,10 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& s
 template<typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
     const MemoryPtr& dstMemPtr) {
-    const auto *data = reinterpret_cast<const T *>(dataMemPtr->getData());
-    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->getData());
-    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->getData());
-    auto *dst = reinterpret_cast<T *>(dstMemPtr->getData());
+    const auto *data = dataMemPtr->getDataAs<const T>();
+    const auto *shift = shiftMemPtr->getDataAs<const int32_t>();
+    const auto *axes = axesMemPtr->getDataAs<const int32_t>();
+    auto *dst = dstMemPtr->getDataAs<T>();
 
     std::vector<size_t> shiftsVector(numOfDims, 0ul);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();

@@ -207,12 +207,12 @@ bool Split::needShapeInfer() const {
     if (Node::needShapeInfer()) {
         return true;
     } else if (!constSplitLengths) {
-        const auto& lengthsMemPtr = getParentEdgeAt(2)->getMemoryPtr();
+        const auto& lengthsMemPtr = getSrcMemoryAtPort(2);
         const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
         if (curLengthsSize != splitLengths.size()) {
             return true;
         }
-        const int* curLengthsValues = reinterpret_cast<int*>(lengthsMemPtr->getData());
+        const int* curLengthsValues = lengthsMemPtr->getDataAs<int>();
         for (size_t i = 0; i < curLengthsSize; ++i) {
             if (curLengthsValues[i] != splitLengths[i]) {
                 return true;
@@ -230,14 +230,14 @@ bool Split::needPrepareParams() const {
 }
 
 void Split::prepareParams() {
-    const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto &srcMemPtr = getSrcMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated()) {
         THROW_ERROR("has not allocated input memory");
     }
 
     if (!constSplitLengths) {
-        const auto& splitLengthsPtr = getParentEdgeAt(2)->getMemoryPtr();
-        const int* curSplitLengths = reinterpret_cast<int*>(splitLengthsPtr->getData());
+        const auto& splitLengthsPtr = getSrcMemoryAtPort(2);
+        const int* curSplitLengths = splitLengthsPtr->getDataAs<int>();
         const auto curLengthsSize = splitLengthsPtr->getStaticDims()[0];
         splitLengths.assign(curSplitLengths, curSplitLengths + curLengthsSize);
     }
@@ -245,7 +245,7 @@ void Split::prepareParams() {
     dstMemPtrs.clear();
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
-        const auto &outMemPtr = this->getChildEdgesAtPort(port)[0]->getMemoryPtr();
+        const auto &outMemPtr = this->getDstMemoryAtPort(port);
         if (!outMemPtr || !outMemPtr->isAllocated()) {
             THROW_ERROR("has not allocated destination memory");
         }
@@ -279,14 +279,14 @@ void Split::execute(dnnl::stream strm) {
     if (dstMemPtrs.empty())
         THROW_ERROR("Output data pointers have not been initialized.");
 
-    const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
+    const auto &srcMem = getParentEdgeAt(0)->getMemory();
 
     if (canUseOptimizedNspc2Ncsp) {
         optimizedNspc2Ncsp(srcMem.getStaticDims()[0]);
         return;
     }
 
-    uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.getData());
+    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
     OPENVINO_ASSERT(execPtr != nullptr);
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
@@ -420,7 +420,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t W = parentDims[rank - 1];
 
     auto& srcMem = parentEdge->getMemory();
-    auto srcData = reinterpret_cast<const uint8_t*>(srcMem.getData());
+    auto srcData = srcMem.getDataAs<const uint8_t>();
     const auto dataSize = srcMem.getDesc().getPrecision().size();
 
     const size_t DHW = D*H*W;
@@ -429,10 +429,10 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->getData());
+        auto dstData = dstMemPtrs[i].second->getDataAs<uint8_t>();
 
         size_t innerSize = 1;
-        auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
+        auto dims = getChildEdgeAt(dstMemPtrs[i].first)->getMemory().getStaticDims();
 
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
@@ -459,7 +459,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
 std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     std::vector<uint8_t*> result(dstMemPtrs.size());
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
-        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->getData());
+        result[i] = dstMemPtrs[i].second->getDataAs<uint8_t>();
         if (!result[i]) {
             THROW_ERROR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
         }
@@ -538,7 +538,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                     " Split node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimension");
-    auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
