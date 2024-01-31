@@ -1,4 +1,4 @@
-# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend 
+# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend
 
 Here is a table of operations supported by the TensorFlow Frontend from [tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
 A "supported operation" is one that TensorFlow Frontend can convert to the OpenVINO representation.
@@ -232,7 +232,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ConditionalAccumulator                                  | NO                            |                               |
 | ConfigureDistributedTPU                                 | NO                            |                               |
 | ConfigureTPUEmbedding                                   | NO                            |                               |
-| Conj                                                    | NO                            |                               |
+| Conj                                                    | YES                           |                               |
 | ConjugateTranspose                                      | YES                           |                               |
 | Const                                                   | YES                           |                               |
 | ConsumeMutexLock                                        | NO                            |                               |
