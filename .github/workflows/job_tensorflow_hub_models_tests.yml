@@ -20,7 +20,7 @@ on:
 jobs:
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
-    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 25 }}
+    timeout-minutes: 400
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -97,7 +97,10 @@ jobs:
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+        run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
+          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
@@ -105,9 +108,9 @@ jobs:
       - name: TensorFlow Hub Tests - TF FE
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest -n 2 ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: nightly
           TEST_DEVICE: CPU
 
       - name: Upload Test Results

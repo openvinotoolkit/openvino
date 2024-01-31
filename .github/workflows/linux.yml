@@ -482,7 +482,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
+      runner: ubuntu-20.04-16-cores
       event: ${{ github.event_name }}
 
   # TODO: Switch back to self-hosted runners
@@ -496,7 +496,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
+      runner: ubuntu-20.04-16-cores
       event: ${{ github.event_name }}
 
   NVIDIA_Plugin:
