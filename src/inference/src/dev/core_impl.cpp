@@ -1620,7 +1620,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
-        FileUtils::createDirectoryRecursive(dir);
+        ov::util::create_directory_recursive(dir);
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
