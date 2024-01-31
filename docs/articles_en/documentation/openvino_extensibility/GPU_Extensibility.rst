@@ -5,7 +5,7 @@ How to Implement Custom GPU Operations
 
 
 .. meta::
-   :description: Learn the details of custom kernel support for the GPU device to 
+   :description: Learn the details of custom kernel support for the GPU device to
                  enable operations not supported by OpenVINO.
 
 
@@ -16,20 +16,20 @@ The GPU codepath abstracts many details about OpenCL. You need to provide the ke
 There are two options for using the custom operation configuration file:
 
 * Include a section with your kernels into the automatically-loaded ``<lib_path>/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml`` file.
-* Call the ``:ref:`ov::Core::set_property() <doxid-classov_1_1_core_1aa953cb0a1601dbc9a34ef6ba82b8476e>``` method from your application with the ``"CONFIG_FILE"`` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
+* Call the ``ov::Core::set_property()`` method from your application with the ``"CONFIG_FILE"`` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
- 
+
       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.py
         :language: python
         :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
- 
+
       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.cpp
         :language: cpp
         :fragment: [part0]
@@ -43,10 +43,10 @@ feature a dedicated command-line option ``-c`` to load custom kernels. For examp
    $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
    -c <absolute_path_to_config>/custom_layer_example.xml
 
-.. _config-file-format: 
+.. _config-file-format:
 
 Configuration File Format
-######################### 
+#########################
 
 The configuration file is expected to follow the ``.xml`` file structure
 with a node of the type ``CustomLayer`` for every custom operation you provide.
@@ -344,7 +344,7 @@ Example Kernel
 
 .. _debugging-tips:
 
-.. note:: 
+.. note::
    As described in the previous section, all items such as the ``INPUT0_TYPE`` are actually defined as OpenCL (pre-)compiler inputs by OpenVINO for efficiency reasons. See the `Debugging Tips <#debugging-tips>`__ below for information on debugging the results.
 
 Debugging Tips

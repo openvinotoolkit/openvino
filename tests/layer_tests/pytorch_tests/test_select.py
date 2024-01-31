@@ -32,6 +32,7 @@ class TestSelect(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_select(self, ie_device, precision, ir_version, input_dim, input_index):
         self._test(*self.create_model(input_dim, input_index),
                    ie_device, precision, ir_version)

@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from utils.helpers import fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail
@@ -39,7 +42,7 @@ class CheckOutputMode(Mode):
             raise CfgError("stopPattern is not configured")
 
     def compareCommits(self, lCommit, rCommit, list, cfg):
-        isLeftBorderFailed = self.getPseudoMetric(lCommit, cfg)
+        isLeftBorderFailed = bool(self.getPseudoMetric(lCommit, cfg))
         isRightBorderGood = not self.getPseudoMetric(rCommit, cfg)
         curCommit = rCommit.replace('"', "")
         commitLogger = getCommitLogger(cfg, curCommit)
@@ -81,6 +84,9 @@ class BenchmarkAppPerformanceMode(Mode):
         self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
         self.perfRel = 0
         self.createCash()
+
+    def isPerformanceBased(self):
+        return True
 
     def prepareRun(self, list, cfg):
         super().prepareRun(list, cfg)

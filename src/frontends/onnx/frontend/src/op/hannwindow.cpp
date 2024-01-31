@@ -23,7 +23,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector hannwindow(const Node& node) {
+ov::OutputVector hannwindow(const Node& node) {
     const auto size = node.get_ng_inputs().at(0);
     const auto output_datatype = common::get_ov_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
     const bool periodic = node.get_attribute_value<int64_t>("periodic", 1) == 1;
@@ -57,7 +57,7 @@ OutputVector hannwindow(const Node& node) {
     const auto cos = std::make_shared<v0::Cos>(factor);
     const auto scaled_cos = std::make_shared<v1::Multiply>(cos, a_1);
     const auto y_values = std::make_shared<v1::Subtract>(a_0, scaled_cos);
-    if (output_datatype == element::f32) {
+    if (output_datatype == ov::element::f32) {
         return {y_values};
     } else {
         return {std::make_shared<v0::Convert>(y_values, output_datatype)};

@@ -177,7 +177,6 @@ public:
 
 private:
     void run(program& p) override;
-    void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
@@ -391,6 +390,14 @@ private:
 class mark_runtime_skippable_nodes : public base_pass {
 public:
     mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
+
+private:
+    void run(program& p) override;
+};
+
+class fuse_primitives_with_layout : public base_pass {
+public:
+    fuse_primitives_with_layout() : base_pass("fuse_primitives_with_layout") {}
 
 private:
     void run(program& p) override;

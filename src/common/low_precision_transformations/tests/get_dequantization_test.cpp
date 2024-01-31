@@ -36,13 +36,13 @@ public:
         size_t mulDataInput;
         std::tie(isConvert, isSubtract, subDataInput, mulDataInput) = this->GetParam();
 
-        actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
+        actualFunction = ov::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
                                                                                            isSubtract,
                                                                                            subDataInput,
                                                                                            mulDataInput);
         auto dequantization =
             ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
-        referenceFunction = ngraph::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
+        referenceFunction = ov::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationTestValues> obj) {

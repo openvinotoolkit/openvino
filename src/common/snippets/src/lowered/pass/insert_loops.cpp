@@ -27,32 +27,6 @@ std::vector<size_t> get_outer_loop_ids(const ExpressionPtr& expr, size_t loop_id
 
 InsertLoops::InsertLoops() : Pass() {}
 
-void InsertLoops::filter_ports(std::vector<LoopPort>& loop_entries, std::vector<LoopPort>& loop_exits) {
-    std::vector<LoopPort> new_loop_entries;
-    std::vector<LoopPort> new_loop_exits;
-    new_loop_entries.reserve(loop_entries.size());
-    new_loop_exits.reserve(loop_exits.size());
-
-    for (const auto& loop_entry_point : loop_entries) {
-        const auto& expr = loop_entry_point.expr_port->get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-        if (ma && ma->is_memory_access_input_port(loop_entry_point.expr_port->get_index())) {
-            new_loop_entries.push_back(loop_entry_point);
-        }
-    }
-
-    for (const auto& loop_exit_point : loop_exits) {
-        const auto& expr = loop_exit_point.expr_port->get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-        if (ma && ma->is_memory_access_output_port(loop_exit_point.expr_port->get_index())) {
-            new_loop_exits.push_back(loop_exit_point);
-        }
-    }
-
-    loop_entries = new_loop_entries;
-    loop_exits = new_loop_exits;
-}
-
 void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop) {
     const auto loop_info = loop_manager->get_loop_info(loop_id);
     auto loop_entries = loop_info->get_entry_points();
@@ -62,9 +36,6 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
 
     LinearIR::constExprIt loop_begin_pos, loop_end_pos;
     loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
-
-    // Remove non MemoryAccess ports since Loop can have only GPR inputs
-    filter_ports(loop_entries, loop_exits);
 
     const auto in_out_num = loop_entries.size() + loop_exits.size();
     std::vector<bool> is_incremented;
