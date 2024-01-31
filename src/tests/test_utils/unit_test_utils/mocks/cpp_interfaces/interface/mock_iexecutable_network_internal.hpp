@@ -23,11 +23,11 @@ public:
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr(void));
     MOCK_METHOD1(Export, void(const std::string&));
     void Export(std::ostream&) override{};
-    MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ngraph::Function>(void));
+    MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ov::Model>(void));
 
-    MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter>& config));
-    MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
-    MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
+    MOCK_METHOD1(SetConfig, void(const ov::AnyMap& config));
+    MOCK_CONST_METHOD1(GetConfig, ov::Any(const std::string& name));
+    MOCK_CONST_METHOD1(GetMetric, ov::Any(const std::string& name));
     void WrapOstreamExport(std::ostream& networkModel) {
         IExecutableNetworkInternal::Export(networkModel);
     }

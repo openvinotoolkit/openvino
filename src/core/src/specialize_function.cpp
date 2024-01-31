@@ -7,16 +7,17 @@
 #include "itt.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ngraph;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::op::v0::Constant;
 
-std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> f,
-                                                      const std::vector<element::Type>& parameter_element_types,
-                                                      const std::vector<PartialShape>& parameter_shapes,
-                                                      const std::vector<void*>& parameter_values)
+std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model> f,
+                                                       const std::vector<ov::element::Type>& parameter_element_types,
+                                                       const std::vector<ov::PartialShape>& parameter_shapes,
+                                                       const std::vector<void*>& parameter_values)
 
 {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "specialize_function");
@@ -38,7 +39,7 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
                                                                          parameter_values[i]);
         } else {
             m[f->get_parameters()[i].get()] =
-                std::make_shared<op::Parameter>(parameter_element_types[i], parameter_shapes[i]);
+                std::make_shared<ov::op::v0::Parameter>(parameter_element_types[i], parameter_shapes[i]);
         }
         auto rt_info = f->get_parameters()[i]->get_rt_info();
         m[f->get_parameters()[i].get()]->get_rt_info() = rt_info;
@@ -49,13 +50,13 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
             continue;
         }
 
-        OutputVector new_args;
+        ov::OutputVector new_args;
         for (auto input : old_node->inputs()) {
             auto output = input.get_source_output();
             new_args.push_back(output.for_node(m[output.get_node()]));
         }
 
-        NodeVector cloned_dependencies;
+        ov::NodeVector cloned_dependencies;
         for (auto& dependency : old_node->get_control_dependencies()) {
             std::shared_ptr<Node> dependent = m.at(dependency.get());
             if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) == cloned_dependencies.end()) {
@@ -70,21 +71,22 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
         m[old_node.get()]->set_friendly_name(old_node->get_friendly_name());
     }
 
-    ParameterVector new_parameters = f->get_parameters();
+    ov::ParameterVector new_parameters = f->get_parameters();
     for (size_t i = 0; i < new_parameters.size(); i++) {
         auto name = new_parameters[i]->get_friendly_name();
-        new_parameters[i] = ov::as_type_ptr<op::Parameter>(m[new_parameters[i].get()]);
+        new_parameters[i] = ov::as_type_ptr<ov::op::v0::Parameter>(m[new_parameters[i].get()]);
 
         // If the replacement for a Parameter is not itself a Parameter, we must have replaced it
         // with a constant. We will insert a dead Parameter into the clone's parameters, in order
         // to maintain the arity of the original function.
         if (new_parameters[i] == nullptr) {
-            new_parameters[i] = std::make_shared<op::Parameter>(parameter_element_types[i], parameter_shapes[i]);
+            new_parameters[i] =
+                std::make_shared<ov::op::v0::Parameter>(parameter_element_types[i], parameter_shapes[i]);
         }
         new_parameters[i]->set_friendly_name(name);
     }
 
-    ResultVector new_results = f->get_results();
+    ov::ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
         new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);
@@ -95,5 +97,5 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
         new_sinks[i] = std::static_pointer_cast<ov::op::Sink>(m[new_sinks[i].get()]);
     }
 
-    return std::make_shared<Function>(new_results, new_sinks, new_parameters);
+    return std::make_shared<ov::Model>(new_results, new_sinks, new_parameters);
 }

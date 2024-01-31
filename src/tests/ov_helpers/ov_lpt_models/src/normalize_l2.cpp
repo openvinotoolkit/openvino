@@ -6,11 +6,10 @@
 
 #include <ov_ops/type_relaxed.hpp>
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -68,7 +67,7 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getOriginal(
     const ov::PartialShape& shape,
     const ov::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
 
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, shape);
 
@@ -93,9 +92,9 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
     const ov::PartialShape& shape,
     const ov::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, shape);
 
     auto deqBeforeStructure = dequantizationBefore;
@@ -107,9 +106,9 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
 
     const auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{ axes.size() }, axes);
     const auto normalizeL2 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::NormalizeL2>>(
-        std::vector<ov::element::Type>{ element::f32, axesNode->output(0).get_element_type() },
-        std::vector<ov::element::Type>{dequantizationAfter.empty() ? precision : element::f32},
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, axesNode->output(0).get_element_type()},
+        std::vector<ov::element::Type>{dequantizationAfter.empty() ? precision : ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
         axesNode,
         1e-6,
         epsMode);
@@ -130,4 +129,4 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

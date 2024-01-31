@@ -62,7 +62,7 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     return result.str();
 }
 
-void MatrixNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MatrixNmsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
 
     const auto& funcInputs = function->inputs();
@@ -321,7 +321,7 @@ void MatrixNmsLayerTest::SetUp() {
     }
     auto nms = std::make_shared<ov::op::v8::MatrixNms>(params[0], params[1], m_attrs);
 
-    function = std::make_shared<Function>(nms, params, "MatrixNMS");
+    function = std::make_shared<ov::Model>(nms, params, "MatrixNMS");
 }
 
 } // namespace subgraph

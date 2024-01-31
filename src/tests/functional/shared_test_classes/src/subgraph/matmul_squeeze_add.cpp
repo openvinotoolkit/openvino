@@ -48,7 +48,7 @@ void MatmulSqueezeAddTest::SetUp() {
     auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(params[0], constant_0, false, true);
 
     auto constant_1 =
-        std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, std::vector<size_t>{0});
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{1}, std::vector<size_t>{0});
     auto unsqueeze_0 = std::make_shared<ov::op::v0::Unsqueeze>(matmul_0, constant_1);
 
     auto constant_2 = ov::test::utils::deprecated::make_constant<float>(
@@ -59,11 +59,11 @@ void MatmulSqueezeAddTest::SetUp() {
     auto add_0 = std::make_shared<ov::op::v1::Add>(unsqueeze_0, constant_2);
 
     auto constant_3 =
-        std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, std::vector<size_t>{0});
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{1}, std::vector<size_t>{0});
     auto squeeze_0 = std::make_shared<ov::op::v0::Squeeze>(add_0, constant_3);
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(squeeze_0)};
-    function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(squeeze_0)};
+    function = std::make_shared<ov::Model>(results, params, "MatmulSqueezeAddTest");
 }
 
 }  // namespace test

@@ -199,7 +199,7 @@ namespace test {
 template <typename BaseLayerTest>
 class BenchmarkLayerTest : public BaseLayerTest {
     static_assert(std::is_base_of<SubgraphBaseTest, BaseLayerTest>::value,
-                  "BaseLayerTest should inherit from LayerTestsUtils::LayerTestsCommon");
+                  "BaseLayerTest should inherit from ov::test::SubgraphBaseTest");
 
  public:
     static constexpr int kDefaultNumberOfAttempts = 100;
@@ -226,6 +226,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
     }
 
     void validate() override {
+        infer();
         for (const auto& res : curr_bench_results_) {
             const auto& node_type_name = res.first;
             const auto curr_time = static_cast<int64_t>(res.second);

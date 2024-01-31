@@ -62,7 +62,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         testValues.dequantizationOnWeights.multiply.constantShape = elementwiseConstantShapes;
     }
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         testValues.precisionBeforeDequantization,
         inputShape,
         testValues.fakeQuantizeOnData,

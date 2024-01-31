@@ -14,7 +14,6 @@
 #include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/unsqueeze_transformation.hpp"
 #include "ov_lpt_models/unsqueeze.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -58,7 +57,7 @@ void UnsqueezeTransformation::SetUp() {
 
     init_input_shapes(unsqueezeParam.shape);
 
-    function = ngraph::builder::subgraph::UnsqueezeFunction::getOriginal(
+    function = ov::builder::subgraph::UnsqueezeFunction::getOriginal(
         netPrecision,
         unsqueezeParam.shape,
         unsqueezeParam.fakeQuantize,
