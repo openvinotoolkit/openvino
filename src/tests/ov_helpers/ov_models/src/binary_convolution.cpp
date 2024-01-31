@@ -14,15 +14,15 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<ov::Node>& in,
-                                            const std::vector<size_t>& filterSize,
-                                            const std::vector<size_t>& strides,
-                                            const std::vector<ptrdiff_t>& padsBegin,
-                                            const std::vector<ptrdiff_t>& padsEnd,
-                                            const std::vector<size_t>& dilations,
-                                            const ov::op::PadType& autoPad,
-                                            size_t numOutChannels,
-                                            float padValue,
-                                            const std::vector<int8_t>& filterWeihgts) {
+                                                const std::vector<size_t>& filterSize,
+                                                const std::vector<size_t>& strides,
+                                                const std::vector<ptrdiff_t>& padsBegin,
+                                                const std::vector<ptrdiff_t>& padsEnd,
+                                                const std::vector<size_t>& dilations,
+                                                const ov::op::PadType& autoPad,
+                                                size_t numOutChannels,
+                                                float padValue,
+                                                const std::vector<int8_t>& filterWeihgts) {
     auto shape = in.get_shape();
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
