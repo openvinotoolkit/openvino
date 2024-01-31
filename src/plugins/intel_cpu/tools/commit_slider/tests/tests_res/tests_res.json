@@ -1,5 +1,5 @@
 {
-    "CommonRes": {
+    "binarySearchRes": {
         "repoPath": "./",
         "cachePath": "../slider_cache",
         "logPath": "../log",
@@ -52,5 +52,20 @@
                 "stopPattern" : "(.)*failed(.)*"
             }
         }
+    },
+    "BmValidatorStable": {
+        "bmOutputMap": [
+            {"id": "0", "hash": "57571d36e6c", "throughput": "768.66"},
+            {"id": "42", "hash": "64c21fd6f94", "throughput": "764.87"},
+            {"id": "52", "hash": "c3948ca7997", "throughput": "764.61"},
+            {"id": "57", "hash": "e8b6e174290", "throughput": "767.48"},
+            {"id": "60", "hash": "e3d7dffa834", "throughput": "764.67"},
+            {"id": "61", "hash": "3f7989a8179", "throughput": "763.54"},
+            {"id": "62", "hash": "a0849edca14", "throughput": "726.90"},
+            {"id": "63", "hash": "ac1fb7b955f", "throughput": "722.88"},
+            {"id": "84", "hash": "8f406067d17", "throughput": "724.05"}
+        ],
+        "breakCommit": "a0849edca14",
+        "dev": 0.05
     }
 }

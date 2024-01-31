@@ -185,3 +185,30 @@ def getActualCommit(td: TestData):
     os.remove(testCfg)
 
     return foundCommit
+
+def checkBmStability(td: TestData):
+    from utils.break_validator import validateBMOutput
+    validateBMOutput(td.bmOutputMap, td.breakCommit, td.dev)
+    return True
+
+def requireBinarySearchData(td: TestData, rsc: map):
+    td.requireTestData(
+            lambda td, rsc: setattr(td,
+                'commonRsc',
+                rsc['binarySearchRes'])
+        )
+    td.requireTestData(
+        lambda td, rsc: [setattr(td, key, rsc[td.getTestName()][key]) for key in [
+            'testCfg', 'patchedFile', 'repoName'
+        ]]
+    )
+
+    [setattr(td, key, td.commonRsc[key]) for key in [
+        'repoStructure', 'cachePath', 'logPath',
+        'mainFile', 'repoPath'
+    ]]
+    td.patternPrefix = td.commonRsc['patchGeneratorPrefix']
+    td.patternPostfix = td.commonRsc['patchGeneratorPostfix']
+    td.pattern = "{pre}(.+?){post}".format(
+        pre=td.patternPrefix,
+        post=td.patternPostfix)
