@@ -75,7 +75,8 @@ TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);
     std::map<std::string, std::string> config;
-    auto actual_output = m_mock_plugin->get_core()->get_supported_property(m_plugin_name, m_properties, m_keep_core_property);
+    auto actual_output =
+        m_mock_plugin->get_core()->get_supported_property(m_plugin_name, m_properties, m_keep_core_property);
     for (auto& iter : m_expected_properties) {
         ASSERT_TRUE(actual_output.find(iter.first) != actual_output.end());
         ASSERT_EQ(actual_output.find(iter.first)->second, iter.second);
