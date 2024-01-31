@@ -176,15 +176,15 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_input,
                               const ov::intel_cpu::PlainTensor& past_v_scale_zp) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
     parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
-        auto p_k = &past_k_scale_zp.at<float>(b, h, m, false);
-        auto p_v = &past_v_scale_zp.at<float>(b, h, m, false);
-        quant_u8(&past_k_output.at<T2>(b, h, m, false),
-                 &k_input.at<T>(b, h, m, false),
+        auto p_k = past_k_scale_zp.ptr<float>(b, h, m);
+        auto p_v = past_v_scale_zp.ptr<float>(b, h, m);
+        quant_u8(past_k_output.ptr<T2>(b, h, m),
+                 k_input.ptr<T>(b, h, m),
                  S,
                  p_k[0],
                  p_k[1]);
-        quant_u8(&past_v_output.at<T2>(b, h, m, false),
-                 &v_input.at<T>(b, h, m, false),
+        quant_u8(past_v_output.ptr<T2>(b, h, m),
+                 v_input.ptr<T>(b, h, m),
                  S,
                  p_v[0],
                  p_v[1]);

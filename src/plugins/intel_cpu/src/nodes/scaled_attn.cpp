@@ -139,7 +139,7 @@ struct MHAKernel {
 
             for (size_t m = 0; m < q_len; m++) {
                 // dot-product to get attention scores
-                auto* q = &query.at<T>({b, h, m, 0});
+                auto* q = query.ptr<T>(b, h, m, 0);
                 // how many key/values can be accessed causally
                 auto ncausal = kv_len;
                 // no causall mask is set and it's not fused into attention_mask
@@ -251,16 +251,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     }
 
     void exec_qk(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
-        dnnl::memory q(q_md, strm.get_engine(), query.data<T>());
-        dnnl::memory k(k_md, strm.get_engine(), present_key.data<T>());
+        dnnl::memory q(q_md, strm.get_engine(), query.ptr<T>());
+        dnnl::memory k(k_md, strm.get_engine(), present_key.ptr<T>());
         qk_prim.execute(strm, {{DNNL_ARG_SRC, q},
                                {DNNL_ARG_WEIGHTS, k},
                                {DNNL_ARG_DST, attn_score}});
     }
 
     void exec_kv(dnnl::stream strm, PlainTensor& present_value, PlainTensor& output_emb) {
-        dnnl::memory v(v_md, strm.get_engine(), present_value.data<T>());
-        dnnl::memory out(out_md, strm.get_engine(), output_emb.data<T>());
+        dnnl::memory v(v_md, strm.get_engine(), present_value.ptr<T>());
+        dnnl::memory out(out_md, strm.get_engine(), output_emb.ptr<T>());
         wv_prim.execute(strm, {{DNNL_ARG_SRC, attn_weight}, {DNNL_ARG_WEIGHTS, v}, {DNNL_ARG_DST, out}});
     }
 
@@ -525,7 +525,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         attn_buf.resize<float>(attn_input->getStaticDims());
         auto p = reinterpret_cast<uint8_t*>(attn_input->getData());
         for (size_t i = 0; i < attn_input->getSize(); i++)
-            attn_buf.data<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
+            attn_buf.ptr<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
     void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
@@ -865,7 +865,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     };
 
     // 1. check beam idx if it's valid
-    auto* table = beam_idx.data<int32_t>();
+    auto* table = beam_idx.ptr<int32_t>();
     for (size_t i = 0; i < B; i++) {
         OPENVINO_ASSERT(static_cast<size_t>(table[i]) < B_state, "beam_idx[", i, "]=", table[i],
             " should less than batch of previous pastkv: ", B_state);
@@ -1046,8 +1046,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
             beam_table_k.reset(hidden_state_k);
             beam_table_v.reset(hidden_state_v);
             for (size_t b = 0; b < B; b++) {
-                std::memcpy(&new_beam_table_k.at<int32_t>({b}), &beam_table_k.at<int32_t>({b}), sizeof(int32_t) * L0);
-                std::memcpy(&new_beam_table_v.at<int32_t>({b}), &beam_table_v.at<int32_t>({b}), sizeof(int32_t) * L0);
+                std::memcpy(new_beam_table_k.ptr<int32_t>(b), beam_table_k.ptr<int32_t>(b), sizeof(int32_t) * L0);
+                std::memcpy(new_beam_table_v.ptr<int32_t>(b), beam_table_v.ptr<int32_t>(b), sizeof(int32_t) * L0);
             }
         }
         m_k_state->assign_hidden_state(new_hidden_state_k);
@@ -1109,7 +1109,7 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     // beam order is like [0, 1, 2,...]
     bool no_reorder = true;
     for (size_t i = 0; i < B; i++) {
-        if (beam_idx.data<int32_t>()[i] != static_cast<int32_t>(i)) {
+        if (beam_idx.ptr<int32_t>()[i] != static_cast<int32_t>(i)) {
             no_reorder = false;
             break;
         }
@@ -1117,16 +1117,16 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
 
     // reorder
     if (!no_reorder) {
-        auto* table = beam_idx.data<int32_t>();
+        auto* table = beam_idx.ptr<int32_t>();
         // beam table is same for both k,v state
         for (size_t i = 0; i < B; i++) {
-            std::memcpy(&beam_table_k.at<int32_t>(i, false),
-                        &beam_table_v.at<int32_t>(static_cast<size_t>(table[i]), false),
+            std::memcpy(beam_table_k.ptr<int32_t>(i),
+                        beam_table_v.ptr<int32_t>(table[i]),
                         sizeof(int32_t) * L0);
         }
         for (size_t i = 0; i < B; i++) {
-            std::memcpy(&beam_table_v.at<int32_t>(i, false),
-                        &beam_table_k.at<int32_t>(i, false),
+            std::memcpy(beam_table_v.ptr<int32_t>(i),
+                        beam_table_k.ptr<int32_t>(i),
                         sizeof(int32_t) * L0);
         }
     }
@@ -1214,11 +1214,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             new_scale_zp_v.resize<float>({B, H, (L0 + L1) * 2, 2});
             if (L0 > 0 && !is_reset) {
                 parallel_for2d(B, H, [&](size_t b, size_t h) {
-                    memcpy(&new_scale_zp_k.at<float>(b, h, false),
-                           &old_scale_zp_k.at<float>(b, h, false),
+                    memcpy(new_scale_zp_k.ptr<float>(b, h),
+                           old_scale_zp_k.ptr<float>(b, h),
                            sizeof(float) * L0 * 2);
-                    memcpy(&new_scale_zp_v.at<float>(b, h, false),
-                           &old_scale_zp_v.at<float>(b, h, false),
+                    memcpy(new_scale_zp_v.ptr<float>(b, h),
+                           old_scale_zp_v.ptr<float>(b, h),
                            sizeof(float) * L0 * 2);
                 });
             }

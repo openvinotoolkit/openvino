@@ -631,7 +631,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         // be sure no false sharing
         head_sum.resize<float>({B, H, q_len, 16});
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            head_sum.at<float>(b, h, pq, false) = sum_q_head(&query.at<T>(b, h, pq, false), S);
+            *head_sum.ptr<float>(b, h, pq) = sum_q_head(query.ptr<T>(b, h, pq), S);
         });
     }
 #endif
@@ -646,34 +646,34 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 if (B == 1) {
                     // the memory will be continuous when b==1
                     for (size_t iwork = start; iwork < end; ++iwork) {
-                        auto p = &past_k_scale_zp.at<float>(0, h_group, pk, false);
-                        auto p_k = &present_key.at<T2>(0, h_group, pk, false);
+                        auto p = past_k_scale_zp.ptr<float>(0, h_group, pk);
+                        auto p_k = present_key.ptr<T2>(0, h_group, pk);
                         prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                        buf_attn_w.at<float>(0, h_group, 0, pk) =
-                                dot_product(&query.at<T>(0, h_group, false), p_k,
-                                    S, p, p + 1, &head_sum.at<float>(0, h_group, false));
+                        buf_attn_w.ptr<float>(0, h_group, 0)[pk] =
+                                dot_product(query.ptr<T>(0, h_group), p_k,
+                                    S, p, p + 1, head_sum.ptr<float>(0, h_group));
                         parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
                     }
                 } else {
                     for (size_t iwork = start; iwork < end; ++iwork) {
-                        auto b_kv = beams ? beams.at<int32_t>(b, pk) : b;
-                        auto p = &past_k_scale_zp.at<float>(b_kv, h_group, pk, false);
-                        auto p_k = &present_key.at<T2>(b_kv, h_group, pk, false);
-                        buf_attn_w.at<float>(b, h_group, 0, pk) =
-                                dot_product(&query.at<T>(b, h_group, false), p_k,
-                                    S, p, p + 1, &head_sum.at<float>(b, h_group, false));
+                        auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
+                        auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
+                        auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
+                        buf_attn_w.ptr<float>(b, h_group, 0)[pk] =
+                                dot_product(query.ptr<T>(b, h_group), p_k,
+                                    S, p, p + 1, head_sum.ptr<float>(b, h_group));
                         parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
                     }
                 }
             } else {
                 for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at<int32_t>(b, pk) : b;
+                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                     for (size_t pq = 0; pq < q_len; pq++) {
-                        auto p = &past_k_scale_zp.at<float>(b_kv, h_group, pk, false);
+                        auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            buf_attn_w.at<float>(b, h, pq, pk) =
-                                    dot_product(&query.at<T>(b, h, pq, false), &present_key.at<T2>(b_kv, h_group, pk, false),
-                                        S, p, p + 1, &head_sum.at<float>(b, h, pq, false));
+                            buf_attn_w.ptr<float>(b, h, pq)[pk] =
+                                    dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(b_kv, h_group, pk),
+                                        S, p, p + 1, head_sum.ptr<float>(b, h, pq));
                         }
                     }
                     parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
@@ -688,8 +688,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
         float* attn_mask_ptr = attention_mask ? &attention_mask.at<float>({b, h, pq, 0}, true) : nullptr;
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
-        attn_softmax_kernel(&buf_attn_w.at<float>(b, h, pq, false),
-                            &buf_attn_w.at<float>(b, h, pq, false),
+        attn_softmax_kernel(buf_attn_w.ptr<float>(b, h, pq),
+                            buf_attn_w.ptr<float>(b, h, pq),
                             d_scale,
                             alibi_ptr,
                             attn_mask_ptr,
@@ -707,18 +707,18 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         size_t start{0}, end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        memset(&buf_attn_score.at<float>({ithr, 0, 0, 0, 0}), 0, buf_attn_score.stride(0) * sizeof(float));
+        memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
 
         size_t b, h_group, pv;
         if (start < end) {
             parallel_it_init(start, b, B, h_group, h_group_num, pv, kv_len);
             if (q_len == 1 && h_each_group_len == 1) {
                 for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at<int32_t>(b, pv) : b;
-                    auto* v = &present_value.at<T2>(b_kv, h_group, pv, false);
-                    auto p = &past_v_scale_zp.at<float>(b_kv, h_group, pv, false);
-                    attn_acc_value(&buf_attn_score.at<float>(ithr, b, 0, h_group, false),
-                                buf_attn_w.at<float>(b, h_group, 0, pv),
+                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
+                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                    attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
+                                buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
                                 v,
                                 S,
                                 p + 0,
@@ -727,13 +727,13 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 }
             } else {
                 for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at<int32_t>(b, pv) : b;
-                    auto* v = &present_value.at<T2>(b_kv, h_group, pv, false);
-                    auto p = &past_v_scale_zp.at<float>(b_kv, h_group, pv, false);
+                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
+                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            attn_acc_value(&buf_attn_score.at<float>(ithr, b, pq, h, false),
-                                        buf_attn_w.at<float>(b, h, pq, pv),
+                            attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
+                                        buf_attn_w.ptr<float>(b, h, pq)[pv],
                                         v,
                                         S,
                                         p + 0,
@@ -747,9 +747,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     });
 
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-        auto* temp = &buf_attn_score.at<float>(0, b, pq, h, false);
+        auto* temp = buf_attn_score.ptr<float>(0, b, pq, h);
         size_t temp_stride = buf_attn_score.stride(0);
-        auto* dst = has_out_transpose ? &output_emb.at<T>(b, pq, h * S, false) : &output_emb.at<T>(b, h, pq, false);
+        auto* dst = has_out_transpose ? output_emb.ptr<T>(b, pq, h * S) : output_emb.ptr<T>(b, h, pq);
         attn_reduce(dst, temp, nthr, S, temp_stride);
     });
 }

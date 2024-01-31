@@ -364,9 +364,21 @@ struct PlainTensor {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }
 
-    template <typename DT>
-    DT* data() const {
-        return reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
+    template <int dim>
+    int64_t offset() const {
+        return m_offset;
+    }
+    template <int dim, typename I>
+    int64_t offset(I i) const {
+        return i * m_strides[dim];
+    }
+    template <int dim, typename I, typename... Is>
+    int64_t offset(I i, Is... indices) const {
+        return i * m_strides[dim] + offset<dim + 1>(indices...);
+    }
+    template <typename DT, typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
@@ -384,53 +396,6 @@ struct PlainTensor {
             }
             off += m_strides[i] * coordinate;
         }
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-
-    // the following is used for fast access
-    template <typename DT>
-    DT& at(size_t dim0, bool last_dim_stride_is_one = true) const {
-        size_t off;
-        if (last_dim_stride_is_one)
-            off = dim0;
-        else
-            off = m_strides[0] * dim0;
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-    template <typename DT>
-    DT& at(size_t dim0, size_t dim1, bool last_dim_stride_is_one = true) const {
-        size_t off;
-        if (last_dim_stride_is_one)
-            off = m_strides[0] * dim0 + dim1;
-        else
-            off = m_strides[0] * dim0 + m_strides[1] * dim1;
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-    template <typename DT>
-    DT& at(size_t dim0, size_t dim1, size_t dim2, bool last_dim_stride_is_one = true) const {
-        size_t off;
-        if (last_dim_stride_is_one)
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2;
-        else
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2];
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-    template <typename DT>
-    DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, bool last_dim_stride_is_one = true) const {
-        size_t off;
-        if (last_dim_stride_is_one)
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3;
-        else
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3];
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-    template <typename DT>
-    DT& at(size_t dim0, size_t dim1, size_t dim2, size_t dim3, size_t dim4, bool last_dim_stride_is_one = true) const {
-        size_t off;
-        if (last_dim_stride_is_one)
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4;
-        else
-            off = m_strides[0] * dim0 + m_strides[1] * dim1 + dim2 * m_strides[2] + dim3 * m_strides[3] + dim4 * m_strides[4];
         return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
 
@@ -532,17 +497,17 @@ struct PlainTensor {
             // display current element if we still have buget
             if (cur_row_lines_left > 0) {
                 if (m_dt == ov::element::Type_t::f32)
-                    ss << (data<float>())[i] << ",";
+                    ss << (ptr<float>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::bf16)
-                    ss << (data<bfloat16>())[i] << ",";
+                    ss << (ptr<bfloat16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::f16)
-                    ss << (data<float16>())[i] << ",";
+                    ss << (ptr<float16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i32)
-                    ss << (data<int32_t>())[i] << ",";
+                    ss << (ptr<int32_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i8)
-                    ss << (data<int8_t>())[i] << ",";
+                    ss << (ptr<int8_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::u8)
-                    ss << (data<uint8_t>())[i] << ",";
+                    ss << (ptr<uint8_t>())[i] << ",";
                 else
                     ss << "?,";
                 cur_line_elecnt++;
