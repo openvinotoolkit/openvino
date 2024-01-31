@@ -127,8 +127,14 @@ jobs:
         with:
           version: "v0.7.5"
 
+      - name: Show PATH
+        run: $Env:PATH
+
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip
+          Expand-Archive -Force ninja-win.zip
+          ls
 
       #
       # Build
