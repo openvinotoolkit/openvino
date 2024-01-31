@@ -104,7 +104,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 
@@ -312,7 +312,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 
