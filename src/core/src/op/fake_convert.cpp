@@ -14,8 +14,8 @@ namespace ov {
 namespace op {
 namespace v13 {
 namespace fake_convert_details {
-static const std::vector<std::string>& get_valid_types() {
-    static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
+static const std::vector<ov::element::Type>& get_valid_types() {
+    static const std::vector<ov::element::Type> valid_types{ov::element::f8e4m3, ov::element::f8e5m2};
     return valid_types;
 }
 
@@ -51,7 +51,7 @@ FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)
     : Op({data, scale}),
-      m_destination_type(std::move(destination_type)) {
+      m_destination_type(ov::element::Type(destination_type)) {
     constructor_validate_and_infer_types();
 }
 
@@ -60,11 +60,32 @@ FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& shift,
                          std::string destination_type)
     : Op({data, scale, shift}),
-      m_destination_type(std::move(destination_type)) {
+      m_destination_type(ov::element::Type(destination_type)) {
     constructor_validate_and_infer_types();
 }
 
-const std::string& FakeConvert::get_destination_type() const {
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::element::Type& destination_type)
+    : Op({data, scale}),
+      m_destination_type(destination_type) {
+    constructor_validate_and_infer_types();
+}
+
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::Output<ov::Node>& shift,
+                         const ov::element::Type& destination_type)
+    : Op({data, scale, shift}),
+      m_destination_type(destination_type) {
+    constructor_validate_and_infer_types();
+}
+
+std::string FakeConvert::get_destination_type() const {
+    return m_destination_type.get_type_name();
+}
+
+const ov::element::Type& FakeConvert::get_destination_element_type() const {
     return m_destination_type;
 }
 
