@@ -49,7 +49,7 @@ private:
     void ApplyLowLatency();
 
     InferenceEngine::Precision netPrecision;
-    ngraph::EvaluationContext eval_context;
+    ov::EvaluationContext eval_context;
     ngraph::helpers::MemoryTransformation transformation;
 
     int64_t iteration_count;
