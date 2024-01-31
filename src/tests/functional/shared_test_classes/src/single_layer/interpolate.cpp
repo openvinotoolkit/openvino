@@ -111,7 +111,7 @@ std::string Interpolate1LayerTest::getTestCaseName(testing::TestParamInfo<Interp
     InferenceEngine::Layout dataLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string mode;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool antialias;
     std::vector<size_t> pads;
     std::string targetDevice;
@@ -139,7 +139,7 @@ void Interpolate1LayerTest::SetUp() {
     InferenceEngine::Precision dataPrecision;
     InferenceEngine::Layout dataLayout;
     std::string mode;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool antialias;
     std::vector<size_t> pads;
     std::tie(netPrecision, dataPrecision, dataLayout, inputShape, targetShape,

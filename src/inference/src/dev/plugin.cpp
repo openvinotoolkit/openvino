@@ -18,8 +18,6 @@
         __VA_ARGS__;                                                                   \
     } catch (const ov::NotImplemented&) {                                              \
         OPENVINO_NOT_IMPLEMENTED;                                                      \
-    } catch (const InferenceEngine::NotImplemented&) {                                 \
-        OPENVINO_NOT_IMPLEMENTED;                                                      \
     } catch (const std::exception& ex) {                                               \
         OPENVINO_THROW(ex.what());                                                     \
     } catch (...) {                                                                    \
