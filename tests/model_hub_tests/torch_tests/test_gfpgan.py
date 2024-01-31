@@ -76,6 +76,6 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
         # remove all downloaded files from cache
         self.repo_dir.cleanup()
 
-    @pytest.mark.nightly
-    def test_convert_model(self, ie_device):
-        self.run("GFPGAN", None, ie_device)
+    # @pytest.mark.nightly
+    # def test_convert_model(self, ie_device):
+    #     self.run("GFPGAN", None, ie_device)

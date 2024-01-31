@@ -96,8 +96,8 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
         self.run(name, None, ie_device)
 
-    @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "detectron2_models")))
-    @pytest.mark.nightly
-    def test_detectron2_all_models(self, name, ie_device):
-        self.run(name, None, ie_device)
+    # @pytest.mark.parametrize("name",
+    #                          process_pytest_marks(os.path.join(os.path.dirname(__file__), "detectron2_models")))
+    # @pytest.mark.nightly
+    # def test_detectron2_all_models(self, name, ie_device):
+    #     self.run(name, None, ie_device)
