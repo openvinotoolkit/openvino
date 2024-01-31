@@ -1208,7 +1208,7 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                   const std::map<std::string, ov::OpSet>& custom_opsets,
                    bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
@@ -1287,7 +1287,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 OPENVINO_SUPPRESS_DEPRECATED_START
 pass::Serialize::Serialize(std::ostream& xmlFile,
                            std::ostream& binFile,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
+                           std::map<std::string, ov::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
@@ -1297,11 +1297,11 @@ pass::Serialize::Serialize(std::ostream& xmlFile,
       m_custom_opsets{custom_opsets} {}
 
 pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ngraph::OpSet>{}, version) {}
+    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ov::OpSet>{}, version) {}
 
 pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
+                           std::map<std::string, ov::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
@@ -1311,12 +1311,12 @@ pass::Serialize::Serialize(const std::string& xmlPath,
       m_custom_opsets{custom_opsets} {}
 
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ngraph::OpSet>{}, version) {}
+    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ov::OpSet>{}, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
+                                       std::map<std::string, ov::OpSet>&& custom_opsets,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        Serialize::Version version)
     : m_stream(stream),
