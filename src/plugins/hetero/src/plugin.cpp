@@ -72,7 +72,7 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it)
-            device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
+            device_properties[device_name] = get_core()->get_supported_property(device_name, properties, false);
     }
     return device_properties;
 }
