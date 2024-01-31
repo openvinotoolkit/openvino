@@ -163,6 +163,16 @@ const std::vector<ReshapeTransformationParam> params = {
         "Reshape",
         "f32"
     },
+
+    // int16 is not supported: no dequantization after Reshape: Reshape => Output
+    {
+        { 1, 3, 32 },
+        { 1, 3, 4, 8 },
+        { 65536ul, ov::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "f32",
+        { "Reshape", "Output" }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
