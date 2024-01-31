@@ -297,7 +297,9 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& model) {
+bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::set<levels>& supported_levels) {
     std::set<std::shared_ptr<ov::Node>> handledNodes;
     std::deque<std::shared_ptr<ov::Node>> nodes;
     for (const auto& result : model->get_results()) {
@@ -316,7 +318,7 @@ bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(const std::share
 
             if (const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent)) {
                 if (QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
-                    QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
+                    QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels(), supported_levels)) {
                     return true;
                 }
             } else if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(parent)) {

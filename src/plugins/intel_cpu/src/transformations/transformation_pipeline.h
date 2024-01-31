@@ -50,7 +50,7 @@ private:
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
 
-    void Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions);
+    void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 
