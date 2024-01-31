@@ -149,7 +149,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                         LOG_DEBUG_TAG("get_property range_for_streams from %s failed", device_info.device_name.c_str());
                     }
                 }
-                if (!m_context->m_batching_disabled) {
+                if (!m_context->m_batching_disabled && m_model) {
                     if (std::find(actual_dev_supported_properties.begin(),
                                   actual_dev_supported_properties.end(),
                                   ov::optimal_batch_size) != actual_dev_supported_properties.end()) {

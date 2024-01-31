@@ -22,7 +22,6 @@
 #include "cumulative_compiled_model.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
@@ -397,13 +396,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
-    std::shared_ptr<ov::Model> cloned_model, ppp_model;
+    std::shared_ptr<ov::Model> cloned_model;
     if (model_path.empty()) {
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
-        ppp_model = cloned_model->clone();
-
-        ov::preprocess::PrePostProcessor preproc(ppp_model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -427,7 +423,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
     // clone the model, in case of reshape conflict
-    auto_s_context->m_model = std::move(cloned_model);
+    auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
@@ -455,9 +451,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), device_context, auto_s_context, scheduler);
     } else {
-        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), device_context, auto_s_context, scheduler);
     }
     return impl;
 }
