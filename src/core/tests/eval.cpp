@@ -2688,7 +2688,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E4M3 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e4m3);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3204,7 +3204,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
