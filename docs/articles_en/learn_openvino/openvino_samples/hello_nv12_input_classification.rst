@@ -15,7 +15,7 @@ with images in NV12 color format using Synchronous Inference Request API. Before
 using the sample, refer to the following requirements:
 
 - The sample accepts any file format supported by ``ov::Core::read_model``.
-- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>` model and
+- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__ model and
   uncompressed images in the NV12 color format - \*.yuv
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
