@@ -236,7 +236,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
