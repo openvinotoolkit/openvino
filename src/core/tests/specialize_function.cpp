@@ -11,7 +11,7 @@
 
 using namespace ngraph;
 using namespace ov;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::op::v0::Constant;
 using ov::op::v0::Convert;

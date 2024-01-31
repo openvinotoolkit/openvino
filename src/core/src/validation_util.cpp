@@ -329,11 +329,11 @@ ov::PartialShape infer_slice_shape(const ov::Node* node,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
                                    const std::vector<int64_t>& strides,
-                                   const AxisSet& begin_mask,
-                                   const AxisSet& end_mask,
-                                   const AxisSet& new_axis_mask,
-                                   const AxisSet& shrink_axis_mask,
-                                   const AxisSet& ellipsis_mask) {
+                                   const ov::AxisSet& begin_mask,
+                                   const ov::AxisSet& end_mask,
+                                   const ov::AxisSet& new_axis_mask,
+                                   const ov::AxisSet& shrink_axis_mask,
+                                   const ov::AxisSet& ellipsis_mask) {
     if (begin.size() && end.size()) {
         NODE_VALIDATION_CHECK(node,
                               begin.size() == end.size(),

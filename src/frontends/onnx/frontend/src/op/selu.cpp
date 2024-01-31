@@ -4,10 +4,10 @@
 
 #include "op/selu.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/selu.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -19,11 +19,11 @@ ov::OutputVector selu(const Node& node) {
     auto alpha = node.get_attribute_value<double>("alpha", 1.67326319217681884765625);
     auto gamma = node.get_attribute_value<double>("gamma", 1.05070102214813232421875);
 
-    auto alpha_node = default_opset::Constant::create(data.get_element_type(), ov::Shape{}, {alpha});
+    auto alpha_node = v0::Constant::create(data.get_element_type(), ov::Shape{}, {alpha});
 
-    auto gamma_node = default_opset::Constant::create(data.get_element_type(), ov::Shape{}, {gamma});
+    auto gamma_node = v0::Constant::create(data.get_element_type(), ov::Shape{}, {gamma});
 
-    return {std::make_shared<default_opset::Selu>(data, alpha_node, gamma_node)};
+    return {std::make_shared<v0::Selu>(data, alpha_node, gamma_node)};
 }
 
 }  // namespace set_1
