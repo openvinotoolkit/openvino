@@ -174,7 +174,7 @@ Below are some examples of using Optimum-Intel for model conversion and inferenc
 * `Create an LLM-powered Chatbot using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb>`__
 
 Stateful Model Optimization
-++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++
 
 When you use the ``OVModelForCausalLM`` class, the model is transformed into a stateful form by default for optimization.
 This transformation improves inference performance and decreases runtime memory usage in long running text generation tasks.
