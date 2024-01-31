@@ -21,7 +21,9 @@ std::string find_plugins_xml(const std::string& xml_file) {
         // Default plugin xml file name.
         xml_file_name = "plugins.xml";
     } else {
-        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
+        // Exclude relative path
+        const auto relative_path_symbol = std::string("..") + util::FileTraits<char>().file_separator;
+        if (xml_file_name.find(relative_path_symbol) != xml_file_name.npos) {
             OPENVINO_THROW("Unsupport plugin xml relative path: ", xml_file_name.c_str());
         }
     }
