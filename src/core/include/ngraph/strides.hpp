@@ -18,7 +18,6 @@
 #include <ostream>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "openvino/core/strides.hpp"
 
 namespace ngraph {
