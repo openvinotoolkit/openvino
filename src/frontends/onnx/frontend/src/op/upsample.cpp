@@ -57,7 +57,7 @@ default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& m
 }  // namespace
 
 namespace set_1 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto height_scale = node.get_attribute_value<float>("height_scale");
     const auto width_scale = node.get_attribute_value<float>("width_scale");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
@@ -83,7 +83,7 @@ OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace set_1
 
 namespace set_7 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_7);
@@ -104,7 +104,7 @@ OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace set_7
 
 namespace set_9 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
 

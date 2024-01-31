@@ -82,6 +82,9 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
@@ -117,7 +120,7 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 

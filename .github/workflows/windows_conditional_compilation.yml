@@ -50,7 +50,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb
+    runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -104,7 +104,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 
@@ -266,7 +266,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb
+    runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
@@ -312,7 +312,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 

@@ -100,7 +100,7 @@ public:
 using modelPrioPerfHintTestParams = std::tuple<bool,         // is New API
                                                bool,         // if Actual device sleep, cpu device will load slow
                                                std::string,  // Actual Device Name
-                                               std::string,  // performance mode
+                                               ov::Any,      // performance mode
                                                ov::Any       // model Priority
                                                >;
 
@@ -111,7 +111,7 @@ public:
         bool isNewAPI;
         bool actualSleep;
         std::string actualDeviceName;
-        std::string performanceMode;
+        ov::Any performanceMode;
         ov::Any modelPriority;
         std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
         std::ostringstream result;
@@ -130,7 +130,7 @@ public:
                    << "false";
         }
         result << "_actualDeviceName_" << actualDeviceName;
-        result << "_performanceMode_" << performanceMode;
+        result << "_performanceMode_" << performanceMode.as<std::string>();
         result << "_modelPriority" << modelPriority.as<std::string>();
         return result.str();
     }
@@ -186,7 +186,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         metaConfig.insert(ov::hint::num_requests(gpuPerfHintNum));
     }
     if (isThroughput) {
-        metaConfig.insert(ov::hint::performance_mode("THROUGHPUT"));
+        metaConfig.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
         metaDevices.push_back({ov::test::utils::DEVICE_CPU, metaConfig, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, metaConfig, actualCustomerNum, ""});
         // enable autoBatch
@@ -365,7 +365,7 @@ public:
         bool isNewAPI;
         bool actualSleep;
         std::string actualDeviceName;
-        std::string performanceMode;
+        ov::Any performanceMode;
         ov::Any modelPriority;
         std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
         std::ostringstream result;
@@ -384,7 +384,7 @@ public:
                    << "false";
         }
         result << "_actualDeviceName_" << actualDeviceName;
-        result << "_performanceMode_" << performanceMode;
+        result << "_performanceMode_" << performanceMode.as<std::string>();
         result << "_modelPriority" << modelPriority.as<std::string>();
         return result.str();
     }
@@ -396,18 +396,22 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     bool isNewAPI;
     bool actualSleep;
     std::string actualDeviceName;
-    std::string performanceHint;
+    ov::Any performanceHint;
     ov::Any modelPriority;
     std::tie(isNewAPI, actualSleep, actualDeviceName, performanceHint, modelPriority) = this->GetParam();
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + actualDeviceName));
-    config.insert(ov::hint::performance_mode(performanceHint));
+    config.insert(ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>()));
     config.insert({ov::hint::model_priority.name(), modelPriority.as<std::string>()});
 
     if (isNewAPI) {
         ON_CALL(*core.get(), is_new_api()).WillByDefault(Return(true));
     }
-    metaDevices.push_back({ov::test::utils::DEVICE_CPU, {ov::hint::performance_mode(performanceHint)}, 3, ""});
-    metaDevices.push_back({actualDeviceName, {ov::hint::performance_mode(performanceHint)}, 2, ""});
+    metaDevices.push_back({ov::test::utils::DEVICE_CPU,
+                           {ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>())},
+                           3,
+                           ""});
+    metaDevices.push_back(
+        {actualDeviceName, {ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>())}, 2, ""});
 
     ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
@@ -450,36 +454,24 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
 
     auto AutoExecNetwork = plugin->compile_model(model, config);
     auto result = AutoExecNetwork->get_property(ov::hint::performance_mode.name()).as<std::string>();
-    EXPECT_EQ(result, performanceHint);
+    EXPECT_EQ(result, performanceHint.as<std::string>());
     auto resPriority = AutoExecNetwork->get_property(ov::hint::model_priority.name()).as<std::string>();
     EXPECT_EQ(resPriority, modelPriority.as<std::string>());
 }
 
 const std::vector<modelPrioPerfHintTestParams> modelPrioPerfHintConfig = {
-    modelPrioPerfHintTestParams{false,
-                                true,
-                                ov::test::utils::DEVICE_GPU,
-                                "THROUGHPUT",
-                                CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", CONFIG_VALUE(MODEL_PRIORITY_LOW)},
-    modelPrioPerfHintTestParams{false,
-                                true,
-                                ov::test::utils::DEVICE_GPU,
-                                "THROUGHPUT",
-                                CONFIG_VALUE(MODEL_PRIORITY_MED)},
-    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", CONFIG_VALUE(MODEL_PRIORITY_MED)},
-    modelPrioPerfHintTestParams{false,
-                                true,
-                                ov::test::utils::DEVICE_GPU,
-                                CONFIG_VALUE(THROUGHPUT),
-                                CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
-    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "THROUGHPUT", "LOW"},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", "LOW"},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "THROUGHPUT", "MEDIUM"},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", "MEDIUM"},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "THROUGHPUT", "HIGH"},
-    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", "HIGH"}};
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::LOW},
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::LOW},
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::MEDIUM},
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::MEDIUM},
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::HIGH},
+    modelPrioPerfHintTestParams{false, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::HIGH},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::LOW},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::LOW},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::MEDIUM},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::MEDIUM},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, ov::hint::PerformanceMode::THROUGHPUT, ov::hint::Priority::HIGH},
+    modelPrioPerfHintTestParams{true, true, ov::test::utils::DEVICE_GPU, "LATENCY", ov::hint::Priority::HIGH}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ExecNetworkGetMetricOtherTest,

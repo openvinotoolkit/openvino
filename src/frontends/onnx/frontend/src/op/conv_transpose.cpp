@@ -30,8 +30,8 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
                                               const ov::Output<ov::Node>& filters,
                                               const Strides& strides,
                                               const Strides& dilations,
-                                              const CoordinateDiff& pads_begin,
-                                              const CoordinateDiff& pads_end,
+                                              const ov::CoordinateDiff& pads_begin,
+                                              const ov::CoordinateDiff& pads_end,
                                               const ov::op::PadType& auto_pad_type,
                                               const std::vector<std::int64_t>& output_shape,
                                               const std::vector<std::int64_t>& output_padding) {
@@ -44,7 +44,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     } else {
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
@@ -53,7 +53,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
             strides,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     }
 }
 
@@ -61,8 +61,8 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
                                         const ov::Output<ov::Node>& filters,
                                         const Strides& strides,
                                         const Strides& dilations,
-                                        const CoordinateDiff& pads_begin,
-                                        const CoordinateDiff& pads_end,
+                                        const ov::CoordinateDiff& pads_begin,
+                                        const ov::CoordinateDiff& pads_end,
                                         const ov::op::PadType& auto_pad_type,
                                         const std::vector<std::int64_t>& output_shape,
                                         const std::vector<std::int64_t>& output_padding) {
@@ -75,7 +75,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     } else {
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
@@ -86,7 +86,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     }
 }
 
@@ -117,15 +117,15 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
                                                               std::vector<int64_t>{0});  // end mask
 
         // Construct new bias shape: [1, C, 1, 1, ... ]
-        bias_shape_node = std::make_shared<v0::Concat>(OutputVector{one_node, C_dim, remaining_bias_shape_ones}, 0);
+        bias_shape_node = std::make_shared<v0::Concat>(ov::OutputVector{one_node, C_dim, remaining_bias_shape_ones}, 0);
     }
 
     return std::make_shared<v1::Reshape>(bias, bias_shape_node, false);
 }
 }  // namespace
 
-OutputVector conv_transpose(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv_transpose(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     CHECK_VALID_NODE(node,
                      inputs.size() == 2 || inputs.size() == 3,
@@ -140,7 +140,7 @@ OutputVector conv_transpose(const Node& node) {
 
     std::size_t num_spatial_dims = 0;
     Strides strides, dilations;
-    std::pair<CoordinateDiff, CoordinateDiff> paddings;
+    std::pair<ov::CoordinateDiff, ov::CoordinateDiff> paddings;
     ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 
     // Get attirbutes or infer them from input data rank it it's static.
@@ -163,8 +163,8 @@ OutputVector conv_transpose(const Node& node) {
     strides = convpool::get_strides(node, num_spatial_dims);
     dilations = convpool::get_dilations(node, num_spatial_dims);
     paddings = convpool::get_pads(node, num_spatial_dims);
-    CoordinateDiff pads_begin = paddings.first;
-    CoordinateDiff pads_end = paddings.second;
+    ov::CoordinateDiff pads_begin = paddings.first;
+    ov::CoordinateDiff pads_end = paddings.second;
 
     std::vector<std::int64_t> output_shape{node.get_attribute_value<std::vector<std::int64_t>>("output_shape", {})};
 

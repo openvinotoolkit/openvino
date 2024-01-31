@@ -102,7 +102,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
         const auto outShape = ov::opset1::Constant::create(ov::element::i64, Shape{4}, {1, 4, 32, 32});
 
         ov::op::v0::Interpolate::Attributes attributes;
-        attributes.axes = AxisSet{ 2, 3 };
+        attributes.axes = ov::AxisSet{ 2, 3 };
         attributes.mode = "nearest";
         attributes.align_corners = false;
         attributes.antialias = false;
@@ -132,7 +132,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "MVNTransformation") {
         const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});
-        return std::make_shared<ov::op::v0::MVN>(dequantization, AxisSet{ 2, 3 });
+        return std::make_shared<ov::op::v0::MVN>(dequantization, ov::AxisSet{ 2, 3 });
     }
     if (transformationName == "NormalizeL2Transformation") {
         const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});
