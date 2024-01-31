@@ -1551,7 +1551,6 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefore(
     const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
-    const bool updateOutputPrecision,
     const bool moveSubtract) {
     assert(
         (NetworkHelper::getDequantizationBelow(operation).subtractConstant == nullptr) ||
@@ -1648,6 +1647,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
         THROW_TRANSFORMATION_EXCEPTION << "dequantization operations must end with multiply";
     }
     replace_node(dequantization.multiply, newOperation);
+    if (const auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(newOperation)) {
+        op->set_overridden_output_type(dequantization.multiplyConstant->get_element_type());
+        newOperation->validate_and_infer_types();
+    }
+
     return InsertDequantizationResult(newOperation, dequantization.multiply);
 }
 

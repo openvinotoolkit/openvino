@@ -175,7 +175,6 @@ public:
     static InsertDequantizationResult moveDequantizationBefore(
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updateOutputPrecision,
         const bool moveSubtract);
 
     static std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> splitConstantsBeforeConcat(

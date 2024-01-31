@@ -359,7 +359,6 @@ protected:
         TransformationContext& context,
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updateOutputPrecision = true,
         const bool moveSubtract = true) const;
 
     bool updateOutput(
