@@ -982,19 +982,24 @@ void ScaledDotProductAttention::createPrimitive() {
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor;
         if (rtPrecision == ov::element::bf16) {
+#ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
+#endif
         } else {
-    #ifdef OV_CPU_WITH_MLAS
+#ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
-    #else
+#else
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
-    #endif
+#endif
         }
         return executor;
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
+    if (!result.first) {
+        OPENVINO_THROW("ScaleDotAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+    }
     m_executor = result.first;
 }
 
@@ -1448,9 +1453,12 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
 
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
-    // only support bf16 and f32
-    if (rtPrecision != ov::element::bf16 && rtPrecision != ov::element::f32)
+    // bf16 should be enabled only when platform supports
+    if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
+        rtPrecision = ov::element::bf16;
+    } else {
         rtPrecision = ov::element::f32;
+    }
     return rtPrecision;
 }
 
