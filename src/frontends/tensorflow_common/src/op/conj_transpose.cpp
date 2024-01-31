@@ -35,7 +35,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conj_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Conjugate"}, true);
+    default_op_checks(node, 1, {"Conj"}, true);
 
     auto x = node.get_input(0);
 
