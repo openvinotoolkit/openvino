@@ -33,6 +33,7 @@ jobs:
           python -m pip install --upgrade pip setuptools
           # For UT
           pip install unittest-xml-reporting==3.0.2
+          pip install pylint>=2.7.0
 
         working-directory: tools/ovc
 
