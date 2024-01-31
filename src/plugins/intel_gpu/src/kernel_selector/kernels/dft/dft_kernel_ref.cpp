@@ -210,6 +210,11 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     for (size_t i = 0; i < params.axes.size(); ++i) {
         // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
         auto axis = params.axes[i];
+
+        // when axis is negative value, convert to positive.
+        if (axis < 0)
+            axis = out_rank -1 + axis;
+
         auto inverted_axis = dims_size - axis;
         auto signal_size = params.signal_size[i];
 
