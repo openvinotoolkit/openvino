@@ -28,6 +28,15 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('src/bindings/python/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
@@ -36,7 +45,8 @@ jobs:
           pip install pylint>=2.7.0
           pip install pyenchant>=3.0.0
 
-        working-directory: tools/ovc
+          pip install -r requirements.txt
+        working-directory: src/bindings/python/
 
       - name: Pylint-OVC
         run: pylint -d C,R,W openvino/tools/ovc
