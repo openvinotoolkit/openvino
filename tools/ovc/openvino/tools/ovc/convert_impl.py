@@ -530,7 +530,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 log.error("----------------- END OF REPORT -----------------")
                 log.error("-------------------------------------------------")
 
-
         send_conversion_result('fail')
         if python_api_used:
             raise e
