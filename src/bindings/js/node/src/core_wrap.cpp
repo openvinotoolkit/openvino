@@ -1,24 +1,26 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "core_wrap.hpp"
+#include "node/include/core_wrap.hpp"
 
-#include "addon.hpp"
-#include "compiled_model.hpp"
-#include "model_wrap.hpp"
-#include "read_model_args.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/async_reader.hpp"
+#include "node/include/compiled_model.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "node/include/model_wrap.hpp"
+#include "node/include/read_model_args.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
 Napi::Function CoreWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "Core",
-                       {
-                           InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
-                           InstanceMethod("readModel", &CoreWrap::read_model_async),
-                           InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
-                           InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                       });
+                       {InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
+                        InstanceMethod("readModel", &CoreWrap::read_model_async),
+                        InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
+                        InstanceMethod("compileModel", &CoreWrap::compile_model_async),
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -216,4 +218,15 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error while compiling model.");
         return Napi::Value();
     }
+}
+
+Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
+    const auto& devices = _core.get_available_devices();
+    Napi::Array js_devices = Napi::Array::New(info.Env(), devices.size());
+
+    uint32_t i = 0;
+    for (const auto& dev : devices)
+        js_devices[i++] = dev;
+
+    return js_devices;
 }

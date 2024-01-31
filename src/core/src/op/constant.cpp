@@ -12,13 +12,12 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -69,34 +68,6 @@ std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
 }  // namespace
 
 namespace v0 {
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::shared_ptr<AlignedBuffer> Constant::legacy_to_ov_aligned_buffer(
-    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
-    return std::make_shared<SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(buffer->get_ptr<char>(),
-                                                                                           buffer->size(),
-                                                                                           buffer);
-}
-
-Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
-    m_element_type = tensor->get_element_type();
-    m_shape = tensor->get_shape();
-    // Share data from HostTensor if we work with it
-    // And copy data in other cas
-    if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
-        m_data = std::make_shared<SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
-            static_cast<char*>(hostTensor->get_data_ptr()),
-            tensor->get_size_in_bytes(),
-            tensor);
-    } else {
-        OPENVINO_ASSERT(m_element_type != ov::element::string,
-                        "Creation of string constant for ngraph::runtime::Tensor is supported only for HostTensor");
-        constructor_validate_and_infer_types();
-        allocate_buffer(false);
-        tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
-    }
-    constructor_validate_and_infer_types();
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
@@ -221,8 +192,26 @@ struct ValueToString : ov::element::NotSupported<std::string> {
 
 std::string Constant::convert_value_to_string(size_t index) const {
     using namespace ov::element;
-    return IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
-        ValueToString>(get_element_type(), this, index);
+    return IfTypeOf<boolean,
+                    bf16,
+                    f16,
+                    f32,
+                    f64,
+                    i4,
+                    i8,
+                    i16,
+                    i32,
+                    i64,
+                    u1,
+                    u4,
+                    u8,
+                    u16,
+                    u32,
+                    u64,
+                    nf4,
+                    f8e4m3,
+                    f8e5m2,
+                    string>::apply<ValueToString>(get_element_type(), this, index);
 }
 
 size_t Constant::get_byte_size() const {

@@ -170,7 +170,7 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsY,
                 const std::string& mode);
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,
@@ -201,6 +201,20 @@ void inline fill_data_random(T* pointer,
     }
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+    }
+}
+
+template <class T>
+void inline fill_data_ptr_real_random_float(T* pointer,
+                                            std::size_t size,
+                                            const float min,
+                                            const float max,
+                                            const int seed) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(min, max);
+
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<T>(dist(gen));
     }
 }
 
@@ -523,6 +537,14 @@ inline ov::bfloat16 ie_abs(const ov::bfloat16& val) {
 
 inline ov::float16 ie_abs(const ov::float16& val) {
     return ov::float16::from_bits(val.to_bits() & 0x7FFF);
+}
+
+inline ov::float8_e4m3 ie_abs(const ov::float8_e4m3& val) {
+    return ov::float8_e4m3::from_bits(val.to_bits() & 0x7F);
+}
+
+inline ov::float8_e5m2 ie_abs(const ov::float8_e5m2& val) {
+    return ov::float8_e5m2::from_bits(val.to_bits() & 0x7F);
 }
 
 }  // namespace utils

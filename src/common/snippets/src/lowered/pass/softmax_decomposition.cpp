@@ -35,7 +35,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto& pm = matcher->get_pattern_map();
             const auto softmax = pm.at(match_softmax);
             const auto softmax_expr = *expr_it;
-            const auto softmax_loop_ids = softmax_expr->get_loop_ids();
+            const auto& softmax_loop_ids = softmax_expr->get_loop_ids();
             const auto& input_connector = softmax_expr->get_input_port_connector(0);
             const auto& output_connector = softmax_expr->get_output_port_connector(0);
             const auto tensor_out = softmax_expr->get_output_port_descriptor(0)->get_shape();
@@ -95,9 +95,8 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
 
             // Transfer original ExpressionPorts
-            linear_ir.replace_input((*max.first)->get_input_port(0), input_connector);
-            linear_ir.replace_input((*sub.first)->get_input_port(0), input_connector);
-            linear_ir.replace_input(output_connector->get_consumers(), (*mul.first)->get_output_port_connector(0));
+            replace_input_port_connectors({ max.first->get()->get_input_port(0), sub.first->get()->get_input_port(0) }, input_connector);
+            replace_input_port_connectors(output_connector->get_consumers(), (*mul.first)->get_output_port_connector(0));
 
             // Markup of Mul Loop
             loop_manager->mark_loop(mul.first, expr_it, inner_work_amount, m_vector_size, 0,

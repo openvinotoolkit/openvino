@@ -9,8 +9,11 @@
 
 namespace ov {
 namespace test {
-// Subgraph:
+//  These tests are designed for correctness of reshape's in-place implementation.
 /*
+ * Case 1:
+ * Subgraph
+ *
  *         params[0]   params[1]
  *             |          |
  * constant  shapeOf     /
@@ -22,7 +25,7 @@ namespace test {
  *                |
  *              result
  *
- *  This test is designed for correctness of reshape's in-place implementation.
+ 
  *
  *  Due to non-const target shape parameter (params[1]), reshape node
  *  is non-constant node even though the input tensor is constant node.
@@ -54,9 +57,9 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::runtime::Tensor{ov::element::i32, targetInputStaticShapes[i]};
+                tensor = ov::Tensor{ov::element::i32, targetInputStaticShapes[i]};
                 auto inputData = tensor.data<ov::element_type_traits<ov::element::i32>::value_type>();
                 const std::vector<unsigned> data = {38, 38, 15, 4};
                 for (size_t j = 0lu; j < data.size(); ++j) {
@@ -81,5 +84,59 @@ protected:
 TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantCheck) {
     run();
 }
+
+/* Case 2:
+ * Subgraph
+ *
+ *         params[0]   params[1]
+ *                \     /
+ *                 \   /
+ *                  add---reshape2---result2
+ *                   |
+ *                reshape1
+ *                   |
+ *                  MVN
+ *                   |
+ *                result1
+ *
+ *  The same memory is shared between the `result2` input and `MVN` output. The CPU graph inplace memory conflict
+ *  resolution logic must prevent `result2` data being rewritten by the MVN node.
+ */
+
+class InPlaceReshapeShareInputCheck : public SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        const auto rtPrc = ov::element::f32;
+        const ov::Shape inpShape = {1, 16, 16};
+        targetStaticShapes = {{inpShape, inpShape}};
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape),
+                                   std::make_shared<ov::op::v0::Parameter>(rtPrc, inpShape)};
+
+        auto add = std::make_shared<ov::op::v1::Add>(params[0], params[1]);
+        std::vector<int> newShape1 = {1, 1, 16, 16};
+        auto targetShape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape1);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(add, targetShape1, false);
+        auto mvn = std::make_shared<ov::op::v6::MVN>(reshape1,
+                                                     ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {2, 3}),
+                                                     true,
+                                                     0.1,
+                                                     ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto res1 = std::make_shared<ov::op::v0::Result>(mvn);
+
+        std::vector<int> newShape2 = {1, 4, 8, 8};
+        auto targetShape2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape2);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(add, targetShape2, false);
+
+        auto res2 = std::make_shared<ov::op::v0::Result>(reshape2);
+
+        function = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, params, "reshape_share_input_check");
+    }
+};
+
+TEST_F(InPlaceReshapeShareInputCheck, smoke_CPU_InPlaceReshapeShareInputCheck) {
+    run();
+}
+
 }  // namespace test
 }  // namespace ov

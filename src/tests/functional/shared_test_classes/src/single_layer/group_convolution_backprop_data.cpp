@@ -56,8 +56,8 @@ void GroupConvBackpropDataLayerTest::SetUp() {
     auto groupConvBackpropData = std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(
             ngraph::builder::makeGroupConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};
-    function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};
+    function = std::make_shared<ov::Model>(results, params, "GroupConvolutionBackpropData");
 }
 
 std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
@@ -109,7 +109,7 @@ void GroupConvBackpropLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData> groupConvBackpropData;
     if (!outputShape.empty()) {
-        auto outShape = ov::op::v0::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+        auto outShape = ov::op::v0::Constant::create(ov::element::i64, {outputShape.size()}, outputShape);
         groupConvBackpropData = std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(
         ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels, numGroups, false, outPadding));
@@ -118,7 +118,7 @@ void GroupConvBackpropLayerTest::SetUp() {
         ngraph::builder::makeGroupConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups, false, outPadding));
     }
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};
-    function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};
+    function = std::make_shared<ov::Model>(results, params, "GroupConvolutionBackpropData");
 }
 }  // namespace LayerTestsDefinitions

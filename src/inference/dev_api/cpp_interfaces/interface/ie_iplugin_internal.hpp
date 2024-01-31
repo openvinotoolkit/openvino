@@ -16,13 +16,12 @@
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/pp.hpp"
-#include "so_ptr.hpp"
+#include "ie_version.hpp"
 
 using namespace ov::threading;
 
@@ -30,17 +29,8 @@ namespace InferenceEngine {
 
 class ExecutorManager;
 class IExecutableNetworkInternal;
-class RemoteContext;
 class IExtension;
 class ICore;
-
-/**
- * @brief      Copies preprocess info
- *
- * @param[in]  from  PreProcessInfo to copy from
- * @return     copy of preprocess info
- */
-INFERENCE_ENGINE_API_CPP(PreProcessInfo) copyPreProcess(const PreProcessInfo& from);
 
 /**
  * @brief       Copies the values of `std::string` indexed map and apply const cast
@@ -120,7 +110,7 @@ GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
 INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
 GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
                   std::function<void(std::shared_ptr<ov::Model>&)> transform,
-                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+                  std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
 /**
  * @interface IInferencePlugin
@@ -181,18 +171,6 @@ public:
                                                                     const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Creates an executable network from network object, on specified remote context
-     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @param context A pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @return Created Executable Network object
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
-                                                                    const std::map<std::string, std::string>& config,
-                                                                    const std::shared_ptr<RemoteContext>& context);
-
-    /**
      * @brief Creates an executable network from model file path
      * @param modelPath A path to model
      * @param config A string-string map of config parameters relevant only for this load operation
@@ -225,7 +203,7 @@ public:
      * @param options - configuration details for config
      * @return Value of config corresponding to config key
      */
-    virtual Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const;
+    virtual ov::Any GetConfig(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
@@ -233,21 +211,7 @@ public:
      * @param options - configuration details for metric
      * @return Metric value corresponding to metric key
      */
-    virtual Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const;
-
-    /**
-     * @brief      Creates a remote context instance based on a map of parameters
-     * @param[in]  params  The map of parameters
-     * @return     A remote context object
-     */
-    virtual std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params);
-
-    /**
-     * @brief      Provides a default remote context instance if supported by a plugin
-     * @param[in]  params  The map of parameters
-     * @return     The default context.
-     */
-    virtual std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params);
+    virtual ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
@@ -267,19 +231,6 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::map<std::string, std::string>& config);
-
-    /**
-     * @brief Creates an executable network from an previously exported network using plugin implementation
-     *        and removes Inference Engine magic and plugin name
-     * @param networkModel Reference to network model output stream
-     * @param context A pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::shared_ptr<RemoteContext>& context,
                                                                       const std::map<std::string, std::string>& config);
 
     /**
@@ -331,24 +282,6 @@ protected:
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
         const CNNNetwork& network,
-        const std::map<std::string, std::string>& config);
-
-    /**
-     * @brief Creates an executable network using remote context from a parsed network object,
-     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW
-     * resources)
-     * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
-     * RemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
-     * after.
-     * @param network A network object
-     * @param context A remote context
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @return Shared pointer to the ExecutableNetwork object
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
-        const CNNNetwork& network,
-        const std::shared_ptr<RemoteContext>& context,
         const std::map<std::string, std::string>& config);
 
     /**

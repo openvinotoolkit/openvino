@@ -4,19 +4,18 @@
 
 #include "op/softplus.hpp"
 
-#include <memory>
+#include "openvino/op/softplus.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector softplus(const Node& node) {
+ov::OutputVector softplus(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<default_opset::SoftPlus>(data)};
+    return {std::make_shared<v4::SoftPlus>(data)};
 }
 
 }  // namespace set_1

@@ -17,8 +17,14 @@
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
     try {                                                                              \
         __VA_ARGS__;                                                                   \
+    } catch (const ov::NotImplemented& ex) {                                           \
+        OPENVINO_NOT_IMPLEMENTED;                                                      \
+    } catch (const InferenceEngine::NotImplemented& ex) {                              \
+        OPENVINO_NOT_IMPLEMENTED;                                                      \
+    } catch (const std::exception& ex) {                                               \
+        OPENVINO_THROW(ex.what());                                                     \
     } catch (...) {                                                                    \
-        ::InferenceEngine::details::Rethrow();                                         \
+        OPENVINO_THROW("Unexpected exception");                                        \
     }
 ov::Plugin::~Plugin() {
     m_ptr = {};
@@ -50,12 +56,6 @@ void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
 
 const ov::Version ov::Plugin::get_version() const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_version());
-}
-
-void ov::Plugin::add_extension(const InferenceEngine::IExtensionPtr& extension) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->add_extension(extension));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void ov::Plugin::set_property(const ov::AnyMap& config) {

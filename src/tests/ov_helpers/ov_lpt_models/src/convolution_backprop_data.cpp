@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
@@ -17,16 +16,15 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(
-    const element::Type netPrecision,
-    const PartialShape& inputShape,
-    const Shape& outputShape,
-    const builder::subgraph::FakeQuantizeOnData& fqOnData,
-    const std::shared_ptr<Node>& weights) {
+std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(const ov::element::Type netPrecision,
+                                                                const PartialShape& inputShape,
+                                                                const Shape& outputShape,
+                                                                const builder::subgraph::FakeQuantizeOnData& fqOnData,
+                                                                const std::shared_ptr<Node>& weights) {
     const auto input = std::make_shared<ov::opset1::Parameter>(netPrecision, inputShape);
     const auto fq = makeFakeQuantize(input, netPrecision, fqOnData);
 
@@ -45,15 +43,13 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(
 
 std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     const Shape& shape,
-    const element::Type& netPrecision,
+    const ov::element::Type& netPrecision,
     const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
     const std::shared_ptr<ov::opset1::Constant>& value) {
-    const auto weights = value != nullptr ?
-            value :
-            std::make_shared<ov::opset1::Constant>(
-            element::i8,
-            shape,
-            std::vector<float>(shape_size(shape), 1));
+    const auto weights =
+        value != nullptr
+            ? value
+            : std::make_shared<ov::opset1::Constant>(ov::element::i8, shape, std::vector<float>(shape_size(shape), 1));
     const auto convert = std::make_shared<ov::opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convert->constant_fold(convertedOutput, convert->input_values());
@@ -65,16 +61,13 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 
 std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     const Shape& shape,
-    const element::Type& netPrecision,
+    const ov::element::Type& netPrecision,
     const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const std::shared_ptr<ov::opset1::Constant>& value) {
     auto weights =
-        value != nullptr ?
-            value :
-            std::make_shared<ov::opset1::Constant>(
-                element::i8,
-                shape,
-                std::vector<float>(shape_size(shape), 1));
+        value != nullptr
+            ? value
+            : std::make_shared<ov::opset1::Constant>(ov::element::i8, shape, std::vector<float>(shape_size(shape), 1));
     auto dequantizationStructure = dequantizationOnWeights;
     dequantizationStructure.setPrecision(netPrecision);
     if (!dequantizationOnWeights.subtract.constantPrecision.is_real()) {
@@ -90,14 +83,14 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 
 std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     const Shape& shape,
-    const element::Type& netPrecision,
+    const ov::element::Type& netPrecision,
     const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
     const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const std::shared_ptr<ov::opset1::Constant>& value) {
     const auto weights =
         value != nullptr
             ? value
-            : std::make_shared<ov::opset1::Constant>(element::i8, shape, std::vector<float>(shape_size(shape), 1));
+            : std::make_shared<ov::opset1::Constant>(ov::element::i8, shape, std::vector<float>(shape_size(shape), 1));
     const auto convert = std::make_shared<ov::opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convert->constant_fold(convertedOutput, convert->input_values());
@@ -110,8 +103,8 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
 }
 
 std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getOriginal(
-    const element::Type precision,
-    const element::Type netPrecision,
+    const ov::element::Type precision,
+    const ov::element::Type netPrecision,
     const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
@@ -134,9 +127,9 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getOriginal(
     return std::make_shared<ov::Model>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
 }
 
-std::shared_ptr<ov::Model>  ConvolutionBackpropDataFunction::getReference(
-    const element::Type precision,
-    const element::Type netPrecision,
+std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getReference(
+    const ov::element::Type precision,
+    const ov::element::Type netPrecision,
     const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::DequantizationOperations& dequantization,
@@ -148,14 +141,14 @@ std::shared_ptr<ov::Model>  ConvolutionBackpropDataFunction::getReference(
     const auto activations = makeDequantization(input, dequantizationStructure);
 
     auto convolutionBackpropData = std::make_shared<ov::op::TypeRelaxed<ov::opset1::ConvolutionBackpropData>>(
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{ dequantizationAfter.empty() ? netPrecision : element::f32 },
-            ov::op::TemporaryReplaceOutputType(activations, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-            Strides{ 1, 1 },
-            CoordinateDiff{ 0, 0 },
-            CoordinateDiff{ 0, 0 },
-            Strides{ 1, 1 });
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{dequantizationAfter.empty() ? netPrecision : ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(activations, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+        Strides{1, 1},
+        CoordinateDiff{0, 0},
+        CoordinateDiff{0, 0},
+        Strides{1, 1});
 
     auto dequantizationStructureAfter = dequantizationAfter;
     dequantizationStructureAfter.multiply.outPrecision = netPrecision;
@@ -167,4 +160,4 @@ std::shared_ptr<ov::Model>  ConvolutionBackpropDataFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

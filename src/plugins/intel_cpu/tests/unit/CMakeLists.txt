@@ -55,14 +55,12 @@ ov_add_test_target(
             gmock
             dnnl
             openvino::shape_inference
-            inference_engine_s
+            openvino_runtime_s
             unit_test_utils
             ov_models
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            inference_engine_transformations
-            inference_engine_lp_transformations
         ADD_CPPLINT
         LABELS
             OV UNIT CPU

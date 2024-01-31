@@ -7,16 +7,15 @@
 #include <onnx/onnx_pb.h>
 
 #include "core/tensor.hpp"
-#include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_common/utils.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::frontend::onnx::common;
+
+using namespace ov::op;
 
 namespace ngraph {
 namespace onnx_import {
@@ -42,17 +41,17 @@ public:
     const std::string& get_name() const {
         return m_value_info_proto->name();
     }
-    const PartialShape& get_shape() const {
+    const ov::PartialShape& get_shape() const {
         return m_partial_shape;
     }
-    const element::Type& get_element_type() const {
+    const ov::element::Type& get_element_type() const {
         if (m_value_info_proto->type().tensor_type().has_elem_type()) {
             return common::get_ov_element_type(m_value_info_proto->type().tensor_type().elem_type());
         }
-        return ngraph::element::dynamic;
+        return ov::element::dynamic;
     }
 
-    std::shared_ptr<ov::Node> get_ov_node(ParameterVector& parameters,
+    std::shared_ptr<ov::Node> get_ov_node(ov::ParameterVector& parameters,
                                           const std::map<std::string, Tensor>& initializers) const {
         const auto it = initializers.find(get_name());
         if (it != std::end(initializers)) {
@@ -63,20 +62,20 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::op::Parameter> get_ov_parameter() const {
-        auto parameter = std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
+    std::shared_ptr<v0::Parameter> get_ov_parameter() const {
+        auto parameter = std::make_shared<v0::Parameter>(get_element_type(), get_shape());
         parameter->set_friendly_name(get_name());
         parameter->get_output_tensor(0).set_names({get_name()});
         return parameter;
     }
 
-    std::shared_ptr<ngraph::op::Constant> get_ov_constant(const Tensor& tensor) const {
+    std::shared_ptr<v0::Constant> get_ov_constant(const Tensor& tensor) const {
         return tensor.get_ov_constant();
     }
 
 private:
     const ONNX_NAMESPACE::ValueInfoProto* m_value_info_proto;
-    PartialShape m_partial_shape = PartialShape::dynamic();
+    ov::PartialShape m_partial_shape = ov::PartialShape::dynamic();
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {

@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, tanh_op) {
-    NodeBuilder::get_ops().register_factory<op::v0::Tanh>();
+    NodeBuilder::opset().insert<op::v0::Tanh>();
     const auto data_node = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     const auto tanh = make_shared<op::v0::Tanh>(data_node);
 

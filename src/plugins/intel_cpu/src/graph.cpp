@@ -1299,54 +1299,42 @@ void Graph::Infer(SyncInferRequest* request) {
     if (infer_count != -1) infer_count++;
 }
 
-void Graph::VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes) {
-    if (node->temporary) {
-        return;
-    }
-
-    if (node->permanent) {
-        return;
-    }
-
-    node->temporary = true;
-
-    for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-        VisitNode(node->getChildEdgeAt(i)->getChild(), sortedNodes);
-    }
-
-    node->permanent = true;
-    node->temporary = false;
-
-    sortedNodes.insert(sortedNodes.begin(), node);
-}
-
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    std::vector<NodePtr> unsorted;
-    std::vector<NodePtr> sorted;
+    auto sort = [](const std::vector<NodePtr>& nodes) {
+        std::unordered_set<NodePtr> visited;
+        visited.reserve(nodes.size());
+        std::vector<NodePtr> sorted;
+        sorted.reserve(nodes.size());
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        NodePtr node = graphNodes[i];
+        std::function<void(const NodePtr)> visit;
+        visit = [&visited, &sorted, &visit](const NodePtr node) {
+            const bool inserted = visited.insert(node).second;
+            if (!inserted)
+                return; // already visited
 
-        node->permanent = false;
-        node->temporary = false;
+            for (size_t i = 0; i < node->getChildEdges().size(); i++) {
+                visit(node->getChildEdgeAt(i)->getChild());
+            }
 
-        unsorted.push_back(node);
-    }
+            sorted.push_back(node);
+        };
 
-    while (!unsorted.empty()) {
-        NodePtr node = unsorted.at(0);
-        unsorted.erase(unsorted.begin());
+        for (const auto& node : nodes) {
+            visit(node);
+        }
 
-        VisitNode(node, sorted);
-    }
+        return sorted;
+    };
 
-    for (size_t i = 0; i < sorted.size(); i++)
-        sorted[i]->execIndex = static_cast<int>(i);
-
-    graphNodes.erase(graphNodes.begin(), graphNodes.end());
-    graphNodes.assign(sorted.begin(), sorted.end());
+    // as a first step sort in reversed topological order to avoid an insertion into the front of the vector
+    graphNodes = sort(graphNodes);
+    // reverse to the actual topological order
+    std::reverse(graphNodes.begin(), graphNodes.end());
+    // number the nodes based on topological order
+    for (size_t i = 0; i < graphNodes.size(); i++)
+        graphNodes[i]->execIndex = static_cast<int>(i);
 
     // TODO: Sort in/out edges by port index because of backward compatibility
     //       A lot of plugin logic are build on top of assumption that index in
@@ -1596,7 +1584,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 
 // Apply inference precision configuration
 void Graph::EnforceInferencePrecision() {
-    CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
+    CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
 
@@ -1664,10 +1652,9 @@ void Graph::EnforceInferencePrecision() {
             continue;
 
 #ifdef CPU_DEBUG_CAPS
-        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers()))
             continue;
 #endif
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), " is enforced to use", inferPrec);
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
@@ -1687,12 +1674,27 @@ void Graph::EnforceInferencePrecision() {
                 if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
                     return true;
 
+                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
+                    return true;
+                }
+
                 return false;
             };
 
             if (keepOriginalInputPrecisionAtPort(node, i))
                 continue;
 
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getTypeStr(),
+                      " : ",
+                      node->getName(),
+                      " input[",
+                      i,
+                      "] is enforced to use",
+                      inferPrec);
             node->setOriginalInputPrecisionAtPort(i, inferPrec);
         }
 
@@ -1707,6 +1709,16 @@ void Graph::EnforceInferencePrecision() {
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
                 continue;
 
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getTypeStr(),
+                      " : ",
+                      node->getName(),
+                      " output[",
+                      i,
+                      "] is enforced to use",
+                      inferPrec);
             node->setOriginalOutputPrecisionAtPort(i, inferPrec);
         }
     }

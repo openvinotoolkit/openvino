@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/common/add.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -52,4 +52,4 @@ bool Add::empty() const noexcept {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

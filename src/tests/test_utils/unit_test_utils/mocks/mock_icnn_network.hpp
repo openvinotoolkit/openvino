@@ -27,8 +27,8 @@ class CNNLayer;
  */
 class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
 public:
-    MOCK_METHOD(std::shared_ptr<const ngraph::Function>, getFunction, (), (const, noexcept));
-    MOCK_METHOD(std::shared_ptr<ngraph::Function>, getFunction, (), (noexcept));
+    MOCK_METHOD(std::shared_ptr<const ov::Model>, getFunction, (), (const, noexcept));
+    MOCK_METHOD(std::shared_ptr<ov::Model>, getFunction, (), (noexcept));
     MOCK_METHOD(void, getOutputsInfo, (InferenceEngine::OutputsDataMap & out), (const, noexcept));
     MOCK_METHOD(void, getInputsInfo, (InferenceEngine::InputsDataMap & inputs), (const, noexcept));
     MOCK_METHOD(InferenceEngine::InputInfo::Ptr, getInput, (const std::string& inputName), (const, noexcept));

@@ -5,7 +5,7 @@
 #include "op/bitwise_and.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
+#include "openvino/op/bitwise_and.hpp"
 
 using namespace ov::op;
 
@@ -13,7 +13,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector bitwise_and(const Node& node) {
+ov::OutputVector bitwise_and(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
