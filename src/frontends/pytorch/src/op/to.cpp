@@ -81,6 +81,16 @@ OutputVector translate_to(const NodeContext& context) {
     return {cast};
 }
 
+OutputVector translate_to_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto data = context.get_input(0);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        data = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));
+    }
+    return {data};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
