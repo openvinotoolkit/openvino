@@ -27,7 +27,7 @@
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/attn_quantkv.hpp"
+#include "kernels/scaled_attn/attn_quant.hpp"
 
 #include <algorithm>
 #include <string>

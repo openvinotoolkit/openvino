@@ -170,9 +170,9 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/attn_quantkv.cpp
-        API         src/nodes/kernels/scaled_attn/attn_quantkv.hpp
-        NAME        attn_quantkv
+                    src/nodes/kernels/scaled_attn/attn_quant.cpp
+        API         src/nodes/kernels/scaled_attn/attn_quant.hpp
+        NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last

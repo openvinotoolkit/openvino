@@ -13,6 +13,8 @@
 #include "nodes/common/cpu_convert.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 
+using namespace ov::Extensions::Cpu::XARCH;
+
 namespace ov {
 namespace intel_cpu {
 

@@ -16,7 +16,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
 #include "common.hpp"
-#include "attn_quantkv.hpp"
+#include "attn_quant.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -205,6 +205,43 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_input,
         OPENVINO_THROW("unsupport src type: ", k_input.get_precision(), ", dst type: ", past_k_output.get_precision(), " in attn_quantkv");
     }
 }
+
+void attn_quant_u8(uint8_t* a, float* b, size_t n, float& scale, float& zp) {
+    quant_u8(a, b, n, scale, zp);
+}
+
+void attn_dequant_u8(uint8_t* a, float* b, size_t n, float scale, float zp) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    auto v_zp = _mm512_set1_ps(zp);
+    auto v_scale = _mm512_set1_ps(scale);
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(a + i));
+        auto v0_512 = _mm512_cvtepu8_epi32(v0_128);
+        auto v0_value = _mm512_cvtepi32_ps(v0_512);
+        v0_value = _mm512_sub_ps(v0_value, v_zp);
+        auto v0_out = _mm512_mul_ps(v0_value, v_scale);
+        mm512_uni_storeu_ps(b + i, v0_out);
+    }
+#elif defined(HAVE_AVX2)
+    auto v_zp = _mm256_set1_ps(zp);
+    auto v_scale = _mm256_set1_ps(scale);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(a + i));
+        auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
+        auto v0_value = _mm256_cvtepi32_ps(v0_256);
+        v0_value = _mm256_sub_ps(v0_value, v_zp);
+        auto v0_out = _mm256_mul_ps(v0_value, v_scale);
+        mm256_uni_storeu_ps(b + i, v0_out);
+    }
+#endif
+    for (; i < n; ++i) {
+        float tmp = a[i];
+        tmp = (tmp - zp) * scale;
+        b[i] = tmp;
+    }
+}
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
