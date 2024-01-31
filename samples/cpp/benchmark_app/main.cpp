@@ -159,9 +159,9 @@ void handle_performance_hint(const std::string& device, const ov::Core& core, ov
                     ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
                 } else if (config[ov::hint::performance_mode.name()] == "THROUGHPUT") {
                     ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
-                } else if (ov::hint::performance_mode.name() == "CUMULATIVE_THROUGHPUT") {
+                } else if (config[ov::hint::performance_mode.name()] == "CUMULATIVE_THROUGHPUT") {
                     ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-                } 
+                }
             }
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
