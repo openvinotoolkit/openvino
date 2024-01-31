@@ -297,15 +297,9 @@ TEST_F(TransformationTestsF, ReduceMergeConcatAxes) {
     }
     {
         auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{3, 2, 4});
-
         auto axis1 = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
-        auto cast1 = std::make_shared<op::v0::Convert>(axis1, element::i64);
-
         auto axis2 = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
-        auto cast2 = std::make_shared<op::v0::Convert>(axis2, element::i64);
-
-        auto axes = std::make_shared<opset9::Concat>(OutputVector{cast1, cast2}, 0);
-
+        auto axes = std::make_shared<opset9::Concat>(OutputVector{axis1, axis2}, 0);
         auto reduce = std::make_shared<opset9::ReduceL1>(data, axes, true);
         model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data, axis1, axis2});
     }
