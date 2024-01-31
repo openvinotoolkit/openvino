@@ -9,7 +9,7 @@ Throughput Benchmark Sample
 
 
 This sample demonstrates how to estimate performance of a model using Asynchronous
-Inference Request API in throughput mode. Unlike :doc:`demos <omz_demos>` this sample
+Inference Request API in throughput mode. Unlike `demos <https://docs.openvino.ai/nightly/omz_demos.html>`__ this sample
 does not have other configurable command-line arguments. Feel free to modify sample's
 source code to try out different options.
 
@@ -20,9 +20,10 @@ sets ``uint8``, while the sample uses default model precision which is usually `
 Before using the sample, refer to the following requirements:
 
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: :doc:`alexnet <omz_models_model_alexnet>`,
-  :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`, :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,
-  :doc:`face-detection-0200 <omz_models_model_face_detection_0200>` models.
+- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__,
+  `googlenet-v1 <https://docs.openvino.ai/nightly/omz_models_model_googlenet_v1.html>`__,
+  `yolo-v3-tf <https://docs.openvino.ai/nightly/omz_models_model_yolo_v3_tf.html>`__,
+  `face-detection-0200 <https://docs.openvino.ai/nightly/omz_models_model_face_detection_0200.html>`__ models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
