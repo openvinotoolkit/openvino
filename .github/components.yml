@@ -82,6 +82,7 @@ TEMPLATE:
     - C_API
     - Python_API
     - NVIDIA
+    - TOKENIZERS
   build:
     - IR_FE
 
@@ -195,6 +196,7 @@ IE_Tests:
     - TEMPLATE
     - AUTO
     - NVIDIA
+    - TOKENIZERS
   build:
     - IR_FE
 
@@ -223,5 +225,9 @@ NVIDIA:
   build: []
 
 ONNX_RT:
+  revalidate: []
+  build: []
+
+TOKENIZERS:
   revalidate: []
   build: []
