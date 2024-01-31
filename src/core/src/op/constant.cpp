@@ -371,7 +371,12 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
         // Filling in a fresh constant
         allocate_buffer(false);
     }
-    visitor.on_attribute("value", m_data);
+
+    if (auto string_aligned_buffer = std::dynamic_pointer_cast<ov::StringAlignedBuffer>(m_data)) {
+        visitor.on_attribute("value", string_aligned_buffer);
+    } else {
+        visitor.on_attribute("value", m_data);
+    }
     update_identical_flags(false, false);
     return true;
 }

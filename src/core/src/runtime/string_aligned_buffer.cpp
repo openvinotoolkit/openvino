@@ -29,4 +29,8 @@ StringAlignedBuffer::~StringAlignedBuffer() {
     }
 }
 
+AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::AttributeAdapter(
+    std::shared_ptr<ov::StringAlignedBuffer>& value)
+    : DirectValueAccessor<std::shared_ptr<ov::StringAlignedBuffer>>(value) {}
+
 }  // namespace ov

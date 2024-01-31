@@ -22,6 +22,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -420,6 +421,38 @@ class XmlSerializer : public ov::AttributeVisitor {
         }
     }
 
+    void pack_string_tensor(ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>* adapter,
+                            std::shared_ptr<uint8_t>& data,
+                            size_t& total_size) {
+        // packed format is the following:
+        // <num_string>, <1st string offset>,..., <nth string offset>, <1st string raw format>,..., <nth rawformat>
+        auto num_elements = adapter->get()->get_num_elements();
+        auto strings = reinterpret_cast<std::string*>(adapter->get()->get_ptr());
+
+        // first run over all elements: calculate total memory required to hold all strings
+        size_t symbols_size =
+            std::accumulate(strings, strings + num_elements, size_t(0), [](size_t accum, const std::string str_ptr) {
+                return accum + str_ptr.size();
+            });
+        total_size = 4 * (1 + 1 + num_elements) + symbols_size;
+        data = std::shared_ptr<uint8_t>(new uint8_t[total_size], std::default_delete<uint8_t[]>());
+
+        int32_t* pindices = reinterpret_cast<int32_t*>(data.get());
+        pindices[0] = int32_t(num_elements);
+        pindices[1] = 0;
+        pindices += 2;
+        char* psymbols = reinterpret_cast<char*>(pindices + num_elements);
+        size_t current_symbols_pos = 0;
+
+        for (size_t ind = 0; ind < num_elements; ++ind) {
+            auto str = strings[ind];
+            psymbols = std::copy(str.begin(), str.end(), psymbols);
+            current_symbols_pos += str.size();
+            *pindices = int32_t(current_symbols_pos);
+            ++pindices;
+        }
+    }
+
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
@@ -516,6 +549,22 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
+        } else if (const auto& a =
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+                std::shared_ptr<uint8_t> data;
+                size_t total_size;
+                pack_string_tensor(a, data, total_size);
+                size_t new_size;
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(data.get()),
+                                                                total_size,
+                                                                &new_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
+
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
@@ -1159,7 +1208,7 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   const std::map<std::string, ov::OpSet>& custom_opsets,
+                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
@@ -1238,7 +1287,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 OPENVINO_SUPPRESS_DEPRECATED_START
 pass::Serialize::Serialize(std::ostream& xmlFile,
                            std::ostream& binFile,
-                           std::map<std::string, ov::OpSet> custom_opsets,
+                           std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
@@ -1248,11 +1297,11 @@ pass::Serialize::Serialize(std::ostream& xmlFile,
       m_custom_opsets{custom_opsets} {}
 
 pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ov::OpSet>{}, version) {}
+    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ngraph::OpSet>{}, version) {}
 
 pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,
-                           std::map<std::string, ov::OpSet> custom_opsets,
+                           std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
@@ -1262,12 +1311,12 @@ pass::Serialize::Serialize(const std::string& xmlPath,
       m_custom_opsets{custom_opsets} {}
 
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ov::OpSet>{}, version) {}
+    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ngraph::OpSet>{}, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       std::map<std::string, ov::OpSet>&& custom_opsets,
+                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        Serialize::Version version)
     : m_stream(stream),
