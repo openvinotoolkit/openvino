@@ -42,6 +42,7 @@ private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
+    const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
 
 /**
