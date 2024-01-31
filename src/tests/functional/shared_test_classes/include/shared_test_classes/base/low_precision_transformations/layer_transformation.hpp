@@ -53,6 +53,8 @@ protected:
     // get runtime precision by operation friendly name which can be fused
     std::string get_runtime_precision_by_fused_name(const std::string& layerName);
 
+    bool check_execution_order(const std::vector<std::string>& layerTypes);
+
     std::map<std::string, ov::Node::RTMap> get_runtime_info();
 
     void init_input_shapes(const ov::PartialShape& shape);

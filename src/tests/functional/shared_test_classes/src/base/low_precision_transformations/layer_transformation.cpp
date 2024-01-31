@@ -127,6 +127,32 @@ std::string LayerTransformation::get_runtime_precision_by_fused_name(const std::
     return find_node_by_runtime_precision(compiledModel, is_node_f);
 }
 
+bool LayerTransformation::check_execution_order(const std::vector<std::string>& layerTypes) {
+    size_t i = 0;
+    const std::shared_ptr<const ov::Model>& execFunction = compiledModel.get_runtime_model();
+    for (const auto& op : execFunction->get_ordered_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+        OPENVINO_ASSERT(typeIt != rtInfo.end(), "Layer is not found");
+
+        const auto layerType = typeIt->second.as<std::string>();
+        if (i == 0) {
+            if (layerTypes[0] == layerType) {
+                // start comparing
+                i++;
+            }
+        } else {
+            if (layerTypes[i] != layerType) {
+                return false;
+            }
+            i++;
+        }
+    }
+
+    // all types are compared
+    return i == layerTypes.size();
+}
+
 std::map<std::string, ov::Node::RTMap> LayerTransformation::get_runtime_info() {
     const ov::CompiledModel& execNet = compiledModel;
     const std::shared_ptr<const ov::Model>& function = execNet.get_runtime_model();
