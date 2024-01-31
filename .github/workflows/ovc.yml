@@ -1,5 +1,6 @@
 name: OVC
 on:
+  merge_group:
   push:
     paths:
       - 'tools/ovc/**'
