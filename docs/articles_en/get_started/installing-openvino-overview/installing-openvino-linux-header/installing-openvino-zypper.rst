@@ -29,15 +29,6 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 
          OpenVINO RPM packages are compatible with and can be run on the following operating systems:
 
-         - RHEL 8.2 and higher
-         - Amazon Linux 2022 and 2023
-         - Rocky Linux 8.7, 8.8 and 9.2
-         - Alma Linux 8.7, 8.8 and 9.2
-         - Oracle Linux 8.7, 8.8 and 9.2
-         - Fedora 29 and higher up to 40
-         - OpenEuler 20.03 and 22.03
-         - Anolis OS 8.6 and 8.8
-         - CentOS Stream 8 and 9
          - openSUSE 15.4 and openSUSE 15.5
 
    .. tab-item:: Processor Notes
