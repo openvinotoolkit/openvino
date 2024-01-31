@@ -28,7 +28,7 @@ using DFTLayerGPUTestParams = std::tuple<std::vector<InputShape>,
                                     std::string>;                       // device name
 
 class DFTLayerGPUTest : public testing::WithParamInterface<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>,
-                           virtual public test::SubgraphBaseTest {
+                           virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>> obj) {
         ov::element::Type precision;
@@ -112,27 +112,27 @@ protected:
 
         auto inputShapeIt = inputDynamicShapes.begin();
 
-        ParameterVector inputs;
+        ov::ParameterVector inputs;
         auto param = std::make_shared<ov::op::v0::Parameter>(precision, *inputShapeIt++);
         inputs.push_back(param);
-        std::shared_ptr<Node> axesNode;
+        std::shared_ptr<ov::Node> axesNode;
         if (constAxes) {
-            axesNode = ov::op::v0::Constant::create(element::i64, Shape{axes[0].size()}, axes[0]);
+            axesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes[0].size()}, axes[0]);
         } else {
             ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-            auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt++);
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, *inputShapeIt++);
             axesNode = param;
             inputs.push_back(param);
         }
 
-        std::shared_ptr<Node> rdft;
+        std::shared_ptr<ov::Node> rdft;
         if (signalSizes.size() > 0) {
-            std::shared_ptr<Node> signalSizesNode;
+            std::shared_ptr<ov::Node> signalSizesNode;
             if (constSignalSizes) {
-                signalSizesNode = ov::op::v0::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
+                signalSizesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{signalSizes[0].size()}, signalSizes[0]);
             } else {
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
-                auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt);
+                auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, *inputShapeIt);
                 signalSizesNode = param;
                 inputs.push_back(param);
             }
@@ -148,28 +148,28 @@ protected:
                 rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode);
             }
         }
-        function = std::make_shared<Model>(rdft, inputs);
+        function = std::make_shared<ov::Model>(rdft, inputs);
     }
 
-    void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         const auto& funcInputs = function->inputs();
         auto funcInput = funcInputs.begin();
         inputs.clear();
-        runtime::Tensor data_tensor = test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
+        ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
                                                                                               targetInputStaticShapes[0], 0, 1, 0);
 
         inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
         funcInput++;
         if (!constAxes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < axes.size());
-            auto tensor = ov::runtime::Tensor{funcInput->get_element_type(), Shape{axes[inputIdx].size()}};
+            auto tensor = ov::Tensor{funcInput->get_element_type(), ov::Shape{axes[inputIdx].size()}};
             std::memcpy(tensor.data(), axes[inputIdx].data(), axes[inputIdx].size() * sizeof(axes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
             funcInput++;
         }
         if (!constSignalSizes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < signalSizes.size());
-            auto tensor = ov::runtime::Tensor{funcInput->get_element_type(), Shape{signalSizes[inputIdx].size()}};
+            auto tensor = ov::Tensor{funcInput->get_element_type(), ov::Shape{signalSizes[inputIdx].size()}};
             std::memcpy(tensor.data(), signalSizes[inputIdx].data(), signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
         }
