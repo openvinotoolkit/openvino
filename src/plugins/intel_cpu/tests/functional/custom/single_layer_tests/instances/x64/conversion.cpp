@@ -66,6 +66,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertCPULayer
                                 ::testing::Values(false)),
                         ConvertCPULayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_clampTestCase,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::Values(InputShape({{1, 2, 3, 4}, {{1, 2, 3, 4}}})),
+                                            ::testing::ValuesIn(precisions()),
+                                            ::testing::ValuesIn(precisions()),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                                            ::testing::Values(true)),
+                         ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_clampTestCase_f16,
+                         ConvertCPULayerTest,
+                         ::testing::Combine(::testing::Values(InputShape({{1, 2, 3, 4}, {{1, 2, 3, 4}}})),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                                            ::testing::Values(true)),
+                         ConvertCPULayerTest::getTestCaseName);
 }  // namespace
 }  // namespace Conversion
 }  // namespace test
