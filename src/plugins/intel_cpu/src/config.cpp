@@ -81,12 +81,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (key == ov::num_streams.name()) {
                 ov::Any value = val.as<std::string>();
                 auto streams_value = value.as<ov::streams::Num>();
-                streamsChanged = true;
                 if (streams_value == ov::streams::NUMA) {
                     latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
                 } else if (streams_value == ov::streams::AUTO) {
                     hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
                     changedHintPerfMode = true;
+                } else {
+                    streamsChanged = true;
                 }
             }
             OPENVINO_SUPPRESS_DEPRECATED_START

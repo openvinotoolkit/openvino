@@ -202,6 +202,8 @@ public:
          */
         static Config make_default_multi_threaded(const Config& initial);
 
+        static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
+
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information
          *        streams_info_table must be present in the configuration

@@ -22,16 +22,15 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             disable_transformations = value.as<bool>();
         } else if (ov::internal::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-        } else if (key == ov::num_streams.name()) {
+        } else if (ov::num_streams.name() == key) {
             ov::Any val = value.as<std::string>();
             auto streams_value = val.as<ov::streams::Num>();
             if (streams_value.num >= 0) {
                 streams = streams_value.num;
             } else if (streams_value == ov::streams::NUMA) {
-                streams = get_num_numa_nodes();
+                streams = 1;
             } else if (streams_value == ov::streams::AUTO) {
-                std::vector<std::vector<int>> proc_table = get_proc_type_table();
-                streams = !proc_table.empty() ? proc_table[0][MAIN_CORE_PROC] : 1;
+                streams = ov::threading::IStreamsExecutor::Config::get_default_num_streams();
             } else {
                 OPENVINO_THROW("Wrong value for property key ",
                                key,
@@ -39,7 +38,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                                "ov::streams::NUMA|ov::streams::AUTO, Got: ",
                                value.as<std::string>());
             }
-        } else if (key == ov::inference_num_threads.name()) {
+        } else if (ov::inference_num_threads.name() == key) {
             int val;
             try {
                 val = value.as<int>();
@@ -50,7 +49,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
             }
             threads = val;
-        } else if (key == ov::internal::threads_per_stream.name()) {
+        } else if (ov::internal::threads_per_stream.name() == key) {
             try {
                 threads_per_stream = value.as<int>();
             } catch (const std::exception&) {

@@ -33,9 +33,14 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
         const auto value = it.second;
         if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
-            if (streams.num >= 0) {
+            if (streams == ov::streams::NUMA) {
+                _streams = 1;
+            } else if (streams == ov::streams::AUTO) {
+                // bare minimum of streams (that evenly divides available number of cores)
+                _streams = get_default_num_streams();
+            } else if (streams.num >= 0) {
                 _streams = streams.num;
-            } else if (streams.num < ov::streams::NUMA) {
+            } else {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::num_streams.name(),
                                ". Expected non negative numbers (#streams) or ",
@@ -83,6 +88,23 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         OPENVINO_THROW("Wrong value for property key ", key);
     }
     return {};
+}
+
+int IStreamsExecutor::Config::get_default_num_streams() {
+    // bare minimum of streams (that evenly divides available number of core)
+    const auto proc_type_table = get_proc_type_table();
+    if (proc_type_table.empty()) {
+        return 1;
+    }
+    const auto num_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+    if (0 == num_cores % 4)
+        return std::max(4, num_cores / 4);
+    else if (0 == num_cores % 5)
+        return std::max(5, num_cores / 5);
+    else if (0 == num_cores % 3)
+        return std::max(3, num_cores / 3);
+    else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+        return 1;
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
@@ -308,6 +330,21 @@ void IStreamsExecutor::Config::update_executor_config() {
     }
     _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
     _streams = _streams > 0 ? num_streams : _streams;
+
+    OPENVINO_DEBUG << "[ threading ] proc_type_table:";
+    for (size_t i = 0; i < proc_type_table.size(); i++) {
+        OPENVINO_DEBUG << proc_type_table[i][ALL_PROC] << " " << proc_type_table[i][MAIN_CORE_PROC] << " "
+                       << proc_type_table[i][EFFICIENT_CORE_PROC] << " " << proc_type_table[i][HYPER_THREADING_PROC]
+                       << " " << proc_type_table[i][PROC_NUMA_NODE_ID] << " " << proc_type_table[i][PROC_SOCKET_ID];
+    }
+
+    OPENVINO_DEBUG << "[ threading ] streams_info_table:";
+    for (size_t i = 0; i < _streams_info_table.size(); i++) {
+        OPENVINO_DEBUG << _streams_info_table[i][NUMBER_OF_STREAMS] << " " << _streams_info_table[i][PROC_TYPE] << " "
+                       << _streams_info_table[i][THREADS_PER_STREAM] << " "
+                       << _streams_info_table[i][STREAM_NUMA_NODE_ID] << " "
+                       << _streams_info_table[i][STREAM_SOCKET_ID];
+    }
     OPENVINO_DEBUG << "[ threading ] " << _name << ": " << _streams << "(" << _threads << ")";
 }
 
