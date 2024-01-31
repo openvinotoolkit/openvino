@@ -113,7 +113,7 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -564,7 +564,7 @@ jobs:
           apt -y --no-install-recommends install software-properties-common curl
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
