@@ -23,8 +23,7 @@ ov::OutputVector thresholded_relu(const Node& node) {
     const auto alpha_node = v0::Constant::create(data.get_element_type(), Shape{}, {alpha});
 
     const auto data_map =
-        std::make_shared<v0::Convert>(std::make_shared<v1::Greater>(data, alpha_node),
-                                                 data.get_element_type());
+        std::make_shared<v0::Convert>(std::make_shared<v1::Greater>(data, alpha_node), data.get_element_type());
 
     return {std::make_shared<v1::Multiply>(data, data_map)};
 }
