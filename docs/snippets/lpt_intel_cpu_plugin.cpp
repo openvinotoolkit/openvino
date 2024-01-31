@@ -18,7 +18,7 @@ namespace device {
 
 class ConvertOpSet1ToDeviceSpecific: public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         return true;
     }
 };
@@ -52,12 +52,12 @@ if (useLpt) {
 
 if (useLpt) {
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const std::shared_ptr<const ov::Node> &node) -> bool {
         return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
     });
 
     // convert not supported cases FakeQuantize -> Convert -> Convert -> Subtract -> Multiply to a single FakeQuantize
-    pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+    pass_config->set_callback<ov::pass::ConvertSubtract>([&defaultPrecisions](const std::shared_ptr<const ov::Node> &node) -> bool {
         return ov::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
     });
 }
@@ -71,20 +71,16 @@ if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}},
+            {{0}, {ov::element::u8}},
+            {{1}, {ov::element::i8}},
         }),
-        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({
-            {{0}, {ngraph::element::u8, ngraph::element::i8}},
-            {{1}, {ngraph::element::i8}}
-        }),
-        PrecisionsRestriction::create<ov::opset1::GroupConvolution>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}}
-        }),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>(
+            {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::opset1::Multiply>({
-            {{0}, {ngraph::element::u8}},
-            {{1}, {ngraph::element::i8}},
+            {{0}, {ov::element::u8}},
+            {{1}, {ov::element::i8}},
         }),
     });
 
@@ -99,16 +95,16 @@ if (useLpt) {
     lptManager.register_pass<ov::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
-    lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ov::Node>& node) -> bool {
         if (const auto multiply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
             return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(multiply);
         }
         return false;
     });
-    lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ov::Node>& node) -> bool {
         return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
     });
-    lptManager.get_pass_config()->set_callback<MultiplyToGroupConvolutionTransformation>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    lptManager.get_pass_config()->set_callback<MultiplyToGroupConvolutionTransformation>([](const std::shared_ptr<const ov::Node>& node) -> bool {
         return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
     });
 
@@ -134,8 +130,8 @@ using namespace ov::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({
-        {{0}, {ngraph::element::u8}},
-        {{1}, {ngraph::element::i8}},
+        {{0}, {ov::element::u8}},
+        {{1}, {ov::element::i8}},
     }),
 });
 
@@ -170,7 +166,7 @@ lptManager.run_passes(nGraphFunc);
 return 0;
 }
 
-int asymmetric_quantization(const std::vector<ngraph::element::Type>& defaultPrecisions) {
+int asymmetric_quantization(const std::vector<ov::element::Type>& defaultPrecisions) {
 std::shared_ptr<ov::Model> nGraphFunc;
 ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
@@ -181,7 +177,7 @@ using namespace ov::pass::low_precision;
 ov::pass::Manager lptManager;
 
 lptManager.register_pass<ov::pass::low_precision::LowPrecision>();
-lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+lptManager.get_pass_config()->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const std::shared_ptr<const ov::Node>& node) -> bool {
     return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
 });
 lptManager.run_passes(nGraphFunc);
@@ -198,8 +194,8 @@ using namespace ov::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ov::opset1::Convolution>({
-        {{0}, {ngraph::element::u8}},
-        {{1}, {ngraph::element::i8}},
+        {{0}, {ov::element::u8}},
+        {{1}, {ov::element::i8}},
     }),
 });
 

@@ -22,7 +22,6 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
-#include "file_utils.h"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
 #include "ie_network_reader.hpp"
@@ -275,7 +274,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     }
 }
 
-Parameter Core::GetConfig(const std::string& deviceName, const std::string& name) const {
+ov::Any Core::GetConfig(const std::string& deviceName, const std::string& name) const {
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
@@ -311,7 +310,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 }
 
-Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
+ov::Any Core::GetMetric(const std::string& deviceName, const std::string& name, const ov::AnyMap& options) const {
     try {
         return _impl->GetMetric(deviceName, name, options);
     } catch (const ov::Exception& ex) {

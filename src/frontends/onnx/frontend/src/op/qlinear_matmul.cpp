@@ -17,8 +17,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector qlinear_matmul(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector qlinear_matmul(const Node& node) {
+    const ov::OutputVector& inputs = node.get_ng_inputs();
 
     const auto& a = inputs.at(0);
     const auto& a_scale = reshape::interpret_as_scalar(inputs.at(1));
@@ -32,13 +32,13 @@ OutputVector qlinear_matmul(const Node& node) {
     const auto& dequnatize_a =
         set_13::detail::dequantize_linear(a,
                                           a_scale,
-                                          std::make_shared<v0::Convert>(a_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(a_zero_point, ov::element::f32),
                                           1,
                                           node);
     const auto& dequnatize_b =
         set_13::detail::dequantize_linear(b,
                                           b_scale,
-                                          std::make_shared<v0::Convert>(b_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(b_zero_point, ov::element::f32),
                                           1,
                                           node);
 

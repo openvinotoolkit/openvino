@@ -1,5 +1,9 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from abc import ABC
 import utils.helpers as util
+import utils.map_builder as mapBuilder
 import json
 import os
 from enum import Enum
@@ -29,6 +33,9 @@ class Mode(ABC):
         self.commonLogger = util.setupLogger(
             "commonLogger", logPath, "common_log.log"
         )
+
+    def isPerformanceBased(self):
+        return False
 
     def createCash(self):
         # In common case we use json.
@@ -98,7 +105,7 @@ class Mode(ABC):
         canReduce, newList = util.getReducedInterval(list, cfg)
         if canReduce:
             if (self.traversal.isComparative() and
-                self.mode.checkIfListBordersDiffer(newList, cfg) or
+                self.checkIfListBordersDiffer(newList, cfg) or
                 not self.traversal.isComparative()):
                 self.commonLogger.info(
                     "Initial interval reduced to cashed {c1}..{c2}".format(
@@ -112,6 +119,11 @@ class Mode(ABC):
     def normalizeCfg(self, cfg):
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
+        cashCfg = cfg["cachedPathConfig"]
+        if (cashCfg["enabled"] and cashCfg["generateMap"]):
+            cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
+                cashCfg["commonPath"], cashCfg["subPath"]
+            )
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
@@ -130,7 +142,9 @@ class Mode(ABC):
 
     def postRun(self, list):
         util.returnToActualVersion(self.cfg)
-        if "printCSV" in self.cfg and self.cfg["printCSV"]:
+        if "printCSV" in self.cfg\
+                and self.cfg["printCSV"]\
+                and self.isPerformanceBased():
             fields = ['linId', 'logId', 'hash', 'value'] 
             rows = []
             linearId = 0
@@ -267,9 +281,9 @@ class Mode(ABC):
                 # try to reduce interval by cashed borders
                 canReduce, newList = util.getReducedInterval(curList, cfg)
                 if canReduce:
-                    if (self.traversal.isComparative() and
+                    if (self.isComparative() and
                         self.mode.checkIfListBordersDiffer(newList, cfg) or
-                        not self.traversal.isComparative()):
+                        not self.isComparative()):
                         self.mode.commonLogger.info(
                             "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
                                 c1=curList[0], c2=curList[-1],
@@ -338,7 +352,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.compareCommits(
+                isBad = not self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
                 pc = Mode.CommitPath.PathCommit(
@@ -349,7 +363,7 @@ class Mode(ABC):
                 self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.compareCommits(
+            isBad = not self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.wrappedBypass(
