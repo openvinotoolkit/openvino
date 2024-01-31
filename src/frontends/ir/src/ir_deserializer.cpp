@@ -27,6 +27,8 @@
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
 
+using namespace ov::util;
+
 namespace {
 void unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov::StringAlignedBuffer>& string_buffer) {
     // unpack string tensor
