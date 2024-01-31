@@ -11,7 +11,7 @@ namespace LayerTestsDefinitions {
 std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Params>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool acrossChannels, normalizeVariance;
     double eps;
     std::string targetDevice;
@@ -33,7 +33,7 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
 void Mvn1LayerTest::SetUp() {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool acrossChanels, normalizeVariance;
     double eps;
     std::tie(inputShapes, inputPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();

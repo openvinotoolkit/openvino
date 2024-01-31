@@ -72,7 +72,7 @@ typedef std::tuple<
         InferenceEngine::SizeVector,       // Input shapes
         InferenceEngine::SizeVector,       // Target shapes
         std::string,                       // InterpolateMode
-        ngraph::AxisSet,                   // Axes
+        ov::AxisSet,                       // Axes
         bool,                              // AntiAlias
         std::vector<size_t>,               // Pads
         LayerTestsUtils::TargetDevice      // Device name

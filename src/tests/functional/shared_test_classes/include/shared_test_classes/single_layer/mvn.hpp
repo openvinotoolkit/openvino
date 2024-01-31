@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 typedef std::tuple<
         InferenceEngine::SizeVector, // Input shapes
         InferenceEngine::Precision,  // Input precision
-        ngraph::AxisSet,             // Reduction axes
+        ov::AxisSet,                 // Reduction axes
         bool,                        // Across channels
         bool,                        // Normalize variance
         double,                      // Epsilon

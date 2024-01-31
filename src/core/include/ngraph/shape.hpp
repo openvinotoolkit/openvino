@@ -18,7 +18,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/axis_set.hpp"
 #include "ngraph/strides.hpp"
 #include "openvino/core/shape.hpp"
 

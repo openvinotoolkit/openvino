@@ -11,7 +11,7 @@ namespace {
 using ov::test::Mvn1LayerTest;
 using ov::test::Mvn6LayerTest;
 
-const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+const std::vector<ov::AxisSet> emptyReductionAxes = {{}};
 
 const std::vector<std::vector<ov::Shape>> inputShapes = {
     {{1, 32, 17}},
