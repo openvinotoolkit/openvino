@@ -75,11 +75,13 @@ public:
         std::stringstream ss;
         ss << std::this_thread::get_id();
         cache_path = "threading_test" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
+        APIBaseTest::SetUp();
     }
 
     void TearDown() override {
         ov::test::utils::removeFilesWithExt(cache_path, "blob");
         std::remove(cache_path.c_str());
+        APIBaseTest::TearDown();
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams> obj) {
@@ -411,6 +413,7 @@ public:
         std::tie(target_device, config) = std::get<0>(GetParam());
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
+        APIBaseTest::SetUp();
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams> obj) {
