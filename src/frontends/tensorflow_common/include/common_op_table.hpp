@@ -50,6 +50,7 @@ OP_CONVERTER(translate_clip_by_value_op);
 OP_CONVERTER(translate_complex_op);
 OP_CONVERTER(translate_complex_abs_op);
 OP_CONVERTER(translate_concat_op);
+OP_CONVERTER(translate_conj_op);
 OP_CONVERTER(translate_conj_transpose_op);
 OP_CONVERTER(translate_const_op);
 OP_CONVERTER(translate_conv_2d_op);
