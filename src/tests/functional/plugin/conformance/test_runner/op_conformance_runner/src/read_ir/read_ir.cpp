@@ -312,7 +312,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 
         size_t pos = 0;
         for (const auto& output : functionRefs->outputs()) {
-            auto out_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape(), &ref_buffer[pos]);
+            auto out_tensor = ov::Tensor(output.get_element_type(), output.get_shape(), &ref_buffer[pos]);
             pos += out_tensor.get_byte_size();
         }
     }

@@ -124,9 +124,9 @@ namespace ngraph
                                             op_scale.output_scale,
                                             op_zero_point.output_zero_point,
                                             output_type,
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{}));
+                                            ov::AxisSet{},
+                                            ov::AxisSet{},
+                                            ov::AxisSet{}));
                                 }
                             }
                             std::size_t concatenation_axis = 1;
@@ -167,9 +167,9 @@ namespace ngraph
                                     op_scale.output_scale,
                                     op_zero_point.output_zero_point,
                                     output_type,
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{});
+                                    ov::AxisSet{},
+                                    ov::AxisSet{},
+                                    ov::AxisSet{});
                             }
                         }
                     }
