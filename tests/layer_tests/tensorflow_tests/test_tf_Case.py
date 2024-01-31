@@ -11,7 +11,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestCaseFloat(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'cond' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'branch_index' in inputs_info, "Test error: inputs_info must contain `branch_index`"
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
         assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
         cond_shape = inputs_info['cond']
