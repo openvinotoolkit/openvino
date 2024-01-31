@@ -27,8 +27,8 @@ std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const
     return std::make_shared<v1::Reshape>(result, data_shape, false);
 }
 
-OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
     const auto data = inputs.at(0);
     const auto data_rank = data.get_partial_shape().rank();
 
@@ -62,13 +62,13 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
 namespace op {
 namespace set_1 {
-OutputVector log_softmax(const Node& node) {
+ov::OutputVector log_softmax(const Node& node) {
     return ngraph::onnx_import::log_softmax(node, 1);
 }
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector log_softmax(const Node& node) {
+ov::OutputVector log_softmax(const Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ng_inputs()[0], axis)};
 }

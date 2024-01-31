@@ -28,7 +28,6 @@
 #include "ie_input_info.hpp"
 #include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -183,11 +182,11 @@ void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
     SetConfig(any_copy(config));
 }
 
-Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
+ov::Any IInferencePlugin::GetConfig(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 
-Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::string, Parameter>&) const {
+ov::Any IInferencePlugin::GetMetric(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 
@@ -281,7 +280,7 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
 std::unordered_set<std::string> GetSupportedNodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
-    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported) {
     return ov::get_supported_nodes(model, transform, is_node_supported);
 }
 

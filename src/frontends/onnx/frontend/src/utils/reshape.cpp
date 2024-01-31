@@ -101,7 +101,7 @@ ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::No
 
     // Construct new bias shape: [1, C, 1, 1, ... ]
     const auto C_dim = std::make_shared<v3::ShapeOf>(node);
-    const auto new_shape = std::make_shared<v0::Concat>(OutputVector{one_const, C_dim, tail_shape}, 0);
+    const auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{one_const, C_dim, tail_shape}, 0);
 
     return std::make_shared<v1::Reshape>(node, new_shape, false);
 }

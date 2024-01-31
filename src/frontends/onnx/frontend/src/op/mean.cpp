@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector mean(const Node& node) {
+ov::OutputVector mean(const Node& node) {
     auto sum = variadic::make_ng_variadic_op<v1::Add>(node).front();
     auto count = v0::Constant::create(sum.get_element_type(), ov::Shape{}, {node.get_ng_inputs().size()});
 

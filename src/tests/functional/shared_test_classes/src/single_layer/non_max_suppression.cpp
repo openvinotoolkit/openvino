@@ -345,7 +345,7 @@ void NmsLayerTest::SetUp() {
         nms_1_identity->set_friendly_name("Multiply_1");
         nms_2_identity->set_friendly_name("Multiply_2");
         function =
-            std::make_shared<ov::Model>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
+            std::make_shared<ov::Model>(ov::OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
     }
 }
 

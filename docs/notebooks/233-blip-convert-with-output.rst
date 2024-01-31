@@ -22,8 +22,8 @@ The tutorial consists of the following parts:
 2. Convert the BLIP model to OpenVINO IR.
 3. Run visual question answering and image captioning with OpenVINO.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Background <#background>`__
 
@@ -253,27 +253,27 @@ text and vision modalities and postprocessing of generation results.
     import time
     from PIL import Image
     from transformers import BlipProcessor, BlipForQuestionAnswering
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
-    
+
     # get model and processor
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
     model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
-    
+
     # setup test input: download and read image, prepare question
-    img_url = 'https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg' 
+    img_url = 'https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg'
     download_file(img_url, "demo.jpg")
     raw_image = Image.open("demo.jpg").convert('RGB')
     question = "how many dogs are in the picture?"
     # preprocess input data
     inputs = processor(raw_image, question, return_tensors="pt")
-    
+
     start = time.perf_counter()
     # perform generation
     out = model.generate(**inputs)
     end = time.perf_counter() - start
-    
+
     # postprocess result
     answer = processor.decode(out[0], skip_special_tokens=True)
 
@@ -312,7 +312,7 @@ text and vision modalities and postprocessing of generation results.
 .. code:: ipython3
 
     from utils import visualize_results
-    
+
     fig = visualize_results(raw_image, answer, question)
 
 
@@ -357,18 +357,18 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
     import torch
     from pathlib import Path
     import openvino as ov
-    
+
     VISION_MODEL_OV = Path("blip_vision_model.xml")
     vision_model = model.vision_model
     vision_model.eval()
-    
+
     # check that model works and save it outputs for reusage as text encoder input
     with torch.no_grad():
         vision_outputs = vision_model(inputs["pixel_values"])
-    
+
     # if openvino model does not exist, convert it to IR
     if not VISION_MODEL_OV.exists():
-        
+
         # export pytorch model to ov.Model
         with torch.no_grad():
             ov_vision_model = ov.convert_model(vision_model, example_input=inputs["pixel_values"])
@@ -397,11 +397,11 @@ model and attention masks for them.
 .. code:: ipython3
 
     TEXT_ENCODER_OV = Path("blip_text_encoder.xml")
-    
-    
+
+
     text_encoder = model.text_encoder
     text_encoder.eval()
-    
+
     # if openvino model does not exist, convert it to IR
     if not TEXT_ENCODER_OV.exists():
         # prepare example inputs
@@ -475,20 +475,20 @@ shapes.
 
     text_decoder = model.text_decoder
     text_decoder.eval()
-    
+
     TEXT_DECODER_OV = Path("blip_text_decoder_with_past.xml")
-    
+
     # prepare example inputs
     input_ids = torch.tensor([[30522]])  # begin of sequence token id
     attention_mask = torch.tensor([[1]])  # attention mask for input_ids
     encoder_hidden_states = torch.rand((1, 10, 768))  # encoder last hidden state from text_encoder
     encoder_attention_mask = torch.ones((1, 10), dtype=torch.long)  # attention mask for encoder hidden states
-    
+
     input_dict = {"input_ids": input_ids, "attention_mask": attention_mask, "encoder_hidden_states": encoder_hidden_states, "encoder_attention_mask": encoder_attention_mask}
     text_decoder_outs = text_decoder(**input_dict)
     # extend input dictionary with hidden states from previous step
     input_dict["past_key_values"] = text_decoder_outs["past_key_values"]
-    
+
     text_decoder.config.torchscript = True
     if not TEXT_DECODER_OV.exists():
         # export PyTorch model
@@ -556,14 +556,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -586,7 +586,7 @@ select device from dropdown list for running inference using OpenVINO
 
     from functools import partial
     from blip_model import text_decoder_forward
-    
+
     text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=ov_text_decoder_with_past)
 
 The model helper class has two methods for generation:
@@ -599,7 +599,7 @@ initial token for decoder work.
 .. code:: ipython3
 
     from blip_model import OVBlipModel
-    
+
     ov_model = OVBlipModel(model.config, model.decoder_start_token_id, ov_vision_model, ov_text_encoder, text_decoder)
     out = ov_model.generate_answer(**inputs, max_length=20)
 
@@ -657,8 +657,8 @@ Interactive demo
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def generate_answer(img, question):
         if img is None:
             raise gr.Error("Please upload an image or choose one from the examples list")
@@ -673,8 +673,8 @@ Interactive demo
         elapsed = time.perf_counter() - start
         html = f"<p>Processing time: {elapsed:.4f}</p>"
         return answer, html
-    
-    
+
+
     demo = gr.Interface(
         generate_answer,
         [
@@ -701,7 +701,7 @@ Next steps
 
 
 
-Open the `233-blip-optimize <233-blip-optimize.ipynb>`__ notebook to
+Open the `233-blip-optimize <233-blip-optimize-with-output.html>`__ notebook to
 quantize vision and text encoder models with the Post-training
 Quantization API of NNCF and compress weights of the text decoder. Then
 compare the converted and optimized OpenVINO models.

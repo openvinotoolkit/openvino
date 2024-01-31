@@ -19,7 +19,7 @@ namespace op {
 namespace set_1 {
 
 namespace {
-void validate_generate_proposals_inputs(const OutputVector& inputs) {
+void validate_generate_proposals_inputs(const ov::OutputVector& inputs) {
     OPENVINO_ASSERT(inputs.size() == 4, "GenerateProposals operator expects 4 inputs, got ", inputs.size());
 
     const auto scores_rank = inputs[0].get_partial_shape().rank();
@@ -34,7 +34,7 @@ void validate_generate_proposals_inputs(const OutputVector& inputs) {
 }
 }  // namespace
 
-OutputVector generate_proposals(const Node& node) {
+ov::OutputVector generate_proposals(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     validate_generate_proposals_inputs(inputs);
 
@@ -57,7 +57,7 @@ OutputVector generate_proposals(const Node& node) {
     const auto scores_shape_tail = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
     const auto new_anchors_shape_front = std::make_shared<v8::Gather>(scores_shape, scores_shape_tail, zero);
     const auto new_anchors_shape =
-        std::make_shared<v0::Concat>(OutputVector{new_anchors_shape_front, anchors_shape}, 0);
+        std::make_shared<v0::Concat>(ov::OutputVector{new_anchors_shape_front, anchors_shape}, 0);
     const auto new_anchors = std::make_shared<v3::Broadcast>(anchors, new_anchors_shape);
 
     const auto proposals = std::make_shared<v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);

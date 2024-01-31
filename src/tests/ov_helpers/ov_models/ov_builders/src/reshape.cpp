@@ -117,7 +117,7 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
         const auto remaining_part_length = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
 
         output_shape =
-            std::make_shared<ov::op::v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
     return std::make_shared<ov::op::v1::Reshape>(value, output_shape, true);
 }

@@ -8,18 +8,16 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-inline OutputVector logical_xor(const Node& node) {
-    return {std::make_shared<default_opset::LogicalXor>(
-        node.get_ng_inputs().at(0),
-        node.get_ng_inputs().at(1),
-        ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY))};
+inline ov::OutputVector logical_xor(const Node& node) {
+    return {std::make_shared<default_opset::LogicalXor>(node.get_ng_inputs().at(0),
+                                                        node.get_ng_inputs().at(1),
+                                                        ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))};
 }
 
 }  // namespace set_1

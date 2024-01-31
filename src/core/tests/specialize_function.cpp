@@ -11,7 +11,7 @@
 
 using namespace ngraph;
 using namespace ov;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::Shape;
 using ov::op::v0::Constant;
@@ -159,7 +159,7 @@ TEST(specialize_function, et_static_shape_rank_dynamic_validation_fails) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3, 4}},
                                 param_vals);
         },
-        NodeValidationFailure);
+        ov::NodeValidationFailure);
 }
 
 // Test specialization of dynamic element types to a case where validation will fail.
@@ -183,7 +183,7 @@ TEST(specialize_function, et_dynamic_shape_static_validation_fails) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
-        NodeValidationFailure);
+        ov::NodeValidationFailure);
 }
 
 // Test specialization of rank-static dynamic shapes, where the replacement shapes have the wrong
@@ -210,7 +210,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3, 4}},
                                 param_vals);
         },
-        CheckFailure);
+        ov::AssertFailure);
 }
 
 // Test specialization of rank-static dynamic shapes, where the replacement shapes have wrong
@@ -237,7 +237,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 9, 4}},
                                 param_vals);
         },
-        CheckFailure);
+        ov::AssertFailure);
 }
 
 // Test for failure when we supply the wrong number of replacement element types.
@@ -259,7 +259,7 @@ TEST(specialize_function, et_count_wrong) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
-        CheckFailure);
+        ov::AssertFailure);
 }
 
 // Test for failure when we supply the wrong number of replacement shapes.
@@ -281,7 +281,7 @@ TEST(specialize_function, shape_count_wrong) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}, ov::PartialShape{4, 5, 6}},
                                 param_vals);
         },
-        CheckFailure);
+        ov::AssertFailure);
 }
 
 // Test for failure when we supply the wrong number of replacement parameter values.
@@ -303,5 +303,5 @@ TEST(specialize_function, value_count_wrong) {
                                 {ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 3}},
                                 param_vals);
         },
-        CheckFailure);
+        ov::AssertFailure);
 }

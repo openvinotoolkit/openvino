@@ -45,15 +45,15 @@ namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
-                        int64_t num_heads,
-                        const std::vector<int64_t>& qkv_hidden_sizes);
+ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
+                            int64_t num_heads,
+                            const std::vector<int64_t>& qkv_hidden_sizes);
 
 using NodeTuple = std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
 
-NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional);
+NodeTuple get_attention_mask(const ov::OutputVector& op_inputs, bool unidirectional);
 
-std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
+std::shared_ptr<ov::Node> attention_softmax(const ov::OutputVector& op_inputs,
                                             const std::shared_ptr<ov::Node>& Q,
                                             std::shared_ptr<ov::Node> K,
                                             std::shared_ptr<ov::Node> V,
@@ -64,12 +64,12 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
 
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
                                             const std::shared_ptr<ov::Node>& V,
-                                            const OutputVector& op_inputs);
+                                            const ov::OutputVector& op_inputs);
 }  // namespace
 }  // namespace detail
 
 namespace set_1 {
-OutputVector attention(const Node& node) {
+ov::OutputVector attention(const Node& node) {
     auto nodes = node.get_ng_inputs();
     const auto& input = nodes[0];
     const auto& weights = nodes[1];
@@ -137,10 +137,10 @@ std::shared_ptr<ov::Node> get_hidden_size(const std::shared_ptr<v3::ShapeOf>& no
     return hidden_size;
 }
 
-NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
-                        int64_t num_heads,
-                        const std::vector<int64_t>& qkv_hidden_sizes) {
-    OutputVector split;
+ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
+                            int64_t num_heads,
+                            const std::vector<int64_t>& qkv_hidden_sizes) {
+    ov::OutputVector split;
     std::shared_ptr<ov::Node> head_size = nullptr;
     const auto& node_type = node->get_element_type();
     const auto node_shape = std::make_shared<v3::ShapeOf>(node);
@@ -155,7 +155,7 @@ NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
         // split the node into 3 even parts Q, K, V with shape (batch_size, sequence_len, hidden_size)
         split = ov::op::util::split(node, 3, 2);
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
-        auto new_shape = std::make_shared<v0::Concat>(NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
+        auto new_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch_size_seq_len, num_heads_node, head_size}, 0);
         for (size_t i = 0; i < split.size(); i++) {
             split[i] = std::make_shared<v1::Reshape>(split[i], new_shape, false);
         }
@@ -175,9 +175,9 @@ NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
         // and reshape each part to new shape (batch_size, sequence_len, num_heads, head_size)
         for (size_t i = 0; i < split.size(); i++) {
             auto new_shape = std::make_shared<v0::Concat>(
-                NodeVector{batch_size_seq_len,
-                           num_heads_node,
-                           v0::Constant::create(ov::element::i64, ov::Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
+                ov::NodeVector{batch_size_seq_len,
+                               num_heads_node,
+                               v0::Constant::create(ov::element::i64, ov::Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
                 0);
             split[i] = std::make_shared<v1::Reshape>(split[i], new_shape, false);
         }
@@ -273,12 +273,13 @@ std::shared_ptr<ov::Node> attention_mask_from_indices(const ov::Output<ov::Node>
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
     std::shared_ptr<ov::Node> base = std::make_shared<v4::Range>(zero, stop, one, mask_index.get_element_type());
-    const auto target_shape = std::make_shared<v0::Concat>(NodeVector{batch_size, all_seq_len}, 0);
+    const auto target_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch_size, all_seq_len}, 0);
     // broadcast 'base' to (batch_size, all_seq_len)
     base = std::make_shared<v3::Broadcast>(base, target_shape);
-    const auto indices_shape =
-        std::make_shared<v0::Concat>(NodeVector{v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), batch_size},
-                                     0);
+    const auto indices_shape = std::make_shared<v0::Concat>(
+        ov::NodeVector{v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), batch_size},
+
+        0);
     std::shared_ptr<ov::Node> indices = std::make_shared<v1::Reshape>(mask_index, indices_shape, false);
     // fetch first row from indices
     std::shared_ptr<ov::Node> tail_range_indices = std::make_shared<v8::Gather>(indices, zero, zero);
@@ -349,7 +350,7 @@ NodeTuple unidirectional_mask(const ov::element::Type_t& type,
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
     std::shared_ptr<ov::Node> bin_mask = std::make_shared<v4::Range>(zero, stop, one, ov::element::i32);
-    auto target_shape = std::make_shared<v0::Concat>(NodeVector{seq_len, all_seq_len}, 0);
+    auto target_shape = std::make_shared<v0::Concat>(ov::NodeVector{seq_len, all_seq_len}, 0);
     bin_mask = std::make_shared<v3::Broadcast>(bin_mask, target_shape);
     auto start = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(past_seq_len, one), zero);
     auto end = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(all_seq_len, one), zero);
@@ -400,11 +401,11 @@ std::shared_ptr<ov::Node> raw_mask(const ov::Output<ov::Node>& mask_index,
     return mask;
 }
 
-bool is_past_input_available(const OutputVector& op_inputs) {
+bool is_past_input_available(const ov::OutputVector& op_inputs) {
     return op_inputs.size() > 4 && !ov::op::util::is_null(op_inputs[4]);
 }
 
-NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional) {
+NodeTuple get_attention_mask(const ov::OutputVector& op_inputs, bool unidirectional) {
     const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
@@ -457,7 +458,7 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
 }
 
 // Compute softmax(Q x K' / sqrt(head_size)) x V
-std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
+std::shared_ptr<ov::Node> attention_softmax(const ov::OutputVector& op_inputs,
                                             const std::shared_ptr<ov::Node>& Q,
                                             std::shared_ptr<ov::Node> K,
                                             std::shared_ptr<ov::Node> V,
@@ -476,9 +477,9 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
         // with current K and second part with current V
         const auto split = ov::op::util::split(past, 2, 0);
         const auto past_K = std::make_shared<v0::Squeeze>(split[0], zero);
-        K = std::make_shared<v0::Concat>(NodeVector{past_K, K}, 2);
+        K = std::make_shared<v0::Concat>(ov::NodeVector{past_K, K}, 2);
         const auto past_V = std::make_shared<v0::Squeeze>(split[1], zero);
-        V = std::make_shared<v0::Concat>(NodeVector{past_V, V}, 2);
+        V = std::make_shared<v0::Concat>(ov::NodeVector{past_V, V}, 2);
     }
     // perform Q x K'
     std::shared_ptr<ov::Node> softmax_input = std::make_shared<v0::MatMul>(Q, K, false, true);
@@ -525,7 +526,7 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
 // If fifth input ('past') is available, it gets concatenated with 'present' output along fourth axis.
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
                                             const std::shared_ptr<ov::Node>& V,
-                                            const OutputVector& op_inputs) {
+                                            const ov::OutputVector& op_inputs) {
     auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     // expand K shape (batch_size, num_heads, sequence_length, head_size) to
     // (1, batch_size, num_heads, sequence_length, head_size)
@@ -545,13 +546,13 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 
     // concat key and value tensors along first axis to make 'present' state
     // after that operation, 'present' has shape (2, batch_size, num_heads, sequence_length, head_size)
-    std::shared_ptr<ov::Node> present = std::make_shared<v0::Concat>(NodeVector{K_padded, V_padded}, 0);
+    std::shared_ptr<ov::Node> present = std::make_shared<v0::Concat>(ov::NodeVector{K_padded, V_padded}, 0);
     if (is_past_input_available(op_inputs)) {
         const auto& past = op_inputs[4];
         // concat 'past' to 'present' output along fourth axis
         // after that operation, 'present' has shape:
         // (2, batch_size, num_heads, past_sequence_length + sequence_length, head_size)
-        present = std::make_shared<v0::Concat>(OutputVector{past, present}, 3);
+        present = std::make_shared<v0::Concat>(ov::OutputVector{past, present}, 3);
     }
     return present;
 }

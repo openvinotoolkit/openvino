@@ -39,22 +39,22 @@ public:
     /// \brief      Creates average pooling ONNX operation.
     /// \return     Vector of output nodes.
     ///
-    OutputVector make_avg_pool() const;
+    ov::OutputVector make_avg_pool() const;
 
     ///
     /// \brief      Creates max pooling ONNX operation.
     /// \return     Vector of output nodes.
     ///
-    OutputVector make_max_pool() const;
+    ov::OutputVector make_max_pool() const;
 
     /// \brief Creates max pooling ONNX operation with 2 outputs (values and indices).
-    OutputVector make_max_pool_with_indices() const;
+    ov::OutputVector make_max_pool_with_indices() const;
 
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
     Node m_onnx_node;
     OPENVINO_SUPPRESS_DEPRECATED_END
-    const OutputVector m_inputs;
+    const ov::OutputVector m_inputs;
     ov::Shape m_kernel_shape;
     ov::Strides m_strides;
     ov::Strides m_dilations;

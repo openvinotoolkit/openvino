@@ -162,7 +162,7 @@ void MemoryTest::CreateTIFunc() {
     auto add = std::make_shared<Add>(X, Y);
     auto res = std::make_shared<Result>(add);
     auto Iter_res = std::make_shared<Result>(Iter);
-    auto body = std::make_shared<ov::Model>(OutputVector{res, Iter_res}, ov::ParameterVector{X, Y, Iter});
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{res, Iter_res}, ov::ParameterVector{X, Y, Iter});
 
     // TI construction
     auto tensor_iterator = std::make_shared<TensorIterator>();
@@ -175,7 +175,7 @@ void MemoryTest::CreateTIFunc() {
     auto output = tensor_iterator->get_iter_value(res, -1);
     auto output_iter = tensor_iterator->get_concatenated_slices(Iter_res, 0, 1, 1, -1, 0);
     function =
-        std::make_shared<ov::Model>(OutputVector{output, output_iter}, ov::ParameterVector{param, iter_count}, "PureTI");
+        std::make_shared<ov::Model>(ov::OutputVector{output, output_iter}, ov::ParameterVector{param, iter_count}, "PureTI");
 }
 
 void MemoryTest::CreateCommonFunc() {
@@ -188,7 +188,7 @@ void MemoryTest::CreateCommonFunc() {
     auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
     auto res = std::make_shared<ov::op::v0::Result>(add);
-    function = std::make_shared<ov::Model>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
+    function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {

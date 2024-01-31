@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector thresholded_relu(const Node& node) {
+ov::OutputVector thresholded_relu(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const double alpha = node.get_attribute_value<double>("alpha", 1.0);
 
