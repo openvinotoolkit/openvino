@@ -25,8 +25,8 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector aten(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector aten(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
 
     const auto operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,
@@ -70,14 +70,15 @@ OutputVector aten(const Node& node) {
         // Shape aligned node, filled with zeros
         const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
         const auto weights_shape_node = std::make_shared<v3::ShapeOf>(emb_tbl_in, ind_type);
-        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, -1);
         const auto weights_last_dim =
             std::make_shared<v8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
         const auto zero_col_node = std::make_shared<v3::Broadcast>(zero_of_data_type_const, weights_last_dim);
         const auto default_embeddings_node = std::make_shared<v0::Unsqueeze>(zero_col_node, zero_const);
 
         // Expanded embedding table weights
-        const auto weights_concat = std::make_shared<v0::Concat>(OutputVector{emb_tbl_in, default_embeddings_node}, 0);
+        const auto weights_concat =
+            std::make_shared<v0::Concat>(ov::OutputVector{emb_tbl_in, default_embeddings_node}, 0);
         // Index in embedding table to fill empty bags
         const auto weights_first_dim =
             std::make_shared<v0::Squeeze>(std::make_shared<v8::Gather>(weights_shape_node, zero_const, zero_const));
@@ -92,7 +93,7 @@ OutputVector aten(const Node& node) {
         OPENVINO_THROW("Unsupported inputs configuration for ATen `embedding_bag` operation.");
     }
     // Enable import onnx Node with duplicated outputs
-    return OutputVector(node.get_outputs_size(), embedding_bag);
+    return ov::OutputVector(node.get_outputs_size(), embedding_bag);
 }
 
 }  // namespace set_1

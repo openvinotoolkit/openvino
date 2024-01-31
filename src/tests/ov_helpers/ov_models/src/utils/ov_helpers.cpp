@@ -68,9 +68,9 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreter
         const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 
         auto input = inputs[parameterIndex];
-        const auto inType = inputTypes.empty() ? element::undefined : inputTypes[i];
+        const auto inType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
 
-        if (inType != element::undefined && inType != parameterType) {
+        if (inType != ov::element::undefined && inType != parameterType) {
             input = ngraph::helpers::convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
         }
 
@@ -198,7 +198,7 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
                         " types");
     }
 
-    std::vector<element::Type> paramElementTypes;
+    std::vector<ov::element::Type> paramElementTypes;
     std::vector<ov::PartialShape> paramShapes;
     std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
     vecTmpConvertedInputs.reserve(inputs.size());
@@ -213,9 +213,9 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
         auto parameterIndex = function->get_parameter_index(param);
         auto& input = inputs[parameterIndex];
 
-        const auto inpType = inputTypes.empty() ? element::undefined : inputTypes[i];
+        const auto inpType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
 
-        if (inpType != element::undefined && inpType != paramElementTypes.back()) {
+        if (inpType != ov::element::undefined && inpType != paramElementTypes.back()) {
             vecTmpConvertedInputs.emplace_back(
                 convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
             inBuffers.push_back(vecTmpConvertedInputs.back().data());
@@ -226,9 +226,9 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
         }
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START;
+    OPENVINO_SUPPRESS_DEPRECATED_START;
     const auto& foldedFunc = ngraph::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    NGRAPH_SUPPRESS_DEPRECATED_END;
+    OPENVINO_SUPPRESS_DEPRECATED_END;
     ov::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto& op : foldedFunc->get_ops()) {
         OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
@@ -346,59 +346,59 @@ public:
     const uint8_t* data;
 };
 
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
                                   bool>::type = true>
-const fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
-    return reinterpret_cast<const fundamental_type_for<FromType>*>(data);
+const ov::fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
+    return reinterpret_cast<const ov::fundamental_type_for<FromType>*>(data);
 }
 
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
                                   bool>::type = true>
-fundamental_type_for<FromType>* cast_to(uint8_t* data) {
-    return reinterpret_cast<fundamental_type_for<FromType>*>(data);
+ov::fundamental_type_for<FromType>* cast_to(uint8_t* data) {
+    return reinterpret_cast<ov::fundamental_type_for<FromType>*>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
 LowPrecistionConstRange<1, uint8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<1, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
 LowPrecistionRange<1, uint8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<1, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
 LowPrecistionConstRange<4, uint8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<4, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
 LowPrecistionRange<4, uint8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<4, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
 LowPrecistionConstRange<4, int8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<4, int8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
 LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<4, int8_t>(data);
 }
 
-template <element::Type_t FromType, element::Type_t ToType>
+template <ov::element::Type_t FromType, ov::element::Type_t ToType>
 std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buffer, const size_t elementsCount) {
-    using fromPrec = fundamental_type_for<FromType>;
-    using toPrec = fundamental_type_for<ToType>;
+    using fromPrec = ov::fundamental_type_for<FromType>;
+    using toPrec = ov::fundamental_type_for<ToType>;
 
     const size_t min_buffer_size = [&] {
-        element::Type from_type(FromType);
+        ov::element::Type from_type(FromType);
         if (from_type.bitwidth() >= 8) {
             return elementsCount * sizeof(fromPrec);
         }
@@ -418,123 +418,123 @@ std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buff
     return convertedData;
 }
 
-template <element::Type_t FromType>
+template <ov::element::Type_t FromType>
 std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t>& output,
-                                               const element::Type_t& toPrecision,
+                                               const ov::element::Type_t& toPrecision,
                                                const size_t elementsCount) {
     switch (toPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecision<FromType, element::Type_t::boolean>(output, elementsCount);
+    case ov::element::Type_t::boolean: {
+        return convertPrecision<FromType, ov::element::Type_t::boolean>(output, elementsCount);
     }
-    case element::Type_t::bf16: {
-        return convertPrecision<FromType, element::Type_t::bf16>(output, elementsCount);
+    case ov::element::Type_t::bf16: {
+        return convertPrecision<FromType, ov::element::Type_t::bf16>(output, elementsCount);
     }
-    case element::Type_t::f16: {
-        return convertPrecision<FromType, element::Type_t::f16>(output, elementsCount);
+    case ov::element::Type_t::f16: {
+        return convertPrecision<FromType, ov::element::Type_t::f16>(output, elementsCount);
     }
-    case element::Type_t::f32: {
-        return convertPrecision<FromType, element::Type_t::f32>(output, elementsCount);
+    case ov::element::Type_t::f32: {
+        return convertPrecision<FromType, ov::element::Type_t::f32>(output, elementsCount);
     }
-    case element::Type_t::f64: {
-        return convertPrecision<FromType, element::Type_t::f64>(output, elementsCount);
+    case ov::element::Type_t::f64: {
+        return convertPrecision<FromType, ov::element::Type_t::f64>(output, elementsCount);
     }
-    case element::Type_t::i4: {
-        return convertPrecision<FromType, element::Type_t::i4>(output, elementsCount);
+    case ov::element::Type_t::i4: {
+        return convertPrecision<FromType, ov::element::Type_t::i4>(output, elementsCount);
     }
-    case element::Type_t::i8: {
-        return convertPrecision<FromType, element::Type_t::i8>(output, elementsCount);
+    case ov::element::Type_t::i8: {
+        return convertPrecision<FromType, ov::element::Type_t::i8>(output, elementsCount);
     }
-    case element::Type_t::i16: {
-        return convertPrecision<FromType, element::Type_t::i16>(output, elementsCount);
+    case ov::element::Type_t::i16: {
+        return convertPrecision<FromType, ov::element::Type_t::i16>(output, elementsCount);
     }
-    case element::Type_t::i32: {
-        return convertPrecision<FromType, element::Type_t::i32>(output, elementsCount);
+    case ov::element::Type_t::i32: {
+        return convertPrecision<FromType, ov::element::Type_t::i32>(output, elementsCount);
     }
-    case element::Type_t::i64: {
-        return convertPrecision<FromType, element::Type_t::i64>(output, elementsCount);
+    case ov::element::Type_t::i64: {
+        return convertPrecision<FromType, ov::element::Type_t::i64>(output, elementsCount);
     }
-    case element::Type_t::u1: {
-        return convertPrecision<FromType, element::Type_t::u1>(output, elementsCount);
+    case ov::element::Type_t::u1: {
+        return convertPrecision<FromType, ov::element::Type_t::u1>(output, elementsCount);
     }
-    case element::Type_t::u4: {
-        return convertPrecision<FromType, element::Type_t::u4>(output, elementsCount);
+    case ov::element::Type_t::u4: {
+        return convertPrecision<FromType, ov::element::Type_t::u4>(output, elementsCount);
     }
-    case element::Type_t::u8: {
-        return convertPrecision<FromType, element::Type_t::u8>(output, elementsCount);
+    case ov::element::Type_t::u8: {
+        return convertPrecision<FromType, ov::element::Type_t::u8>(output, elementsCount);
     }
-    case element::Type_t::u16: {
-        return convertPrecision<FromType, element::Type_t::u16>(output, elementsCount);
+    case ov::element::Type_t::u16: {
+        return convertPrecision<FromType, ov::element::Type_t::u16>(output, elementsCount);
     }
-    case element::Type_t::u32: {
-        return convertPrecision<FromType, element::Type_t::u32>(output, elementsCount);
+    case ov::element::Type_t::u32: {
+        return convertPrecision<FromType, ov::element::Type_t::u32>(output, elementsCount);
     }
-    case element::Type_t::u64: {
-        return convertPrecision<FromType, element::Type_t::u64>(output, elementsCount);
+    case ov::element::Type_t::u64: {
+        return convertPrecision<FromType, ov::element::Type_t::u64>(output, elementsCount);
     }
     default:
         throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(FromType).get_type_name() +
-                                 " to: " + element::Type(toPrecision).get_type_name());
+                                 ov::element::Type(FromType).get_type_name() +
+                                 " to: " + ov::element::Type(toPrecision).get_type_name());
     }
 }
 
 }  // namespace
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
-                                                 const element::Type_t& fromPrecision,
-                                                 const element::Type_t& toPrecision,
+                                                 const ov::element::Type_t& fromPrecision,
+                                                 const ov::element::Type_t& toPrecision,
                                                  const size_t elementsCount) {
     switch (fromPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecisionFrom<element::Type_t::boolean>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::boolean: {
+        return convertPrecisionFrom<ov::element::Type_t::boolean>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::bf16: {
-        return convertPrecisionFrom<element::Type_t::bf16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::bf16: {
+        return convertPrecisionFrom<ov::element::Type_t::bf16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f16: {
-        return convertPrecisionFrom<element::Type_t::f16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f16: {
+        return convertPrecisionFrom<ov::element::Type_t::f16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f32: {
-        return convertPrecisionFrom<element::Type_t::f32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f32: {
+        return convertPrecisionFrom<ov::element::Type_t::f32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f64: {
-        return convertPrecisionFrom<element::Type_t::f64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f64: {
+        return convertPrecisionFrom<ov::element::Type_t::f64>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i4: {
-        return convertPrecisionFrom<element::Type_t::i4>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i4: {
+        return convertPrecisionFrom<ov::element::Type_t::i4>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i8: {
-        return convertPrecisionFrom<element::Type_t::i8>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i8: {
+        return convertPrecisionFrom<ov::element::Type_t::i8>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i16: {
-        return convertPrecisionFrom<element::Type_t::i16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i16: {
+        return convertPrecisionFrom<ov::element::Type_t::i16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i32: {
-        return convertPrecisionFrom<element::Type_t::i32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i32: {
+        return convertPrecisionFrom<ov::element::Type_t::i32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i64: {
-        return convertPrecisionFrom<element::Type_t::i64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i64: {
+        return convertPrecisionFrom<ov::element::Type_t::i64>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u1: {
-        return convertPrecisionFrom<element::Type_t::u1>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u1: {
+        return convertPrecisionFrom<ov::element::Type_t::u1>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u4: {
-        return convertPrecisionFrom<element::Type_t::u4>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u4: {
+        return convertPrecisionFrom<ov::element::Type_t::u4>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u8: {
-        return convertPrecisionFrom<element::Type_t::u8>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u8: {
+        return convertPrecisionFrom<ov::element::Type_t::u8>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u16: {
-        return convertPrecisionFrom<element::Type_t::u16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u16: {
+        return convertPrecisionFrom<ov::element::Type_t::u16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u32: {
-        return convertPrecisionFrom<element::Type_t::u32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u32: {
+        return convertPrecisionFrom<ov::element::Type_t::u32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u64: {
-        return convertPrecisionFrom<element::Type_t::u64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u64: {
+        return convertPrecisionFrom<ov::element::Type_t::u64>(output, toPrecision, elementsCount);
     }
     default:
         throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(fromPrecision).get_type_name() + " precision");
+                                 ov::element::Type(fromPrecision).get_type_name() + " precision");
     }
 }
 

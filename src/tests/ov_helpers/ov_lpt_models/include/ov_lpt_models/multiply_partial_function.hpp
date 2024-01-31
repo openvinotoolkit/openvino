@@ -39,9 +39,7 @@ inline std::ostream& operator<<(std::ostream& out, const MultiplyPartialValues& 
 
 class MultiplyPartialFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ov::Model> get(
-            const element::Type precision,
-            const MultiplyPartialValues& actualValues);
+    static std::shared_ptr<ov::Model> get(const ov::element::Type precision, const MultiplyPartialValues& actualValues);
 
     static std::shared_ptr<ov::Model> get(
         const ov::element::Type precision,

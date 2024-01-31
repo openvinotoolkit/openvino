@@ -44,13 +44,15 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, cons
         description.values);
 
     std::shared_ptr<Operation> operation;
-    if ((description.outPrecision == element::undefined) || (description.outPrecision == data->get_output_element_type(0))) {
+    if ((description.outPrecision == ov::element::undefined) ||
+        (description.outPrecision == data->get_output_element_type(0))) {
         operation = std::make_shared<Operation>(data, operationConst);
     } else {
         operation = std::make_shared<ov::op::TypeRelaxed<Operation>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
-            ov::op::TemporaryReplaceOutputType(data, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{},
+            ov::op::TemporaryReplaceOutputType(data, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(operationConst, ov::element::f32).get());
         ov::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
@@ -98,11 +100,10 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
 
 void addAttributes(std::vector<std::shared_ptr<ov::Node>> nodes, std::vector<ov::Any> attributes);
 
-std::shared_ptr<Node> makeConvolution(
-    const std::shared_ptr<Node>& parent,
-    const element::Type precision,
-    const bool weightsWithoutFQ,
-    const element::Type weightsprecision = element::i8);
+std::shared_ptr<Node> makeConvolution(const std::shared_ptr<Node>& parent,
+                                      const ov::element::Type precision,
+                                      const bool weightsWithoutFQ,
+                                      const ov::element::Type weightsprecision = ov::element::i8);
 
 } // namespace subgraph
 } // namespace builder

@@ -33,8 +33,8 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Preparation <#preparation>`__
 
@@ -56,10 +56,10 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
       model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
 
       -  `1. ONNX Model in OpenVINO
-         Runtime <#-onnx-model-in-openvino-runtime>`__
+         Runtime <#1--onnx-model-in-openvino-runtime>`__
       -  `Select inference device <#select-inference-device>`__
       -  `2. OpenVINO IR Model in OpenVINO
-         Runtime <#-openvino-ir-model-in-openvino-runtime>`__
+         Runtime <#2--openvino-ir-model-in-openvino-runtime>`__
       -  `Select inference device <#select-inference-device>`__
 
 -  `PyTorch Comparison <#pytorch-comparison>`__
@@ -576,9 +576,17 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.93
-    ONNX model in OpenVINO Runtime/CPU: 0.018 seconds per image, FPS: 56.39
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.018 seconds per image, FPS: 54.58
+    PyTorch model on CPU: 0.042 seconds per image, FPS: 24.02
+
+
+.. parsed-literal::
+
+    ONNX model in OpenVINO Runtime/CPU: 0.030 seconds per image, FPS: 33.66
+
+
+.. parsed-literal::
+
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.029 seconds per image, FPS: 35.01
 
 
 **Show Device Information**
@@ -610,4 +618,4 @@ References
 -  `Model Conversion API
    documentation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 -  `Converting Pytorch
-   model <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+   model <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
