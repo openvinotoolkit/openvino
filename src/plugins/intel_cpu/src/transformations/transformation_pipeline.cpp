@@ -211,7 +211,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
 
 void Transformations::UpToLpt() {
     using namespace ov::pass::low_precision;
-    static const std::unordered_set<levels, EnumClassHash>& supported_fq_levels = {
+    static const std::set<levels>& supported_fq_levels = {
         levels::int4,
         levels::int4_narrow_range,
         levels::int8,

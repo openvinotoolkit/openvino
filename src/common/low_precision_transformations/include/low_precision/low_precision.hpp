@@ -71,7 +71,7 @@ public:
 
     static bool isFunctionQuantized(
         const std::shared_ptr<const ov::Model>& model,
-        const std::unordered_set<levels, EnumClassHash>& supported_levels = {});
+        const std::set<levels>& supported_levels = {});
     static bool isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model, const std::set<size_t>& levels);
 
     template <typename T, class... Args>

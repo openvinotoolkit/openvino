@@ -299,7 +299,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
 
 bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
         const std::shared_ptr<const ov::Model>& model,
-        const std::unordered_set<levels, EnumClassHash>& supported_levels) {
+        const std::set<levels>& supported_levels) {
     std::set<std::shared_ptr<ov::Node>> handledNodes;
     std::deque<std::shared_ptr<ov::Node>> nodes;
     for (const auto& result : model->get_results()) {

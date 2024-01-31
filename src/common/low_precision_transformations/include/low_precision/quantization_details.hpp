@@ -27,13 +27,6 @@ enum levels : size_t {
     int32_narrow_range = 4294967295
 };
 
-struct EnumClassHash {
-    template <class T>
-    std::size_t operator()(T t) const {
-        return static_cast<size_t>(t);
-    }
-};
-
 class LP_TRANSFORMATIONS_API QuantizationDetails {
 public:
     QuantizationDetails();
@@ -71,7 +64,12 @@ public:
 
     static bool isSupportedLevel(
         const size_t level,
-        const std::unordered_set<levels, EnumClassHash>& supported_levels = {});
+        const std::set<levels>& supported_levels = {
+            levels::int4,  levels::int4_narrow_range,
+            levels::int8,  levels::int8_narrow_range,
+            levels::int16, levels::int16_narrow_range,
+            levels::int32, levels::int32_narrow_range
+        });
 
     const size_t levels;
     const std::vector<float> inputLowValues;
