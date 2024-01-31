@@ -38,6 +38,8 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
          - OpenEuler 20.03 and 22.03
          - Anolis OS 8.6 and 8.8
          - CentOS Stream 8 and 9
+         - openSUSE 15.4 and openSUSE 15.5
+
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
