@@ -372,7 +372,7 @@ struct PlainTensor {
     }
     template <int dim, typename I>
     int64_t offset(I i) const {
-        return i * m_strides[dim];
+        return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
     int64_t offset(I i, Is... indices) const {
@@ -381,6 +381,11 @@ struct PlainTensor {
     template <typename DT, typename... Is>
     DT* ptr(Is... indices) const {
         return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+    }
+
+    template <typename... Is>
+    void* ptr_v(Is... indices) const {
+        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.

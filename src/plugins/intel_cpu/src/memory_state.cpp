@@ -209,7 +209,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
                             m_scale_zp.ptr<float>(b_kv, h, m)[0],
                             m_scale_zp.ptr<float>(b_kv, h, m)[1]);
             cpu_convert(buffers[ithr].ptr<float>(),
-                        output.ptr<char>(b, h, m),
+                        output.ptr_v(b, h, m),
                         element::f32,
                         output.m_dt,
                         S);
@@ -217,8 +217,8 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     } else {
         parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
             auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-            cpu_convert(pastkv.ptr<char>(b_kv, h, m),
-                        output.ptr<char>(b, h, m),
+            cpu_convert(pastkv.ptr_v(b_kv, h, m),
+                        output.ptr_v(b, h, m),
                         pastkv.m_dt,
                         output.m_dt,
                         S);
@@ -254,7 +254,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         std::vector<PlainTensor> buffers(nthr);
         parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
             buffers[ithr].resize<float>({S});
-            cpu_convert(external.ptr<char>(b, h, m),
+            cpu_convert(external.ptr_v(b, h, m),
                         buffers[ithr].ptr<float>(),
                         external.m_dt,
                         element::f32,
