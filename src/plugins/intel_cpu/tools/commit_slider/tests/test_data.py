@@ -55,7 +55,8 @@ class TestData():
         DeadTest = 0,
         FirstBadVersion = 1,
         FirstValidVersion = 2,
-        BmValidatorStable = 3
+        BmValidatorStable = 3,
+        BmValidatorSteppedBreak = 4
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -104,11 +105,27 @@ class BmStableData(TestData):
     def __init__(self):
         self.requireTestData(
             lambda td, rsc: [
-                setattr(td,
-                        key,
-                        rsc[td.getTestName()][key])
+                setattr(td, key, rsc[td.getTestName()][key])
                 for key in [
             'bmOutputMap', 'breakCommit', 'dev'
+            ]]
+        )
+
+
+class BmValidatorSteppedBreakData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmValidatorSteppedBreak
+
+    def getTestName(self):
+        return "BmValidatorSteppedBreak"
+
+    def __init__(self):
+        self.requireTestData(
+            lambda td, rsc: [
+                setattr(td, key, rsc[td.getTestName()][key])
+                for key in [
+            'bmOutputMap', 'wrongBreakCommit', 'realBreakCommit',
+            'highDev', 'lowDev'
             ]]
         )
 

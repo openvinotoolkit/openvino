@@ -86,10 +86,12 @@ def breakValidator(args):
 
     commitMap = getJSONFromCSV(csvPath)
 
-    if validateBMOutput(commitMap, breakCommit, dev):
-        print('alles gut')
-        return True
-    return True
+    try:
+        validateBMOutput(commitMap, breakCommit, dev)
+        print("Results are valid")
+    except BmValidationError as e:
+        print("Invalid benchmark results: {}".format(e.message))
+
 
 class BmValidationError(Exception):
     class BmValErrType(Enum):

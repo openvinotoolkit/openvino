@@ -8,8 +8,10 @@ from tests import skip_commit_slider_devtest
 sys.path.append('./')
 from test_util import getExpectedCommit
 from test_util import getActualCommit
-from test_util import checkBmStability
-from test_data import FirstBadVersionData, FirstValidVersionData, BmStableData
+from utils.break_validator import validateBMOutput
+from test_data import FirstBadVersionData, FirstValidVersionData,\
+    BmStableData, BmValidatorSteppedBreakData
+from utils.break_validator import BmValidationError
 
 
 class CommitSliderTest(TestCase):
@@ -31,6 +33,35 @@ class CommitSliderTest(TestCase):
 
     @skip_commit_slider_devtest
     def testBmStability(self):
-        isStable = checkBmStability(BmStableData())
+        td = BmStableData()
+        isStable = validateBMOutput(
+            td.bmOutputMap,
+            td.breakCommit,
+            td.dev)
 
         self.assertTrue(isStable)
+
+    @skip_commit_slider_devtest
+    def testBmSteppedBreak(self):
+        td = BmValidatorSteppedBreakData()
+
+        # wrong break commit with low deviation
+        with self.assertRaises(BmValidationError) as e:
+            validateBMOutput(
+                td.bmOutputMap,
+                td.wrongBreakCommit,
+                td.highDev
+            )
+        self.assertEqual(
+            str(e.exception),
+            "pre-break interval does not majorize post-break"
+        )
+
+        # real break commit with decreased deviation
+        isStable = validateBMOutput(
+                td.bmOutputMap,
+                td.realBreakCommit,
+                td.lowDev
+            )
+        self.assertTrue(isStable)
+

@@ -186,11 +186,6 @@ def getActualCommit(td: TestData):
 
     return foundCommit
 
-def checkBmStability(td: TestData):
-    from utils.break_validator import validateBMOutput
-    validateBMOutput(td.bmOutputMap, td.breakCommit, td.dev)
-    return True
-
 def requireBinarySearchData(td: TestData, rsc: map):
     td.requireTestData(
             lambda td, rsc: setattr(td,
