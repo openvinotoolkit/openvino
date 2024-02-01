@@ -299,10 +299,7 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
 }
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
-    // only CPU plugin supports this exception now.
-    if (target_device != "CPU") {
-        GTEST_SKIP();
-    }
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core ie = createCoreWithTemplate();
     std::stringstream strm;
     // Import model with IR input throw exception
