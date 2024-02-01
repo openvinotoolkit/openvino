@@ -4,10 +4,12 @@
 
 #include "op/thresholded_relu.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/multiply.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -18,13 +20,13 @@ ov::OutputVector thresholded_relu(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const double alpha = node.get_attribute_value<double>("alpha", 1.0);
 
-    const auto alpha_node = default_opset::Constant::create(data.get_element_type(), Shape{}, {alpha});
+    const auto alpha_node = v0::Constant::create(data.get_element_type(), Shape{}, {alpha});
 
     const auto data_map =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Greater>(data, alpha_node),
+        std::make_shared<v0::Convert>(std::make_shared<v1::Greater>(data, alpha_node),
                                                  data.get_element_type());
 
-    return {std::make_shared<default_opset::Multiply>(data, data_map)};
+    return {std::make_shared<v1::Multiply>(data, data_map)};
 }
 
 }  // namespace set_1
