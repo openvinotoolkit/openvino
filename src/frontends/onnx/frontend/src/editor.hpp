@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
@@ -25,7 +24,7 @@ namespace onnx_editor {
 /// \note This class can be used to modify an ONNX model before it gets translated to
 ///       an ov::Model by the frontend->convert method. It lets you modify the
 ///       model's input types and shapes, extract a subgraph and more.
-class ONNX_IMPORTER_API ONNXModelEditor final {
+class ONNXModelEditor final {
 public:
     /// \brief Creates an editor from a model file located on a storage device. The file
     ///        is parsed and loaded into the m_model_proto member variable.
