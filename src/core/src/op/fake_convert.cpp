@@ -24,7 +24,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET, class T = fundamental_type_for<ET>>
     static result_type visit(ov::TensorVector& outputs,
                              const ov::TensorVector& inputs,
-                             const std::string& destination_type) {
+                             const ov::element::Type& destination_type) {
         if (inputs.size() == 2) {  // Default shift
             reference::fake_convert<T>(inputs[0].data<const T>(),
                                        inputs[1].data<const T>(),
@@ -162,7 +162,7 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
                       inputs[0].get_element_type(),
                       outputs,
                       inputs,
-                      get_destination_type());
+                      get_destination_element_type());
 
     return true;
 }
