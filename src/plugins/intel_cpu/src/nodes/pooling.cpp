@@ -4,9 +4,9 @@
 
 #include "pooling.h"
 
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "fake_quantize.h"
-#include "conv.h"
-#include "concat.h"
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>

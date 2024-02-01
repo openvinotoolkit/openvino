@@ -555,7 +555,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     //                                  weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale is applied on GROUP and Deconv_OC,
     //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -751,14 +751,14 @@ dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_c
 }
 
 DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                                    const dnnl::memory::desc& wghDesc,
-                                                                    const dnnl::memory::desc& dstDesc,
-                                                                    const std::vector<ptrdiff_t>& stride,
-                                                                    const std::vector<ptrdiff_t>& dilation,
-                                                                    const ov::CoordinateDiff& paddingL,
-                                                                    const ov::CoordinateDiff& paddingR,
-                                                                    const dnnl::primitive_attr& attr,
-                                                                    const dnnl::engine& engine) {
+                                                 const dnnl::memory::desc& wghDesc,
+                                                 const dnnl::memory::desc& dstDesc,
+                                                 const std::vector<ptrdiff_t>& stride,
+                                                 const std::vector<ptrdiff_t>& dilation,
+                                                 const ov::CoordinateDiff& paddingL,
+                                                 const ov::CoordinateDiff& paddingR,
+                                                 const dnnl::primitive_attr& attr,
+                                                 const dnnl::engine& engine) {
     dnnl::algorithm alg = dnnl::algorithm::convolution_direct;
     convolution_backward_data::primitive_desc deconv_desc;
     convolution_forward::primitive_desc fwd_conv_pd;
@@ -1096,8 +1096,8 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         convolution_backward_data::primitive_desc deconv_desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
-                                                                                deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
-                                                                                deconvAttrs.paddingR, *attr, getEngine());
+                                                                             deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
+                                                                             deconvAttrs.paddingR, *attr, getEngine());
         if (fwd_conv_pd && deconv_desc && deconv_desc.get(true) != nullptr) {
             fwdConvPD.push_back(fwd_conv_pd);  // oneDNN requires forward pd to exists until primitive is created
             descs.push_back(deconv_desc);

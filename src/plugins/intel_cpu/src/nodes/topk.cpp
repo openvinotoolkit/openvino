@@ -12,7 +12,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <set>

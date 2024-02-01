@@ -17,6 +17,7 @@
 #include "fake_quantize.h"
 #include "input.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/executors/eltwise_list.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -33,6 +34,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -2839,7 +2841,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
 
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {

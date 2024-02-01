@@ -7,6 +7,9 @@
 #include "graph.h"
 #include "nodes/input.h"
 #include "nodes/concat.h"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 using namespace ov::intel_cpu;
 

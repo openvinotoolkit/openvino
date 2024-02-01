@@ -3,7 +3,9 @@
 //
 
 #include "eye.h"
-
+#include "openvino/op/eye.hpp"
+#include <ie_ngraph_utils.hpp>
+#include <utils/bfloat16.hpp>
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_ngraph.hpp"
 #include "utils/bfloat16.hpp"

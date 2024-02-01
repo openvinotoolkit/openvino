@@ -5,7 +5,6 @@
 #include "dft.h"
 
 #include <string>
-#include <thread>
 #include <vector>
 #include <cmath>
 #include "dnnl_extension_utils.h"
@@ -14,6 +13,7 @@
 #include "onednn/dnnl.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 #include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;

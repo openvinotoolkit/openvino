@@ -3,6 +3,19 @@
 //
 
 #include "reorder.h"
+#include <memory>
+#include <string>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
+#include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/reorder_prim.h"
+#include "convert.h"
+#include <common/primitive_hashing_utils.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 #include "convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -164,7 +177,7 @@ void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr 
                                               {parentDesc},
                                               {transposedDesc},
                                               attr);
-    getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->getImplType());
+    getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
     return;
 }
 #endif // OV_CPU_ARM_ENABLE_FP16
@@ -297,6 +310,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
+        DEBUG_LOG("src desc: ", src_desc, " dst_desc: ", dst_desc);
         THROW_CPU_NODE_ERR("could not create reorder primitive: unsupported reorder case.");
     }
     prim = result;
@@ -395,8 +409,7 @@ void Reorder::execute(dnnl::stream strm) {
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        int MB = srcMemPtr->getStaticDims()[0];
-        return transposeExecutor->exec({srcMemPtr}, {dstMemPtr}, MB);
+        return transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
     }
 #endif
 

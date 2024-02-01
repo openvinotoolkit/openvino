@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #ifdef CPU_DEBUG_CAPS
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
+#include "utils/enum_class_hash.hpp"
 
 #include <bitset>
 #include <memory>
@@ -25,7 +27,7 @@ public:
         readProperties();
     }
 
-    enum FILTER {
+    enum class FILTER {
         BY_PORTS,
         BY_EXEC_ID,
         BY_TYPE,
@@ -41,8 +43,7 @@ public:
     std::string verbose;
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
-    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
-    std::unordered_map<FILTER, std::string, std::hash<int>> blobDumpFilters;
+    std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
     std::string summaryPerf = "";
 
     struct TransformationFilter {
