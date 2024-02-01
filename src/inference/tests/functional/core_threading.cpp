@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_extension.h>
 
 #include <atomic>
 #include <chrono>
@@ -12,7 +11,6 @@
 #include <fstream>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
 #include <mutex>
 #include <thread>
 
@@ -58,24 +56,12 @@ public:
                 thread.join();
         }
     }
-
-    void safeAddExtension(InferenceEngine::Core& ie) {
-        try {
-            auto extension = std::make_shared<InferenceEngine::Extension>(
-                ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
-            ie.AddExtension(extension);
-        } catch (const InferenceEngine::Exception& ex) {
-            ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
-        }
-    }
 };
 
 // tested function: SetConfig
 TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
-    std::map<std::string, std::string> localConfig = {
-        {CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES}};
+    std::map<std::string, std::string> localConfig = {{ov::enable_profiling.name(), "YES"}};
 
     runParallel(
         [&]() {
@@ -167,19 +153,3 @@ TEST_F(IECoreThreadingTests, GetAvailableDevices) {
         },
         30);
 }
-
-#if defined(ENABLE_OV_IR_FRONTEND)
-// tested function: ReadNetwork, AddExtension
-TEST_F(IECoreThreadingTests, ReadNetwork) {
-    InferenceEngine::Core ie;
-    auto network = ie.ReadNetwork(modelName, weightsName);
-
-    runParallel(
-        [&]() {
-            safeAddExtension(ie);
-            (void)ie.ReadNetwork(modelName, weightsName);
-        },
-        100,
-        12);
-}
-#endif  // defined(ENABLE_OV_IR_FRONTEND)

@@ -71,9 +71,9 @@ class TestComplexParams(CommonMOConvertTest):
         return save_to_pb(tf_net, tmp_dir)
 
     test_data = [
-        {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
+        {'params_test': {'output': ["Sigmoid_0:0", "Sigmoid_2:0"]},
          'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
-        {'params_test': {'output': ["Sigmoid_0"]},
+        {'params_test': {'output': ["Sigmoid_0:0"]},
          'params_ref': {'output': "Sigmoid_0"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},

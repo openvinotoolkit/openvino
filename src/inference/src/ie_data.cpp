@@ -71,7 +71,7 @@ public:
      */
     std::map<std::string, CNNLayerPtr> inputTo;
 
-    ngraph::PartialShape pShape;
+    ov::PartialShape pShape;
 };
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
@@ -83,7 +83,7 @@ Data::Data(const std::string& name, Precision _precision, Layout layout)
 
 Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userObject({0}), tensorDesc(desc) {
     _impl = std::make_shared<Impl>();
-    _impl->pShape = ngraph::PartialShape(desc.getDims());
+    _impl->pShape = ov::PartialShape(desc.getDims());
 }
 
 const Precision& Data::getPrecision() const {
@@ -100,7 +100,7 @@ bool Data::isInitialized() const {
 
 void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
-    _impl->pShape = ngraph::PartialShape(a_dims);
+    _impl->pShape = ov::PartialShape(a_dims);
 }
 
 void Data::setLayout(Layout layout) {
@@ -109,7 +109,7 @@ void Data::setLayout(Layout layout) {
 
 void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
     tensorDesc.reshape(a_dims, a_layout);
-    _impl->pShape = ngraph::PartialShape(a_dims);
+    _impl->pShape = ov::PartialShape(a_dims);
 }
 
 Data::Data(const Data& data) : name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {

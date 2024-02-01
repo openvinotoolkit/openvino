@@ -16,22 +16,22 @@ class ElementwiseBranchSelectionTestValues{
 public:
     class Branch {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeBefore;
-        ngraph::builder::subgraph::Convolution convolution;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeBefore;
+        ov::builder::subgraph::Convolution convolution;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     };
 
     Branch branch1;
     Branch branch2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     std::vector<std::pair<std::string, std::string>> expectedReorders;
     // expected operation name + expected operation precision
     std::vector<std::pair<std::string, std::string>> expectedPrecisions;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ElementwiseBranchSelectionTestValues,
     std::string
@@ -45,7 +45,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

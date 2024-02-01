@@ -8,6 +8,7 @@
 #include "node.h"
 
 #include <utility>
+#include "dnnl_postops_composer_legacy.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -100,6 +101,7 @@ public:
     const std::vector<float>& getInputShift() const { return inputShift; }
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
+    const size_t getLevels() const { return levels; }
 
     void setCropLow(std::vector<float> newCropLow) {
         cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); ++parameterVersion;
@@ -132,7 +134,7 @@ public:
 
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+    bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true,

@@ -44,20 +44,20 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     std::tie(iePrc, ieShape, targetDevice) = GetParam();
 
     const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
-    const auto shape = ngraph::Shape{ieShape};
-    const auto scalarShape = ngraph::Shape{};
+    const auto shape = ov::Shape{ieShape};
+    const auto scalarShape = ov::Shape{};
 
     auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
 
     // Loop body
     auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ngraph::element::boolean, scalarShape);
+    auto b_cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, scalarShape);
 
-    auto body = std::make_shared<ngraph::Function>(
-            ngraph::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
-            ngraph::ParameterVector {b_cond, b_data});  // | input -> output
+    auto body = std::make_shared<ov::Model>(
+            ov::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
+            ov::ParameterVector {b_cond, b_data});  // | input -> output
 
     auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
@@ -66,9 +66,9 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     loop->set_invariant_input(b_data, start);
     loop->get_iter_value(b_data, -1);
 
-    function = std::make_shared<ngraph::Function>(
-            ngraph::OutputVector    {loop},
-            ngraph::ParameterVector {start});
+    function = std::make_shared<ov::Model>(
+            ov::OutputVector    {loop},
+            ov::ParameterVector {start});
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
@@ -88,21 +88,21 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     std::tie(iePrc, ieShape, targetDevice) = GetParam();
 
     const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
-    const auto shape = ngraph::Shape{ieShape};
-    const auto scalarShape = ngraph::Shape{};
+    const auto shape = ov::Shape{ieShape};
+    const auto scalarShape = ov::Shape{};
 
     auto start = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, scalarShape, 5);
-    auto icond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
+    auto count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, scalarShape, 5);
+    auto icond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
 
     // Loop body
     auto b_data = std::make_shared<ov::op::v0::Parameter>(prc, shape);
-    auto b_cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, scalarShape, true);
-    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i64, scalarShape);
+    auto b_cond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, scalarShape, true);
+    auto b_iter = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, scalarShape);
 
-    auto body = std::make_shared<ngraph::Function>(
-            ngraph::OutputVector    {b_cond, b_data},
-            ngraph::ParameterVector {b_data, b_iter});
+    auto body = std::make_shared<ov::Model>(
+            ov::OutputVector    {b_cond, b_data},
+            ov::ParameterVector {b_data, b_iter});
 
     auto loop = std::make_shared<ov::op::v5::Loop>(count, icond);
     loop->set_function(body);
@@ -110,9 +110,9 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     loop->set_invariant_input(b_data, start);
     loop->get_iter_value(b_data, -1);
 
-    function = std::make_shared<ngraph::Function>(
-            ngraph::OutputVector    {loop},
-            ngraph::ParameterVector {start});
+    function = std::make_shared<ov::Model>(
+            ov::OutputVector    {loop},
+            ov::ParameterVector {start});
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});

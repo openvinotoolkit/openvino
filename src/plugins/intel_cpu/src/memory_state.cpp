@@ -1,12 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <nodes/common/cpu_convert.h>
 
 #include "memory_state.h"
 
+#include <nodes/common/cpu_convert.h>
+#include "cpu_memory.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "dnnl_extension_utils.h"
-#include "blob_factory.hpp"
 #include "cpu_tensor.h"
 #include "utils/plain_tensor.hpp"
 #include "openvino/core/parallel.hpp"
@@ -229,7 +230,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
     m_hidden_state = std::make_shared<Memory>(get_engine(), mem_desc);
-    auto buff = reinterpret_cast<int*>(m_hidden_state->getData());
+    auto buff = m_hidden_state->getDataAs<int>();
     for (size_t i = 0; i < size_B; ++i) {
         for (size_t j = 0; j < size_L; ++j) {
             buff[i * size_L + j] = i;

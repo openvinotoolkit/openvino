@@ -400,11 +400,19 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
- * @brief This property allows CPU threads pinning during inference.
+ * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
- * set value for this property, OpenVINO may choose any desired value based on internal logic.
+ * Developer can use this property to enable or disable CPU pinning during inference on Windows and Linux. MacOS
+ * does not support CPU pinning, and this property is always disabled. If user does not explicitly set value for
+ * this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following is an example of CPU fixed behavior on a hybrid CPU (8 performance cores and 16 efficiency cores).
+ * For stream with 4 threads on performance cores, if CPU pinning is enabled, each thread is bound to a specific
+ * performance core. If CPU pinning is disabled, OS will schedule 4 threads on performance cores only.
+ * For stream with 24 threads on all cores, if CPU pinning is enabled, each thread is bound to a specific
+ * performance core. If CPU pinning is disabled, OS will schedule 24 threads on both performance cores and efficiency
+ * cores.
  *
  * The following code is example to use this property.
  *
@@ -1135,11 +1143,14 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 /** @endcond */
 
 /**
+ * @deprecated Use ov::hint::enable_cpu_pinning
  * @brief The name for setting CPU affinity per thread option.
  * @ingroup ov_runtime_cpp_prop_api
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
+OPENVINO_DEPRECATED(
+    "This property is deprecated and will be removed soon. Use ov::hint::enable_cpu_pinning instead of it.")
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
 /**

@@ -5,16 +5,17 @@
 #include "op/if.hpp"
 
 #include "core/graph.hpp"
-#include "ngraph/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/if.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector if_op(const Node& node) {
+ov::OutputVector if_op(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
@@ -23,14 +24,14 @@ OutputVector if_op(const Node& node) {
     auto then_subgraph = subgraphs.at("then_branch");
     const auto& then_params = then_subgraph->get_ng_parameters();
     auto then_branch =
-        std::make_shared<Function>(then_subgraph->get_ov_outputs(), then_params, then_subgraph->get_name());
+        std::make_shared<ov::Model>(then_subgraph->get_ov_outputs(), then_params, then_subgraph->get_name());
     FRONT_END_GENERAL_CHECK(subgraphs.count("else_branch") == 1, "Missing 'else_branch' attribute");
     auto else_subgraph = subgraphs.at("else_branch");
     const auto& else_params = else_subgraph->get_ng_parameters();
     auto else_branch =
-        std::make_shared<Function>(else_subgraph->get_ov_outputs(), else_params, else_subgraph->get_name());
+        std::make_shared<ov::Model>(else_subgraph->get_ov_outputs(), else_params, else_subgraph->get_name());
 
-    auto if_node = std::make_shared<ov::op::v8::If>(ng_inputs.at(0));
+    auto if_node = std::make_shared<v8::If>(ng_inputs.at(0));
     if_node->set_then_body(then_branch);
     if_node->set_else_body(else_branch);
 

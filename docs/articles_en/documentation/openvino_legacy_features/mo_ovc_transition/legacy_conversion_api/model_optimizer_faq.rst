@@ -8,8 +8,8 @@
 
    All of the issues below refer to :doc:`legacy functionalities <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
 
-If your question is not covered by the topics below, use the 
-`OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
+If your question is not covered by the topics below, use the
+`OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__,
 where you can participate in a free forum discussion.
 
 .. warning::
@@ -82,7 +82,7 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported operations <openvino_resources_supported_operations_frontend>` for the target framework. 
+absent in the :doc:`list of supported operations <openvino_resources_supported_operations_frontend>` for the target framework.
 Then, refer to available options in the corresponding section in the  :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-7:
@@ -255,7 +255,7 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 Q19. What does the message "Both --scale and --scale_values are defined. Specify either scale factor or scale values per input channels" mean?
 #####################################################################################################################################################
 
-**A:** The ``--scale`` option sets a scaling factor for all channels, while ``--scale_values`` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`, :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`, :doc:`Converting an MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`.
+**A:** The ``--scale`` option sets a scaling factor for all channels, while ``--scale_values`` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
 
 .. _question-20:
 
@@ -547,7 +547,7 @@ Keep in mind that there is no space between and inside the brackets for input sh
 Q58. What does the message "Please provide input layer names for input layer shapes" mean?
 #####################################################################################################################################################
 
-**A:** When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see the :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`. Additional information for ``--input_shape`` is in FAQ :ref:`#56 <question-56>`.
+**A:** When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. Additional information for ``--input_shape`` is in FAQ :ref:`#56 <question-56>`.
 
 .. _question-59:
 
@@ -582,14 +582,14 @@ Q62. What does the message "You should specify input for each scale value" mean?
 Q63. What does the message "Number of inputs and mean values does not match" mean?
 #####################################################################################################################################################
 
-**A:** The number of specified mean values and the number of inputs must be equal. For a usage example, refer to the :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>` guide.
+**A:** The number of specified mean values and the number of inputs must be equal.
 
 .. _question-64:
 
 Q64. What does the message "Number of inputs and scale values does not match" mean?
 #####################################################################################################################################################
 
-**A:** The number of specified scale values and the number of inputs must be equal.  For a usage example, refer to the :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>` guide.
+**A:** The number of specified scale values and the number of inputs must be equal.
 
 .. _question-65:
 
@@ -715,7 +715,6 @@ Topology description (``.json`` file) should be prepared (merged) in advance and
 If you add additional layers and weights that are in ``.nd`` files to your model, Model Optimizer can build a model
 from one ``.params`` file and two additional ``.nd`` files (``*_args.nd``, ``*_auxs.nd``).
 To do that, provide both CLI options or do not pass them if you want to convert an MXNet model without additional weights.
-For more information, refer to the :doc:`Converting an MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>` guide.
 
 .. _question-82:
 
@@ -739,7 +738,6 @@ Q84. What does the message "Specified input json ... does not exist" mean?
 #####################################################################################################################################################
 
 **A:** Most likely, ``.json`` file does not exist or has a name that does not match the notation of Apache MXNet. Make sure the file exists and has a correct name.
-For more information, refer to the :doc:`Converting an MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>` guide.
 
 .. _question-85:
 
@@ -747,8 +745,6 @@ Q85. What does the message "Unsupported Input model file type ... Model Optimize
 #####################################################################################################################################################
 
 **A:** Model Optimizer for Apache MXNet supports only ``.params`` and ``.nd`` files formats. Most likely, you specified an unsupported file format in ``--input_model``.
-For more information, refer to :doc:`Converting an MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`.
-
 
 .. _question-86:
 

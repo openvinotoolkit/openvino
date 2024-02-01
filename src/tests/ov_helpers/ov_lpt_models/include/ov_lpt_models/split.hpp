@@ -12,37 +12,37 @@
 
 
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 class SplitFunction {
 public:
     static std::shared_ptr<ov::Model> getOriginal(
-        const element::Type& precision,
+        const ov::element::Type& precision,
         const ov::PartialShape& inputShape,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const ov::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
         const size_t numSplits);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type originalFunctionPrecision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+        const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const int64_t splitedAxis,
         const size_t numSplit);
 
     static std::shared_ptr<ov::Model> getReference(
-        const element::Type& precision,
+        const ov::element::Type& precision,
         const ov::PartialShape& inputShape,
         const ov::element::Type inputPrecision,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
+        const std::vector<ov::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,
         const size_t numSplits);
 };
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

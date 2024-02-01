@@ -16,14 +16,12 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -37,9 +35,8 @@ using namespace std;
 using namespace InferenceEngine;
 using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
-using ngraph::Function;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
+void CNNNetworkNGraphImpl::createDataForResult(const ::ov::Output<::ov::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
@@ -91,7 +88,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
+    std::unordered_map<std::string, std::shared_ptr<ov::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
@@ -111,26 +108,23 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
-ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
+ov::element::Type details::toLegacyType(const ov::element::Type& ngraph_type, bool input) {
     if (input) {
-        return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
+        return ngraph_type == ov::element::f16 ? ov::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
-            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
-            return ngraph::element::i32;
-        } else if (ngraph_type != ngraph::element::f32) {
-            return ngraph::element::f32;
+        if (ngraph_type == ov::element::i64 || ngraph_type == ov::element::u64 || ngraph_type == ov::element::i32 ||
+            ngraph_type == ov::element::u32) {
+            return ov::element::i32;
+        } else if (ngraph_type != ov::element::f32) {
+            return ov::element::f32;
         }
     }
 
     return ngraph_type;
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
-                                           const std::vector<IExtensionPtr>& exts,
-                                           bool newAPI)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<ov::Model>& nGraph, bool newAPI)
     : _ngraph_function(nGraph),
-      _ie_extensions(exts),
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
@@ -196,7 +190,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
-    _ngraph_function = ngraph::clone_function(*network.getFunction());
+    _ngraph_function = network.getFunction()->clone();
     validateFunctionNames();
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
@@ -216,7 +210,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         DataPtr input = std::make_shared<Data>(name, inData->getTensorDesc());
         _data[name] = input;
         info->setInputData(input);
-        info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
@@ -263,7 +256,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
-            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
+            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ov::op::v0::Result>(layer)) {
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
@@ -277,10 +270,10 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 
                 // Check that we don't have a result for the output port
                 for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
-                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                    if (dynamic_cast<ov::op::v0::Result*>(port.get_node()))
                         return OK;
                 }
-                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
+                auto result = make_shared<::ov::op::v0::Result>(layer->output(outputIndex));
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
                 // Check that we cannot add Result to layer with non unique friendly name
@@ -303,7 +296,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
+void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ov::Node>& output) {
     auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
@@ -324,7 +317,7 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const {
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
     auto params = _ngraph_function->get_parameters();
-    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+    sort(params.begin(), params.end(), [](std::shared_ptr<ov::Node> lhs, std::shared_ptr<ov::Node> rhs) {
         return lhs->get_friendly_name() < rhs->get_friendly_name();
     });
 
@@ -345,7 +338,7 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     try {
         if (inputShapes.empty())
@@ -370,13 +363,13 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
             return OK;
 
         // save original parameters shape
-        std::map<std::string, ngraph::PartialShape> originalInputShapes;
+        std::map<std::string, ov::PartialShape> originalInputShapes;
         for (const auto& param : params) {
             originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
         }
 
         try {
-            ngraph::pass::Manager ssr_manager;
+            ov::pass::Manager ssr_manager;
             using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
@@ -403,9 +396,9 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, ov::PartialShape> shapes;
     for (const auto& shape : inputShapes)
-        shapes[shape.first] = ngraph::PartialShape(shape.second);
+        shapes[shape.first] = ov::PartialShape(shape.second);
     return reshape(shapes, responseDesc);
 }
 
@@ -462,7 +455,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
 }  // namespace
 #endif
 
-void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
+void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ov::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
@@ -507,14 +500,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
-        REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
+        REGISTER_PASS(manager, Serialize, xmlPath, binPath, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -529,14 +517,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
-        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
+        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -551,16 +534,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
     noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (const auto& extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
-
         std::stringstream binBuf;
-        ngraph::pass::Manager manager;
+        ov::pass::Manager manager;
         using namespace ov::pass;
-        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
+        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
@@ -612,7 +589,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
         const auto first_parameter =
             *std::min_element(original_parameters.begin(),
                               original_parameters.end(),
-                              [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+                              [](std::shared_ptr<ov::Node> lhs, std::shared_ptr<ov::Node> rhs) {
                                   return lhs->get_friendly_name() < rhs->get_friendly_name();
                               });
         const auto first_parameter_pshape = first_parameter->get_output_partial_shape(0);

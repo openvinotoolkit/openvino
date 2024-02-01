@@ -11,7 +11,7 @@ namespace LayerTestsDefinitions {
 std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Params>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool acrossChannels, normalizeVariance;
     double eps;
     std::string targetDevice;
@@ -33,7 +33,7 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
 void Mvn1LayerTest::SetUp() {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool acrossChanels, normalizeVariance;
     double eps;
     std::tie(inputShapes, inputPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
@@ -45,8 +45,8 @@ void Mvn1LayerTest::SetUp() {
         mvn = std::dynamic_pointer_cast<ov::op::v0::MVN>(ngraph::builder::makeMVN(param[0], axes, normalizeVariance, eps));
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
-    function = std::make_shared<ngraph::Function>(results, param, "MVN1");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
+    function = std::make_shared<ov::Model>(results, param, "MVN1");
 }
 
 
@@ -84,12 +84,12 @@ void Mvn6LayerTest::SetUp() {
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
-    auto axesNode = ov::test::utils::deprecated::make_constant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto axesNode = ov::test::utils::deprecated::make_constant(axesType, ov::Shape{axes.size()}, axes);
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto mvn = ngraph::builder::makeMVN6(param[0], axesNode, normalizeVariance, eps, epsMode);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
-    function = std::make_shared<ngraph::Function>(results, param, "MVN6");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(mvn)};
+    function = std::make_shared<ov::Model>(results, param, "MVN6");
 }
 
 }  // namespace LayerTestsDefinitions

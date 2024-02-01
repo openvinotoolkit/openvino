@@ -106,7 +106,7 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
-    ngraph::element::Type indexElementType;
+    ov::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
@@ -147,7 +147,7 @@ void PoolingLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
+    std::shared_ptr<ov::Node> pooling = ngraph::builder::makePooling(params[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -158,8 +158,8 @@ void PoolingLayerTest::SetUp() {
                                                                          poolType);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
-    function = std::make_shared<ngraph::Function>(results, params, "pooling");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
+    function = std::make_shared<ov::Model>(results, params, "pooling");
 }
 
 void GlobalPoolingLayerTest::SetUp() {
@@ -181,7 +181,7 @@ void GlobalPoolingLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
+    std::shared_ptr<ov::Node> pooling = ngraph::builder::makePooling(params[0],
                                                                          stride,
                                                                          padBegin,
                                                                          padEnd,
@@ -192,8 +192,8 @@ void GlobalPoolingLayerTest::SetUp() {
                                                                          poolType);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
-    function = std::make_shared<ngraph::Function>(results, params, "pooling");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling)};
+    function = std::make_shared<ov::Model>(results, params, "pooling");
 }
 
 void MaxPoolingV8LayerTest::SetUp() {
@@ -205,7 +205,7 @@ void MaxPoolingV8LayerTest::SetUp() {
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
-    ngraph::element::Type indexElementType;
+    ov::element::Type indexElementType;
     int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
@@ -217,14 +217,14 @@ void MaxPoolingV8LayerTest::SetUp() {
                                                          indexElementType, axis);
 
     const auto maxPoolV8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
-    ngraph::ResultVector results;
+    ov::ResultVector results;
     if (maxPoolV8_second_output_is_supported) {
         results = {std::make_shared<ov::op::v0::Result>(maxPool->output(0)),
                    std::make_shared<ov::op::v0::Result>(maxPool->output(1))};
     } else {
         results = { std::make_shared<ov::op::v0::Result>(maxPool->output(0)) };
     }
-    function = std::make_shared<ngraph::Function>(results, params, "MaxPoolV8");
+    function = std::make_shared<ov::Model>(results, params, "MaxPoolV8");
 }
 
 }  // namespace LayerTestsDefinitions

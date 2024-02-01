@@ -7,7 +7,6 @@
 #include <string>
 #include <tuple>
 
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

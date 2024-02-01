@@ -2,46 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
+#include "intel_gpu/plugin/plugin.hpp"
+
 #include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <string>
-#include <map>
-#include <vector>
-#include <cmath>
 #include <tuple>
-#include <cctype>
-#include <memory>
-
-#include "openvino/core/deprecated.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/device_id_parser.hpp"
-#include "openvino/core/dimension_tracker.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include <vector>
 
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-
-#include "transformations/init_node_info.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/performance_heuristics.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
+#include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <performance_heuristics.hpp>
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -292,15 +290,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     auto context_impl = get_context_impl(context);
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
+    auto _orig_config = orig_config;
+    const auto& it = _orig_config.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _orig_config.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _orig_config.erase(it);
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config);
+    config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
         return nullptr;
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config);
+    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -768,7 +775,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     }
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config);
-    ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(cloned_model, L3_cache_size);
+    ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
         batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
