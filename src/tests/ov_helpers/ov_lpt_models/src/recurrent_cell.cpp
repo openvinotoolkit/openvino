@@ -83,7 +83,7 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
                                                                parent_R,
                                                                B,
                                                                128,
-                                                               op::RecurrentSequenceDirection::FORWARD);
+                                                               ov::op::RecurrentSequenceDirection::FORWARD);
         rnn_layer->set_friendly_name("lstm_sequense");
         break;
     case RNNType::GRUSequence:
@@ -94,7 +94,7 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
                                                               parent_R,
                                                               B,
                                                               3,
-                                                              op::RecurrentSequenceDirection::FORWARD);
+                                                              ov::op::RecurrentSequenceDirection::FORWARD);
         rnn_layer->set_friendly_name("gru_sequence");
         break;
     default:

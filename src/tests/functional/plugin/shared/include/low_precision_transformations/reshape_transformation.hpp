@@ -19,6 +19,7 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
     std::string expectedKernelType;
+    std::vector<std::string> executionOrder;
 };
 
 typedef std::tuple<
