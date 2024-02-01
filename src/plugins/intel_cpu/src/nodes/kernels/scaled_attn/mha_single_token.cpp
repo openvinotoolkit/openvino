@@ -175,7 +175,9 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         // apply attention mask & sofmax
         auto ncausal = auto_causal ? (kv_len - q_len + pq + 1) : kv_len;
         float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
-        float* attn_mask_ptr = attention_mask ? &attention_mask.at<float>({b, h, pq, 0}, true) : nullptr;
+        uint8_t* attn_mask_ptr = nullptr;
+        auto attn_mask_prec = attention_mask.get_precision();
+        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
         attn_softmax_kernel(&buf_attn_w.at<float>({b, h, pq, 0}),
                             &buf_attn_w.at<float>({b, h, pq, 0}),
@@ -186,6 +188,7 @@ void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             select_nfltmax_at_0,
                             ncausal,
                             kv_len,
+                            attn_mask_prec,
                             ov::element::f32);
     });
 
