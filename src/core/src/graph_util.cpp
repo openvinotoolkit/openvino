@@ -673,6 +673,7 @@ ov::NodeVector extract_subgraph(const ov::NodeVector& results, const ov::NodeVec
     return subgraph;
 }
 
+bool is_used(Node* node);
 bool is_used(Node* node) {
     std::unordered_set<Node*> instances_seen;
     std::stack<Node*, std::vector<Node*>> stack;

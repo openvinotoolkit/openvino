@@ -122,7 +122,7 @@
 //        stepPar->set_friendly_name("step");
 //
 //        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
-//        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector {
+//        function = std::make_shared<ngraph::Function>(results, ov::ParameterVector {
 //            startPar, stopPar, stepPar}, "Range");
 //        functionRefs = ngraph::clone_function(*function);
 //    }
@@ -137,63 +137,64 @@
 //
 ///* CPU PARAMS */
 // std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-//    return std::vector<CPUSpecificParams> {CPUSpecificParams{{}, {x}, {}, {}}};
-//}
+//     return std::vector<CPUSpecificParams> {CPUSpecificParams{{}, {x}, {}, {}}};
+// }
 //
 // const std::vector<InferenceEngine::Precision> netPrecisions = {
-//        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::I32
-//};
+//         InferenceEngine::Precision::FP32,
+//         InferenceEngine::Precision::I32
+// };
 // const std::vector<InferenceEngine::Precision> outputType = {
-//        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::I32
-//};
+//         InferenceEngine::Precision::FP32,
+//         InferenceEngine::Precision::I32
+// };
 //
-// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ov::Shape>>>> inShapesDynamic = {
-//        {{ngraph::PartialShape(), ngraph::PartialShape(), ngraph::PartialShape()},
-//         {{ov::Shape{}, ov::Shape{}, ov::Shape{}}, {ov::Shape{}, ov::Shape{}, ov::Shape{}}}}
-//};
-// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ov::Shape>>>> inShapesPseudoStatic =
+// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ov::Shape>>>> inShapesDynamic =
 // {
-//        {{}, {{ov::Shape{}, ov::Shape{}, ov::Shape{}}}}
-//};
+//         {{ngraph::PartialShape(), ngraph::PartialShape(), ngraph::PartialShape()},
+//          {{ov::Shape{}, ov::Shape{}, ov::Shape{}}, {ov::Shape{}, ov::Shape{}, ov::Shape{}}}}
+// };
+// std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ov::Shape>>>>
+// inShapesPseudoStatic = {
+//         {{}, {{ov::Shape{}, ov::Shape{}, ov::Shape{}}}}
+// };
 //
 // const std::vector<std::tuple<float, float, float>> rangeInputValues = {
-//        std::tuple<float, float, float> {1.0, -5.0, -1.0},
-//        std::tuple<float, float, float> {1.0, 10.0, 1.2},
-//        std::tuple<float, float, float> {1.1, 12.2, 1.1},
-//        std::tuple<float, float, float> {1.1, -5.1, -1.1},
-//        std::tuple<float, float, float> {1.0, 5.0, 2.0},
-//        std::tuple<float, float, float> {10.0, 6.0, -3.0},
-//        std::tuple<float, float, float> {5, 35, 5}
-//};
+//         std::tuple<float, float, float> {1.0, -5.0, -1.0},
+//         std::tuple<float, float, float> {1.0, 10.0, 1.2},
+//         std::tuple<float, float, float> {1.1, 12.2, 1.1},
+//         std::tuple<float, float, float> {1.1, -5.1, -1.1},
+//         std::tuple<float, float, float> {1.0, 5.0, 2.0},
+//         std::tuple<float, float, float> {10.0, 6.0, -3.0},
+//         std::tuple<float, float, float> {5, 35, 5}
+// };
 // const auto rangeParDynamic = ::testing::Combine(
-//        ::testing::ValuesIn(inShapesDynamic),
-//        ::testing::ValuesIn(rangeInputValues),
-//        ::testing::ValuesIn(outputType)
+//         ::testing::ValuesIn(inShapesDynamic),
+//         ::testing::ValuesIn(rangeInputValues),
+//         ::testing::ValuesIn(outputType)
 //);
 // const auto rangeParStatic = ::testing::Combine(
-//        ::testing::ValuesIn(inShapesPseudoStatic),
-//        ::testing::ValuesIn(rangeInputValues),
-//        ::testing::ValuesIn(outputType)
+//         ::testing::ValuesIn(inShapesPseudoStatic),
+//         ::testing::ValuesIn(rangeInputValues),
+//         ::testing::ValuesIn(outputType)
 //);
 // const auto params3dDynamic = ::testing::Combine(
-//        ::testing::Combine(
-//                rangeParDynamic,
-//                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//        ::testing::ValuesIn(filterCPUInfoForDevice()));
+//         ::testing::Combine(
+//                 rangeParDynamic,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//         ::testing::ValuesIn(filterCPUInfoForDevice()));
 // const auto params3dPseudoStatic = ::testing::Combine(
-//        ::testing::Combine(
-//                rangeParStatic,
-//                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//        ::testing::ValuesIn(filterCPUInfoForDevice()));
+//         ::testing::Combine(
+//                 rangeParStatic,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//         ::testing::ValuesIn(filterCPUInfoForDevice()));
 //// We don't check static case, because of constant folding, but we can use static shape for test infrastructure,
 //// however Range node will be dynamic, since inputs are parameters, not a constants
 // INSTANTIATE_TEST_SUITE_P(smoke_RangePseudoStaticLayoutTest, RangeLayerCPUTest,
-//                         params3dPseudoStatic, RangeLayerCPUTest::getTestCaseName);
+//                          params3dPseudoStatic, RangeLayerCPUTest::getTestCaseName);
 // INSTANTIATE_TEST_SUITE_P(smoke_RangeDynamicLayoutTest, RangeLayerCPUTest,
-//                         params3dDynamic, RangeLayerCPUTest::getTestCaseName);
-//} // namespace
-//} // namespace CPULayerTestsDefinitions
+//                          params3dDynamic, RangeLayerCPUTest::getTestCaseName);
+// } // namespace
+// } // namespace CPULayerTestsDefinitions
