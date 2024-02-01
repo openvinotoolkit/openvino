@@ -10,7 +10,7 @@ from test_util import getExpectedCommit
 from test_util import getActualCommit
 from utils.break_validator import validateBMOutput
 from test_data import FirstBadVersionData, FirstValidVersionData,\
-    BmStableData, BmValidatorSteppedBreakData
+    BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2
 from utils.break_validator import BmValidationError
 
 
@@ -64,4 +64,20 @@ class CommitSliderTest(TestCase):
                 td.lowDev
             )
         self.assertTrue(isStable)
+
+    @skip_commit_slider_devtest
+    def testBmSteppedBreak2(self):
+        td = BmValidatorSteppedBreakData2()
+
+        # local gap low, than expected
+        with self.assertRaises(BmValidationError) as e:
+            validateBMOutput(
+                td.bmOutputMap,
+                td.breakCommit,
+                td.dev
+            )
+        self.assertEqual(
+            e.exception.errType,
+            BmValidationError.BmValErrType.LOW_LOCAL_GAP
+        )
 

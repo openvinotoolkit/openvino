@@ -66,9 +66,10 @@
             {"id": "84", "hash": "8f406067d17", "throughput": "724.05"}
         ],
         "breakCommit": "a0849edca14",
-        "dev": 0.05
+        "dev": 0.045
     },
     "BmValidatorSteppedBreak" : {
+        "comment": "break commit exists, but can be found with lower deviation",
         "bmOutputMap": [
             {"id": "1", "hash": "57571d36e6c", "throughput": "765.12"},
             {"id": "2", "hash": "8f406067d17", "throughput": "735.27"},
@@ -86,6 +87,25 @@
         "wrongBreakCommit": "1693ef17f05",
         "realBreakCommit": "8f406067d17",
         "highDev": 0.05,
-        "lowDev": 0.04
+        "lowDev": 0.035
+    },
+    "BmValidatorSteppedBreak2" : {
+        "comment": "throughput degrades gradually, results must be regarded as invalid",
+        "bmOutputMap": [
+            {"id": "1", "hash": "57571d36e6c", "throughput": "1000"},
+            {"id": "2", "hash": "8f406067d17", "throughput": "995"},
+            {"id": "3", "hash": "8b7537a30df", "throughput": "985"},
+            {"id": "4", "hash": "c7765c91f5e", "throughput": "975"},
+            {"id": "5", "hash": "7e5f4914597", "throughput": "965"},
+            {"id": "6", "hash": "af34891750b", "throughput": "955"},
+            {"id": "7", "hash": "4d685194fee", "throughput": "945"},
+            {"id": "8", "hash": "f78d0950d6c", "throughput": "935"},
+            {"id": "9", "hash": "e72afbec7ec", "throughput": "925"},
+            {"id": "10", "hash": "1693ef17f05", "throughput": "915"},
+            {"id": "11", "hash": "c6d78def6ea", "throughput": "905"},
+            {"id": "12", "hash": "8384279b2e5", "throughput": "900"}
+        ],
+        "breakCommit": "4d685194fee",
+        "dev": 0.05
     }
 }

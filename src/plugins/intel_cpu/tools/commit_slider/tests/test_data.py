@@ -56,7 +56,8 @@ class TestData():
         FirstBadVersion = 1,
         FirstValidVersion = 2,
         BmValidatorStable = 3,
-        BmValidatorSteppedBreak = 4
+        BmValidatorSteppedBreak = 4,
+        BmValidatorSteppedBreak2 = 5
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -113,6 +114,21 @@ class BmStableData(TestData):
 
 
 class BmValidatorSteppedBreakData(TestData):
+    # break commit exists, but provided deviation covers several stepped degradations,
+    # as a result, binary search returns wrong result,
+    # correct break can be found with lower deviation
+    # │ xxxxx
+    # │     xx
+    # │      x
+    # │      xx
+    # │       x
+    # │       xx
+    # │        x
+    # │        xxxxxxxxxxxx            <-- real degradation, low dev
+    # │                    x
+    # │                     xxxxxxxx   <-- false degradation, stepped effect
+    # │
+    # └──────────────────────────────
     def getTestCase():
         return TestData.TestCase.BmValidatorSteppedBreak
 
@@ -126,6 +142,34 @@ class BmValidatorSteppedBreakData(TestData):
                 for key in [
             'bmOutputMap', 'wrongBreakCommit', 'realBreakCommit',
             'highDev', 'lowDev'
+            ]]
+        )
+
+class BmValidatorSteppedBreakData2(TestData):
+    # throughput degrades gradually,
+    # results must be regarded as invalid
+    # │   xxxxxxxxx
+    # │           xxx              <-- first break
+    # │             xxx
+    # │               xxx          <-- second break
+    # │                 xxx
+    # │                   xxx      <-- third break
+    # │                     xxx
+    # │                       xxxxxxxxxxx
+    # └────────────────────────────────────
+
+    def getTestCase():
+        return TestData.TestCase.BmValidatorSteppedBreak2
+
+    def getTestName(self):
+        return "BmValidatorSteppedBreak2"
+
+    def __init__(self):
+        self.requireTestData(
+            lambda td, rsc: [
+                setattr(td, key, rsc[td.getTestName()][key])
+                for key in [
+            'bmOutputMap', 'breakCommit', 'dev'
             ]]
         )
 

@@ -28,6 +28,12 @@ def checkPlausibility(leftInterval: list, rightInterval: list, dev: float):
     realGap = leftMean - rightMean
     return realGap > dev, realGap
 
+def checkBreakLocality(leftInterval: list, rightInterval: list, dev: float):
+    preBreakValue = leftInterval[-1]
+    postBreakValue = rightInterval[0]
+    realGap = (preBreakValue - postBreakValue) / preBreakValue
+    return realGap > dev, realGap
+
 def validateBMOutput(commitMap: map, breakCommit: str, dev: float):
     breakId = int(
         [item['id'] for item in commitMap
@@ -63,10 +69,21 @@ def validateBMOutput(commitMap: map, breakCommit: str, dev: float):
     isPlausible, realGap = checkPlausibility(leftInterval, rightInterval, dev)
     if not isPlausible:
         raise BmValidationError(
-            "realGap: {} more the expected deviation: {}".format(
+            "mean realGap: {} more than expected deviation: {}".format(
                 realGap, dev
                 ),
             BmValidationError.BmValErrType.LOW_GAP
+        )
+
+    # fourth criterion: gap between adjacent pre-break commit and break commit
+    # must be more, than expected deviation
+    isPlausible, realGap = checkBreakLocality(leftInterval, rightInterval, dev)
+    if not isPlausible:
+        raise BmValidationError(
+            "local realGap: {} more than expected deviation: {}".format(
+                realGap, dev
+                ),
+            BmValidationError.BmValErrType.LOW_LOCAL_GAP
         )
 
     return True
@@ -100,8 +117,10 @@ class BmValidationError(Exception):
         MAJORIZATION_ERROR = 1
         # 'low'-value interval intersects with 'high'-value
         # e.g. [1, 0, 1, 1, 1] doesn't majorize [0, 1, 0, 0, 0]
-        LOW_GAP = 2
+        LOW_GAP = 2,
         # real gap is less, than expected
+        LOW_LOCAL_GAP = 3
+        # gap between pre-break and break lower, than expected
     def __init__(self, message, errType):
         self.message = message
         self.errType = errType
