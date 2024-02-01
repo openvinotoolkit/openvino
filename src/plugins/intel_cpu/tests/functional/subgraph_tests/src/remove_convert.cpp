@@ -85,9 +85,9 @@ public:
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
         auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
-        auto begin = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = ngraph::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto begin = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
         auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
                                                                 begin,
                                                                 end,

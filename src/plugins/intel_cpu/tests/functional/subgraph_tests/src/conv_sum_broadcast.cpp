@@ -180,7 +180,7 @@ public:
         if (isaType == "")
             return primType == "ref";
         else
-            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ngraph::element::f16);
+            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ov::element::f16);
     }
 };
 
