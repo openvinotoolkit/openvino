@@ -655,6 +655,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
+    OPENVINO_ASSERT(!(is_remote && convert_needed),
+                    "[GPU] Remote tensor element_type = ", element_type,
+                    " and device tensor = ", device_tensor_et,
+                    " don't match for ", name,
+                    ". Those are expected to be equal");
+
     if (is_remote) {
         m_plugin_inputs[name] = user_tensor_wrapper;
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
@@ -730,9 +736,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
         auto new_layout = memory->get_layout();
         new_layout.set_partial_shape(m_graph->get_input_layouts().at(name).get_shape());
-        memory = engine.reinterpret_buffer(*memory, cldnn::layout{ov::PartialShape{memory->get_layout().get_shape()},
-                                                                                   cldnn::element_type_to_data_type(element_type),
-                                                                                   cldnn::format::get_default_format(memory->get_layout().get_shape().size())});
+        memory = engine.reinterpret_buffer(*memory, new_layout);
     }
 
     cldnn::event::ptr ret_event = nullptr;
