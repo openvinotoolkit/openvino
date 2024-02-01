@@ -527,6 +527,3 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
-
-#include "hetero/hetero_plugin_config.hpp"
-#include "multi-device/multi_device_config.hpp"
