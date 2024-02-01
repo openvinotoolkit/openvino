@@ -125,8 +125,8 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 }
 
 void ShuffleChannels::createPrimitive() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_SHCH_ERROR("has not allocated destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -149,7 +149,7 @@ void ShuffleChannels::createPrimitive() {
 }
 
 void ShuffleChannels::prepareParams() {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
     auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
         return std::make_shared<ShuffleChannelsExecutor>(key);
     };
@@ -292,10 +292,10 @@ void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR("doesn't have a compiled executor.");
 
-    int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
+    int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
     execPtr->exec(srcData, dstData, MB);
 }
 

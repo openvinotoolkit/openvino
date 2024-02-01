@@ -60,7 +60,7 @@ public:
         std::tie(m_batch_cfg, m_config, m_expected_device_info, m_throw_exception) = this->GetParam();
 
         ON_CALL(*m_core, get_supported_property)
-            .WillByDefault([](const std::string& device, const ov::AnyMap& configs) {
+            .WillByDefault([](const std::string& device, const ov::AnyMap& configs, const bool keep_core_property) {
                 ov::AnyMap res_config;
                 if (device == "CPU") {
                     for (auto& c : configs) {

@@ -338,7 +338,7 @@ void fill_psroi(ov::Tensor& tensor,
 }
 
 template <ov::element::Type_t type>
-inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
+inline void fill_data_roi_impl(ov::Tensor& tensor,
                                const uint32_t range,
                                const int height,
                                const int width,
@@ -384,7 +384,7 @@ inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
     }
 }
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,

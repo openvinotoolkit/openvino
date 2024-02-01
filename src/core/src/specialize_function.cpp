@@ -5,12 +5,12 @@
 #include "ngraph/specialize_function.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 using namespace ngraph;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::op::v0::Constant;
 
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
     }
 
     for (auto old_node : f->get_ordered_ops()) {
-        if (op::is_parameter(old_node)) {
+        if (ov::op::util::is_parameter(old_node)) {
             continue;
         }
 
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
         new_parameters[i]->set_friendly_name(name);
     }
 
-    ResultVector new_results = f->get_results();
+    ov::ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
         new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);

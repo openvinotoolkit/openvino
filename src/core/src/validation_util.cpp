@@ -202,7 +202,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
 
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
-                                             const op::PadType auto_pad,
+                                             const ov::op::PadType auto_pad,
                                              Strides& strides,
                                              Strides& dilations,
                                              CoordinateDiff& pads_begin,
@@ -213,10 +213,10 @@ void validate_conv_params_spatial_dimensions(const Node* node,
     if (dilations.size() == 0) {
         dilations = Strides(num_spatial_dims, 1);
     }
-    if (pads_begin.size() == 0 || auto_pad == op::PadType::VALID) {
+    if (pads_begin.size() == 0 || auto_pad == ov::op::PadType::VALID) {
         pads_begin = CoordinateDiff(num_spatial_dims, 0);
     }
-    if (pads_end.size() == 0 || auto_pad == op::PadType::VALID) {
+    if (pads_end.size() == 0 || auto_pad == ov::op::PadType::VALID) {
         pads_end = CoordinateDiff(num_spatial_dims, 0);
     }
     NODE_VALIDATION_CHECK(node,
@@ -328,11 +328,11 @@ ov::PartialShape infer_slice_shape(const Node* node,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
                                    const std::vector<int64_t>& strides,
-                                   const AxisSet& begin_mask,
-                                   const AxisSet& end_mask,
-                                   const AxisSet& new_axis_mask,
-                                   const AxisSet& shrink_axis_mask,
-                                   const AxisSet& ellipsis_mask) {
+                                   const ov::AxisSet& begin_mask,
+                                   const ov::AxisSet& end_mask,
+                                   const ov::AxisSet& new_axis_mask,
+                                   const ov::AxisSet& shrink_axis_mask,
+                                   const ov::AxisSet& ellipsis_mask) {
     if (begin.size() && end.size()) {
         NODE_VALIDATION_CHECK(node,
                               begin.size() == end.size(),
@@ -481,11 +481,11 @@ void opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                               const Shape& output_shape,
                                               const Strides& strides,
                                               const Strides& dilations,
-                                              const op::PadType auto_pad_type,
+                                              const ov::op::PadType auto_pad_type,
                                               const CoordinateDiff& output_padding,
                                               CoordinateDiff& pads_begin,
                                               CoordinateDiff& pads_end) {
-    OPENVINO_ASSERT(auto_pad_type == op::PadType::SAME_UPPER || auto_pad_type == op::PadType::SAME_LOWER);
+    OPENVINO_ASSERT(auto_pad_type == ov::op::PadType::SAME_UPPER || auto_pad_type == ov::op::PadType::SAME_LOWER);
 
     size_t num_spatial_dims = input_data_shape.size();
     OPENVINO_ASSERT(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
@@ -500,7 +500,7 @@ void opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
             static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
                              output_shape[i] + output_padding[i]),
             0);
-        if (auto_pad_type != op::PadType::SAME_UPPER) {
+        if (auto_pad_type != ov::op::PadType::SAME_UPPER) {
             pads_begin[i] = total_padding / 2;
             pads_end[i] = total_padding - pads_begin[i];
         } else {

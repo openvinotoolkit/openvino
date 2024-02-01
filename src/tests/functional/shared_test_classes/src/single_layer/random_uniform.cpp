@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/op/parameter.hpp>
-#include "shared_test_classes/single_layer/random_uniform.hpp"
+#include "openvino/op/parameter.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/single_layer/random_uniform.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -77,9 +77,9 @@ void RandomUniformLayerTest::SetUp() {
                                                                           precision,
                                                                           global_seed,
                                                                           op_seed);
-    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(random_uniform)};
 
-    function = std::make_shared<ov::Model>(results, ngraph::ParameterVector{input}, "random_uniform");
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "random_uniform");
 }
 
 void RandomUniformLayerTest::ConvertRefsParams() {
