@@ -29,25 +29,23 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
     deqBeforeStructure.multiply.outPrecision = precision;
     const auto dequantization = makeDequantization(input, deqBeforeStructure);
 
-    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(
-        dequantization,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
+    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(dequantization,
+                                                                                    Strides{1, 1},
+                                                                                    Shape{1, 1},
+                                                                                    Shape{0, 0},
+                                                                                    Shape{2, 2},
+                                                                                    true,
+                                                                                    ov::op::RoundingType::FLOOR);
 
     std::shared_ptr<Node> lastLayer = avgPool;
     for (const std::string& additionalLayer : additionalLayers) {
         if (additionalLayer == "maxpool") {
-            lastLayer = std::make_shared<ov::opset1::MaxPool>(
-                lastLayer,
-                Strides{ 1, 1 },
-                Shape{ 1, 1 },
-                Shape{ 0, 0 },
-                Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+            lastLayer = std::make_shared<ov::opset1::MaxPool>(lastLayer,
+                                                              Strides{1, 1},
+                                                              Shape{1, 1},
+                                                              Shape{0, 0},
+                                                              Shape{2, 2},
+                                                              ov::op::RoundingType::FLOOR);
         } else if (additionalLayer == "softmax") {
             lastLayer = std::make_shared<ov::opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
@@ -78,14 +76,13 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getOriginal(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(
-        fakeQuantize,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
+    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::opset1::AvgPool>(fakeQuantize,
+                                                                                    Strides{1, 1},
+                                                                                    Shape{1, 1},
+                                                                                    Shape{0, 0},
+                                                                                    Shape{2, 2},
+                                                                                    true,
+                                                                                    ov::op::RoundingType::FLOOR);
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(avgPool) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "AvgPoolTransformation");
@@ -105,16 +102,15 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getReference(
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
     auto outPrecision = precisionAfterOperation;
-    const std::shared_ptr<ov::Node> avgPool = std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(
-        ov::opset1::AvgPool(
-            deqBefore,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            true,
-            op::RoundingType::FLOOR),
-        outPrecision);
+    const std::shared_ptr<ov::Node> avgPool =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(ov::opset1::AvgPool(deqBefore,
+                                                                                       Strides{1, 1},
+                                                                                       Shape{1, 1},
+                                                                                       Shape{0, 0},
+                                                                                       Shape{2, 2},
+                                                                                       true,
+                                                                                       ov::op::RoundingType::FLOOR),
+                                                                   outPrecision);
 
     std::shared_ptr<Node> lastLayer = avgPool;
 
@@ -124,13 +120,12 @@ std::shared_ptr<ov::Model> AvgPoolFunction::getReference(
 
     for (const std::string& additionalLayer : additionalLayers) {
         if (additionalLayer == "maxpool") {
-            lastLayer = std::make_shared<ov::opset1::MaxPool>(
-                lastLayer,
-                Strides{ 1, 1 },
-                Shape{ 1, 1 },
-                Shape{ 0, 0 },
-                Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+            lastLayer = std::make_shared<ov::opset1::MaxPool>(lastLayer,
+                                                              Strides{1, 1},
+                                                              Shape{1, 1},
+                                                              Shape{0, 0},
+                                                              Shape{2, 2},
+                                                              ov::op::RoundingType::FLOOR);
         } else if (additionalLayer == "softmax") {
             lastLayer = std::make_shared<ov::opset1::Softmax>(lastLayer);
         } else if (additionalLayer == "convolution") {
