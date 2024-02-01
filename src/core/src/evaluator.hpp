@@ -4,46 +4,31 @@
 
 #pragma once
 
-#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
-#    define NGRAPH_LEGACY_HEADER_INCLUDED
-#    ifdef _MSC_VER
-#        pragma message( \
-            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    else
-#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    endif
-#endif
-
 #include <map>
 #include <stack>
 #include <utility>
 
-#include "ngraph/shape.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
-namespace ngraph {
+namespace ov {
 /// \brief Execute handlers on a subgraph to compute values
 ///
 ///
 template <typename V>
-class OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                          "For instructions on transitioning to the new API, please refer to "
-                          "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html") Evaluator {
-    OPENVINO_SUPPRESS_DEPRECATED_START
+class Evaluator {
 public:
     /// \brief values we compute for outputs
-    using value_map = std::map<ov::RawNodeOutput, V>;
+    using value_map = std::map<RawNodeOutput, V>;
 
     /// \brief Handler for a computation of a value about an op
     ///
     /// A handler is passed a Node* and a vector of computed input values. The handler should
     /// return a vector of computed output values.
-    using op_handler = std::function<std::vector<V>(ov::Node* op, std::vector<V>& inputs)>;
+    using op_handler = std::function<std::vector<V>(Node* op, std::vector<V>& inputs)>;
 
     /// \brief Table of ops with handlers
-    using op_handler_map = std::map<ov::Node::type_info_t, op_handler>;
+    using op_handler_map = std::map<Node::type_info_t, op_handler>;
 
     /// \brief construct  handler using the provided op handlers.
     ///
@@ -80,7 +65,7 @@ public:
     }
 
 protected:
-    op_handler get_handler(ov::Node* node) {
+    op_handler get_handler(Node* node) {
         op_handler handler = m_universal_handler;
         if (!handler) {
             auto it = m_handlers.find(node->get_type_info());
@@ -100,27 +85,27 @@ protected:
     /// \brief Intstructions for evaluations state machine
     class Inst {
     protected:
-        Inst(ov::Node* node) : m_node(node) {}
+        Inst(Node* node) : m_node(node) {}
 
     public:
         virtual ~Inst() {}
-        virtual void handle(Evaluator& evaluator, InstStack& inst_stack, ov::Node* node) = 0;
-        ov::Node* get_node() {
+        virtual void handle(Evaluator& evaluator, InstStack& inst_stack, Node* node) = 0;
+        Node* get_node() {
             return m_node;
         }
 
     protected:
-        ov::Node* m_node;
+        Node* m_node;
     };
 
     /// \brief Ensure value has been analyzed
     class ValueInst : public Inst {
     public:
-        ValueInst(const ov::Output<ov::Node>& value) : Inst(value.get_node()), m_index(value.get_index()) {}
+        ValueInst(const Output<Node>& value) : Inst(value.get_node()), m_index(value.get_index()) {}
 
-        ValueInst(const ov::RawNodeOutput& value) : Inst(value.node), m_index(value.index) {}
+        ValueInst(const RawNodeOutput& value) : Inst(value.node), m_index(value.index) {}
 
-        void handle(Evaluator& evaluator, InstStack& inst_stack, ov::Node* node) override {
+        void handle(Evaluator& evaluator, InstStack& inst_stack, Node* node) override {
             // Request to analyze this value if we can
             if (auto handler = evaluator.get_handler(node)) {
                 // Ensure the inputs are processed and then execute the op handler
@@ -143,9 +128,9 @@ protected:
     /// \brief All arguments have been handled; execute the node handler
     class ExecuteInst : public Inst {
     public:
-        ExecuteInst(ov::Node* node, op_handler& handler) : Inst(node), m_handler(handler) {}
+        ExecuteInst(Node* node, op_handler& handler) : Inst(node), m_handler(handler) {}
 
-        void handle(Evaluator& evaluator, InstStack& inst_stack, ov::Node* node) override {
+        void handle(Evaluator& evaluator, InstStack& inst_stack, Node* node) override {
             // Request to execute the handleer. Pass what we know about the inputs to the
             // handler and associate the results with the outputs
             std::vector<V> inputs;
@@ -164,7 +149,7 @@ protected:
 
 public:
     /// \brief Determine information about value
-    V evaluate(const ov::Output<ov::Node>& value) {
+    V evaluate(const Output<Node>& value) {
         InstStack inst_stack;
         inst_stack.push(InstPtr(new ValueInst(value)));
         while (!inst_stack.empty()) {
@@ -186,6 +171,5 @@ protected:
     op_handler_map m_handlers;
     op_handler m_default_handler;
     value_map& m_value_map;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 };
-}  // namespace ngraph
+}  // namespace ov
