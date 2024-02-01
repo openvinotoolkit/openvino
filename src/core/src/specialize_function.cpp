@@ -5,9 +5,9 @@
 #include "ngraph/specialize_function.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START;
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
     }
 
     for (auto old_node : f->get_ordered_ops()) {
-        if (op::is_parameter(old_node)) {
+        if (ov::op::util::is_parameter(old_node)) {
             continue;
         }
 
