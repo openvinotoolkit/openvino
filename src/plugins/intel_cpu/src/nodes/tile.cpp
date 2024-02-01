@@ -3,7 +3,12 @@
 //
 
 #include "tile.h"
+
+#include "openvino/op/tile.hpp"
+#include "openvino/op/constant.hpp"
+
 #include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

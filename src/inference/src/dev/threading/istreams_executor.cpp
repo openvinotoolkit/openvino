@@ -9,8 +9,6 @@
 #include <thread>
 #include <vector>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
