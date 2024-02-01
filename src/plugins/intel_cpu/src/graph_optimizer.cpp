@@ -2648,7 +2648,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         for (auto& node : new_nodes)
             node->selectOptimalPrimitiveDescriptor();
         for (auto& node : new_nodes)
-            graph.resolveInPlaceDirection(node);
+            node->resolveInPlaceDirection();
         for (auto& node : new_nodes)
             node->initOptimalPrimitiveDescriptor();
     };

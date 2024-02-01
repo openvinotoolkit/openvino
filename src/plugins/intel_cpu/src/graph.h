@@ -190,8 +190,6 @@ public:
         return internalStateNodes;
     }
 
-    void resolveInPlaceDirection(const NodePtr& node) const;
-
 protected:
     void ForgetGraphData() {
         status = Status::NotReady;
