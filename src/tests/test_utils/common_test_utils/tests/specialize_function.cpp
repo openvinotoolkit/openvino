@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/specialize_function.hpp"
+#include "common_test_utils/specialize_function.hpp"
 
 #include "gtest/gtest.h"
 #include "openvino/op/add.hpp"

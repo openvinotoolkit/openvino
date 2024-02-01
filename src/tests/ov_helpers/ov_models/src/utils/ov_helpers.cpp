@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "backend.hpp"
+#include "common_test_utils/specialize_function.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ngraph/specialize_function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/attr_types.hpp"

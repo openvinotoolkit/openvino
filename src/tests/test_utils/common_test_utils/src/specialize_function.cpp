@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/specialize_function.hpp"
+#include "common_test_utils/specialize_function.hpp"
 
-#include "itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -20,8 +19,6 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
                                                        const std::vector<void*>& parameter_values)
 
 {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "specialize_function");
-
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_shapes.size());
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_element_types.size());
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_values.size());
