@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "validation_util.hpp"
+
 #include <algorithm>
 #include <numeric>
 
@@ -13,7 +15,6 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
-#include "validation_util.hpp"
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
