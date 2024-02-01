@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 

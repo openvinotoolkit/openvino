@@ -5,10 +5,9 @@
 #pragma once
 
 #include <cstdint>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/depth_to_space.hpp>
-#include <openvino/opsets/opset1.hpp>
 
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {

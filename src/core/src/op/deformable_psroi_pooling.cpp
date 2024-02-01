@@ -6,7 +6,6 @@
 
 #include "deformable_psroi_pooling_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 

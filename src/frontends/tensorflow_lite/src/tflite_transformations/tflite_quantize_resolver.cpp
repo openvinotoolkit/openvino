@@ -81,9 +81,7 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
         if (rank == 0) {
             constant = ov::as_type_ptr<ov::opset10::Constant>(output.get_node_shared_ptr());
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            constant = ov::get_constant_from_source(value);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            constant = ov::util::get_constant_from_source(value);
         }
         if (!constant)
             return false;
@@ -99,9 +97,7 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     auto zp_node = ov::opset10::Constant::create(ov::element::i32, zp_shape, zero_point);
     output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
     output = std::make_shared<ov::opset10::Convert>(output, ov::element::i8);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    output = ov::get_constant_from_source(output);  // TODO: Check Me
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    output = ov::util::get_constant_from_source(output);  // TODO: Check Me
     zero_point = {0};
 }
 
@@ -181,12 +177,10 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             output_low = ov::opset10::Constant::create(element::f32, {}, {low});
             output_high = ov::opset10::Constant::create(element::f32, {}, {high});
         }
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        input_low = get_constant_from_source(input_low);
-        input_high = get_constant_from_source(input_high);
-        output_low = get_constant_from_source(output_low);
-        output_high = get_constant_from_source(output_high);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        input_low = ov::util::get_constant_from_source(input_low);
+        input_high = ov::util::get_constant_from_source(input_high);
+        output_low = ov::util::get_constant_from_source(output_low);
+        output_high = ov::util::get_constant_from_source(output_high);
         output =
             std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
         if (out_type != element::f32) {

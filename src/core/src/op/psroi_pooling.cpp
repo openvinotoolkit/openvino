@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "psroi_pooling_shape_inference.hpp"
 
 namespace ov {

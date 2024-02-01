@@ -6,7 +6,6 @@
 
 #include "gather_tree_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,

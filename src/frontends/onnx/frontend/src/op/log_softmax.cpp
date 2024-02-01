@@ -4,7 +4,6 @@
 
 #include "op/log_softmax.hpp"
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/log.hpp"

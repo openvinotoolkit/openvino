@@ -5,7 +5,6 @@
 #pragma once
 
 #include "dimension_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "utils.hpp"

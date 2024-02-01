@@ -5,7 +5,6 @@
 #include "openvino/op/roll.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "roll_shape_inference.hpp"
 
 namespace ov {
