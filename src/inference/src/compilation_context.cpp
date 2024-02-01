@@ -12,7 +12,6 @@
 #endif
 
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_exception.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
