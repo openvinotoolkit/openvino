@@ -281,6 +281,10 @@ void Gather::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
 
+    if (canOptimizeCompressedEmbedding) {
+        return;
+    }
+
     // short 1D vector fast execution impl (typical in shape infer subgraph)
     canOptimize1DCase = false;
     if (dataSrcRank <= 1 && dataMemPtr->getDesc().getPrecision() == ov::element::i32) {
@@ -291,10 +295,6 @@ void Gather::prepareParams() {
             canOptimize1DCase = true;
             return;
         }
-    }
-
-    if (canOptimizeCompressedEmbedding) {
-        return;
     }
 
     if (!isAxisInputConst) {
@@ -347,15 +347,16 @@ void Gather::execute(dnnl::stream strm) {
         return;
     }
 
+    if (canOptimizeCompressedEmbedding) {
+        execCompressedEmbedding();
+        return;
+    }
+
     if (canOptimize1DCase) {
         exec1DCase();
         return;
     }
 
-    if (canOptimizeCompressedEmbedding) {
-        execCompressedEmbedding();
-        return;
-    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
@@ -610,13 +611,14 @@ void Gather::execCompressedEmbedding() {
     DEBUG_LOG(getName(), " execCompressedEmbedding");
     auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    const auto* pidx = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
 
-    const auto* zp = reinterpret_cast<const float_t*>(decompressionSubtractPtr->getData());
-    const auto* scale = reinterpret_cast<const float_t*>(decompressionMultiplyPtr->getData());
+    const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
+    const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
-    auto* pdst = reinterpret_cast<float_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto* zp = decompressionSubtractPtr->getDataAs<float_t>();
+    const auto* scale = decompressionMultiplyPtr->getDataAs<float_t>();
+
+    auto* pdst = getDstDataAtPortAs<float_t>(0);
 
     const auto& idxDims = idxMemPtr->getStaticDims();
     const auto batch = idxDims[0];
@@ -634,8 +636,13 @@ void Gather::execCompressedEmbedding() {
             else
                 ii = axisDim;
         }
-        for (size_t f = 0; f < feaDim; f++) {
-            pdst[dstIdx * feaDim + f] = (static_cast<float>(psrc[ii * feaDim + f]) - zp[ii]) * scale[ii];
+
+        auto* src = psrc + ii * feaDim;
+        auto* dst = pdst + dstIdx * feaDim;
+        auto& deq_zp = zp[ii];
+        auto& deq_scale = scale[ii];
+        for (size_t k = 0; k < feaDim; k++) {
+            dst[k] = (static_cast<float>(src[k]) - deq_zp) * deq_scale;
         }
     });
 }
