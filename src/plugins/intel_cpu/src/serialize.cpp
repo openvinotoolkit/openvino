@@ -71,7 +71,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
                         (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
                         (hdr.model_size = file_size - hdr.model_offset);
     if (!isValidModel) {
-        OPENVINO_THROW("import_model only accepts model with correct format");
+        OPENVINO_THROW("Failed to read CPU device xml header");
     }
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
