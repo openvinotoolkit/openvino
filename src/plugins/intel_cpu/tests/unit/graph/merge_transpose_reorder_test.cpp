@@ -4,9 +4,14 @@
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/reorder.h"
 #include "nodes/input.h"
 #include "nodes/transpose.h"
+
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
 

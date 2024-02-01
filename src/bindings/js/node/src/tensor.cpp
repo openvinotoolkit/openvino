@@ -1,9 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "tensor.hpp"
+#include "node/include/tensor.hpp"
 
-#include "addon.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
