@@ -189,6 +189,17 @@ macro(ov_cpack_settings)
         set(CPACK_DEBIAN_NPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(npu OFF)
         set(npu_copyright "generic")
+
+        # NPU plugin also builds level-zero as thirdparty
+        # let's add it to the list of dependency search directories to avoid missing dependncy on libze_loader.so.1
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib/${config}")
+            endforeach()
+        else()
+            list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib")
+        endif()
     endif()
 
     # # add pseudo plugins are recommended to core component
