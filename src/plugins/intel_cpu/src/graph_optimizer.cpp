@@ -12,6 +12,7 @@
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gather.h"
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
@@ -69,6 +70,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
     FuseFCAndWeightsDecompression(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndWeightsDecompression");
+    FuseGatherAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
@@ -504,6 +509,136 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             reshapeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
         fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
+    }
+}
+
+void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8};
+    const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
+    auto expectedNode = [](NodePtr node, Type expectedType) {
+        return node->getType() == expectedType && node->getChildEdges().size() == 1;
+    };
+
+    auto& graphNodes = graph.GetNodes();
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto gatherNode = dynamic_cast<node::Gather*>(graphNodes[i].get());
+        if (gatherNode == nullptr)
+            continue;
+
+        // Multiply
+        const auto multiplyNode = gatherNode->getParentEdgesAtPort(0)[0]->getParent();
+        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
+            !multiplyNode->isConstant())
+            continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndWeightsDecompression);
+        const auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
+        if (!expectedNode(multiplyConstNode, Type::Input))
+            continue;
+
+        const auto mulParent = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
+        const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
+        NodePtr subtractNode, subtractConvertNode, subtractConstNode;
+        if (withSubtract) {
+            subtractNode = mulParent;
+            if (!expectedNode(subtractNode, Type::Eltwise))
+                continue;
+            auto subtractParent = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
+            if (expectedNode(subtractParent, Type::Convert)) {
+                subtractConvertNode = subtractParent;
+                subtractParent = subtractConvertNode->getParentEdgesAtPort(0)[0]->getParent();
+            }
+            subtractConstNode = subtractParent;
+            if (!expectedNode(subtractConstNode, Type::Input))
+                continue;
+        }
+
+        const bool withSubtractConvert = subtractConvertNode != nullptr;
+
+        auto convertNode = mulParent;
+        if (withSubtract)
+            convertNode = subtractNode->getParentEdgesAtPort(0)[0]->getParent();
+
+        if (!expectedNode(convertNode, Type::Convert))
+            continue;
+        const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
+        if (!expectedNode(weightsNode, Type::Input))
+            continue;
+
+        // Precision limitations
+        if (supportedDataPrecisions.find(gatherNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
+            continue;
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
+            continue;
+
+        // Shape limitations
+        const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
+        if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
+            continue;
+
+        // Get decompressionConstShape
+        VectorDims decompressionConstShape;
+        const auto gatherInputWeightsShape = gatherNode->getInputShapeAtPort(0);
+
+        // Ordinary case: one decompression group
+        if (gatherInputWeightsShape.getRank() == weightsShape.getRank()) {
+            const auto& out_channels = gatherInputWeightsShape.getDims()[0];
+            decompressionConstShape = VectorDims{out_channels, 1};
+        }
+
+        auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
+            if (shape_to_check.size() > decompressionConstShape.size())
+                return false;
+            const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
+            // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
+            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
+        };
+        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+        if (withSubtract && !check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+
+        // Fusion processing
+        auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
+        if (!multiplyInputNode) {
+            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
+        }
+        gatherNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
+
+        if (withSubtract) {
+            auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
+            if (!subtractInputNode) {
+                OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
+            }
+            gatherNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
+        }
+
+        gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
+        gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
+
+        if (withSubtractConvert) {
+            gatherNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConvertEdge);
+        }
+        if (withSubtract) {
+            gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
+            auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConstEdge);
+        }
+
+        auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
+        graph.RemoveEdge(multiplyConstEdge);
+
+        graph.DropNode(convertNode);
+        if (withSubtractConvert)
+            graph.DropNode(subtractConvertNode);
+        if (withSubtract)
+            graph.DropNode(subtractNode);
+        graph.DropNode(multiplyNode);
+
+        const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
+        gatherNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
     }
 }
 

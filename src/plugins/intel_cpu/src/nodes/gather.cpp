@@ -13,11 +13,13 @@
 #include "openvino/core/parallel.hpp"
 #include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
+#include "common/cpu_convert.h"
 #include "utils/general_utils.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
 #include <partitioned_mem_mgr.h>
 #include "shape_inference/custom/gather.hpp"
 #include "utils/ngraph_utils.hpp"
+#include "snippets/utils.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -135,10 +137,16 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+
+    canOptimizeCompressedEmbedding = false;
+    if ((decompressionSubtractPtr != nullptr) && (decompressionMultiplyPtr != nullptr)) {
+        canOptimizeCompressedEmbedding = true;
+    }
+
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                         {{LayoutType::ncsp, dataPrecision}},
+                         {{LayoutType::ncsp, canOptimizeCompressedEmbedding ? ov::element::f32 : dataPrecision}},
                          ref_any);
 
     // Let's check for the special inPlace memory use case
@@ -285,6 +293,10 @@ void Gather::prepareParams() {
         }
     }
 
+    if (canOptimizeCompressedEmbedding) {
+        return;
+    }
+
     if (!isAxisInputConst) {
         axis = (getSrcDataAtPortAs<const int32_t>(GATHER_AXIS))[0];
         if (axis < 0)
@@ -337,6 +349,11 @@ void Gather::execute(dnnl::stream strm) {
 
     if (canOptimize1DCase) {
         exec1DCase();
+        return;
+    }
+
+    if (canOptimizeCompressedEmbedding) {
+        execCompressedEmbedding();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -400,6 +417,10 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
     }
     if (canOptimize1DCase) {
         exec1DCase();
+        return;
+    }
+    if (canOptimizeCompressedEmbedding) {
+        execCompressedEmbedding();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -585,6 +606,40 @@ void Gather::exec1DCase() {
     }
 }
 
+void Gather::execCompressedEmbedding() {
+    DEBUG_LOG(getName(), " execCompressedEmbedding");
+    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    const auto* psrc = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    const auto* pidx = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+
+    const auto* zp = reinterpret_cast<const float_t*>(decompressionSubtractPtr->getData());
+    const auto* scale = reinterpret_cast<const float_t*>(decompressionMultiplyPtr->getData());
+
+    auto* pdst = reinterpret_cast<float_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+
+    const auto& idxDims = idxMemPtr->getStaticDims();
+    const auto batch = idxDims[0];
+    const auto seqLen = idxDims[1];
+
+    auto axisDim = srcMemPtr->getStaticDims()[0];
+    auto feaDim = srcMemPtr->getStaticDims()[1];
+
+    parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
+        auto dstIdx = b * seqLen + s;
+        auto ii = pidx[dstIdx];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        for (size_t f = 0; f < feaDim; f++) {
+            pdst[dstIdx * feaDim + f] = (static_cast<float>(psrc[ii * feaDim + f]) - zp[ii]) * scale[ii];
+        }
+    });
+}
+
 bool Gather::created() const {
     return getType() == Type::Gather;
 }
@@ -626,6 +681,30 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
 
         childEdge->reuse(newMem);
+    }
+}
+
+void Gather::fuseDecompressionMultiply(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionMultiplyPtr);
+}
+
+void Gather::fuseDecompressionSubtract(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionSubtractPtr);
+}
+
+void Gather::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr) {
+    const auto decompression_prc = ov::element::f32;
+    if (memory->getDesc().getPrecision() == decompression_prc) {
+        decompressionValuesPtr = memory;
+    } else {
+        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
+        decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
+        const auto elementsCount = memory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        cpu_convert(memory->getData(),
+                    decompressionValuesPtr->getData(),
+                    DnnlExtensionUtils::DataTypeToElementType(memory->getDataType()),
+                    ov::element::f32,
+                    elementsCount);
     }
 }
 
