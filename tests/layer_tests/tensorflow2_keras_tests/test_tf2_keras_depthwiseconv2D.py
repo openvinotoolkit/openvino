@@ -51,10 +51,10 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_format_padding)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_dconv2D_float32(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
+    def test_keras_dconv2D_float32(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_new_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_use_bias_true = [
@@ -78,9 +78,9 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_use_bias_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_old_api, use_new_frontend):
+                                    use_new_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_activations = [
@@ -104,7 +104,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_activations_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api, use_new_frontend):
+                                       use_new_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

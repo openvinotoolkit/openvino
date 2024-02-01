@@ -5,11 +5,10 @@
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -120,8 +119,8 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     {
         if (!fqOnData.empty()) {
             parentOnActivation = fqOnData.outputPrecision == element::undefined ?
-                ngraph::builder::subgraph::makeFakeQuantize(input, precision, fqOnData) :
-                ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
+                ov::builder::subgraph::makeFakeQuantize(input, precision, fqOnData) :
+                ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
         }
 
         if (!convertOnData.empty()) {
@@ -155,8 +154,8 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
 
         if (!fqOnWeights.empty()) {
             parentOnWeights = fqOnWeights.outputPrecision == element::undefined ?
-                ngraph::builder::subgraph::makeFakeQuantize(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights) :
-                ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights);
+                ov::builder::subgraph::makeFakeQuantize(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights) :
+                ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights);
         }
 
         if (!convertOnWeights.empty()) {
@@ -187,30 +186,28 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     std::shared_ptr<Node> lastOperation;
     if (operation == "Convolution") {
         lastOperation = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-            ov::opset1::Convolution(
-                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 }),
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(parentOnActivation, ov::element::f32).get(),
+                                    ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                    ov::Strides{1, 1},
+                                    ov::CoordinateDiff{0, 0},
+                                    ov::CoordinateDiff{0, 0},
+                                    ov::Strides{1, 1}),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     } else if (operation == "GroupConvolution") {
         lastOperation = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-            ov::opset1::GroupConvolution(
-                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-                ov::Strides{ 1, 1 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::CoordinateDiff{ 0, 0 },
-                ov::Strides{ 1, 1 }),
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            ov::opset1::GroupConvolution(ov::op::TemporaryReplaceOutputType(parentOnActivation, ov::element::f32).get(),
+                                         ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                         ov::Strides{1, 1},
+                                         ov::CoordinateDiff{0, 0},
+                                         ov::CoordinateDiff{0, 0},
+                                         ov::Strides{1, 1}),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
         if (multiplyAfter) {
             const auto& O = lastOperation->get_shape()[1];
             std::vector<float> weights_val(O, 1);
-            auto constant = ov::opset1::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
+            auto constant = ov::opset1::Constant::create(ov::element::f32, Shape{O, 1, 1}, weights_val);
             lastOperation = std::make_shared<ov::opset1::Multiply>(lastOperation, constant);
         }
     } else {
@@ -231,4 +228,4 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

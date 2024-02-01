@@ -1,15 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "infer_request.hpp"
+#include "node/include/infer_request.hpp"
 
 #include <mutex>
-#include <random>
 
-#include "addon.hpp"
-#include "compiled_model.hpp"
-#include "node_output.hpp"
-#include "tensor.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/compiled_model.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "node/include/node_output.hpp"
+#include "node/include/tensor.hpp"
 
 namespace {
 std::mutex infer_mutex;
@@ -19,7 +20,7 @@ InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<InferRequestWrap>(info),
       _infer_request{} {}
 
-Napi::Function InferRequestWrap::get_class_constructor(Napi::Env env) {
+Napi::Function InferRequestWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
                        {
@@ -30,21 +31,12 @@ Napi::Function InferRequestWrap::get_class_constructor(Napi::Env env) {
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
                            InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
+    //    128760
+#ifndef _WIN32
                            InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
+#endif
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
-}
-
-Napi::Object InferRequestWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->infer_request_prototype = ref;
-
-    exports.Set("InferRequest", prototype);
-    return exports;
 }
 
 void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) {
@@ -53,11 +45,11 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
 
 Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->infer_request_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");
     }
-    auto obj = prototype->New({});
+    auto obj = prototype.New({});
     const auto ir = Napi::ObjectWrap<InferRequestWrap>::Unwrap(obj);
     ir->set_infer_request(infer_request);
     return obj;
@@ -183,7 +175,7 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
-    for (size_t i = 0; i < inputs.Length(); ++i) {
+    for (uint32_t i = 0; i < inputs.Length(); ++i) {
         auto tensor = value_to_tensor(inputs[i], _infer_request, i);
         _infer_request.set_input_tensor(i, tensor);
     }
@@ -193,7 +185,7 @@ void InferRequestWrap::infer(const Napi::Array& inputs) {
 void InferRequestWrap::infer(const Napi::Object& inputs) {
     const auto& keys = inputs.GetPropertyNames();
 
-    for (size_t i = 0; i < keys.Length(); ++i) {
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
         auto value = inputs.Get(input_name);
         auto tensor = value_to_tensor(value, _infer_request, input_name);
@@ -206,7 +198,8 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-
+// 128760
+#ifndef _WIN32
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
     delete context;
@@ -268,3 +261,4 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     context->native_thread = std::thread(performInferenceThread, context);
     return context->deferred.Promise();
 }
+#endif

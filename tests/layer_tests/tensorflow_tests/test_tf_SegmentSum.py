@@ -46,12 +46,12 @@ class TestSegmentSum(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_segment_sum_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_new_frontend):
         if not use_new_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data_different_types = [
         dict(data_shape=[2, 3], segment_ids_shape=[2], data_type=tf.int32, segment_ids_type=tf.int32),
@@ -63,9 +63,9 @@ class TestSegmentSum(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
     def test_segment_sum_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                         use_new_frontend, use_old_api):
+                                         use_new_frontend):
         if not use_new_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

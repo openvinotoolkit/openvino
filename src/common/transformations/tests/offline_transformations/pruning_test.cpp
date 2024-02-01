@@ -21,6 +21,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
@@ -45,18 +46,13 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
     std::vector<double> values(shape_size(shape), 1);
     for (size_t dim = 0; dim < mask.size(); ++dim) {
         for (const auto& dim_value : mask.at(dim)) {
-            Coordinate coord_begin(shape.size(), 0);
-            coord_begin[dim] = dim_value;
-
-            Coordinate coord_end(shape);
-            coord_end[dim] = dim_value + 1;
-
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::CoordinateTransform iter(shape, coord_begin, coord_end);
-            for (const Coordinate& coord : iter) {
-                values[iter.index(coord)] = 0;
+            auto narrow_shape = shape;
+            narrow_shape[dim] = 1;
+            ov::CoordinateTransformBasic iter(narrow_shape);
+            for (auto coord : iter) {
+                coord[dim] = dim_value;
+                values[coordinate_index(coord, shape)] = 0;
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return std::make_shared<opset10::Constant>(element::f32, shape, values);
@@ -65,65 +61,6 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
 class DISABLED_TransformationTestsF : public TransformationTestsF {};
 
 class TransformationTestsBoolParamF : public TransformationTestsF, public testing::WithParamInterface<bool> {};
-
-// Uncomment and specify PRUNING_TARGET_IR_PATH var to check pruning on given IR
-// TEST(TransformationTests, PruneIRTest) {
-//    InferenceEngine::Core core;
-//
-//    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
-//    if (input_model == "")
-//        return;
-//
-//    auto model = core.ReadNetwork(input_model).getFunction();
-//
-//    {
-//        pass::Manager m;
-//        m.register_pass<ov::pass::InitMasks>();
-//        m.register_pass<ov::pass::PropagateMasks>();
-//    }
-//    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-//    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-//        std::stringstream ss;
-//        size_t index{0};
-//        for (const auto & output : node.outputs()) {
-//            if (const auto & mask = getMask(output)) {
-//                if (!mask->all_dims_are_empty()) {
-//                    attributes.emplace_back("color=green");
-//                    attributes.emplace_back("penwidth=2");
-//                }
-//                ss << "Mask(" << index << ") : " << *mask << "\\n";
-//            }
-//            index++;
-//        }
-//        if (!ss.str().empty()) {
-//            auto label = std::find_if(attributes.begin(), attributes.end(),
-//                                   [](const std::string & value) { return value.find("label=") != std::string::npos;
-//                                   });
-//            if (label != attributes.end()) {
-//                label->pop_back();
-//                *label += "\n" + ss.str() + "\"";
-//            } else {
-//                attributes.push_back("label=\"" + ss.str() + "\"");
-//            }
-//        }
-//    };
-//
-//    {
-//        pass::Manager m;
-//        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg",
-//        modifier); m.register_pass<ov::pass::ShrinkWeights>();
-//        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) +
-//        "PruneIRTest_with_masks_after_shrink.svg", modifier);
-//    }
-//
-//    if (VISUALIZE_TESTS_TREE)
-//        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(model);
-//    {
-//        pass::Manager m;
-//        m.register_pass<pass::Serialize>(std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.xml",
-//                                         std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.bin");
-//    }
-//}
 
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
@@ -137,12 +74,11 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
     std::vector<double> values(shape_size(weights_shape), 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::CoordinateTransform iter(weights_shape, {0, 1, 0, 0}, {6, 2, 3, 3});
-    for (const Coordinate& coord : iter) {
-        values[iter.index(coord)] = 0;
+    ov::CoordinateTransformBasic iter({6, 1, 3, 3});
+    for (auto coord : iter) {
+        coord[1] = 1;
+        values[coordinate_index(coord, weights_shape)] = 0;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto weights = std::make_shared<opset10::Constant>(element::f32, weights_shape, values);
     ov::pass::InitConstMask({1}).apply(weights);

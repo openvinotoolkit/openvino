@@ -11,7 +11,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -113,4 +113,4 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithC
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

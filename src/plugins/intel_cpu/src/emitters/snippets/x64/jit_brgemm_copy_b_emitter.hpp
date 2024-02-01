@@ -47,6 +47,10 @@ private:
     size_t m_in_offset = 0lu;
     size_t m_out_offset = 0lu;
     size_t m_comp_offset = 0lu;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter);
+#endif
 };
 
 }   // namespace intel_cpu

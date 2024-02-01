@@ -126,7 +126,7 @@ class TestPaddleConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_new_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']

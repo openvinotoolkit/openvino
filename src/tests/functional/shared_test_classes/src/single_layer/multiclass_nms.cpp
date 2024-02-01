@@ -65,7 +65,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void MulticlassNmsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
 
     const auto& funcInputs = function->inputs();
@@ -397,7 +397,7 @@ void MulticlassNmsLayerTest::SetUp() {
         nms = std::make_shared<ov::op::v9::MulticlassNms>(params[0], params[1], m_attrs);
     }
 
-    function = std::make_shared<Function>(nms, params, "MulticlassNMS");
+    function = std::make_shared<ov::Model>(nms, params, "MulticlassNMS");
 }
 
 } // namespace subgraph

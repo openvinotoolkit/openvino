@@ -46,7 +46,7 @@ public:
     std::shared_ptr<Generator> clone() const override { return std::make_shared<DummyGenerator>(target); }
 
 protected:
-    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
+    ov::snippets::RegType get_op_out_reg_type(const ov::Output<ov::Node>& out) const override { return ov::snippets::RegType::vec; };
 };
 
 class LoweringTests : public TransformationTestsF {
@@ -61,9 +61,10 @@ public:
     static std::shared_ptr<ov::snippets::op::Subgraph>
             getLoweredSubgraph(const std::shared_ptr<Model>& f,
                                const ov::PartialShape& master_shape,
-                               const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes = {},
-                               const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common = {},
-                               const ov::snippets::lowered::pass::PassPipeline& lowered_post_common = {},
+                               const std::vector<ov::snippets::pass::Manager::PositionedPassBase>& backend_passes = {},
+                               const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config =
+                                    std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
+                               const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
                                const std::shared_ptr<ov::snippets::Generator>& generator = nullptr,
                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = std::make_shared<IShapeInferSnippetsFactory>());

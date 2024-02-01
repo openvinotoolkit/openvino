@@ -72,7 +72,7 @@ public:
 
         std::ostringstream result;
         if (!bounds.empty()) {
-            IE_ASSERT(bounds.size() == 3);
+            OPENVINO_ASSERT(bounds.size() == 3);
             result << "BatchesBounds=" << bounds[BATCHES] << "_BoxesBounds=" << bounds[BOXES] << "_ClassesBounds=" << bounds[CLASSES] << "_";
         }
         for (const auto &ts : targetShapes) {
@@ -103,7 +103,7 @@ public:
         auto node = funcInputs[2].get_node_shared_ptr();
         auto it = inputs.find(node);
         if (it == inputs.end()) return;
-        auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[2], &maxOutBoxesPerClass);
+        auto tensor = ov::Tensor(node->get_element_type(), targetInputStaticShapes[2], &maxOutBoxesPerClass);
         inputs[node] = tensor;
     }
 

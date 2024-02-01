@@ -90,17 +90,17 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_random_uniform_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
         self._test(
             *self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
                                                use_new_frontend=use_new_frontend), ie_device,
             precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-            use_old_api=use_old_api, **params)
+            **params)
 
     test_data_other = [
         dict(global_seed=None, op_seed=56197, min_val=-100, max_val=100, x_shape=[6],
@@ -115,11 +115,11 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_other)
     @pytest.mark.nightly
     def test_random_uniform_other(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
         self._test(
             *self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
                                                use_new_frontend=use_new_frontend), ie_device,
             precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-            use_old_api=use_old_api, **params)
+            **params)

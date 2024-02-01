@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/shuffle_channels.hpp"
+#include "validation_util.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -18,9 +18,7 @@ static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov:
     std::string layerName = layer_type_name_ID(op);
 
     int32_t group = op->get_group();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputs[0],

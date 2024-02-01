@@ -1,9 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/pre_post_process_wrap.hpp"
+#include "node/include/preprocess/pre_post_process_wrap.hpp"
 
-#include "addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/model_wrap.hpp"
+#include "node/include/preprocess/input_info.hpp"
+#include "node/include/preprocess/output_info.hpp"
 
 PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<PrePostProcessorWrap>(info) {
@@ -16,24 +19,12 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
     }
 }
 
-Napi::Function PrePostProcessorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function PrePostProcessorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
                        {InstanceMethod("input", &PrePostProcessorWrap::input),
                         InstanceMethod("output", &PrePostProcessorWrap::output),
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
-}
-
-Napi::Object PrePostProcessorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->ppp_prototype = ref;
-
-    exports.Set("PrePostProcessor", prototype);
-    return exports;
 }
 
 Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {

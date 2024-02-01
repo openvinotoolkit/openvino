@@ -21,30 +21,27 @@ model result using the same input data from the
 converted and optimized models. 4. Compare performance of converted and
 optimized models.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
--  `Compress text encoder
-   weights <#compress-text-encoder-weights>`__
--  `Create and initialize
-   quantization <#create-and-initialize-quantization>`__
+-  `Compress weights <#compress-weights>`__
+-  `Quantize <#quantize>`__
 
-   -  `Prepare datasets <#prepare-datasets>`__
-   -  `Quantize first stage
-      U-Net <#quantize-first-stage-u-net>`__
-   -  `Quantize second stage
-      U-Net <#quantize-second-stage-u-net>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Quantize first stage U-Net <#quantize-first-stage-u-net>`__
+   -  `Quantize second stage U-Net <#quantize-second-stage-u-net>`__
 
--  `Run optimized OpenVINO
-   models <#run-quantized-openvino-model>`__
+-  `Run optimized OpenVINO model <#run-optimized-openvino-model>`__
 
    -  `Compare file sizes <#compare-file-sizes>`__
    -  `Compare performance time of the converted and optimized
       models <#compare-performance-time-of-the-converted-and-optimized-models>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
@@ -55,20 +52,20 @@ Prerequisites
     import nncf
     import torch
     import openvino as ov
-    
+
     from diffusers import DiffusionPipeline
     from diffusers.utils.pil_utils import pt_to_pil
     from pathlib import Path
     from typing import Any, List
-    
+
     from utils import TextEncoder, UnetFirstStage, UnetSecondStage
-    
+
     checkpoint_variant = 'fp16'
     model_dtype = torch.float32
     RANDOM_SEED = 42
     N_DIFFUSION_STEPS = 50
     UNET_2_STEPS = 20
-    
+
     core = ov.Core()
 
 
@@ -83,21 +80,21 @@ Prerequisites
     TEXT_ENCODER_IR_PATH = MODEL_DIR / "encoder_ir.xml"
     UNET_I_IR_PATH = MODEL_DIR / "unet_ir_I.xml"
     UNET_II_IR_PATH = MODEL_DIR / "unet_ir_II.xml"
-    
+
     if not (TEXT_ENCODER_IR_PATH.exists() and UNET_I_IR_PATH.exists() and UNET_II_IR_PATH.exists()):
         raise RuntimeError('This notebook should be run after 238-deep-floyd-if notebook')
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -109,8 +106,10 @@ Prerequisites
 
 
 
-Compress weights 
-----------------------------------------------------------
+Compress weights
+----------------
+
+
 
 Text encoder model consumes ~22 GB of disk space. To avoid running out
 of memory, we suggest using 8-bit weights compression instead of
@@ -120,10 +119,10 @@ quantized model, but this will significantly reduce the model footprint.
 .. code:: ipython3
 
     %%time
-    
+
     text_encoder = core.read_model(TEXT_ENCODER_IR_PATH)
     text_encoder_optimized = nncf.compress_weights(text_encoder)
-    
+
     TEXT_ENCODER_INT8_IR_PATH = Path("_optimized.".join(TEXT_ENCODER_IR_PATH.as_posix().split(".")))
     ov.save_model(text_encoder_optimized, TEXT_ENCODER_INT8_IR_PATH)
 
@@ -142,28 +141,32 @@ quantized model, but this will significantly reduce the model footprint.
     Wall time: 4min 12s
 
 
-Quantize 
---------------------------------------------------
+Quantize
+--------
 
-Prepare dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Prepare dataset
+~~~~~~~~~~~~~~~
+
+
 
 DeepFloyd IF consists of a U-Net model for first and second stages.
 First stage U-Net generates 64x64 px image based on text prompt, second
 stage U-Net generates a 256x256 px image based on image from previous
 step. We use a portion of train
-`LAION2B <https://huggingface.co/datasets/laion/laion2B-en>`__ dataset
-from Hugging Face as calibration data. LAION2B is the English subset of
-the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
-2 billion objects.
+`LAION2B <https://huggingface.co/datasets/laion/laion2B-en-aesthetic>`__
+dataset from Hugging Face as calibration data. LAION2B is the English
+subset of the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset,
+contains over 2 billion objects.
 
 .. code:: ipython3
 
     import numpy as np
     from datasets import load_dataset
-    
+
     np.random.seed(RANDOM_SEED)
-    
+
     def get_negative_prompt():
         negative_prompts = [
             "amateur", "blurred", "deformed", "disfigured", "disgusting", "jpeg artifacts", "low contrast",
@@ -173,7 +176,7 @@ the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
         num_elements = np.random.randint(2, 6)
         random_elements = np.random.choice(negative_prompts, num_elements)
         return [" ".join(random_elements)]
-    
+
     def prepare_calibration_data(dataloader, stage_1):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -186,13 +189,13 @@ the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
             prompt_embeds, negative_embeds = stage_1.encode_prompt(prompt, negative_prompt=negative_prompt)
             data.append((prompt_embeds, negative_embeds))
         return data
-    
-    
+
+
     def prepare_dataset(stage_1, opt_init_steps=300):
         """
         Prepares a text dataset for quantization.
         """
-        dataset = load_dataset("laion/laion2B-en", streaming=True, split="train")
+        dataset = load_dataset("laion/laion2B-en-aesthetic", streaming=True, split="train")
         train_dataset = dataset.shuffle(seed=RANDOM_SEED, buffer_size=1000).take(opt_init_steps)
         dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, stage_1)
@@ -201,12 +204,12 @@ the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
 .. code:: ipython3
 
     %%time
-    
+
     generator = torch.manual_seed(RANDOM_SEED)
     opt_init_steps = 300
     selection_prob = 0.5
     prompts_number = np.ceil(opt_init_steps // (min(N_DIFFUSION_STEPS, UNET_2_STEPS) * selection_prob))
-    
+
     stage_1 = DiffusionPipeline.from_pretrained(
         "DeepFloyd/IF-I-M-v1.0",
         variant=checkpoint_variant,
@@ -218,14 +221,14 @@ the `LAION5B <https://laion.ai/blog/laion-5b/>`__ dataset, contains over
 .. parsed-literal::
 
     safety_checker/model.safetensors not found
-    
+
     A mixture of fp16 and non-fp16 filenames will be loaded.
     Loaded fp16 filenames:
     [text_encoder/pytorch_model.fp16-00001-of-00002.bin, unet/diffusion_pytorch_model.fp16.bin, text_encoder/pytorch_model.fp16-00002-of-00002.bin]
     Loaded non-fp16 filenames:
     [safety_checker/pytorch_model.bin, watermarker/diffusion_pytorch_model.bin
     If this behavior is not expected, please check your folder structure.
-    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with:
     ```
     pip install accelerate
     ```
@@ -279,7 +282,7 @@ To collect intermediate model inputs for calibration we should customize
             super().__init__(compiled_model)
             self.data_cache = data_cache
             self.prob = np.clip(prob, 0, 1)
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() >= self.prob:
                 self.data_cache.append(*args)
@@ -294,10 +297,10 @@ To collect intermediate model inputs for calibration we should customize
         device=device.value
     )
     stage_1.set_progress_bar_config(disable=True)
-    
+
     stage_1_data_cache = []
     stage_1.unet.unet_openvino = CompiledModelDecorator(stage_1.unet.unet_openvino, prob=selection_prob, data_cache=stage_1_data_cache)
-    
+
     generator = torch.manual_seed(RANDOM_SEED)
     stage_2_inputs = []  # to speed up dataset preparation for stage 2 U-Net we can collect several images below
     for data in encoded_prompts:
@@ -305,27 +308,29 @@ To collect intermediate model inputs for calibration we should customize
         image = stage_1(prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds,
                         generator=generator, output_type="pt", num_inference_steps=N_DIFFUSION_STEPS).images
         stage_2_inputs.append((image, prompt_embeds, negative_embeds))
-    
+
         if len(stage_1_data_cache) >= opt_init_steps:
             break
 
-Quantize first stage U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Quantize first stage U-Net
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     %%time
-    
+
     ov_model = core.read_model(UNET_I_IR_PATH)
     stage_1_calibration_dataset = nncf.Dataset(stage_1_data_cache, lambda x: x)
-    
+
     quantized_model = nncf.quantize(
         model=ov_model,
         calibration_dataset=stage_1_calibration_dataset,
         model_type=nncf.ModelType.TRANSFORMER,
         advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.25)
     )
-    
+
     UNET_I_INT8_PATH = "_optimized.".join(UNET_I_IR_PATH.as_posix().split("."))
     ov.save_model(quantized_model, UNET_I_INT8_PATH)
 
@@ -347,9 +352,9 @@ Quantize first stage U-Net
 .. code:: ipython3
 
     %%time
-    
+
     from tqdm.notebook import tqdm
-    
+
     start = len(stage_2_inputs)
     for i, data in tqdm(enumerate(encoded_prompts[start:])):
         prompt_embeds, negative_embeds = data
@@ -373,10 +378,10 @@ Quantize first stage U-Net
 .. code:: ipython3
 
     %%time
-    
+
     generator = torch.manual_seed(RANDOM_SEED)
     opt_init_steps = 300
-    
+
     stage_2 = DiffusionPipeline.from_pretrained(
         "DeepFloyd/IF-II-M-v1.0",
         text_encoder=None,
@@ -384,7 +389,7 @@ Quantize first stage U-Net
         torch_dtype=model_dtype
     )
     stage_2.set_progress_bar_config(disable=True)
-    
+
     stage_2.unet = UnetSecondStage(
         UNET_II_IR_PATH,
         stage_2.unet.config,
@@ -393,26 +398,26 @@ Quantize first stage U-Net
     )
     stage_2_data_cache = []
     stage_2.unet.unet_openvino = CompiledModelDecorator(stage_2.unet.unet_openvino, prob=selection_prob, data_cache=stage_2_data_cache)
-    
+
     for data in tqdm(stage_2_inputs):
         image, prompt_embeds, negative_embeds = data
         image = stage_2(image=image, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds,
                         generator=generator, output_type="pt", num_inference_steps=UNET_2_STEPS).images
-    
+
         if len(stage_2_data_cache) >= opt_init_steps:
             break
 
 
 .. parsed-literal::
 
-    
+
     A mixture of fp16 and non-fp16 filenames will be loaded.
     Loaded fp16 filenames:
     [text_encoder/model.fp16-00001-of-00002.safetensors, unet/diffusion_pytorch_model.fp16.safetensors, text_encoder/model.fp16-00002-of-00002.safetensors, safety_checker/model.fp16.safetensors]
     Loaded non-fp16 filenames:
     [watermarker/diffusion_pytorch_model.safetensors
     If this behavior is not expected, please check your folder structure.
-    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with:
     ```
     pip install accelerate
     ```
@@ -431,22 +436,24 @@ Quantize first stage U-Net
     Wall time: 24min 32s
 
 
-Quantize second stage U-Net 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Quantize second stage U-Net
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     %%time
-    
+
     ov_model = core.read_model(UNET_II_IR_PATH)
-    
+
     calibration_dataset = nncf.Dataset(stage_2_data_cache, lambda x: x)
     quantized_model = nncf.quantize(
         model=ov_model,
         calibration_dataset=calibration_dataset,
         model_type=nncf.ModelType.TRANSFORMER,
     )
-    
+
     UNET_II_INT8_PATH = "_optimized.".join(UNET_II_IR_PATH.as_posix().split("."))
     ov.save_model(quantized_model, UNET_II_INT8_PATH)
 
@@ -465,8 +472,10 @@ Quantize second stage U-Net
     Wall time: 49min 24s
 
 
-Run optimized OpenVINO model 
-----------------------------------------------------------------------
+Run optimized OpenVINO model
+----------------------------
+
+
 
 Let us check predictions with the optimized OpenVINO DeepFloyd IF model
 result using the same input data from the `1st
@@ -480,13 +489,13 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 .. code:: ipython3
 
     %%time
-    
+
     stage_1 = DiffusionPipeline.from_pretrained(
         "DeepFloyd/IF-I-M-v1.0",
         variant=checkpoint_variant,
         torch_dtype=model_dtype
     )
-    
+
     # Initialize the First Stage U-Net wrapper class
     stage_1.unet = UnetFirstStage(
         UNET_I_INT8_PATH,
@@ -494,20 +503,20 @@ notebook <238-deep-floyd-if-with-output.html>`__.
         dtype=model_dtype,
         device=device.value
     )
-    
+
     stage_1.text_encoder = TextEncoder(TEXT_ENCODER_INT8_IR_PATH, dtype=model_dtype, device=device.value)
     print('The model has been loaded')
-    
+
     # Generate text embeddings
     prompt_embeds, negative_embeds = stage_1.encode_prompt(prompt, negative_prompt=negative_prompt)
-    
+
     # Fix PRNG seed
     generator = torch.manual_seed(RANDOM_SEED)
-    
+
     # Inference
     image = stage_1(prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds,
                     generator=generator, output_type="pt", num_inference_steps=N_DIFFUSION_STEPS).images
-    
+
     # Show the image
     pt_to_pil(image)[0]
 
@@ -515,14 +524,14 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 .. parsed-literal::
 
     safety_checker/model.safetensors not found
-    
+
     A mixture of fp16 and non-fp16 filenames will be loaded.
     Loaded fp16 filenames:
     [text_encoder/pytorch_model.fp16-00001-of-00002.bin, unet/diffusion_pytorch_model.fp16.bin, text_encoder/pytorch_model.fp16-00002-of-00002.bin]
     Loaded non-fp16 filenames:
     [safety_checker/pytorch_model.bin, watermarker/diffusion_pytorch_model.bin
     If this behavior is not expected, please check your folder structure.
-    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with:
     ```
     pip install accelerate
     ```
@@ -567,14 +576,14 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 .. code:: ipython3
 
     %%time
-    
+
     stage_2 = DiffusionPipeline.from_pretrained(
         "DeepFloyd/IF-II-M-v1.0",
         text_encoder=None,
         variant=checkpoint_variant,
         torch_dtype=model_dtype
     )
-    
+
     # Initialize the Second Stage U-Net wrapper class
     stage_2.unet = UnetSecondStage(
         UNET_II_INT8_PATH,
@@ -583,11 +592,11 @@ notebook <238-deep-floyd-if-with-output.html>`__.
         device=device.value
     )
     print('The model has been loaded')
-    
+
     image = stage_2(
         image=image, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds,
         generator=generator, output_type="pt", num_inference_steps=UNET_2_STEPS).images
-    
+
     # Show the image
     pil_image = pt_to_pil(image)[0]
     pil_image
@@ -595,14 +604,14 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 
 .. parsed-literal::
 
-    
+
     A mixture of fp16 and non-fp16 filenames will be loaded.
     Loaded fp16 filenames:
     [text_encoder/model.fp16-00001-of-00002.safetensors, unet/diffusion_pytorch_model.fp16.safetensors, text_encoder/model.fp16-00002-of-00002.safetensors, safety_checker/model.fp16.safetensors]
     Loaded non-fp16 filenames:
     [watermarker/diffusion_pytorch_model.safetensors
     If this behavior is not expected, please check your folder structure.
-    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with:
     ```
     pip install accelerate
     ```
@@ -640,15 +649,15 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 
 .. code:: ipython3
 
-    
+
     import cv2
     import numpy as np
     from utils import convert_result_to_image, download_omz_model
-    
+
     # 1032: 4x superresolution, 1033: 3x superresolution
     model_name = 'single-image-super-resolution-1032'
     download_omz_model(model_name, MODEL_DIR)
-    
+
     sr_model_xml_path = MODEL_DIR / f'{model_name}.xml'
     model = core.read_model(model=sr_model_xml_path)
     model.reshape({
@@ -656,21 +665,21 @@ notebook <238-deep-floyd-if-with-output.html>`__.
         1: [1, 3, 1024, 1024]
     })
     compiled_sr_model = core.compile_model(model=model, device_name=device.value)
-    
+
     original_image = np.array(pil_image)
     bicubic_image = cv2.resize(
         src=original_image, dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC
     )
-    
+
     # Reshape the images from (H,W,C) to (N,C,H,W) as expected by the model.
     input_image_original = np.expand_dims(original_image.transpose(2, 0, 1), axis=0)
     input_image_bicubic = np.expand_dims(bicubic_image.transpose(2, 0, 1), axis=0)
-    
+
     # Model Inference
     result = compiled_sr_model(
         [input_image_original, input_image_bicubic]
     )[compiled_sr_model.output(0)]
-    
+
     img = convert_result_to_image(result)
     img
 
@@ -686,14 +695,16 @@ notebook <238-deep-floyd-if-with-output.html>`__.
 
 
 
-.. note:: Accuracy of quantized models can generally be improved by
-   increasing calibration dataset size. For U-Net models, you can
-   collect a more diverse dataset by using a smaller ``selection_prob``
-   value, but this will increase the dataset collection time.
+**NOTE**: Accuracy of quantized models can generally be improved by
+increasing calibration dataset size. For U-Net models, you can
+collect a more diverse dataset by using a smaller ``selection_prob``
+value, but this will increase the dataset collection time.
 
 
-Compare file sizes 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compare file sizes
+^^^^^^^^^^^^^^^^^^
+
+
 
 Let’s calculate the compression rate of the optimized IRs file size
 relative to the FP16 OpenVINO models file size
@@ -731,12 +742,14 @@ relative to the FP16 OpenVINO models file size
         * Model compression rate: 3.993
 
 
-Compare performance time of the converted and optimized models 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compare performance time of the converted and optimized models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 
    **NOTE**: For more accurate performance, run ``benchmark_app`` in a
    terminal/command prompt after closing other applications. Run
@@ -746,7 +759,7 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
 .. code:: ipython3
 
     import re
-    
+
     def get_fps(benchmark_output: str):
         parsed_output = [line for line in benchmark_output if 'Throughput:' in line]
         fps = re.findall(r"\d+\.\d+", parsed_output[0])[0]
@@ -759,7 +772,7 @@ Text encoder
     benchmark_output = !benchmark_app -m $TEXT_ENCODER_IR_PATH -d $device.value -api async
     original_fps = get_fps(benchmark_output)
     print(f"FP16 Text Encoder Throughput: {original_fps} FPS")
-    
+
     benchmark_output = !benchmark_app -m $TEXT_ENCODER_INT8_IR_PATH -d $device.value -api async
     optimized_fps = get_fps(benchmark_output)
     print(f"INT8 Text Encoder Throughput: {optimized_fps} FPS")
@@ -780,7 +793,7 @@ First stage UNet
     benchmark_output = !benchmark_app -m $UNET_I_IR_PATH -d $device.value -api async
     original_fps = get_fps(benchmark_output)
     print(f"FP16 1 stage U-Net Throughput: {original_fps} FPS")
-    
+
     benchmark_output = !benchmark_app -m $UNET_I_INT8_PATH -d $device.value -api async
     optimized_fps = get_fps(benchmark_output)
     print(f"INT8 1 stage U-Net Throughput: {optimized_fps} FPS")
@@ -801,7 +814,7 @@ Second stage UNet
     benchmark_output = !benchmark_app -m $UNET_II_IR_PATH -d $device.value -api async
     original_fps = get_fps(benchmark_output)
     print(f"FP16 2 stage U-Net Throughput: {original_fps} FPS")
-    
+
     benchmark_output = !benchmark_app -m $UNET_II_INT8_PATH -d $device.value -api async
     optimized_fps = get_fps(benchmark_output)
     print(f"INT8 2 stage U-Net Throughput: {optimized_fps} FPS")

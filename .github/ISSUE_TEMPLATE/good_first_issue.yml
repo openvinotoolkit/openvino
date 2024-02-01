@@ -42,6 +42,7 @@ body:
           discussions, guides.
       value: |
           - [Contribution guide - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
+          - [Intel DevHub Discord channel](https://discord.gg/7pVRxUwdWG) - engage in discussions, ask questions and talk to OpenVINO developers
     validations:
       required: true
 

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+import platform
 
 import numpy as np
 import pytest
@@ -162,7 +163,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                use_new_frontend, use_old_api):
+                                use_new_frontend):
         if not use_new_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
@@ -170,14 +171,14 @@ class TestUnaryOps(CommonTFLayerTest):
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_new_frontend, use_old_api):
+                                     use_new_frontend):
         """
         TODO: Move to `test_unary_op_precommit()` once tensorflow_addons package is available for Python 3.11
         """
@@ -186,7 +187,7 @@ class TestUnaryOps(CommonTFLayerTest):
         self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
                                               use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[8, 10, 12]),
@@ -225,8 +226,9 @@ class TestUnaryOps(CommonTFLayerTest):
                                          ])
     @pytest.mark.nightly
     @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
+    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 122716')
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                      use_new_frontend, use_old_api):
+                      use_new_frontend):
         if not use_new_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
@@ -234,14 +236,14 @@ class TestUnaryOps(CommonTFLayerTest):
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                           use_new_frontend, use_old_api):
+                           use_new_frontend):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11
         """
@@ -250,4 +252,4 @@ class TestUnaryOps(CommonTFLayerTest):
         self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
                                               use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

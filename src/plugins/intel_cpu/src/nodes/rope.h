@@ -3,13 +3,8 @@
 //
 
 #pragma once
-#include <ie_common.h>
-#include <node.h>
 
-#include <memory>
-#include <string>
-#include <vector>
-
+#include "node.h"
 #include "transformations/cpu_opset/common/op/rope.hpp"
 
 namespace ov {
@@ -18,7 +13,7 @@ namespace node {
 
 class RoPE : public Node {
 public:
-    RoPE(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
@@ -32,7 +27,7 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     struct Executor {

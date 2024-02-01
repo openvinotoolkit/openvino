@@ -17,9 +17,21 @@ constexpr T sign(const T v) {
     return static_cast<T>(static_cast<bool>(v));
 }
 
-template <class T, typename std::enable_if<ov::is_floating_point<T>() || std::is_signed<T>::value>::type* = nullptr>
+template <class T,
+          typename std::enable_if<std::is_floating_point<typename std::decay<T>::type>::value ||
+                                  std::is_signed<T>::value>::type* = nullptr>
 constexpr T sign(const T v) {
-    return static_cast<T>((T{0} < v) - (v < T{0}));
+    return static_cast<T>(std::isnan(static_cast<float>(v)) ? v : ((T{0} < v) - (v < T{0})));
+}
+
+template <class T,
+          typename std::enable_if<std::is_same<float16, typename std::decay<T>::type>::value ||
+                                  std::is_same<bfloat16, typename std::decay<T>::type>::value>::type* = nullptr>
+T sign(const T v) {
+    if (std::isnan(static_cast<float>(v)))
+        return v;
+    else
+        return static_cast<T>((T{0} < v) - (v < T{0}));
 }
 }  // namespace func
 

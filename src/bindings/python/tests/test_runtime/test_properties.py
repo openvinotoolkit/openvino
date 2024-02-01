@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -50,6 +50,13 @@ def test_properties_rw_base():
                 (props.Affinity.CORE, "Affinity.CORE", 0),
                 (props.Affinity.NUMA, "Affinity.NUMA", 1),
                 (props.Affinity.HYBRID_AWARE, "Affinity.HYBRID_AWARE", 2),
+            ),
+        ),
+        (
+            props.CacheMode,
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
+                (props.CacheMode.OPTIMIZE_SPEED, "CacheMode.OPTIMIZE_SPEED", 1),
             ),
         ),
         (
@@ -205,6 +212,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             props.cache_dir,
             "CACHE_DIR",
             (("./test_cache", "./test_cache"),),
+        ),
+        (
+            props.cache_mode,
+            "CACHE_MODE",
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, props.CacheMode.OPTIMIZE_SIZE),
+                (props.CacheMode.OPTIMIZE_SPEED, props.CacheMode.OPTIMIZE_SPEED),
+            ),
         ),
         (
             props.auto_batch_timeout,
