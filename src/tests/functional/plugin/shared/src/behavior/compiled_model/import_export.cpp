@@ -289,7 +289,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionDoubleInputOutput)
 //
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::stringstream strm;
     ov::CompiledModel executableNetwork;
     OV_ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, target_device));
