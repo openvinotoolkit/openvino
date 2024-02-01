@@ -31,7 +31,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;

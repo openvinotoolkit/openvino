@@ -18,7 +18,6 @@
 #include "input_model.hpp"
 #include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
-#include "onnx_import/onnx_utils.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"

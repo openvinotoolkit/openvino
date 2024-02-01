@@ -6,7 +6,6 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/convolution.hpp"
