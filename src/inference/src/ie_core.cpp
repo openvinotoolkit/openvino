@@ -92,7 +92,7 @@ Core::Core(const std::string& xmlConfigFile) {
     }
 }
 
-std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
+std::map<std::string, ov::Version> Core::GetVersions(const std::string& deviceName) const {
     return _impl->GetVersions(deviceName);
 }
 

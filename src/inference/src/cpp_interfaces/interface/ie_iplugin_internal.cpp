@@ -70,7 +70,6 @@ IInferencePlugin::IInferencePlugin() : _executorManager(ov::threading::executor_
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     description = v.description;
     buildNumber = v.buildNumber;
-    apiVersion = v.apiVersion;
 }
 
 IInferencePlugin::VersionStore::VersionStore(const Version& v) {
@@ -84,11 +83,11 @@ IInferencePlugin::VersionStore& IInferencePlugin::VersionStore::operator=(const 
     return *this;
 }
 
-void IInferencePlugin::SetVersion(const Version& version) {
+void IInferencePlugin::SetVersion(const ov::Version& version) {
     _version = VersionStore(version);
 }
 
-const Version& IInferencePlugin::GetVersion() const {
+const ov::Version& IInferencePlugin::GetVersion() const {
     return _version;
 }
 
