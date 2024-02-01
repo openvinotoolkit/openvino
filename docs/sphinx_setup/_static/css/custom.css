@@ -261,6 +261,11 @@ div.highlight {
 .bd-sidebar {
     top: calc(var(--pst-header-height));
 }
+
+.bd-links {
+    margin-top: 10px;
+}
+
 body {
     padding-top: calc(var(--pst-header-height));
 }
