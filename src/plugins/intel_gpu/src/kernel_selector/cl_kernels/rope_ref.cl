@@ -15,7 +15,14 @@ KERNEL(rope_ref)(
     const uint h = get_global_id(2) / HALF_ROTARY_NDIMS;
     const uint r = get_global_id(2) % HALF_ROTARY_NDIMS * 2;
 
+#ifdef ENABLE_SLICE
+    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, p, b, h * HEAD_SIZE, 0);
+
+    input_idx += SLICED_FROM_START * (p * INPUT0_FEATURE_NUM + b + 1)
+              + SLICED_FROM_END * (p * INPUT0_FEATURE_NUM + b);
+#else
     uint input_idx = INPUT0_GET_INDEX(p, b, h * HEAD_SIZE, 0);
+#endif
     uint cos_sin_idx = INPUT1_GET_INDEX(p, b, 0, 0);
     uint output_idx = OUTPUT_GET_INDEX(p, b, h, 0);
 

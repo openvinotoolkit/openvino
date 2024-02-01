@@ -15,6 +15,10 @@ struct rope_params : public base_params {
     size_t head_cnt;
     size_t head_size;
     size_t rotary_ndims;
+
+    size_t slice_start;
+    size_t slice_stop;
+    size_t axis;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

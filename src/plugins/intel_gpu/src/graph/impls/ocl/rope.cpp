@@ -41,6 +41,11 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.head_size = primitive->config.head_size;
         params.rotary_ndims = primitive->config.rotary_ndims;
 
+        params.slice_start = primitive->config.slice_start;
+        params.slice_stop = primitive->config.slice_stop;
+
+        params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
+
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }

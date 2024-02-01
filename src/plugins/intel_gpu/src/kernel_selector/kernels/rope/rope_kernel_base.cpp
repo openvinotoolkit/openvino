@@ -16,6 +16,24 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.head_size));
     jit.AddConstant(MakeJitConstant("HALF_ROTARY_NDIMS", params.rotary_ndims / 2));
 
+    if (params.slice_stop - params.slice_start > 0) {
+        jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
+
+        auto f = toCodeString(params.inputs[0].Feature(), 1);
+        auto x = toCodeString(params.inputs[0].X(), 2);
+        auto y = toCodeString(params.inputs[0].Y(), 3);
+        auto sliced_y = toCodeString(params.slice_stop - params.slice_start);
+
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_X_PITCH", 1));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_Y_PITCH", x));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_FEATURE_PITCH", x + "*" + sliced_y));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_BATCH_PITCH", x + "*" + sliced_y + "*" + f));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_OFFSET", 0));
+
+        jit.AddConstant(MakeJitConstant("SLICED_FROM_START", toCodeString(params.slice_start)));
+        jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + y + "-" + toCodeString(params.slice_stop) + ")"));
+    }
+
     return jit;
 }
 
