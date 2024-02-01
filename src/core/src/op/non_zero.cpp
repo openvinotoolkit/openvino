@@ -120,14 +120,17 @@ bool NonZero::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     auto& output = outputs[0];
     using namespace ov::element;
     const auto& input_shape = input.get_shape();
-    return IF_TYPE_OF(v3_NonZero_evaluate,
-                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
-                      non_zero::Evaluate,
-                      input.get_element_type(),
-                      input,
-                      input_shape,
-                      input_shape.size(),
-                      output);
+    return IF_TYPE_OF_CONVERT_TENSORS(v3_NonZero_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
+                                      non_zero::Evaluate,
+                                      input.get_element_type(),
+                                      input,
+                                      input_shape,
+                                      input_shape.size(),
+                                      output);
 }
 
 bool NonZero::has_evaluate() const {

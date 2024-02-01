@@ -218,23 +218,8 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
                                           m_attrs);
         break;
     case element::Type_t::f16:
-        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                            padded_input_shape,
-                                            scales,
-                                            *axes,
-                                            outputs[0].data<float16>(),
-                                            out_shape,
-                                            m_attrs);
-        break;
     case element::Type_t::bf16:
-        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                             padded_input_shape,
-                                             scales,
-                                             *axes,
-                                             outputs[0].data<bfloat16>(),
-                                             out_shape,
-                                             m_attrs);
-        break;
+        return ov::util::evaluate_node_with_unsupported_precision(this, outputs, inputs);
     case element::Type_t::i8:
         ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
                                            padded_input_shape,

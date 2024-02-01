@@ -203,18 +203,21 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     output.set_shape(out_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(util_GatherBase_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64, string),
-                      gather::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      out_shape,
-                      axis,
-                      batch_dims);
+    return IF_TYPE_OF_CONVERT_TENSORS(util_GatherBase_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, i8, i32, i64, u8, u32, u64, string),
+                                      gather::Evaluate,
+                                      data.get_element_type(),
+                                      data,
+                                      indices,
+                                      output,
+                                      data_shape,
+                                      indices_shape,
+                                      out_shape,
+                                      axis,
+                                      batch_dims);
 }
 
 bool GatherBase::evaluate_lower(TensorVector& output_values) const {

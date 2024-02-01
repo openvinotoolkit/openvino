@@ -756,12 +756,13 @@ bool ov::Node::visit_attributes(AttributeVisitor&) {
 
 namespace ov {
 void check_new_args_count(const Node* const node, const OutputVector& new_args) {
+    size_t node_input_size = node->get_input_size();
     NODE_VALIDATION_CHECK(node,
-                          new_args.size() == node->input_values().size(),
+                          new_args.size() == node_input_size || node_input_size == 0,
                           "clone_with_new_inputs() expected ",
                           node->input_values().size(),
                           " argument",
-                          (node->input_values().size() == 1 ? "" : "s"),
+                          (node_input_size == 1 ? "" : "s"),
                           " but got ",
                           new_args.size());
 }

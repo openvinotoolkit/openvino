@@ -6,6 +6,7 @@
 
 #include <functional>
 
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -53,10 +54,41 @@ struct IfTypeOf<> {
         return Visitor::visit();
     }
 
+    /**
+     * @brief Applies visitor default action if input element type is not not supported by IfTypeOf.
+     *
+     * Performs tensors conversion to supported type and runs evaluate once more.
+     *
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
+     *
+     * @param node     Evaluated node
+     * @param outputs  Output tensors
+     * @param inputs   Input tensors
+     * @param et       Input element type.
+     * @param args     Visitor arguments.
+     * @return Value of result type returned by Visitor.
+     */
+    template <class Visitor, class... Args>
+    static auto apply(const Node* node, TensorVector& outputs, const TensorVector& inputs, Type_t et, Args&&... args) ->
+        typename Visitor::result_type {
+        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
+    }
+
 #if defined(SELECTIVE_BUILD_ANALYZER)
     template <class Visitor, class... Args>
     static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
         return Visitor::visit();
+    }
+
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region,
+                      const Node* node,
+                      TensorVector& outputs,
+                      const TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
     }
 #endif
 };
@@ -87,12 +119,60 @@ struct IfTypeOf<ET, Others...> {
                           : IfTypeOf<Others...>::template apply<Visitor>(et, std::forward<Args>(args)...);
     }
 
+    /**
+     * @brief Applies visitor action if input element type is same as ET.
+     *
+     * Uses Visitor::visit<ET> function if `et == ET`, otherwise check input element type against Others.
+     * If input element type doesn't match any item on Others - it tries to perform tensors conversion
+     * to supported type and runs evaluate once more.
+     *
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
+     *
+     * @param node     Evaluated node
+     * @param outputs  Output tensors
+     * @param inputs   Input tensors
+     * @param et       Input element type.
+     * @param args     Visitor arguments.
+     * @return Value of result type returned by Visitor.
+     */
+    template <class Visitor, class... Args>
+    static auto apply(const ov::Node* node,
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return (et == ET) ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                          : IfTypeOf<Others...>::template apply<Visitor>(node,
+                                                                         outputs,
+                                                                         inputs,
+                                                                         et,
+                                                                         std::forward<Args>(args)...);
+    }
+
 #if defined(SELECTIVE_BUILD_ANALYZER)
     template <class Visitor, class... Args>
     static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
         return (et == ET && is_cc_enabled(region))
                    ? Visitor::template visit<ET>(std::forward<Args>(args)...)
                    : IfTypeOf<Others...>::template apply<Visitor>(region, et, std::forward<Args>(args)...);
+    }
+
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region,
+                      const Node* node,
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return (et == ET && is_cc_enabled(region))
+                   ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                   : IfTypeOf<Others...>::template apply<Visitor>(region,
+                                                                  node,
+                                                                  outputs,
+                                                                  inputs,
+                                                                  et,
+                                                                  std::forward<Args>(args)...);
     }
 
     static bool is_cc_enabled(const std::string& region) {
@@ -177,9 +257,15 @@ private:
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define IF_TYPE_OF(region, types, visitor, ...) \
         ::ov::element::IfTypeOf<types>::apply<visitor>(OV_PP_TOSTRING(region), __VA_ARGS__)
+#    define IF_TYPE_OF_CONVERT_TENSORS(region, node, outputs, inputs, types, visitor, ...) \
+        ::ov::element::IfTypeOf<types>::apply<visitor>(OV_PP_TOSTRING(region), node, outputs, inputs, __VA_ARGS__)
 #elif defined(SELECTIVE_BUILD)
 #    define IF_TYPE_OF(region, types, visitor, ...) \
         ::ov::element::IfTypeOf<OV_PP_ET_LIST_OR_EMPTY(region)>::apply<visitor>(__VA_ARGS__)
+#    define IF_TYPE_OF_CONVERT_TENSORS(region, node, outputs, inputs, types, visitor, ...) \
+        ::ov::element::IfTypeOf<OV_PP_ET_LIST_OR_EMPTY(region)>::apply<visitor>(node, outputs, inputs, __VA_ARGS__)
 #else
 #    define IF_TYPE_OF(region, types, visitor, ...) ::ov::element::IfTypeOf<types>::apply<visitor>(__VA_ARGS__)
+#    define IF_TYPE_OF_CONVERT_TENSORS(region, node, outputs, inputs, types, visitor, ...) \
+        ::ov::element::IfTypeOf<types>::apply<visitor>(node, outputs, inputs, __VA_ARGS__)
 #endif
