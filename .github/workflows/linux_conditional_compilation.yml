@@ -118,7 +118,7 @@ jobs:
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -252,7 +252,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -313,7 +313,7 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
       #
