@@ -1,16 +1,17 @@
-name: MO
+name: OVC
 on:
+  merge_group:
   push:
     paths:
-      - 'tools/mo/**'
-      - '.github/workflows/mo.yml'
+      - 'tools/ovc/**'
+      - '.github/workflows/ovc.yml'
     branches:
       - 'master'
       - 'releases/**'
   pull_request:
     paths:
-      - 'tools/mo/**'
-      - '.github/workflows/mo.yml'
+      - 'tools/ovc/**'
+      - '.github/workflows/ovc.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +33,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('tools/mo/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('src/bindings/python/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
@@ -42,15 +43,12 @@ jobs:
           python -m pip install --upgrade pip setuptools
           # For UT
           pip install unittest-xml-reporting==3.0.2
-          # MO requirements
-          pip install -r requirements_mxnet.txt
-          pip install -r requirements_caffe.txt
-          pip install -r requirements_kaldi.txt
-          pip install -r requirements_onnx.txt
-          pip install -r requirements_tf2.txt
-          pip install -r requirements_dev.txt
-        working-directory: tools/mo
+          pip install pylint>=2.7.0
+          pip install pyenchant>=3.0.0
 
-      - name: Pylint-MO
-        run: pylint -d C,R,W openvino/tools/mo
-        working-directory: tools/mo
+          pip install -r requirements.txt
+        working-directory: src/bindings/python/
+
+      - name: Pylint-OVC
+        run: pylint -d C,R,W openvino/tools/ovc
+        working-directory: tools/ovc

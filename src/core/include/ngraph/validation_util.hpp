@@ -16,13 +16,14 @@
 
 #include <tuple>
 
-#include "ngraph/coordinate_diff.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
+using ov::CoordinateDiff;
 using ov::Shape;
 using ov::Strides;
 using ov::op::v0::Constant;
