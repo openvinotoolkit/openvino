@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector aten(const Node& node);
+ov::OutputVector aten(const Node& node);
 
 }  // namespace set_1
 }  // namespace op

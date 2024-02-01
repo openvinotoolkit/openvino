@@ -26,15 +26,15 @@ using namespace ov::pass;
 namespace {
 class ActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class ExpectedValues {
 public:
     element::Type fakeQuantizeOnDataOutPrecision;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {
@@ -80,7 +80,7 @@ public:
         auto precisionLimitedOperationParams(params);
         precisionLimitedOperationParams.setPrecisionsOnActivations(testValues.precisionsOnActivationForLimitedOperation);
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
             precision,
             shape,
             {
@@ -103,7 +103,7 @@ public:
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(
+        referenceFunction = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(
             precision,
             shape,
             {

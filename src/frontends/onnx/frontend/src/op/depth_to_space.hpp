@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -21,9 +20,9 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX input node describing operation.
 ///
-/// \return     OutputVector containing Tensor with shape:
+/// \return     ov::OutputVector containing Tensor with shape:
 ///             [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
-OutputVector depth_to_space(const Node& node);
+ov::OutputVector depth_to_space(const Node& node);
 }  // namespace set_1
 
 }  // namespace op

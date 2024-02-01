@@ -334,7 +334,7 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -361,7 +361,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -589,9 +589,10 @@ void program::pre_optimize_graph(bool is_internal) {
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
-    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
-    // Currently, 'gemm-softmax' case is applied for clamping
-    apply_opt_pass<clamp_fp16_output>();
+    // Check fusing primitives based on preferred format or layout optimization
+    if (optimize_data) {
+        apply_opt_pass<fuse_primitives_with_layout>();
+    }
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
@@ -1470,8 +1471,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
-             || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
-                 prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
+             || (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
+                 prim.as<mvn>().get_input_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels()) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&

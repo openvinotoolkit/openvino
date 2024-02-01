@@ -359,16 +359,6 @@ public:
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated This method is deprecated. Please use other Core::add_extension methods.
-     * @brief Registers OpenVINO 1.0 extension to a Core object.
-     * @param extension Pointer to the already loaded extension.
-     */
-    OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     /**
      * @brief Registers an extension to a Core object.
      * @param library_path Path to the library with ov::Extension.

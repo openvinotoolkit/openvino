@@ -47,7 +47,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
+    function = ov::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
         inputShape,
         netPrecision,
         param.fakeQuantizeOnWeights,

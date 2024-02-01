@@ -11,11 +11,11 @@ const std::vector<ov::element::Type> precisions = {
         ov::element::f32
 };
 
-const std::vector<ngraph::PartialShape> inputAndQuantizationShapes = {
+const std::vector<ov::PartialShape> inputAndQuantizationShapes = {
     { 1ul, 4ul, 16ul, 16ul },
 };
 
-const std::vector<AxisSet> reductionAxes = { { 2, 3 }, { 1, 2, 3 } };
+const std::vector<ov::AxisSet> reductionAxes = { { 2, 3 }, { 1, 2, 3 } };
 
 const std::vector<bool> normalizeVariance = { true, false };
 

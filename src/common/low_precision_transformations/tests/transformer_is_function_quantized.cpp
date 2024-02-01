@@ -27,8 +27,8 @@ namespace {
 
 class TestValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const TestValues& testValue) {
@@ -39,7 +39,7 @@ class TransformerIsFunctionQuantized : public LayerTransformation, public testin
 public:
     void SetUp() override {
         const TestValues testValues = GetParam();
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::get(
             Shape({ 1, 3, 16, 16 }),
             element::f32,
             testValues.fqOnData,

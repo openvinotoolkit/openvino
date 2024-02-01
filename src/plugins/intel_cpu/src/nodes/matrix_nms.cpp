@@ -300,8 +300,8 @@ void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MatrixNms::execute(dnnl::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
+    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -368,9 +368,9 @@ void MatrixNms::execute(dnnl::stream strm) {
         }
     }
 
-    auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr();
-    auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
-    auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
+    auto selectedOutputsMemPtr = getDstMemoryAtPort(NMS_SELECTED_OUTPUTS);
+    auto selectedIndicesMemPtr = getDstMemoryAtPort(NMS_SELECTED_INDICES);
+    auto validOutputsMemPtr = getDstMemoryAtPort(NMS_VALID_OUTPUTS);
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
@@ -378,9 +378,9 @@ void MatrixNms::execute(dnnl::stream strm) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->getData());
-    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->getData());
-    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->getData());
+    float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
+    int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
+    int* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++)
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
 
