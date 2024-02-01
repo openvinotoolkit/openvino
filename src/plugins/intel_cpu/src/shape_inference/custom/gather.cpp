@@ -22,7 +22,7 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
                            data_dependency.at(GATHER_AXIS)->getDesc().getPrecision(),
                            " for axis tensor.");
         }
-        m_axis = reinterpret_cast<const int32_t*>(data_dependency.at(GATHER_AXIS)->getData())[0];
+        m_axis = data_dependency.at(GATHER_AXIS)->getDataAs<const int32_t>()[0];
     }
     if (m_axis < 0) {
         m_axis += input_shape.size();

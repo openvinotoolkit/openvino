@@ -351,7 +351,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -432,6 +432,14 @@ void primitive_inst::update_shape() {
         auto variable_layout = variable.get_layout();
         // Custom output layout update as update_output_layout handles paddings incorrectly for optimized out read_value + kv_cache pattern
         _impl_params->output_layouts[0] = variable_layout;
+    }
+
+    if (get_node().is_type<kv_cache>()) {
+        auto desc = get_node().as<kv_cache>().get_primitive();
+        auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
+        // Need to trigger realloc_if_needed
+        if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
+            set_shape_change();
     }
 }
 
