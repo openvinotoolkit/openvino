@@ -58,9 +58,6 @@ public:
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
 
-    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
-    void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
-
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);
     /// \brief sets upper bound value description
