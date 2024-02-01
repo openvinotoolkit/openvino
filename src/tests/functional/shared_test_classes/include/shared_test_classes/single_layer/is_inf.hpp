@@ -13,14 +13,13 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-using IsInfParams = std::tuple<
-                        std::vector<InputShape>,             // Data shape
-                        bool,                                // Detect negative
-                        bool,                                // Detect positive
-                        ElementType,                         // Data precision
-                        std::string,                         // Device name
-                        std::map<std::string, std::string>   // Additional config
-    >;
+using IsInfParams = std::tuple<std::vector<InputShape>,  // Data shape
+                               bool,                     // Detect negative
+                               bool,                     // Detect positive
+                               ElementType,              // Data precision
+                               std::string,              // Device name
+                               ov::AnyMap                // Additional config
+                               >;
 
 class IsInfLayerTest : public testing::WithParamInterface<IsInfParams>,
                         virtual public SubgraphBaseTest {

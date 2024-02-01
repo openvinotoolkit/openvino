@@ -113,7 +113,7 @@ std::vector<ov::test::utils::EltwiseTypes> eltwiseOpTypesSingleThread = {
     ov::test::utils::EltwiseTypes::POWER,
 };
 
-ov::AnyMap additional_config_single_thread = {{"CPU_THREADS_NUM", "1"}};
+ov::AnyMap additional_config_single_thread = {ov::inference_num_threads(1)};
 
 const auto single_thread_params =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),

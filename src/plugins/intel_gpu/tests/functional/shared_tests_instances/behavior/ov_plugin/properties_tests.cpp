@@ -7,7 +7,6 @@
 #include <openvino/runtime/auto/properties.hpp>
 #include <thread>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 

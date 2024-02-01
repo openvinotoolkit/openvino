@@ -13,7 +13,7 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
     ov::element::Type model_type;
     bool detect_negative, detect_positive;
     std::string target_name;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
     std::tie(shapes, detect_negative, detect_positive, model_type, target_name, additional_config) = obj.param;
     std::ostringstream result;
 
@@ -35,7 +35,7 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
     result << "trgDev=" << target_name;
 
     for (auto const& config_item : additional_config) {
-        result << "_config_item=" << config_item.first << "=" << config_item.second;
+        result << "_config_item=" << config_item.first << "=" << config_item.second.as<std::string>();
     }
     return result.str();
 }
@@ -44,7 +44,7 @@ void IsInfLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ElementType model_type;
     bool detect_negative, detect_positive;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
     std::tie(shapes, detect_negative, detect_positive, model_type, targetDevice, additional_config) = this->GetParam();
 
     init_input_shapes(shapes);

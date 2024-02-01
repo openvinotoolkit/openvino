@@ -58,7 +58,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                     ie.get_versions(device_prefix);
 
                     if (isCacheEnabled)
-                        ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
+                        ie.set_property({ov::cache_dir("models_cache")});
                 }
                 {
                     SCOPED_TIMER(create_exenetwork);

@@ -5,7 +5,6 @@
 #pragma once
 
 #include <openvino/openvino.hpp>
-#include <ie_plugin_config.hpp>
 
 #include <string>
 
