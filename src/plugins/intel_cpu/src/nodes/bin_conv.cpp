@@ -3,8 +3,6 @@
 //
 
 #include "bin_conv.h"
-#include "reorder.h"
-#include "input.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "conv.h"
@@ -20,7 +18,7 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include "openvino/opsets/opset1.hpp"
-#include "utils/cpu_utils.hpp"
+#include "utils/ngraph_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32

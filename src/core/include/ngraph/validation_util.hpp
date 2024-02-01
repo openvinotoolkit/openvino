@@ -17,17 +17,12 @@
 #include <tuple>
 
 #include "ngraph/coordinate_diff.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
-using ov::evaluate_as_partial_shape;
-using ov::get_constant_from_source;
-using ov::has_no_labels;
-using ov::normalize_axes;
-using ov::normalize_axis;
 using ov::Shape;
 using ov::Strides;
 using ov::op::v0::Constant;
@@ -155,5 +150,3 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
-
-using ngraph::get_constant_from_source;

@@ -9,7 +9,6 @@
 #include "core/attribute.hpp"
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 

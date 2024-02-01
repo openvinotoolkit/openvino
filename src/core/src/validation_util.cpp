@@ -595,64 +595,6 @@ int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
     return (value < 0) ? value + max : value;
 };
 
-void ov::normalize_axes(const ov::Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    ov::util::normalize_axes(node, tensor_rank, axes);
-}
-
-std::vector<size_t> ov::normalize_axes(const std::string& node_description,
-                                       const std::vector<int64_t>& axes,
-                                       const Rank& tensor_rank) {
-    return ov::util::normalize_axes(node_description, axes, tensor_rank);
-}
-
-int64_t ov::normalize_axis(const ov::Node* node, std::int64_t axis, const Rank& tensor_rank) {
-    return ov::util::normalize_axis(node, axis, tensor_rank);
-}
-
-int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
-    return ov::util::normalize_axis(node_description, axis, tensor_rank);
-}
-
-int64_t ov::normalize_axis(const ov::Node* node,
-                           std::int64_t axis,
-                           std::uint64_t tensor_rank,
-                           std::int64_t axis_range_min,
-                           std::int64_t axis_range_max) {
-    return ov::util::normalize_axis(node, axis, tensor_rank, axis_range_min, axis_range_max);
-}
-
-int64_t ov::normalize_axis(const std::string& node_description,
-                           std::int64_t axis,
-                           std::uint64_t tensor_rank,
-                           std::int64_t axis_range_min,
-                           std::int64_t axis_range_max) {
-    return ov::util::normalize_axis(node_description, axis, tensor_rank, axis_range_min, axis_range_max);
-}
-
-bool ov::evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialShape& pshape) {
-    return ov::util::evaluate_as_partial_shape(output, pshape);
-}
-
-bool ov::default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
-    return ov::util::default_label_evaluator(node, output_labels);
-}
-
-std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const ov::Output<ov::Node>& source) {
-    return ov::util::get_constant_from_source(source);
-}
-
-bool ov::has_no_labels(const ov::TensorLabel& labels) {
-    return ov::util::has_no_labels(labels);
-}
-
-void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
-    ov::util::generate_transpose_default_order(axes_order, length);
-}
-
-bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return ov::util::is_valid_axes_order(axes_order, size);
-}
-
 bool ov::util::are_unique(const std::vector<int64_t>& data) {
     return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
 }
