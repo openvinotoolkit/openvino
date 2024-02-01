@@ -118,8 +118,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
             }
             requests = 0;
-            // check if the real is default value or actual device didn't support this property.
-            //OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
             try {
                 // for benchmark through AUTO:CPU,GPU
                 // SetConfig directly set to CPU/GPU in this case
