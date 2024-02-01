@@ -8,10 +8,9 @@
 #include <mutex>
 #include <string>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
-
-#include "common_test_utils/file_utils.hpp"
 
 namespace ov {
 namespace test {
