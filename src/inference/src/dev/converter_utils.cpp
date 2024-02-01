@@ -20,7 +20,6 @@
 #include "ie_input_info.hpp"
 #include "ie_layouts.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
 #include "legacy_op_extension.hpp"
@@ -47,7 +46,7 @@
 namespace {
 
 std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
-    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    ov::Output<ov::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
     if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
         p = node->input_value(0);
     }
@@ -257,15 +256,11 @@ public:
         m_plugin->set_property(config);
     }
 
-    InferenceEngine::Parameter GetConfig(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
+    ov::Any GetConfig(const std::string& name, const ov::AnyMap& options) const override {
         return m_plugin->get_property(name, options);
     }
 
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
+    ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const override {
         return m_plugin->get_property(name, options);
     }
 
@@ -373,35 +368,15 @@ public:
         return m_model->get_runtime_model()->clone();
     }
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
+    void SetConfig(const ov::AnyMap& config) override {
         m_model->set_property(config);
     }
 
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override {
+    ov::Any GetConfig(const std::string& name) const override {
         return m_model->get_property(name);
     }
 
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
-        // Add legacy supported properties
-        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-            try {
-                return m_model->get_property(name);
-            } catch (const ov::Exception&) {
-                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
-                std::vector<std::string> legacy_properties;
-                for (const auto& prop : props) {
-                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
-                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
-                        legacy_properties.emplace_back(prop);
-                }
-                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                }
-
-                return legacy_properties;
-            }
-        }
+    ov::Any GetMetric(const std::string& name) const override {
         return m_model->get_property(name);
     }
 

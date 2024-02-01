@@ -20,7 +20,7 @@ to use it successfully.
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
 |   NPU device: NPU 3720
-|   OS: Ubuntu* 20, MS Windows* 11 (both 64-bit)
+|   OS: Ubuntu* 22.04 (with Linux kernel 6.6+), MS Windows* 11 (both 64-bit)
 
 
 | **Supported Inference Data Types**
@@ -96,7 +96,7 @@ offer a limited set of supported OpenVINO features.
 
       .. code-block::
 
-         ov::caching_properties
+         ov::internal::caching_properties
          ov::enable_profiling
          ov::hint::performance_mode
          ov::hint::num_requests
@@ -106,14 +106,6 @@ offer a limited set of supported OpenVINO features.
          ov::device::id
          ov::cache_dir
          ov::internal::exclusive_async_requests
-         ov::intel_vpux::dpu_groups
-         ov::intel_vpux::dma_engines
-         ov::intel_vpux::compilation_mode
-         ov::intel_vpux::compilation_mode_params
-         ov::intel_vpux::print_profiling
-         ov::intel_vpux::profiling_output_file
-         ov::intel_vpux::vpux_platform
-         ov::intel_vpux::use_elf_compiler_backend
 
    .. tab-item:: Read-only properties
 
@@ -128,8 +120,6 @@ offer a limited set of supported OpenVINO features.
          ov::device::uuid
          ov::device::architecture
          ov::device::full_name
-         ov::intel_vpux::device_total_mem_size
-         ov::intel_vpux::driver_version
 
 .. note::
 

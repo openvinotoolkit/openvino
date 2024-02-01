@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -17,7 +16,7 @@ namespace set_1 {
 /// \brief Performs ONNX TopK operation.
 ///
 /// \param node The ONNX node object representing this operation.
-/// \return The vector containing Ngraph nodes producing output of ONNX TopK
+/// \return The vector containing OV nodes producing output of ONNX TopK
 ///         operation (both values and indices).
 ov::OutputVector topk(const Node& node);
 }  // namespace set_1

@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
 namespace InferenceEngine {
@@ -217,7 +216,7 @@ public:
                                     const std::map<std::string, std::string>& config = {}) const;
 
     /**
-     * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief Sets configuration for device, acceptable keys can be found in properties.hpp
      *
      * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
      * registered devices.
@@ -235,7 +234,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
+    ov::Any GetConfig(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -248,7 +247,7 @@ public:
      * @param options - optional parameters to get a metric value
      * @return Metric value corresponding to metric key.
      */
-    Parameter GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options = {}) const;
+    ov::Any GetMetric(const std::string& deviceName, const std::string& name, const ov::AnyMap& options = {}) const;
 
     /**
      * @brief Returns devices available for neural networks inference

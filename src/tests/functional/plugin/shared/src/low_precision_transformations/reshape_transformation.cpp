@@ -51,6 +51,9 @@ void ReshapeTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
+
+    EXPECT_TRUE(check_execution_order(params.executionOrder));
+
     auto actualPrecision = get_runtime_precision_by_type(params.layerType);
     const auto expectedPrecision = params.expectedKernelType;
     if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
