@@ -153,7 +153,7 @@ public:
      * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
      * device.
      *
-     * @param name config key, can be found in ie_plugin_config.hpp
+     * @param name config key, can be found in properties.hpp
      * @return Configuration ov::Any value
      */
     ov::Any GetConfig(const std::string& name) const;

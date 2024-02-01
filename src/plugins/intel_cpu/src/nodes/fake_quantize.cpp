@@ -2043,7 +2043,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
 // map FQ to oneDNN's attribuites & postOps
 // equation:
 //      y = clip2(round(x * inputScale + inputShift))*outputScale + outputShift
-bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                                      bool isLastPostOp,
                                      dnnl::memory::data_type outDataType,
                                      bool allowBinary,
