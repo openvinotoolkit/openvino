@@ -330,7 +330,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    const static auto priorities = [] {
+    static const auto priorities = [] {
         std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::dw_acl,
