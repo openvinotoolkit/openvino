@@ -2189,7 +2189,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(get_scale_id())[0]->getMemory().getData());
+        const float *scales = getParentEdgeAt(get_scale_id())->getMemory().getDataAs<const float>();
         for (size_t i = 0; i < lastScales.size(); i++) {
             if (lastScales[i] != scales[i]) {
                 return true;
@@ -2199,7 +2199,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().getData());
+        const int32_t *sizes = getParentEdgeAt(TARGET_SHAPE_ID)->getMemory().getDataAs<const int32_t>();
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;
@@ -2213,18 +2213,18 @@ void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
-    const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
+    const auto &memory = getParentEdgeAt(port)->getMemory();
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const float *scales = reinterpret_cast<const float *>(memory.getData());
+        const float *scales = memory.getDataAs<const float>();
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.getData());
+        const int32_t *sizes = memory.getDataAs<const int32_t>();
         lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
     }
 }
 
 bool Interpolate::needPrepareParams() const {
-    return (inputShapesModified() || lastOutputDims != getChildEdgesAtPort(0)[0]->getMemory().getStaticDims());
+    return (inputShapesModified() || lastOutputDims != getChildEdgeAt(0)->getMemory().getStaticDims());
 }
 
 inline int Interpolate::get_scale_id() const {
@@ -2247,26 +2247,26 @@ void Interpolate::prepareParams() {
                        ", because input/output dims aren't defined");
     }
 
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
-    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate input memory");
 
     if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
-        auto tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
+        auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
         if (!tsMemPtr || !tsMemPtr->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
     } else {
-        auto scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
+        auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
         if (!scaleMemPtr || !scaleMemPtr->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
     }
 
     if (isAxesSpecified) {
-        auto axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
+        auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
         if (!axesMemPtr || !axesMemPtr->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
     }
@@ -2296,8 +2296,8 @@ void Interpolate::prepareParams() {
 
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
-            const auto& scalesMem = getParentEdgesAtPort(get_scale_id())[0]->getMemory();
-            const float* scalesData = reinterpret_cast<const float *>(scalesMem.getData());
+            const auto& scalesMem = getParentEdgeAt(get_scale_id())->getMemory();
+            const float* scalesData = scalesMem.getDataAs<const float>();
             scales.assign(scalesData, scalesData + scalesMem.getStaticDims()[0]);
         }
     }
@@ -2312,10 +2312,10 @@ void Interpolate::prepareParams() {
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<InterpolateExecutorFactory>()->makeExecutor(interpAttrs, srcMemoryDescs, dstMemoryDescs, {});
@@ -2362,8 +2362,8 @@ void Interpolate::prepareParams() {
 }
 
 void Interpolate::createPrimitive() {
-    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -2455,12 +2455,12 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
 }
 
 void Interpolate::execute(dnnl::stream strm) {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
-        const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
+        uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
+        const uint8_t *src_data_origin = srcMemPtr->getDataAs<uint8_t>();
         const uint8_t *src_data = nullptr;
         std::vector<uint8_t> srcPadded;
         if (hasPad) {

@@ -123,12 +123,16 @@ jobs:
           python3 -m pip install certifi
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       #
       # Build
@@ -394,6 +398,89 @@ jobs:
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
+
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI ]
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-4-cores-8gb
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
+      OPENVINO_TOKENIZERS_REPO: "${{ github.workspace }}\\openvino_contrib\\modules\\custom_operations"
+      EXTENSION_BUILD_DIR: "${{ github.workspace }}\\build\\openvino_tokenizers"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'false'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          ref: 'master'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+          popd
+
+      #
+      # Dependencies
+      #
+
+      - name: Install python dependencies
+        run: |
+          # wheel packaging
+          python3 -m pip install -r ${env:OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
+
+      #
+      # Build
+      #
+
+      - name: Build tokenizers wheel
+        run: |
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          python3 -m build --wheel --outdir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+        env:
+          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+
+      #
+      # Upload build artifacts
+      #
+
+      - name: Upload openvino tokenizers wheel
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -906,7 +993,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

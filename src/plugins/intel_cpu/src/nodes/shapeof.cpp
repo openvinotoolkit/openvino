@@ -84,14 +84,14 @@ bool ShapeOf::isExecutable() const {
 }
 
 void ShapeOf::execute(dnnl::stream strm) {
-    auto inPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto inPtr = getSrcMemoryAtPort(0);
+    auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
         OPENVINO_THROW(errorPrefix, "has inconsistent input shape and output size");
 
-    auto* dst = reinterpret_cast<int *>(outPtr->getData());
+    auto* dst = outPtr->getDataAs<int>();
 
     for (size_t i = 0; i < dimsCount; i++) {
         dst[i] = inDims[i];
