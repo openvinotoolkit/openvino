@@ -22,6 +22,29 @@ class aten_lstm(torch.nn.Module):
         return self.lstm(input_tensor, (h0, c0))
 
 
+class aten_lstm_packed(torch.nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first):
+        torch.nn.Module.__init__(self)
+        self.rnn = torch.nn.LSTM(input_size=input_size,
+                                 hidden_size=hidden_size,
+                                 num_layers=num_layers,
+                                 batch_first=batch_first,
+                                 bidirectional=bidirectional,
+                                 bias=has_bias,
+                                 )
+        self.batch_first = batch_first
+
+    def forward(self, seq, lengths):
+        seq1 = torch.nn.utils.rnn.pack_padded_sequence(seq,
+                                                       lengths,
+                                                       batch_first=self.batch_first)
+        seq2, hid2 = self.rnn(seq1)
+        seq = torch.nn.utils.rnn.pad_packed_sequence(seq2,
+                                                     batch_first=self.batch_first)[0]
+
+        return seq, hid2
+
+
 class aten_gru(torch.nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first):
         torch.nn.Module.__init__(self)
@@ -79,6 +102,43 @@ class TestLSTM(PytorchLayerTest):
         self.batch_first = batch_first
         self._test(aten_lstm(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first), None, "aten::lstm",
                    ie_device, precision, ir_version, trace_model=True)
+
+
+class TestLSTMPacked(PytorchLayerTest):
+    def _prepare_input(self):
+        batch = 15
+        if self.batch_first:
+            input = np.random.randn(
+                batch, 50, self.input_size).astype(np.float32)
+        else:
+            input = np.random.randn(
+                50, batch, self.input_size).astype(np.float32)
+        lengths = np.array(list(sorted(np.random.randint(
+            1, 50, [batch - 1]).tolist() + [50], reverse=True)), dtype=np.int32)
+        return (input, lengths)
+
+    @pytest.mark.parametrize("input_size,hidden_size", [(10, 20),])
+    @pytest.mark.parametrize("num_layers", [1, 2, 7])
+    @pytest.mark.parametrize("has_bias", [True, False])
+    @pytest.mark.parametrize("bidirectional", [True, False])
+    @pytest.mark.parametrize("batch_first", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_lstm_packed(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, ie_device, precision, ir_version):
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+        self.batch_first = batch_first
+        self._test(aten_lstm_packed(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first),
+                   None,
+                   "aten::lstm",
+                   ie_device,
+                   precision,
+                   ir_version,
+                   trace_model=True,
+                   dynamic_shapes=False  # ticket 131432
+                   )
 
 
 class TestGRU(PytorchLayerTest):
