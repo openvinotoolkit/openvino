@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "utils.hpp"
 
