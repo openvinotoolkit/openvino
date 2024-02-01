@@ -9,12 +9,13 @@
 #include <cstdlib>
 #include <unordered_map>
 
-#include "common_test_utils/file_utils.hpp"
-#include "openvino/util/file_util.hpp"
+// #include "common_test_utils/file_utils.hpp"
+// #include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
+
 namespace {
 class TestListener : public testing::EmptyTestEventListener {
 public:
@@ -35,13 +36,12 @@ PluginCache& PluginCache::get() {
 
 std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
-#ifndef NDEBUG
-        std::cout << "'DISABLE_PLUGIN_CACHE' environment variable is set. New Core object will be created!"
-                  << std::endl;
-#endif
-        return std::make_shared<ov::Core>();
+// #ifndef NDEBUG
+//         std::cout << "'DISABLE_PLUGIN_CACHE' environment variable is set. New Core object will be created!"
+//                   << std::endl;
+// #endif
+        return std::make_shared<ov::Core>(create_core(deviceToCheck));
     }
-
     std::lock_guard<std::mutex> lock(g_mtx);
 #ifndef NDEBUG
     std::cout << "Access PluginCache ov core. OV Core use count: " << ov_core.use_count() << std::endl;
@@ -92,11 +92,9 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
 
 void PluginCache::reset() {
     std::lock_guard<std::mutex> lock(g_mtx);
-
-#ifndef NDEBUG
-    std::cout << "Reset PluginCache. OV Core use count: " << ov_core.use_count() << std::endl;
-#endif
-
+// #ifndef NDEBUG
+//     std::cout << "Reset PluginCache. OV Core use count: " << ov_core.use_count() << std::endl;
+// #endif
     ov_core.reset();
 }
 
