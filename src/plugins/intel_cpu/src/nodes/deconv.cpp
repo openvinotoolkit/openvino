@@ -481,11 +481,13 @@ void Deconvolution::getSupportedDescriptors() {
             config.outConfs.resize(getOriginalOutputsNumber());
 
             for (size_t i = 0; i < getParentEdges().size(); ++i) {
+                //force f32 precision to avoid reference inference (CVS-114087)
                 config.inConfs[i].setMemDesc(
-                        creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
+                        creatorsMap.at(format)->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
             }
+            //force f32 precision to avoid reference inference (CVS-114087)
             config.outConfs[0].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+                    creatorsMap.at(format)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             for (size_t i = 0; i < config.inConfs.size(); i++) {
@@ -1218,12 +1220,12 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
 
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].setMemDesc(
-                // ACL expected equal precision
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
+                // force f32 precision to avoid reference inference (CVS-114087)
+                creatorsMap.at(format)->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
         }
         config.outConfs[0].setMemDesc(
-                // ACL expected equal precision
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+                // force f32 precision to avoid reference inference (CVS-114087)
+                creatorsMap.at(format)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < config.inConfs.size(); i++) {

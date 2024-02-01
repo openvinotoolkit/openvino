@@ -167,6 +167,34 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     return false;
 }
 
+bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
+    if (!fq)
+        return false;
+    const auto& from = node->get_output_element_type(0);
+    auto it = precisions.find(from);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        auto convert_before = std::make_shared<opset4::Convert>(node->input_value(i), from);
+        node->input(i).replace_source_output(convert_before);
+    }
+
+    auto consumers = node->output(0).get_target_inputs();
+    for (auto& input : consumers) {
+        const auto consumer = input.get_node();
+        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+            continue;
+        }
+        auto convert_after = std::make_shared<opset4::Convert>(node, to);
+        input.replace_source_output(convert_after);
+    }
+
+    return true;
+}
+
 bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
     if (!convert)
@@ -297,12 +325,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-        type_to_fuse_map empty_fuse_map = {};
+        type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
                                  fp_convert_precision_map,
-                                 empty_fuse_map,
+                                 f16_fuse_map,
                                  keep_precision_sensitive_in_fp32,
                                  false);
     }
