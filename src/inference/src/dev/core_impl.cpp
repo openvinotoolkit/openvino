@@ -966,7 +966,8 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
 }
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
-                                                const ov::AnyMap& user_properties) const {
+                                                const ov::AnyMap& user_properties,
+                                                const bool keep_core_property) const {
     if (is_virtual_device(full_device_name)) {
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
@@ -1001,7 +1002,10 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
-    std::vector<std::string> supported_config_keys = core_level_properties;
+    std::vector<std::string> supported_config_keys;
+    if (keep_core_property) {
+        supported_config_keys = core_level_properties;
+    }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
@@ -1120,7 +1124,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         const auto& mode = config.find(ov::hint::performance_mode.name());
         bool bTputInLoadCfg = (mode != config.end() &&
                                mode->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT);
-        const auto& excl = config.find(ov::exclusive_async_requests.name());
+        const auto& excl = config.find(ov::internal::exclusive_async_requests.name());
         bool bExclReqsEnabled = (excl != config.end() && excl->second.as<bool>() == true);
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
             return model;
@@ -1616,7 +1620,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
-        FileUtils::createDirectoryRecursive(dir);
+        ov::util::create_directory_recursive(dir);
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 

@@ -26,7 +26,7 @@ public:
 };
 
 typedef std::tuple <
-    element::Type,
+    ov::element::Type,
     PartialShape,
     std::string,
     MultiplyToGroupConvolutionTransformationParam> MultiplyToGroupConvolutionTransformationParams;

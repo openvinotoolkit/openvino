@@ -17,7 +17,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector compress(const Node& node) {
+ov::OutputVector compress(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto condition = node.get_ng_inputs().at(1);
 
@@ -29,8 +29,8 @@ OutputVector compress(const Node& node) {
         data = std::make_shared<v0::Squeeze>(ov::op::util::flatten(data, static_cast<int>(axis)));
         data = std::make_shared<v0::Squeeze>(ov::op::util::flatten(data, static_cast<int>(axis)));
     }
-    auto axis_node = v0::Constant::create(element::i64, Shape{}, {axis});
-    auto zero_node = v0::Constant::create(element::i64, Shape{}, {0});
+    auto axis_node = v0::Constant::create(ov::element::i64, Shape{}, {axis});
+    auto zero_node = v0::Constant::create(ov::element::i64, Shape{}, {0});
     auto result =
         std::make_shared<v8::Gather>(data,
                                      std::make_shared<v0::Squeeze>(std::make_shared<v3::NonZero>(condition), zero_node),
