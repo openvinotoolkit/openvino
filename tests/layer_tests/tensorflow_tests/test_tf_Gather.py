@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestGather(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'params' in inputs_info
-        assert 'indices' in inputs_info
-        params_shape = inputs_info['params']
-        indices_shape = inputs_info['indices']
+        assert 'params:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        params_shape = inputs_info['params:0']
+        indices_shape = inputs_info['indices:0']
         inputs_data = {}
-        inputs_data['params'] = np.random.randint(-50, 50, params_shape).astype(self.params_type)
-        inputs_data['indices'] = np.random.randint(0, self.max_index, indices_shape).astype(self.indices_type)
+        inputs_data['params:0'] = np.random.randint(-50, 50, params_shape).astype(self.params_type)
+        inputs_data['indices:0'] = np.random.randint(0, self.max_index, indices_shape).astype(self.indices_type)
         return inputs_data
 
     def create_gather_net(self, params_shape, params_type, indices_shape, indices_type, axis_value, batch_dims,

@@ -11,10 +11,10 @@ rng = np.random.default_rng()
 
 class TestAssignVariableOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = rng.uniform(-2.0, 2.0, x_shape).astype(np.float32)
+        inputs_data['x:0'] = rng.uniform(-2.0, 2.0, x_shape).astype(np.float32)
         return inputs_data
 
     def create_assign_variable_ops_net(self, const_shape):

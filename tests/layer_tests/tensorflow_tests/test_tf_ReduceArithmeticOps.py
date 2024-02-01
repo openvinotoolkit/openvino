@@ -8,10 +8,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestReduceArithmeticOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
     def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_new_frontend):

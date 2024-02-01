@@ -11,12 +11,12 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestBucketize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        input_shape = inputs_info['input:0']
         input_type = self.input_type
         inputs_data = {}
         input_data = np.random.randint(-20, 20, input_shape).astype(input_type)
-        inputs_data['input'] = input_data
+        inputs_data['input:0'] = input_data
         return inputs_data
 
     def create_bucketize_net(self, input_shape, input_type, boundaries_size):

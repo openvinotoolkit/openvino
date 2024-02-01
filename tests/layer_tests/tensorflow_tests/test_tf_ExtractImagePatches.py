@@ -10,10 +10,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestExtractImagePatches(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'images' in inputs_info, "Test error: inputs_info must contain `images`"
-        images_shape = inputs_info['images']
+        assert 'images:0' in inputs_info, "Test error: inputs_info must contain `images`"
+        images_shape = inputs_info['images:0']
         inputs_data = {}
-        inputs_data['images'] = np.random.randint(-10, 10, images_shape).astype(np.float32)
+        inputs_data['images:0'] = np.random.randint(-10, 10, images_shape).astype(np.float32)
         return inputs_data
 
     def create_extract_image_patches_net(self, images_shape, ksizes, strides, rates, padding):

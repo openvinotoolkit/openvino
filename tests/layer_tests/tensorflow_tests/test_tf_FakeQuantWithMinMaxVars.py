@@ -18,10 +18,10 @@ OPS = {
 class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'inputs' in inputs_info, "Test error: inputs_info must contain `input`"
-        inputs_shape = inputs_info['inputs']
+        assert 'inputs:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        inputs_shape = inputs_info['inputs:0']
         inputs_data = {}
-        inputs_data['inputs'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
+        inputs_data['inputs:0'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
         return inputs_data
 
     def create_fake_quant_with_min_max_vars_net(self, inputs_shape, min_value, max_value, num_bits, narrow_range,
