@@ -10,13 +10,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace transform {
 
-static const std::vector<std::string> onnx_functions_to_expand = {"AffineGrid",
-                                                                  "Bernoulli",
-                                                                  "Celu",
-                                                                  "CenterCropPad",
-                                                                  "NegativeLogLikelihoodLoss",
-                                                                  "SoftmaxCrossEntropyLoss",
-                                                                  "LayerNormalization"};
+static const std::vector<std::string> onnx_functions_to_expand =
+    {"AffineGrid", "Bernoulli", "Celu", "CenterCropPad", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///
