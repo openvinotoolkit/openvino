@@ -8,7 +8,6 @@
 
 #include "ir_deserializer.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,
@@ -183,9 +183,8 @@ void parse_pre_process(pugi::xml_node& root,
             const char* data = weights->get_ptr<char>() + offset;
             per_channel_values[item.first] = ov::op::v0::Constant::create(input_type, mean_shape, data);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto const_node = get_constant_from_source(std::make_shared<ov::op::v0::Concat>(per_channel_values, 0));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto const_node =
+            ov::util::get_constant_from_source(std::make_shared<ov::op::v0::Concat>(per_channel_values, 0));
         OPENVINO_ASSERT(const_node);
         const auto& consumers = input_node->output(0).get_target_inputs();
         auto add = std::make_shared<ov::op::v1::Subtract>(input_node, const_node);

@@ -6,7 +6,6 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_l1.hpp"
 #include "reduce_shape_inference.hpp"

@@ -3,8 +3,8 @@
 //
 #pragma once
 #include <array>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/group_normalization.hpp>
+
+#include "openvino/op/group_normalization.hpp"
 
 namespace ov {
 namespace op {

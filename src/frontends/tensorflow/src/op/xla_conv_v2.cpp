@@ -29,10 +29,8 @@ namespace op {
 
 namespace {
 vector<int64_t> get_const_vector(const NodeContext& node, const Output<Node>& input, const string& input_name) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_const = get_constant_from_source(input);
+    auto input_const = ov::util::get_constant_from_source(input);
     TENSORFLOW_OP_VALIDATION(node, input_const, "XlaConvV2 is supported only with constant " + input_name + ".");
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return input_const->cast_vector<int64_t>();
 }
 

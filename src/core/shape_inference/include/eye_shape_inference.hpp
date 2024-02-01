@@ -4,7 +4,6 @@
 #pragma once
 #include <array>
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/eye.hpp"
 #include "utils.hpp"
 

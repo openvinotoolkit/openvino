@@ -6,7 +6,6 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/scatter_elements_update.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 

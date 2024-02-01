@@ -94,7 +94,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ov::op::v1::ConvolutionBackpropData::get_type_info_static()) {
@@ -106,7 +106,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
                                                                          weights,
@@ -125,7 +125,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
                                                                               weights,

@@ -7,7 +7,6 @@
 #include "element_visitor.hpp"
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/eye.hpp"
 
 namespace ov {

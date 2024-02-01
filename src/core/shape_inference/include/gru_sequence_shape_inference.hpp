@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/gru_sequence.hpp>
-
+#include "openvino/op/gru_sequence.hpp"
 #include "rnn_base_shape_inference.hpp"
 #include "utils.hpp"
 

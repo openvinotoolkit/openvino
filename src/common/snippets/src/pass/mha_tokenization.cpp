@@ -14,7 +14,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 
 namespace {
@@ -288,9 +288,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         int64_t axis = 0;
         const auto rank = interm_op->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(interm_op)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ov::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axis = ov::util::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
         } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(interm_op)) {
             axis = softmax_v1->get_axis();
         } else {
