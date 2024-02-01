@@ -17,8 +17,8 @@
 #include <tuple>
 
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
@@ -65,7 +65,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
-                                             const op::PadType auto_pad,
+                                             const ov::op::PadType auto_pad,
                                              Strides& strides,
                                              Strides& dilations,
                                              CoordinateDiff& pads_begin,
@@ -150,7 +150,7 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       const Shape& output_shape,
                                       const Strides& strides,
                                       const Strides& dilations,
-                                      const op::PadType auto_pad_type,
+                                      const ov::op::PadType auto_pad_type,
                                       const CoordinateDiff& output_padding,
                                       CoordinateDiff& pads_begin,
                                       CoordinateDiff& pads_end);

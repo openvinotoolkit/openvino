@@ -11,6 +11,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;
