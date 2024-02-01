@@ -6,19 +6,23 @@
 
 #include "execution_graph_tests/disable_lowering_precision.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 using namespace ExecutionGraphTests;
 using namespace InferenceEngine;
 
 namespace {
 
-const std::vector<ExecGraphDisableLowingPrecisionSpecificParams> InferPrecisionFP16DisableTestCommonParams = {
-    {true,  "CPU"},
-    {false, "CPU"},
+const std::vector<ExecGraphDisableLoweringPrecisionSpecificParams> disableLoweringPrecisionTestParams = {
+    {true,  "CPU", "bf16"},
+    {false, "CPU", "bf16"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphDisableLoweringPrecision,
-                                ::testing::ValuesIn(InferPrecisionFP16DisableTestCommonParams),
+                                // Only run tests on CPU with avx512_core ISA
+                                ::testing::ValuesIn(ov::with_cpu_x86_avx512_core() ?
+                                                        disableLoweringPrecisionTestParams :
+                                                        std::vector<ExecGraphDisableLoweringPrecisionSpecificParams>{}),
                         ExecGraphDisableLoweringPrecision::getTestCaseName);
 
 }  // namespace

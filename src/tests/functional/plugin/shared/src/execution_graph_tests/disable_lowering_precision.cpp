@@ -19,22 +19,24 @@
 #include "execution_graph_tests/disable_lowering_precision.hpp"
 #include "ie/ie_plugin_config.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "openvino/runtime/system_conf.hpp"
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLowingPrecisionSpecificParams> obj) {
+std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj) {
     std::ostringstream result;
     bool disableLoweringPrecision;
     std::string targetDevice;
-    std::tie(disableLoweringPrecision, targetDevice) = obj.param;
+    std::string loweringPrecision;
+
+    std::tie(disableLoweringPrecision, targetDevice, loweringPrecision) = obj.param;
     result << "matmul_disable_lowingprecision=" << disableLoweringPrecision << "_";
-    result << "device=" << targetDevice;
+    result << "device=" << targetDevice << "_";
+    result << "loweringPrecision=" << loweringPrecision;
     return result.str();
 }
 
 void ExecGraphDisableLoweringPrecision::SetUp() {
-    std::tie(disableLoweringPrecision, targetDevice) =  this->GetParam();
+    std::tie(disableLoweringPrecision, targetDevice, loweringPrecision) =  this->GetParam();
     create_model();
 }
 
@@ -69,17 +71,10 @@ void ExecGraphDisableLoweringPrecision::create_model() {
 
 void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     ov::CompiledModel compiledModel;
-    std::string loweringPrecision;
     auto core = ov::test::utils::PluginCache::get().core();
-    if (targetDevice == "CPU") {
-        compiledModel = core->compile_model(funcPtr, targetDevice,
-                                ov::hint::inference_precision(ov::element::bf16));
-        loweringPrecision = "bf16";
-    } else {
-        compiledModel = core->compile_model(funcPtr, targetDevice,
-                            ov::hint::inference_precision(ov::element::f16));
-        loweringPrecision = "f16";
-    }
+    ov::element::Type hintPrecision = loweringPrecision == "bf16" ? ov::element::bf16 : ov::element::f16;
+    compiledModel = core->compile_model(funcPtr, targetDevice,
+                                    ov::hint::inference_precision(hintPrecision));
     const auto runtime_model = compiledModel.get_runtime_model();
     ASSERT_NE(nullptr, runtime_model);
     auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
@@ -89,8 +84,10 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     };
     std::string matmulPrecision;
     for (const auto &node : runtime_model->get_ops()) {
-        if (getExecValue(node->get_rt_info(), ov::exec_model_info::ORIGINAL_NAMES) == "Matmul0") {
+        const auto origName = getExecValue(node->get_rt_info(), ov::exec_model_info::ORIGINAL_NAMES);
+        if (origName.find("Matmul0") != std::string::npos) {
             matmulPrecision = getExecValue(node->get_rt_info(), ov::exec_model_info::RUNTIME_PRECISION);
+            break;
         }
     }
     ASSERT_TRUE(!matmulPrecision.empty());
@@ -101,9 +98,6 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
 }
 
 TEST_P(ExecGraphDisableLoweringPrecision, CheckRuntimePrecision) {
-    // Only run tests on CPU with avx512_core ISA
-    if (targetDevice == "CPU" && !ov::with_cpu_x86_avx512_core())
-        GTEST_SKIP();
     checkInferPrecision();
 }
 }  // namespace ExecutionGraphTests
