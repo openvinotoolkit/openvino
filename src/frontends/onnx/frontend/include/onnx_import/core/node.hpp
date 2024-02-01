@@ -130,36 +130,32 @@ template <>
 Graph Node::get_attribute_value(const std::string& name, Graph default_value) const;
 
 template <>
-std::vector<float> Node::get_attribute_value(const std::string& name,
-                                                               std::vector<float> default_value) const;
+std::vector<float> Node::get_attribute_value(const std::string& name, std::vector<float> default_value) const;
 
 template <>
-std::vector<double> Node::get_attribute_value(const std::string& name,
-                                                                std::vector<double> default_value) const;
+std::vector<double> Node::get_attribute_value(const std::string& name, std::vector<double> default_value) const;
 
 template <>
 std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
-                                                                      std::vector<std::int64_t> default_value) const;
+                                                    std::vector<std::int64_t> default_value) const;
 
 template <>
 std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
-                                                                     std::vector<std::size_t> default_value) const;
+                                                   std::vector<std::size_t> default_value) const;
 
 template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name,
-                                                                     std::vector<std::string> default_value) const;
+                                                   std::vector<std::string> default_value) const;
 
 template <>
-std::vector<Tensor> Node::get_attribute_value(const std::string& name,
-                                                                std::vector<Tensor> default_value) const;
+std::vector<Tensor> Node::get_attribute_value(const std::string& name, std::vector<Tensor> default_value) const;
 
 template <>
 std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
-                                                                      std::vector<SparseTensor> default_value) const;
+                                                    std::vector<SparseTensor> default_value) const;
 
 template <>
-std::vector<Graph> Node::get_attribute_value(const std::string& name,
-                                                               std::vector<Graph> default_value) const;
+std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const;
 
 template <>
 float Node::get_attribute_value(const std::string& name) const;
@@ -219,72 +215,65 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     ov::element::Type type) const;
 
 template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(
-    const std::string& name,
-    std::vector<int64_t> default_value) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant>
-Node::get_attribute_as_constant(const std::string& name, std::vector<int64_t> default_value, ov::element::Type type) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
-    const std::string& name) const;
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      std::vector<int64_t> default_value) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        float default_value) const;
+                                                                      std::vector<int64_t> default_value,
+                                                                      ov::element::Type type) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        float default_value,
-                                                                                        ov::element::Type type) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(
-    const std::string& name,
-    ov::element::Type type) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
-    const std::string& name) const;
+                                                                      float default_value) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        double default_value) const;
+                                                                      float default_value,
+                                                                      ov::element::Type type) const;
 
 template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(
-    const std::string& name,
-    ov::element::Type type) const;
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name,
+                                                                             ov::element::Type type) const;
 
 template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        double default_value,
-                                                                                        ov::element::Type type) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
-    const std::string& name) const;
-
-template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
-    const std::string& name,
-    ov::element::Type type) const;
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        int64_t default_value) const;
+                                                                      double default_value) const;
 
 template <>
-std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(
-    const std::string& name,
-    ov::element::Type type) const;
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name,
+                                                                              ov::element::Type type) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
-                                                                                        int64_t default_value,
-                                                                                        ov::element::Type type) const;
+                                                                      double default_value,
+                                                                      ov::element::Type type) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name,
+                                                                               ov::element::Type type) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      int64_t default_value) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name,
+                                                                               ov::element::Type type) const;
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
+                                                                      int64_t default_value,
+                                                                      ov::element::Type type) const;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
