@@ -4,6 +4,8 @@
 
 #include "conv.h"
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
 #include "common/primitive_desc.hpp"
@@ -627,7 +629,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     bool isINT8 = canBeExecutedInInt8();
     // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
@@ -706,8 +708,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr();
-                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr();
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 0);
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 1);
 
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as DW convolution");
                 // todo: rewrite onto append_dw_k3s2p1
@@ -1205,8 +1207,8 @@ bool Convolution::isNspcAvailable() const {
 }
 
 void Convolution::prepareParams() {
-    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getOutputMemory();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory was not allocated.");
@@ -1216,7 +1218,7 @@ void Convolution::prepareParams() {
         OPENVINO_THROW("Weight memory was not allocated.");
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
-        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+        biasMemPtr = getSrcMemoryAtPort(2);
         if (!biasMemPtr || !biasMemPtr->isAllocated())
             OPENVINO_THROW("Input memory didn't allocate.");
     }
@@ -1505,16 +1507,16 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
                            getName());
         }
         const size_t sumPortNum = getParentEdges().size() - 1;
-        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         auto inp1 = subgraph->getInput(1);
-        auto inp1Mem = inp1->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        auto inp1Mem = inp1->getDstMemoryAtPort(0);
         inp1Mem->getMemoryMngr()->setExtBuff(sumInpMem.getData(), sumInpMem.getSize());
 
         subgraph->infer();
 
         auto out = subgraph->getOutput(0);
-        const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
-        auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
+        const auto& outMem = out->getParentEdgeAt(0)->getMemory();
+        auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
         convOutMem->load(outMem);
     }
@@ -1531,7 +1533,7 @@ void Convolution::updatePadding() {
 void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (withSum) {
         const size_t sumPortNum = getParentEdges().size() - 1;
-        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
             if (!subgraph) {
@@ -1588,9 +1590,9 @@ MemoryPtr Convolution::getOutputMemory() const {
                            getName());
         }
         auto inp0 = subgraph->getInput(0);
-        return inp0->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        return inp0->getDstMemoryAtPort(0);
     } else {
-        return getChildEdgesAtPort(0).front()->getMemoryPtr();
+        return getDstMemoryAtPort(0);
     }
 }
 
@@ -1604,7 +1606,7 @@ void Convolution::addFusedNode(const NodePtr &fusingNode) {
         }
         if (withSum && isDynamicNode()) {
             for (size_t i = 0; i < fusingNode->getParentEdges().size(); ++i) {
-                auto edge = fusingNode->getParentEdgesAtPort(i).front();
+                auto edge = fusingNode->getParentEdgeAt(i);
                 auto parent = edge->getParent();
                 if ("Constant" == parent->getTypeStr()) {
                     fusedConstNodes[fusingNode].push_back(parent);

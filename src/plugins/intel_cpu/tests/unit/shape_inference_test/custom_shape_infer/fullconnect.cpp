@@ -3,6 +3,8 @@
 //
 
 #include <gtest/gtest.h>
+
+#include "openvino/op/parameter.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "custom_shape_infer.hpp"
 namespace ov {

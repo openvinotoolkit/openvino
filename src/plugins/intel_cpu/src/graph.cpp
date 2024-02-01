@@ -210,15 +210,15 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     for (auto &output : outputNodesMap) {
         const auto& outputNode = output.second;
         const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
-        const auto parentEdges = outputNode->getParentEdgesAtPort(0);
-        for (size_t i = 0; i < parentEdges.size(); i++) {
-            const auto parent = parentEdges[i]->getParent();
-            parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
-        }
+        const auto parentEdge = outputNode->getParentEdgeAt(0);
+        const auto parent = parentEdge->getParent();
+        parent->setOriginalOutputPrecisionAtPort(parentEdge->getInputNum(), precToSet);
     }
 }
 
-void Graph::InitGraph() {
+void Graph::InitGraph(bool optimize) {
+    DEBUG_LOG("Initializing graph with name: ",  GetName());
+
     GraphOptimizer optimizer;
 
     SortTopologically();
@@ -238,7 +238,7 @@ void Graph::InitGraph() {
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
-    const bool hasDynNodes = ProcessDynNodes();
+    const auto hasDynNodes = ProcessDynNodes();
 
     Allocate();
 
@@ -254,6 +254,8 @@ void Graph::InitGraph() {
     SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
+
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 void Graph::InitNodes() {
@@ -473,7 +475,7 @@ void Graph::ResolveEdgeConflicts() {
                                           inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                       convertName, context);
+                                                                   convertName, context);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
 
@@ -1284,6 +1286,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
 }
 
 void Graph::Infer(SyncInferRequest* request) {
+    DEBUG_LOG("Starting inference of the graph: ", GetName(), ". Status: ", static_cast<int>(status));
     if (!IsReady()) {
         OPENVINO_THROW("Wrong state of the ov::intel_cpu::Graph. Topology is not ready.");
     }
@@ -1336,41 +1339,21 @@ void Graph::SortTopologically() {
     for (size_t i = 0; i < graphNodes.size(); i++)
         graphNodes[i]->execIndex = static_cast<int>(i);
 
-    // TODO: Sort in/out edges by port index because of backward compatibility
-    //       A lot of plugin logic are build on top of assumption that index in
-    //       vector childEdges/parentEdges is port number. But that is not
-    //       truth anymore. But to keep old logic correct need to simulate ordering.
-    //
-    // Make first N (N == port_num) edge indexes are matched with port index
+    // Sort in / out child edges by port index
+    // Make first N (N == port_num) edge indexes match with port index
     for (auto &node : graphNodes) {
-        {
-            int port_num = node->inputShapes.size();
-            std::vector<EdgePtr> res(port_num);
+        int port_num = node->outputShapes.size();
+        std::vector<EdgePtr> res(port_num);
 
-            for (size_t i = 0; i < node->parentEdges.size(); i++) {
-                auto edge = node->getParentEdgeAt(i);
-                int port = edge->getOutputNum();
-                if (port < port_num && !res[port])
-                    res[port] = edge;
-                else
-                    res.push_back(edge);
-            }
-            node->parentEdges = {res.begin(), res.end()};
+        for (size_t i = 0; i < node->childEdges.size(); i++) {
+            auto edge = node->getChildEdgeAt(i);
+            int port = edge->getInputNum();
+            if (port < port_num && !res[port])
+                res[port] = edge;
+            else
+                res.push_back(edge);
         }
-        {
-            int port_num = node->outputShapes.size();
-            std::vector<EdgePtr> res(port_num);
-
-            for (size_t i = 0; i < node->childEdges.size(); i++) {
-                auto edge = node->getChildEdgeAt(i);
-                int port = edge->getInputNum();
-                if (port < port_num && !res[port])
-                    res[port] = edge;
-                else
-                    res.push_back(edge);
-            }
-            node->childEdges = {res.begin(), res.end()};
-        }
+        node->childEdges = {res.begin(), res.end()};
     }
 }
 
@@ -1408,10 +1391,6 @@ void Graph::CreateEdge(const NodePtr& parent,
                        int parentPort,
                        int childPort) {
     assert(parentPort >= 0 && childPort >= 0);
-    assert(std::none_of(child->getParentEdges().begin(), child->getParentEdges().end(),
-                        [&childPort](const EdgeWeakPtr& edge){
-                            return edge.lock()->getOutputNum() == childPort;
-                        }));
 
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
 
@@ -1521,31 +1500,30 @@ void Graph::RemoveDroppedEdges() {
                      graphEdges.end());
 }
 
-NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
-                                         bool isOptimized, const std::vector<int> & src_perm) {
-    NodePtr newReorder(new node::Reorder(layerName, context));
-    auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
-    if (reorderPtr == nullptr) {
-        OPENVINO_THROW("Graph::InsertReorder: Cannot cast to Reorder");
-    }
-    reorderPtr->setDescs(inDesc, outDesc);
-    reorderPtr->setOptimized(isOptimized);
-    reorderPtr->setSrcPermutation(src_perm);
+NodePtr Graph::InsertReorder(EdgePtr edge,
+                             std::string layerName,
+                             const MemoryDesc& inDesc,
+                             const MemoryDesc& outDesc,
+                             bool isOptimized,
+                             const std::vector<int> & src_perm) {
+    auto reorder = std::make_shared<node::Reorder>(inDesc, outDesc, layerName, context);
+    reorder->setOptimized(isOptimized);
+    reorder->setSrcPermutation(src_perm);
 
-    DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
+    DEBUG_LOG(reorder->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
     DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().get_type_name(), " ", inDesc.serializeFormat());
     DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().get_type_name(), " ", outDesc.serializeFormat());
 
-    InsertNode(edge, newReorder, true);
+    InsertNode(edge, reorder, true);
 
     // Using the method Edge::getDesc() we can check that input and output tensor descriptors are equal.
     // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do these checks.
     if (!isOptimized) {
-        newReorder->getParentEdgeAt(0)->getDesc();
-        newReorder->getChildEdgeAt(0)->getDesc();
+        reorder->getParentEdgeAt(0)->getDesc();
+        reorder->getChildEdgeAt(0)->getDesc();
     }
 
-    return newReorder;
+    return reorder;
 }
 
 bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
@@ -1662,7 +1640,7 @@ void Graph::EnforceInferencePrecision() {
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
-                const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
+                const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
                  * Element type conversion to bf16 is done automatically, if convolution follows up after Constant Inputs
                  * and activation is bf16 */
@@ -1705,7 +1683,7 @@ void Graph::EnforceInferencePrecision() {
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
-            const auto &child = node->getChildEdgesAtPort(i)[0]->getChild();
+            const auto &child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
                 continue;
 
@@ -1818,7 +1796,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                 // the parent node does not use inPlace memory, let's check children
                 std::function<InplaceDirectionType(const NodePtr& node, int portIdx)> searchNonCyclicDirection;
                 searchNonCyclicDirection = [&](const NodePtr& node, int portIdx) -> InplaceDirectionType {
-                    auto& childEdges = node->getChildEdgesAtPort(portIdx);
+                    auto childEdges = node->getChildEdgesAtPort(portIdx);
                     for (auto& edge : childEdges) {
                         auto pChild = edge->getChild();
                         auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
