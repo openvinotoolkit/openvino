@@ -282,14 +282,16 @@ public:
 };
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
+    InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool hasShapeOf;
+    ElementType qkvType;
+    std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+    if (qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    if (configuration[ov::hint::inference_precision.name()] == ov::element::bf16) {
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 5);
-    } else {
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    }
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
@@ -303,11 +305,61 @@ namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
     {// inputShapes ChatGLM, greedy search
      {
-         // L1, B, H, S
-         {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {20, 1, 8, 64}, {1, 1, 8, 64}}},
-         {{-1, 1, 2, 64}, {{10, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {20, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L1, B, H, S small odd 1st token length < M_blk
+         {{-1, 1, 8, 64}, {{5, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{5, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
          // L0, B, H, S
-         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {10, 1, 2, 64}, {11, 1, 2, 64}, {12, 1, 2, 64}, {32, 1, 2, 64}}},
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {6, 1, 2, 64}, {7, 1, 2, 64}, {8, 1, 2, 64}, {9, 1, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+    {// inputShapes ChatGLM, greedy search
+     {
+         // L1, B, H, S small even 1st token length < M_blk
+         {{-1, 1, 8, 64}, {{16, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{16, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {17, 1, 2, 64}, {18, 1, 2, 64}, {19, 1, 2, 64}, {20, 1, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+    {// inputShapes ChatGLM, greedy search
+     {
+         // L1, B, H, S odd 1st token length > M_blk
+         {{-1, 1, 8, 64}, {{33, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{33, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {34, 1, 2, 64}, {35, 1, 2, 64}, {36, 1, 2, 64}, {37, 1, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+    {// inputShapes ChatGLM, greedy search
+     {
+         // L1, B, H, S even 1st token length = M_blk
+         {{-1, 1, 8, 64}, {{32, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{32, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {33, 1, 2, 64}, {34, 1, 2, 64}, {35, 1, 2, 64}, {36, 1, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+    {// inputShapes ChatGLM, even 1st token greedy search
+     {
+         // L1, B, H, S even 1st token length = 2 * M_blk
+         {{-1, 1, 8, 64}, {{64, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{64, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {65, 1, 2, 64}, {66, 1, 2, 64}, {67, 1, 2, 64}, {68, 1, 2, 64}}},
+     },
+     // transposeOrder
+     {1, 2, 0, 3}},
+    {// inputShapes ChatGLM, even 1st token greedy search
+     {
+         // L1, B, H, S odd 1st token length > 2 * M_blk
+         {{-1, 1, 8, 64}, {{65, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+         {{-1, 1, 2, 64}, {{65, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}, {1, 1, 2, 64}}},
+         // L0, B, H, S
+         {{-1, 1, 2, 64}, {{0, 1, 2, 64}, {66, 1, 2, 64}, {67, 1, 2, 64}, {68, 1, 2, 64}, {69, 1, 2, 64}}},
      },
      // transposeOrder
      {1, 2, 0, 3}},
@@ -323,10 +375,9 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
      {1, 2, 0, 3}},
 }};
 
-// TODO: BF16 test is disabled due to CI machine limitation
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
