@@ -9,9 +9,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 
-using namespace ngraph;
 using namespace ov;
-OPENVINO_SUPPRESS_DEPRECATED_START;
+using namespace ov::test::utils;
 
 using ov::op::v0::Constant;
 using ov::op::v0::Convert;

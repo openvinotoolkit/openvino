@@ -4,24 +4,13 @@
 
 #pragma once
 
-#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
-#    define NGRAPH_LEGACY_HEADER_INCLUDED
-#    ifdef _MSC_VER
-#        pragma message( \
-            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    else
-#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    endif
-#endif
-
-#include <memory>
-
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace test {
+namespace utils {
 /// \brief Creates a "specialized" clone of a function. The partial shapes and element types of
 ///        the function's parameters may be narrowed to more specific shapes and element type
 ///        and constant values may optionally be substituted for any or all of the parameters.
@@ -104,12 +93,10 @@ namespace ngraph {
 ///       which a Constant node with element type parameter_element_types[i] and shape
 ///       parameter_shapes[i] can be created.
 ///
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-OPENVINO_API
-std::shared_ptr<ov::Model> specialize_function(std::shared_ptr<ov::Model> f,
+std::shared_ptr<ov::Model> specialize_function(std::shared_ptr<ov::Model> model,
                                                const std::vector<ov::element::Type>& parameter_element_types,
                                                const std::vector<ov::PartialShape>& parameter_shapes,
                                                const std::vector<void*>& parameter_values);
-}  // namespace ngraph
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
