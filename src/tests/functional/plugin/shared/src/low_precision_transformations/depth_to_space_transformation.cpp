@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "low_precision_transformations/depth_to_space_transformation.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/depth_to_space.hpp"
