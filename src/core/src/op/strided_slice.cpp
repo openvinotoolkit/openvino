@@ -11,7 +11,6 @@
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
