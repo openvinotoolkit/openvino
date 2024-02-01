@@ -185,7 +185,7 @@ public:
     virtual void AddExtension(const std::shared_ptr<IExtension>& extension);
 
     /**
-     * @brief Sets configuration for plugin, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief Sets configuration for plugin, acceptable keys can be found in properties.hpp
      * @param config string-string map of config parameters
      */
     virtual void SetConfig(const std::map<std::string, std::string>& config);
