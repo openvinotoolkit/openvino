@@ -26,7 +26,6 @@
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_input_info.hpp"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
