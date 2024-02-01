@@ -76,7 +76,7 @@ def tensor_to_int_list(tensor):
 
 def to_partial_shape(shape):
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf  # pylint: disable=import-error
         if isinstance(shape, tf.Tensor):
             return PartialShape(tensor_to_int_list(shape))
         if isinstance(shape, tf.TensorShape):
@@ -92,7 +92,7 @@ def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(value, (tf.TensorShape, tf.Tensor)):
             return True
     if 'paddle' in sys.modules:
