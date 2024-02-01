@@ -12,7 +12,7 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 
    Note that the ZYPPER distribution:
 
-   * offers both C/C++ and Python APIs
+   * C/C++ API
    * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
