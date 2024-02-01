@@ -13,7 +13,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/fuse_convert.hpp"
