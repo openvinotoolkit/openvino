@@ -15,7 +15,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
@@ -47,7 +46,7 @@ void FullyConnectedTransformation::SetUp() {
 
     init_input_shapes({ shapes.inputA, shapes.inputB });
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         shapes.inputA,
         shapes.inputB,

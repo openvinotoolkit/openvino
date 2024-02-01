@@ -3,7 +3,6 @@
 //
 
 #include "include/auto_unit_test.hpp"
-
 using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>>;
@@ -50,7 +49,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
 
     if (targetDevices.size() == 1) {
         std::string targetDevice = targetDevices[0];
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDevices[0]});
+        config.insert({ov::device::priorities.name(), targetDevices[0]});
         // Call single device logic and performance hint is THROUGHPUT
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -95,7 +94,7 @@ TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
     std::tie(targetDevices) = this->GetParam();
 
     plugin->set_device_name("AUTO");
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+    config.insert({{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}});
     config.insert(ov::device::priorities(targetDevices[0]));
     // Call single device logic and performance hint is THROUGHPUT
     ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
@@ -175,13 +174,13 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+    config.insert({{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}});
     config.insert(ov::device::priorities(targetDev));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        .WillByDefault(Throw(ov::Exception{"GeneralError"}));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

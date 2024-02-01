@@ -46,7 +46,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "u8"
     },
@@ -76,7 +76,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "f32"
     }
@@ -125,7 +125,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "u8"
     },
@@ -155,7 +155,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "f32"
     }

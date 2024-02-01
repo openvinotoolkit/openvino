@@ -11,7 +11,7 @@
 namespace LayerTestsDefinitions {
 class AssignAndReadValueTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
 typedef std::tuple <

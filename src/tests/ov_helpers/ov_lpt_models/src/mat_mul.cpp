@@ -9,12 +9,11 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -117,14 +116,13 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     return function;
 }
 
-std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
-    const element::Type netPrecision,
-    const ov::PartialShape& inputShape1,
-    const ov::element::Type precisionBeforeDequantization1,
-    const DequantizationOperations& dequantization1,
-    const ov::PartialShape& inputShape2,
-    const ov::element::Type precisionBeforeDequantization2,
-    const DequantizationOperations& dequantization2) {
+std::shared_ptr<ov::Model> MatMulFunction::getOriginal(const ov::element::Type netPrecision,
+                                                       const ov::PartialShape& inputShape1,
+                                                       const ov::element::Type precisionBeforeDequantization1,
+                                                       const DequantizationOperations& dequantization1,
+                                                       const ov::PartialShape& inputShape2,
+                                                       const ov::element::Type precisionBeforeDequantization2,
+                                                       const DequantizationOperations& dequantization2) {
     if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
         throw std::runtime_error("unexpected input arguments for branch 1");
     }
@@ -236,9 +234,10 @@ std::shared_ptr<ov::Model> MatMulFunction::getReference(
     auto dequantization2Op = makeDequantization(input2, deqSructure2);
 
     std::shared_ptr<ov::opset1::MatMul> matMul = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MatMul>>(
-        std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{ element::f32 },
-        ov::op::TemporaryReplaceOutputType(dequantization1Op, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(dequantization2Op, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(dequantization1Op, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization2Op, ov::element::f32).get(),
         false,
         false);
 
@@ -275,9 +274,10 @@ std::shared_ptr<ov::Model> MatMulFunction::getReference(
         weights.values);
 
     const std::shared_ptr<ov::opset1::MatMul> matMul = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MatMul>>(
-        std::vector<ov::element::Type>{ element::f32, element::f32 }, std::vector<ov::element::Type>{},
-        ov::op::TemporaryReplaceOutputType(lastDequantizationBefore, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weightsConst, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{},
+        ov::op::TemporaryReplaceOutputType(lastDequantizationBefore, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weightsConst, ov::element::f32).get(),
         false,
         false);
     matMul->set_friendly_name("matMul");
@@ -340,4 +340,4 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

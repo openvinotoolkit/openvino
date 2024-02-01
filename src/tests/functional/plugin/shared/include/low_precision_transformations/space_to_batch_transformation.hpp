@@ -18,7 +18,7 @@ public:
     std::vector<size_t> block_shape;
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
-    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
+    ov::builder::subgraph::FakeQuantizeOnData fake_quantize;
     std::string layer_type;
     std::string expected_kernel_type;
 };

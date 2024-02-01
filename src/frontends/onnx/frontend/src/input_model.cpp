@@ -237,7 +237,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return element::undefined;
+    return ov::element::undefined;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -516,7 +516,7 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
     const auto find_input_by_tensor_name = [&model_inputs](const std::string& name) {
         return std::find_if(std::begin(model_inputs),
                             std::end(model_inputs),
-                            [&name](const OutputVector::value_type& input) {
+                            [&name](const ov::OutputVector::value_type& input) {
                                 return input.get_names().count(name) > 0;
                             });
     };
@@ -536,7 +536,7 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
 
     const auto& inputs = model->inputs();
     const auto is_input_name = [&inputs](const std::string& name) {
-        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {
+        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const ov::OutputVector::value_type& input) {
                    return input.get_names().count(name) > 0;
                }) != std::end(inputs);
     };

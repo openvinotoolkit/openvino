@@ -20,6 +20,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -601,14 +602,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             plugin.set_core(mutableCore);
         }
 
-        // Add registered extensions to new plugin
-        allowNotImplemented([&]() {
-            auto old_extensions = ov::legacy_convert::convert_extension(extensions);
-            for (const auto& ext : old_extensions) {
-                plugin.add_extension(ext);
-            }
-        });
-
         // configuring
         {
 #ifdef PROXY_PLUGIN_ENABLED
@@ -691,12 +684,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // set global device-id independent settings to plugin
                 plugin.set_property(desc.defaultConfig);
             });
-
-            allowNotImplemented([&]() {
-                for (auto&& extensionLocation : desc.listOfExtentions) {
-                    plugin.add_extension(std::make_shared<InferenceEngine::Extension>(extensionLocation));
-                }
-            });
         }
 
         // add plugin as extension itself
@@ -711,7 +698,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
@@ -980,7 +966,8 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
 }
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
-                                                const ov::AnyMap& user_properties) const {
+                                                const ov::AnyMap& user_properties,
+                                                const bool keep_core_property) const {
     if (is_virtual_device(full_device_name)) {
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
@@ -1015,7 +1002,10 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
-    std::vector<std::string> supported_config_keys = core_level_properties;
+    std::vector<std::string> supported_config_keys;
+    if (keep_core_property) {
+        supported_config_keys = core_level_properties;
+    }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
@@ -1134,7 +1124,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         const auto& mode = config.find(ov::hint::performance_mode.name());
         bool bTputInLoadCfg = (mode != config.end() &&
                                mode->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT);
-        const auto& excl = config.find(ov::exclusive_async_requests.name());
+        const auto& excl = config.find(ov::internal::exclusive_async_requests.name());
         bool bExclReqsEnabled = (excl != config.end() && excl->second.as<bool>() == true);
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
             return model;
@@ -1558,24 +1548,6 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     return compile_config;
 }
 
-void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
-    std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
-    for (const auto& it : opsets) {
-        if (opsetNames.find(it.first) != opsetNames.end())
-            IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
-        opsetNames.insert(it.first);
-    }
-
-    // add extensions for already created plugins
-    for (auto& plugin : plugins) {
-        allowNotImplemented([&]() {
-            plugin.second.add_extension(extension);
-        });
-    }
-    for (const auto& ext : ov::legacy_convert::convert_extension({extension}))
-        extensions.emplace_back(ext);
-}
-
 void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
     auto it = config.find(ov::cache_dir.name());
     if (it != config.end()) {
@@ -1648,7 +1620,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
-        FileUtils::createDirectoryRecursive(dir);
+        ov::util::create_directory_recursive(dir);
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
