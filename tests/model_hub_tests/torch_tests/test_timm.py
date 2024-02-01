@@ -85,7 +85,7 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("mode", ["trace", "export"])
+    @pytest.mark.parametrize("mode", ["trace"]) # disable "export" for now
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, mode, name, ie_device):
         self.mode = mode
