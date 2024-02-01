@@ -20,6 +20,8 @@
 #include "shape_inference/custom/gather.hpp"
 #include "utils/ngraph_utils.hpp"
 #include "snippets/utils.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 
