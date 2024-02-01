@@ -157,6 +157,10 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
 }
 
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");

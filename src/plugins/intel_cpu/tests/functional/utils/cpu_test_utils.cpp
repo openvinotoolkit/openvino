@@ -470,10 +470,10 @@ ov::element::Type
 CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
                                              const ov::AnyMap& configuration) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return type;
+    return in_type;
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
-    return type;
+    return in_type;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     const std::string key = ov::hint::inference_precision.name();
