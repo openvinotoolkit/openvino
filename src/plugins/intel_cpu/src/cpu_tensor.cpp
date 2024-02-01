@@ -3,7 +3,10 @@
 //
 
 #include "cpu_tensor.h"
+
+#include "memory_desc/blocked_memory_desc.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

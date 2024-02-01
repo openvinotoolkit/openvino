@@ -6,9 +6,8 @@
 
 #include <memory>
 
-#include "common/memory.hpp"
 #include "cpu_memory.h"
-#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,8 +22,7 @@ public:
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {
-        auto mem = std::make_shared<Memory>(eng, md, mgrPtr);
-        return mem;
+        return std::make_shared<Memory>(eng, md, mgrPtr);
     }
 };
 

@@ -4,6 +4,8 @@
 
 #include "iml_type_mapper.h"
 #include <algorithm>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -129,5 +131,5 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
     return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov

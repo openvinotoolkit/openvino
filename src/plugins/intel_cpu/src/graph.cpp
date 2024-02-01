@@ -216,7 +216,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     }
 }
 
-void Graph::InitGraph() {
+void Graph::InitGraph(bool optimize) {
+    DEBUG_LOG("Initializing graph with name: ",  GetName());
+
     GraphOptimizer optimizer;
 
     SortTopologically();
@@ -236,7 +238,7 @@ void Graph::InitGraph() {
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
-    const bool hasDynNodes = ProcessDynNodes();
+    const auto hasDynNodes = ProcessDynNodes();
 
     Allocate();
 
@@ -252,6 +254,8 @@ void Graph::InitGraph() {
     SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
+
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 void Graph::InitNodes() {
@@ -1282,6 +1286,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
 }
 
 void Graph::Infer(SyncInferRequest* request) {
+    DEBUG_LOG("Starting inference of the graph: ", GetName(), ". Status: ", static_cast<int>(status));
     if (!IsReady()) {
         OPENVINO_THROW("Wrong state of the ov::intel_cpu::Graph. Topology is not ready.");
     }

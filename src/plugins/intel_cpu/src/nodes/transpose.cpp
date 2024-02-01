@@ -3,10 +3,12 @@
 //
 
 #include "transpose.h"
-#include "openvino/core/parallel.hpp"
+
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/constant.hpp"
+
 #include "nodes/common/reorder_prim.h"
 
-#include <algorithm>
 #include <string>
 #include "dnnl_extension_utils.h"
 #include "common/primitive_hashing_utils.hpp"
@@ -244,9 +246,7 @@ void Transpose::execute(dnnl::stream strm) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
 
-        int MB = srcMemPtr->getStaticDims()[0];
-
-        execPtr->exec({srcMemPtr}, {dstMemPtr}, MB);
+        execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
         OPENVINO_THROW("Could not execute Transpose node. Primitive was not created.");
     }

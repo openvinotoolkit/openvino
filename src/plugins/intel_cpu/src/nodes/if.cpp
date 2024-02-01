@@ -3,9 +3,13 @@
 //
 
 #include "if.h"
+
+#include "openvino/op/if.hpp"
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "transformations/utils/utils.hpp"
 
 #include <string>
 #include <vector>

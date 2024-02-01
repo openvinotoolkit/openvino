@@ -60,9 +60,12 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     return true;
 }
 
-void ACLConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
-    srcTensor.allocator()->import_memory(src->getData());
-    dstTensor.allocator()->import_memory(dst->getData());
+void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
+    assert(src.size() == 1);
+    assert(dst.size() == 1);
+
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
 
     if (isCopyOp) {
         acl_copy->run();

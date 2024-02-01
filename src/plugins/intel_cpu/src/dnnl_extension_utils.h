@@ -10,15 +10,18 @@
 
 #include <string>
 
+#include "cpu_types.h"
 #include "onednn/dnnl.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
 #include <common/c_types_map.hpp>
 
 namespace ov {
 namespace intel_cpu {
 
 class DnnlMemoryDesc;
+class DnnlBlockedMemoryDesc;
+class Shape;
 
 class DnnlExtensionUtils {
 public:

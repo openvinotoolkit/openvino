@@ -4,6 +4,8 @@
 
 #include "concat.h"
 
+#include "openvino/op/concat.hpp"
+
 #include <map>
 #include <utility>
 #include <vector>
@@ -14,11 +16,6 @@
 #include <edge.h>
 #include <cpu_memory.h>
 #include "openvino/core/parallel.hpp"
-#include "conv.h"
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "eltwise.h"
-#include <limits>
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>

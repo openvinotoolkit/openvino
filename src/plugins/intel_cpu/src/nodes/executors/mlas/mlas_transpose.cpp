@@ -270,7 +270,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
     }
 }
 
-void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     if (from > to) {
             TransposeSingleAxisOutwards(src[0], dst[0], from, to);
     } else {

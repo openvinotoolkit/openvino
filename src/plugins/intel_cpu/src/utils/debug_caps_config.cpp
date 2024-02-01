@@ -43,16 +43,16 @@ void DebugCapsConfig::readProperties() {
         blobDumpFormat = parseDumpFormat(envVarValue);
 
     if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID")))
-        blobDumpFilters[BY_EXEC_ID] = envVarValue;
+        blobDumpFilters[FILTER::BY_EXEC_ID] = envVarValue;
 
     if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS")))
-        blobDumpFilters[BY_PORTS] = envVarValue;
+        blobDumpFilters[FILTER::BY_PORTS] = envVarValue;
 
     if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE")))
-        blobDumpFilters[BY_TYPE] = envVarValue;
+        blobDumpFilters[FILTER::BY_TYPE] = envVarValue;
 
     if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME")))
-        blobDumpFilters[BY_NAME] = envVarValue;
+        blobDumpFilters[FILTER::BY_NAME] = envVarValue;
 
     if ((envVarValue = readEnv("OV_CPU_SUMMARY_PERF"))) {
         summaryPerf = envVarValue;

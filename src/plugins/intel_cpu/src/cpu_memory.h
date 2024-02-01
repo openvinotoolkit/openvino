@@ -4,8 +4,18 @@
 
 #pragma once
 
-#include "memory_desc/dnnl_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include <onednn/dnnl.h>
+#include <cpu_shape.h>
+
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+
+#include <memory>
+#include <mutex>
+#include <unordered_set>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.

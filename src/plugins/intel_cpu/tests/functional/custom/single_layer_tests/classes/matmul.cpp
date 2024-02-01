@@ -57,7 +57,7 @@ std::string MatMulLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Mat
     result << "trgDev=" << targetDevice;
     result << "config=(";
     for (const auto& configEntry : additionalConfig) {
-        result << configEntry.first << ", " << configEntry.second.as<std::string>() << ":";
+        result << configEntry.first << "=" << configEntry.second.as<std::string>() << "_";
     }
     result << ")";
     result << CpuTestWithFusing::getTestCaseName(fusingParams);

@@ -5,7 +5,8 @@
 #pragma once
 
 #include <cpu_memory.h>
-#include <cpu_shape.h>
+#include <openvino/core/node.hpp>
+#include <openvino/core/coordinate_diff.hpp>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
