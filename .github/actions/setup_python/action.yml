@@ -31,7 +31,10 @@ runs:
     - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
       name: Setup sudo and python3
       shell: bash
-      run: apt-get update && apt-get install -y sudo python3 # Needed for the deadsnakes action
+      run: apt-get update && apt-get install -y sudo python3 gpg-agent tzdata # Needed for the deadsnakes action
+      env:
+        DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+        TZ: "Europe/London" # to prevent tzdata from waiting user input
 
     - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
       name: Setup Python ${{ inputs.version }}
