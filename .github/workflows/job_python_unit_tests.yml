@@ -36,6 +36,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      PDM_PROJECT: ${{ github.workspace }}/install/tests/pyopenvino/tests
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
@@ -59,9 +60,9 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-          echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -v' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -v' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -v' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -vv' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt' || 'pdm install --frozen-lockfile -v -G tests' }}" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
@@ -107,7 +108,10 @@ jobs:
         run: |
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           #Initialize pdm environment
-            pdm install --frozen-lockfile -v -G tests -p ${OPENVINO_REPO}/src/bindings/python
+            #pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
+            pdm use -v ${{ env.PYTHON_VERSION }}
+            pdm lock -v --strategy no_cross_platform -G tests -p ${PDM_PROJECT}
+            pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
           fi
 
           # Install the core OV wheel
