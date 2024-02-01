@@ -53,7 +53,7 @@ endif()
 # currently only disable test_utils/RISCV64/filter_cpu_info.cpp
 if(NOT RISCV64)
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/RISCV64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/RISCV64)
 endif()
 
 MESSAGE(STATUS "EXCLUDED_SOURCE_PATHS:${EXCLUDED_SOURCE_PATHS}")

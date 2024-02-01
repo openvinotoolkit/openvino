@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/classes/softmax.hpp"
-#include "test_utils/cpu_test_utils.hpp"
+#include "custom/single_layer_tests/classes/softmax.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
