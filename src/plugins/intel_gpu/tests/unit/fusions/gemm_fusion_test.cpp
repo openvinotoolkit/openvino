@@ -118,6 +118,7 @@ public:
 #define CASE_GEMM_2IN_FP16_3 { { 1, 1, 64, 64 }, { 1, 1, 64, 64 } }, { 1, 1, 64, 64 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_4 { { 1, 2, 128, 64 }, { 1, 2, 64, 256 } }, { 1, 2, 128, 256 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5 { { 2, 3, 2, 2 }, { 2, 3, 2, 2 } }, { 2, 3, 2, 2 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_2IN_FP16_3D_1 { { 16, 8, 64 }, { 16, 64, 8 }, { 16, 1, 8 } }, { 16, 8, 8 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5D_1 { { 2, 3, 5, 6, 4 }, { 2, 3, 5, 4, 6} }, { 2, 3, 5, 6, 6 }, data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GEMM_2IN_FP16_6D_1 { { 2, 3, 2, 3, 5, 7 }, { 2, 3, 2, 3, 7, 5 } }, { 2, 3, 2, 3, 5, 5 }, data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
 
@@ -404,6 +405,53 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
     gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::prod },
     gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sub },
+}));
+
+class gemm_2in_dynamic_add : public gemm_2in_add {};
+TEST_P(gemm_2in_dynamic_add, add) {
+    auto p = GetParam();
+
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto eltwise_layout = get_output_layout(p);
+    auto eltwise_shape = ov::PartialShape::dynamic(eltwise_layout.get_partial_shape().size());
+    if (p.broadcast_kind == broadcast_kinds::batch)
+        eltwise_shape[0] = 1;
+    else if (p.broadcast_kind == broadcast_kinds::feature)
+        eltwise_shape[1] = 1;
+    eltwise_layout.set_partial_shape(eltwise_shape);
+
+    auto in_layout0 = get_input_layout(p, 0);
+    auto in_layout1 = get_input_layout(p, 1);
+
+    auto in0_pshape = ov::PartialShape::dynamic(p.in_shapes[0].size());
+    in0_pshape[2] = p.in_shapes[0][2];
+    auto in1_pshape = ov::PartialShape::dynamic(p.in_shapes[1].size());
+    in1_pshape[1] = p.in_shapes[1][1];
+
+    in_layout0.set_partial_shape(in0_pshape);
+    in_layout1.set_partial_shape(in1_pshape);
+
+    create_topologies(
+        input_layout("input0", in_layout0),
+        input_layout("input1", in_layout1),
+        input_layout("input2", eltwise_layout),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in0_pshape.size(), in1_pshape.size()),
+        eltwise("add_prim", { input_info("gemm_prim"), input_info("input2") }, p.eltwise_m, p.default_type),
+        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_dynamic_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::feature, eltwise_mode::sum },
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};
