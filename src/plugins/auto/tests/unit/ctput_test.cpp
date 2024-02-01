@@ -49,7 +49,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
 
     if (targetDevices.size() == 1) {
         std::string targetDevice = targetDevices[0];
-        config.insert(ov::device::priorities(targetDevices[0]));
+        config.insert(ov::device::priorities(targetDevice));
         // Call single device logic and performance hint is THROUGHPUT
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
