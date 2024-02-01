@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/single_op/pooling.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"

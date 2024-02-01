@@ -16,9 +16,9 @@ namespace LayerTestsDefinitions {
 class MatMulTransformationTestValues {
 public:
     ov::Shape inputShape1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ov::Shape inputShape2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
     std::string expectedKernelName;
     std::string expectedRuntimePrecision;
 };

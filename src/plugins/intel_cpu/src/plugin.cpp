@@ -4,15 +4,14 @@
 
 #include "plugin.h"
 
-#include "itt.h"
 #include "internal_properties.hpp"
+#include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-
+#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "performance_heuristics.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
@@ -212,7 +211,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
         const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                                    ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT,
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
@@ -293,14 +292,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = latency_hints;
     } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-        OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = tput_hints.first;
         config[ov::threading::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
         config[ov::threading::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
@@ -329,10 +322,6 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     } else {
         config.streamExecutorConfig.set_config_zero_stream();
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
@@ -630,6 +619,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -643,6 +633,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
@@ -709,10 +700,14 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::available_devices.name()),
                                                     RO_property(ov::range_for_async_infer_requests.name()),
                                                     RO_property(ov::range_for_streams.name()),
+                                                    RO_property(ov::execution_devices.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::type.name()),
+                                                    RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -729,6 +724,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -772,6 +768,24 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
+    } else if (name == ov::device::type) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+    } else if (name == ov::device::architecture) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return decltype(ov::device::architecture)::value_type{"intel64"};
+#elif defined(OPENVINO_ARCH_X86)
+        return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
+#endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

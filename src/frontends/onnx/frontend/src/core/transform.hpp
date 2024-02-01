@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace transform {
 
-static const std::vector<std::string> onnx_functions_to_expand = {"AffineGrid",
-                                                                  "Bernoulli",
-                                                                  "Celu",
-                                                                  "CenterCropPad",
-                                                                  "Gelu",
-                                                                  "NegativeLogLikelihoodLoss",
-                                                                  "SoftmaxCrossEntropyLoss",
-                                                                  "LayerNormalization"};
+static const std::vector<std::string> onnx_functions_to_expand =
+    {"AffineGrid", "Bernoulli", "Celu", "CenterCropPad", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///

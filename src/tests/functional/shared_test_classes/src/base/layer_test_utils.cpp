@@ -9,40 +9,15 @@
 
 #include <thread>
 
-#include "openvino/runtime/device_id_parser.hpp"
-#include <openvino/pass/serialize.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "ie_icore.hpp"
+#include "openvino/opsets/opset.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
-
-namespace {
-std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> getConstData(
-    const std::shared_ptr<ov::Model>& function) {
-    size_t numOutputs = function->get_output_size();
-    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
-    auto funcResults = function->get_results();
-    for (size_t i = 0; i < numOutputs; i++) {
-        outputs[i].first = funcResults[i]->get_element_type();
-        const auto& output = function->output(i).get_node_shared_ptr();
-        OPENVINO_ASSERT(output->inputs().size() == 1);
-        auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        OPENVINO_ASSERT(ov::op::util::is_constant(parrentNode),
-                        "Function was not fully folded to constant state!\n",
-                        "Parent node of one of results is not constant and has type ",
-                        parrentNode->get_type_name());
-
-        const auto data = std::dynamic_pointer_cast<ov::op::v0::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
-        const auto dataSize = ov::shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
-        outputs[i].second.resize(dataSize);
-        std::copy(data, data + dataSize, outputs[i].second.data());
-    }
-    return outputs;
-}
-}  // namespace
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
@@ -63,7 +38,7 @@ void LayerTestsCommon::Run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
+        functionRefs = function->clone();
         functionRefs->set_friendly_name("refFunction");
     }
 
@@ -104,61 +79,15 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    std::string output_name = ov::test::utils::generateTestFilePrefix();
-
-    std::string out_xml_path = output_name + ".xml";
-    std::string out_bin_path = output_name + ".bin";
-
-    ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
-    manager.run_passes(function);
-    function->validate_nodes_and_infer_types();
-
-    auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-            compare_functions(result.getFunction(), function, false, false, false,
-                              true,     // precision
-                              true);    // attributes
-
-    EXPECT_TRUE(success) << message;
-
-    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
-}
-
-void LayerTestsCommon::QueryNetwork() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    cnnNetwork = InferenceEngine::CNNNetwork(function);
-
-    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
-    std::set<std::string> expected;
-    for (auto&& node : function->get_ops()) {
-        expected.insert(node->get_friendly_name());
-    }
-
-    std::set<std::string> actual;
-    for (auto&& res : queryNetworkResult.supportedLayersMap) {
-        // compare with originally used device name
-        ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
-
-        actual.insert(res.first);
-    }
-    ASSERT_EQ(expected, actual);
-}
-
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                               const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
-                               float threshold, float abs_threshold) {
+void LayerTestsCommon::Compare(
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
+    float threshold,
+    float abs_threshold) {
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
         const auto &expected = expectedOutputs[outputIndex];
         const auto &actual = actualOutputs[outputIndex];
@@ -167,98 +96,142 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 }
 
 template <typename T_IE>
-inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                        const T_IE* actualBuffer, size_t size, float threshold, float abs_threshold) {
+inline void callCompare(const std::pair<ov::element::Type, std::vector<std::uint8_t>>& expected,
+                        const T_IE* actualBuffer,
+                        size_t size,
+                        float threshold,
+                        float abs_threshold) {
     auto expectedBuffer = expected.second.data();
     switch (expected.first) {
-        case ngraph::element::Type_t::boolean:
-        case ngraph::element::Type_t::u8:
-            LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::i8:
-            LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer),
-                                                    actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::u16:
-            LayerTestsCommon::Compare<T_IE, uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::i16:
-            LayerTestsCommon::Compare<T_IE, int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::u32:
-            LayerTestsCommon::Compare<T_IE, uint32_t>(reinterpret_cast<const uint32_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::i32:
-            LayerTestsCommon::Compare<T_IE, int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::u64:
-            LayerTestsCommon::Compare<T_IE, uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
-                                                      actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::i64:
-            LayerTestsCommon::Compare<T_IE, int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::bf16:
-            LayerTestsCommon::Compare<T_IE, ngraph::bfloat16>(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                                                              actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::f16:
-            LayerTestsCommon::Compare<T_IE, ngraph::float16>(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
-                                                             actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::f32:
-            LayerTestsCommon::Compare<T_IE, float>(reinterpret_cast<const float *>(expectedBuffer),
-                                                   actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::f64:
-            LayerTestsCommon::Compare<T_IE, double>(reinterpret_cast<const double *>(expectedBuffer),
-                                                   actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::i4: {
-            auto expectedOut = ngraph::helpers::convertOutputPrecision(
-                    expected.second,
-                    expected.first,
-                    ngraph::element::Type_t::i8,
-                    size);
-            LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedOut.data()),
-                                                    actualBuffer, size, threshold, abs_threshold);
-            break;
-        }
-        case ngraph::element::Type_t::u4: {
-            auto expectedOut = ngraph::helpers::convertOutputPrecision(
-                    expected.second,
-                    expected.first,
-                    ngraph::element::Type_t::u8,
-                    size);
-            LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedOut.data()),
-                                                     actualBuffer, size, threshold, abs_threshold);
-            break;
-        }
-        case ngraph::element::Type_t::dynamic:
-        case ngraph::element::Type_t::undefined:
-            LayerTestsCommon::Compare<T_IE, T_IE>(reinterpret_cast<const T_IE *>(expectedBuffer), actualBuffer, size, threshold, abs_threshold);
-            break;
-        default: FAIL() << "Comparator for " << expected.first << " precision isn't supported";
+    case ov::element::Type_t::boolean:
+    case ov::element::Type_t::u8:
+        LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t*>(expectedBuffer),
+                                                 actualBuffer,
+                                                 size,
+                                                 threshold,
+                                                 abs_threshold);
+        break;
+    case ov::element::Type_t::i8:
+        LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t*>(expectedBuffer),
+                                                actualBuffer,
+                                                size,
+                                                threshold,
+                                                abs_threshold);
+        break;
+    case ov::element::Type_t::u16:
+        LayerTestsCommon::Compare<T_IE, uint16_t>(reinterpret_cast<const uint16_t*>(expectedBuffer),
+                                                  actualBuffer,
+                                                  size,
+                                                  threshold,
+                                                  abs_threshold);
+        break;
+    case ov::element::Type_t::i16:
+        LayerTestsCommon::Compare<T_IE, int16_t>(reinterpret_cast<const int16_t*>(expectedBuffer),
+                                                 actualBuffer,
+                                                 size,
+                                                 threshold,
+                                                 abs_threshold);
+        break;
+    case ov::element::Type_t::u32:
+        LayerTestsCommon::Compare<T_IE, uint32_t>(reinterpret_cast<const uint32_t*>(expectedBuffer),
+                                                  actualBuffer,
+                                                  size,
+                                                  threshold,
+                                                  abs_threshold);
+        break;
+    case ov::element::Type_t::i32:
+        LayerTestsCommon::Compare<T_IE, int32_t>(reinterpret_cast<const int32_t*>(expectedBuffer),
+                                                 actualBuffer,
+                                                 size,
+                                                 threshold,
+                                                 abs_threshold);
+        break;
+    case ov::element::Type_t::u64:
+        LayerTestsCommon::Compare<T_IE, uint64_t>(reinterpret_cast<const uint64_t*>(expectedBuffer),
+                                                  actualBuffer,
+                                                  size,
+                                                  threshold,
+                                                  abs_threshold);
+        break;
+    case ov::element::Type_t::i64:
+        LayerTestsCommon::Compare<T_IE, int64_t>(reinterpret_cast<const int64_t*>(expectedBuffer),
+                                                 actualBuffer,
+                                                 size,
+                                                 threshold,
+                                                 abs_threshold);
+        break;
+    case ov::element::Type_t::bf16:
+        LayerTestsCommon::Compare<T_IE, ov::bfloat16>(reinterpret_cast<const ov::bfloat16*>(expectedBuffer),
+                                                      actualBuffer,
+                                                      size,
+                                                      threshold,
+                                                      abs_threshold);
+        break;
+    case ov::element::Type_t::f16:
+        LayerTestsCommon::Compare<T_IE, ov::float16>(reinterpret_cast<const ov::float16*>(expectedBuffer),
+                                                     actualBuffer,
+                                                     size,
+                                                     threshold,
+                                                     abs_threshold);
+        break;
+    case ov::element::Type_t::f32:
+        LayerTestsCommon::Compare<T_IE, float>(reinterpret_cast<const float*>(expectedBuffer),
+                                               actualBuffer,
+                                               size,
+                                               threshold,
+                                               abs_threshold);
+        break;
+    case ov::element::Type_t::f64:
+        LayerTestsCommon::Compare<T_IE, double>(reinterpret_cast<const double*>(expectedBuffer),
+                                                actualBuffer,
+                                                size,
+                                                threshold,
+                                                abs_threshold);
+        break;
+    case ov::element::Type_t::i4: {
+        auto expectedOut =
+            ngraph::helpers::convertOutputPrecision(expected.second, expected.first, ov::element::Type_t::i8, size);
+        LayerTestsCommon::Compare<T_IE, int8_t>(reinterpret_cast<const int8_t*>(expectedOut.data()),
+                                                actualBuffer,
+                                                size,
+                                                threshold,
+                                                abs_threshold);
+        break;
+    }
+    case ov::element::Type_t::u4: {
+        auto expectedOut =
+            ngraph::helpers::convertOutputPrecision(expected.second, expected.first, ov::element::Type_t::u8, size);
+        LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t*>(expectedOut.data()),
+                                                 actualBuffer,
+                                                 size,
+                                                 threshold,
+                                                 abs_threshold);
+        break;
+    }
+    case ov::element::Type_t::dynamic:
+    case ov::element::Type_t::undefined:
+        LayerTestsCommon::Compare<T_IE, T_IE>(reinterpret_cast<const T_IE*>(expectedBuffer),
+                                              actualBuffer,
+                                              size,
+                                              threshold,
+                                              abs_threshold);
+        break;
+    default:
+        FAIL() << "Comparator for " << expected.first << " precision isn't supported";
     }
     return;
 }
 
-void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                               const InferenceEngine::Blob::Ptr &actual,
+void LayerTestsCommon::Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>>& expected,
+                               const InferenceEngine::Blob::Ptr& actual,
                                float threshold,
                                float abs_threshold) {
     const auto &precision = actual->getTensorDesc().getPrecision();
     auto k =  static_cast<float>(expected.first.size()) / precision.size();
     // W/A for int4, uint4
-    if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
+    if (expected.first == ov::element::Type_t::u4 || expected.first == ov::element::Type_t::i4) {
         k /= 2;
-    } else if (expected.first == ngraph::element::Type_t::undefined || expected.first == ngraph::element::Type_t::dynamic) {
+    } else if (expected.first == ov::element::Type_t::undefined || expected.first == ov::element::Type_t::dynamic) {
         k = 1;
     }
     ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
@@ -296,10 +269,18 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
             callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold, abs_threshold);
             break;
         case InferenceEngine::Precision::BF16:
-            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold, abs_threshold);
+            callCompare<ov::bfloat16>(expected,
+                                      reinterpret_cast<const ov::bfloat16*>(actualBuffer),
+                                      size,
+                                      threshold,
+                                      abs_threshold);
             break;
         case InferenceEngine::Precision::FP16:
-            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold, abs_threshold);
+            callCompare<ov::float16>(expected,
+                                     reinterpret_cast<const ov::float16*>(actualBuffer),
+                                     size,
+                                     threshold,
+                                     abs_threshold);
             break;
         case InferenceEngine::Precision::FP32:
             callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold, abs_threshold);
@@ -312,8 +293,8 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     }
 }
 
-void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
-                               const InferenceEngine::Blob::Ptr &actual) {
+void LayerTestsCommon::Compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>>& expected,
+                               const InferenceEngine::Blob::Ptr& actual) {
     Compare(expected, actual, threshold);
 }
 
@@ -435,60 +416,8 @@ void LayerTestsCommon::Infer() {
     inferRequest.Infer();
 }
 
-void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
-}
-
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    ConvertRefsParams();
-    functionRefs->validate_nodes_and_infer_types();
-
-    auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-    auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
-    for (std::size_t i = 0; i < inputs.size(); ++i) {
-        const auto &input = inputs[i];
-        const auto inputSize = input->byteSize();
-
-        auto &referenceInput = referenceInputs[i];
-        referenceInput.resize(inputSize);
-
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
-        const auto buffer = lockedMemory.as<const std::uint8_t *>();
-        std::copy(buffer, buffer + inputSize, referenceInput.data());
-
-        refInputsTypes[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(memory->getTensorDesc().getPrecision());
-    }
-
-    const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
-    std::vector<ngraph::element::Type_t> convertType;
-    convertType.reserve(outputsInfo.size());
-    for (const auto &output : outputsInfo) {
-        convertType.push_back(
-            FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                output.second->getTensorDesc().getPrecision()));
-    }
-
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
-    switch (refMode) {
-        case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
-            break;
-        }
-        case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
-            expectedOutputs = getConstData(foldedFunc);
-            break;
-        }
-        case IE: {
-            // reference inference on device with other options and nGraph function has to be implemented here
-            break;
-        }
-    }
-
-    return expectedOutputs;
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
+    return {};
 }
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
@@ -500,141 +429,15 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
     return outputs;
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                               const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+void LayerTestsCommon::Compare(
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     Compare(expectedOutputs, actualOutputs, threshold);
 }
 
-void LayerTestsCommon::Validate() {
-    if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
-    }
-    auto expectedOutputs = CalculateRefs();
-    const auto &actualOutputs = GetOutputs();
+void LayerTestsCommon::Validate() {}
 
-    if (expectedOutputs.empty()) {
-        return;
-    }
-
-    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-    << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
-
-    Compare(expectedOutputs, actualOutputs);
-}
-
-std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
-    const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto execFunction = execGraph.getFunction();
-
-    for (const auto& op : execFunction->get_ops()) {
-        const auto name = op->get_friendly_name();
-        if (name == layerName) {
-            const auto& rtInfo = op->get_rt_info();
-            const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
-            return it->second.as<std::string>();
-        }
-    }
-
-    return "";
-}
-
-std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layerType) {
-    const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto execFunction = execGraph.getFunction();
-
-    for (const auto& op : execFunction->get_ops()) {
-        const auto& rtInfo = op->get_rt_info();
-        const auto& typeIt = rtInfo.find("layerType");
-
-        IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
-
-        auto type = typeIt->second.as<std::string>();
-        if (type == layerType) {
-            const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
-            return it->second.as<std::string>();
-        }
-    }
-
-    return "";
-}
-
-std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& layerName) {
-    const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto execFunction = execGraph.getFunction();
-
-    const auto parse = [](const std::string& originalLayersNames) -> std::set<std::string> {
-        std::set<std::string> names;
-
-        std::string tmp = originalLayersNames;
-        size_t beginPosition = 0ul;
-        size_t endPosition;
-        while ((endPosition = tmp.find(",", beginPosition)) != std::string::npos) {
-            names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
-            beginPosition = endPosition + 1;
-        }
-
-        names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
-        return names;
-    };
-
-    for (const auto& op : execFunction->get_ops()) {
-        const auto& rtInfo = op->get_rt_info();
-
-        const auto& nameIt = rtInfo.find("originalLayersNames");
-        IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
-        const auto fusedName = parse(nameIt->second.as<std::string>());
-        if (fusedName.find(layerName) == fusedName.end()) {
-            continue;
-        }
-
-        const auto& it = rtInfo.find("runtimePrecision");
-        IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
-        const auto rtPrecisionPtr = it->second.as<std::string>();
-        return rtPrecisionPtr;
-    }
-
-    return "";
-}
-
-std::map<std::string, ngraph::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
-    const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto function = execGraph.getFunction();
-    std::map<std::string, ngraph::Node::RTMap> runtimeInfo;
-    for (const auto& op : function->get_ops()) {
-        runtimeInfo[op->get_friendly_name()] = op->get_rt_info();
-    }
-    return runtimeInfo;
-}
-
-#ifndef NDEBUG
-void LayerTestsCommon::showRuntimePrecisions() {
-    const auto execGraph = executableNetwork.GetExecGraphInfo();
-    const auto execFunction = execGraph.getFunction();
-
-    for (const auto& op : execFunction->get_ops()) {
-        const auto& rtInfo = op->get_rt_info();
-
-        const auto& nameIt = rtInfo.find("originalLayersNames");
-        const auto name = nameIt->second.as<std::string>();
-
-        const auto& typeIt = rtInfo.find("layerType");
-        const auto type = typeIt->second.as<std::string>();
-
-        const auto& it = rtInfo.find("runtimePrecision");
-        const auto rtPrecisionPtr = it->second.as<std::string>();
-
-        std::cout << type << "(" << name << "): " << rtPrecisionPtr << std::endl;
-    }
-}
-#endif
-
-void LayerTestsCommon::SetRefMode(RefMode mode) {
-    refMode = mode;
-}
-
-std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
+std::shared_ptr<ov::Model> LayerTestsCommon::GetFunction() {
     return function;
 }
 

@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, prior_box_clustered_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBoxClustered>();
+    NodeBuilder::opset().insert<ov::op::v0::PriorBoxClustered>();
     const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
     const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
@@ -47,7 +47,7 @@ TEST(attributes, prior_box_clustered_op) {
 }
 
 TEST(attributes, prior_box_clustered_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBoxClustered>();
+    NodeBuilder::opset().insert<ov::op::v0::PriorBoxClustered>();
     const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
     const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
