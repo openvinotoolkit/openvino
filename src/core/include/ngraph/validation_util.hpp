@@ -105,15 +105,6 @@ ov::PartialShape infer_slice_shape(const Node* node,
                                    const ov::AxisSet& shrink_axis_mask,
                                    const ov::AxisSet& ellipsis_mask);
 
-/// \brief Try to compute the maximum value of value
-/// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
-/// if not.
-/// \deprecated Use evaluate_upper_bound instead
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-OPENVINO_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
-
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
                     "For instructions on transitioning to the new API, please refer to "
