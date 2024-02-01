@@ -43,10 +43,6 @@ public:
 
     virtual void Run();
 
-    virtual void Serialize(ov::pass::Serialize::Version ir_version = ov::pass::Serialize::Version::UNSPECIFIED);
-
-    virtual void QueryNetwork();
-
     static void Compare(const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
                         float threshold,
@@ -66,26 +62,9 @@ public:
 
     virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
 
-    virtual void SetRefMode(RefMode mode);
-
     std::shared_ptr<ov::Model> GetFunction();
 
     std::map<std::string, std::string>& GetConfiguration();
-
-    // get runtime precision by operation friendly name
-    std::string getRuntimePrecision(const std::string& layerName);
-
-    // get runtime precision by operation type
-    std::string getRuntimePrecisionByType(const std::string& layerType);
-
-    // get runtime precision by operation friendly name which can be fused
-    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
-
-    std::map<std::string, ov::Node::RTMap> getRuntimeInfo();
-
-#ifndef NDEBUG
-    void showRuntimePrecisions();
-#endif
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
@@ -159,10 +138,6 @@ protected:
     virtual void Validate();
 
     virtual std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
-
-    /// default method to convert parameters for reference operation. Used before reference implementation execution
-    /// can be overridden by specific operation test
-    virtual void ConvertRefsParams();
 
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
