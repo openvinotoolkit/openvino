@@ -4,10 +4,9 @@
 
 #include "op/transpose.hpp"
 
-#include <memory>
-#include <vector>
-
 #include "ov_models/ov_builders/reshape.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

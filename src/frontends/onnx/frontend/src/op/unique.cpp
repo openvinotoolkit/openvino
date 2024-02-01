@@ -4,7 +4,9 @@
 
 #include "op/unique.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/unique.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -17,9 +19,9 @@ ov::OutputVector unique(const Node& node) {
 
     if (node.has_attribute("axis")) {
         const auto axis = node.get_attribute_as_constant<int64_t>("axis");
-        return std::make_shared<default_opset::Unique>(data, axis, sorted)->outputs();
+        return std::make_shared<v10::Unique>(data, axis, sorted)->outputs();
     } else {
-        return std::make_shared<default_opset::Unique>(data, sorted)->outputs();
+        return std::make_shared<v10::Unique>(data, sorted)->outputs();
     }
 }
 }  // namespace set_1

@@ -4,13 +4,8 @@
 
 #include "op/topk.hpp"
 
-#include <cstdint>
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/topk.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -26,6 +21,10 @@ ov::Output<ov::Node> get_k(const ngraph::onnx_import::Node& node) {
 }
 }  // namespace
 
+using namespace ov::op;
+
+using namespace ov::op;
+
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -35,12 +34,12 @@ ov::OutputVector topk(const Node& node) {
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
-                                                                            k_node,
-                                                                            axis,
-                                                                            default_opset::TopK::Mode::MAX,
-                                                                            default_opset::TopK::SortType::SORT_VALUES,
-                                                                            ov::element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<v11::TopK>(data,
+                                                                  k_node,
+                                                                  axis,
+                                                                  v11::TopK::Mode::MAX,
+                                                                  v11::TopK::SortType::SORT_VALUES,
+                                                                  ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -52,12 +51,12 @@ ov::OutputVector topk(const Node& node) {
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
-                                                                            k,
-                                                                            axis,
-                                                                            default_opset::TopK::Mode::MAX,
-                                                                            default_opset::TopK::SortType::SORT_VALUES,
-                                                                            ov::element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<v11::TopK>(data,
+                                                                  k,
+                                                                  axis,
+                                                                  v11::TopK::Mode::MAX,
+                                                                  v11::TopK::SortType::SORT_VALUES,
+                                                                  ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -74,14 +73,13 @@ ov::OutputVector topk(const Node& node) {
     const auto largest = node.get_attribute_value<std::int64_t>("largest", 1);
     const auto sorted = node.get_attribute_value<std::int64_t>("sorted", 1);
 
-    // Map attribute values to nGraph enums
-    const auto sort_type = sorted ? default_opset::TopK::SortType::SORT_VALUES : default_opset::TopK::SortType::NONE;
+    // Map attribute values to OpenVINO enums
+    const auto sort_type = sorted ? v11::TopK::SortType::SORT_VALUES : v11::TopK::SortType::NONE;
 
     const auto compute_max = static_cast<bool>(largest);
-    const auto mode = compute_max ? default_opset::TopK::Mode::MAX : default_opset::TopK::Mode::MIN;
+    const auto mode = compute_max ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN;
 
-    std::shared_ptr<ov::Node> top_k =
-        std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<v11::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
