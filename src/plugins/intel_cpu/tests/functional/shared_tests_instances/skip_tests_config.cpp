@@ -5,6 +5,7 @@
 #include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 
 #include <string>
 #include <vector>
@@ -273,7 +274,6 @@ std::vector<std::string> disabledTestPatterns() {
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
 
-#    if defined(OV_CPU_ARM_ENABLE_FP16)
     // Issue: 123019
     retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
@@ -288,7 +288,6 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 124395
     retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
     retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
-#    endif
 
 #endif
 
@@ -334,14 +333,14 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-#    if !defined(OV_CPU_ARM_ENABLE_FP16)
-    // Skip fp16 tests for paltforms that don't support fp16 precision
-    retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
-#    else
-    // Issue 117407
-    retVector.emplace_back(
-        R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
-#    endif  // OV_CPU_ARM_ENABLE_FP16
+    if (!hasHardwareSupport(ov::element::f16)) {
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+    } else {
+        // Issue 117407
+        retVector.emplace_back(
+            R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
+    }
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() && !ov::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions

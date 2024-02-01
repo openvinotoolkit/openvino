@@ -178,8 +178,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
     ASSERT_EQ(false, value);
 }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto expected_precision_for_performance_mode = ov::element::f16;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    const auto expected_precision_for_performance_mode = hasHardwareSupport(ov::element::f16) ? ov::element::f16 : ov::element::f32;
 #else
     const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 #endif

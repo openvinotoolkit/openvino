@@ -37,11 +37,10 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+#include "utils/precision_support.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "common/primitive_desc_iface.hpp"
-#endif
 
 #include "openvino/runtime/memory_solver.hpp"
 
@@ -405,10 +404,12 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
     // pretend the reorder is not available to use Convert node instead
-    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+    if (hasHardwareSupport(ov::element::f16) &&
+        result &&
+        parse_impl_name(result->impl()->name()) == ref_any) {
         dnnl_primitive_desc_destroy(result);
         return false;
     }
@@ -1563,8 +1564,8 @@ void Graph::EnforceInferencePrecision() {
 
     if (inferPrec == ov::element::f32)
         return; // nothing to do, only precision reduction is currently allowed
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    if (inferPrec == ov::element::f16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (hasHardwareSupport(ov::element::f16) && inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;

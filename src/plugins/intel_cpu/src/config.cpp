@@ -222,14 +222,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                         inferencePrecision = ov::element::bf16;
                     }
                 } else if (prec == ov::element::f16) {
-#if defined(OPENVINO_ARCH_X86_64)
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-#elif defined(OV_CPU_ARM_ENABLE_FP16)
-                    // TODO: add runtime FP16 feature support check for ARM
-                    inferencePrecision = ov::element::f16;
-#endif
                 } else if (prec == ov::element::f32) {
                     inferencePrecision = ov::element::f32;
                 } else {
@@ -305,15 +300,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-            //fp16 precision is used as default precision on ARM for non-convolution networks
-            //fp16 ACL convolution is slower than fp32
-            if (modelType != ModelType::CNN)
-                inferencePrecision = ov::element::f16;
-#else
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            if (hasHardwareSupport(ov::element::f16)) {
+                //fp16 precision is used as default precision on ARM for non-convolution networks
+                //fp16 ACL convolution is slower than fp32
+                if (modelType != ModelType::CNN)
+                    inferencePrecision = ov::element::f16;
+            }
+#endif
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-#endif
         } else {
             inferencePrecision = ov::element::f32;
         }

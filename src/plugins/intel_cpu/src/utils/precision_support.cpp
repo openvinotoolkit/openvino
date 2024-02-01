@@ -7,6 +7,10 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/visibility.hpp"
 
+#if defined(OV_CPU_WITH_ACL)
+#include "arm_compute/core/CPP/CPPTypes.h"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -18,8 +22,8 @@ bool hasHardwareSupport(const ov::element::Type& precision) {
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             return true;
         return false;
-#elif defined(OV_CPU_ARM_ENABLE_FP16)
-        return true; // @todo add runtime check for arm as well
+#elif defined(OV_CPU_WITH_ACL)
+        return arm_compute::CPUInfo::get().has_fp16();
 #else
         return false;
 #endif

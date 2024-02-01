@@ -57,9 +57,6 @@ elseif(AARCH64)
 endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT} CACHE STRING "Architecture for ARM ComputeLibrary")
 set_property(CACHE OV_CPU_ARM_TARGET_ARCH PROPERTY STRINGS ${OV_CPU_ARM_TARGET_ARCHS})
-if(OV_CPU_ARM_TARGET_ARCH MATCHES "(armv|arm64-v)[8-9]\\." OR OV_CPU_AARCH64_USE_MULTI_ISA)
-    add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
-endif()
 
 if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly
