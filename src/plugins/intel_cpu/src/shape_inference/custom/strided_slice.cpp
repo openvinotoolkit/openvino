@@ -34,9 +34,9 @@ Result StridedSliceShapeInfer::infer(
             data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
-    auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->getData());
-    auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->getData());
-    auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->getData());
+    auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
+    auto endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
+    auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
         if (m_new_axis_mask_set.count(i)) {

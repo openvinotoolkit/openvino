@@ -24,7 +24,6 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-#include "ie_version.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -39,6 +38,7 @@ IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ov::Model>& nGraph, bool newAPI = false);
+
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;

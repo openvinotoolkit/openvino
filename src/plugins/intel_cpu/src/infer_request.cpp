@@ -452,7 +452,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        const auto& desc = m_graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
+        const auto& desc = m_graph->getOutputNodeByName(name)->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
             m_external_ptr[name] = tensor;
         } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
@@ -513,7 +513,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             if (!isDynamic) {
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (mem_desc_ptr->isCompatible(
-                        m_graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                        m_graph->getInputNodeByName(name)->getChildEdgeAt(0)->getMemory().getDesc())) {
                     m_external_ptr[name] = tensor;
                 }
             }
@@ -560,7 +560,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                         tensor = std::make_shared<Tensor>(memory);
                     } else {
                         const auto graph_prec =
-                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+                            output->second->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
                         OutputControlBlock control_block{model_prec, Shape{shape}};
 
                         DEBUG_LOG(name,
@@ -614,7 +614,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             m_outputs[name] = tensor;
             if (!port_shape.is_dynamic() && !m_external_ptr.count(name)) {
                 auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
-                if (desc->isCompatible(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                if (desc->isCompatible(output->second->getParentEdgeAt(0)->getMemory().getDesc())) {
                     m_external_ptr[name] = tensor;
                 }
             }

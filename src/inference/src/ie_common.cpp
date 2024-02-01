@@ -12,16 +12,11 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_parameter.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/exception.hpp"
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
 namespace details {
 
 void Rethrow() {

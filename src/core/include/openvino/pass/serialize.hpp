@@ -8,6 +8,7 @@
 #include <string>
 
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -41,6 +42,7 @@ private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
+    const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
 
 /**
@@ -73,6 +75,7 @@ private:
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace pass
 }  // namespace ov

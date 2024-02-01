@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset.hpp"
 
 using namespace std;
 using namespace ov;

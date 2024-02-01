@@ -10,6 +10,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "remote_utils.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #endif
@@ -482,6 +483,8 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blo
     }
     if (blob == nullptr) {
         return {};
+    } else if (unwrap && std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob) != nullptr) {
+        return std::dynamic_pointer_cast<legacy_convert::TensorHolder>(blob)->get_tensor();
     }
     ELSE_IF(float)
     ELSE_IF(double)

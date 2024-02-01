@@ -14,7 +14,6 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "dev/converter_utils.hpp"
-#include "file_utils.h"
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
@@ -28,6 +27,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -58,7 +58,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function, bool is_n
                 // In the following code we add Convert node from old_api_map_type to Parameter type
                 // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
                 // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
-                if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                if ((param_type == ov::element::u8 && old_api_map_type.is_real())) {
                     parameter->set_element_type(old_api_map_type);
                     need_validate_nodes_and_infer_types = true;
                 } else {
@@ -110,6 +110,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function, bool is_n
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool is_new_api,
                                 bool enable_mmap) {
     // Fix unicode name
@@ -138,6 +139,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     FE = manager.load_by_model(params);
     if (FE) {
+        FE->add_extension(ov_exts);
         inputModel = FE->load(params);
     }
 
@@ -158,6 +160,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool is_new_api,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
@@ -178,6 +181,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 
     FE = manager.load_by_model(params);
     if (FE) {
+        FE->add_extension(ov_exts);
         inputModel = FE->load(params);
     }
     if (inputModel) {

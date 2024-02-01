@@ -226,13 +226,6 @@ public:
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
-    std::unordered_map<primitive_id, std::vector<primitive_id>> get_kv_cache_mem_deps() {
-        return _kv_cache_mem_deps;
-    }
-    void add_kv_cache_mem_deps(primitive_id kv_cache, primitive_id read_value) {
-        _kv_cache_mem_deps[kv_cache].push_back(read_value);
-    }
-
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
 #endif
@@ -273,9 +266,6 @@ private:
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
-
-    // Record corresponding read_values for kv_cache so that we can release those read_value's output memories when they are no longer needed
-    std::unordered_map<primitive_id/*kv_cache*/, std::vector<primitive_id/*read_value*/>> _kv_cache_mem_deps;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

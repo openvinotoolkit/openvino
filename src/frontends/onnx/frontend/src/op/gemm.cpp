@@ -17,11 +17,11 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector gemm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
-    Output<ov::Node> input_a = inputs.at(0);
-    Output<ov::Node> input_b = inputs.at(1);
-    Output<ov::Node> input_c;
+ov::OutputVector gemm(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::Output<ov::Node> input_a = inputs.at(0);
+    ov::Output<ov::Node> input_b = inputs.at(1);
+    ov::Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);
@@ -55,17 +55,17 @@ OutputVector gemm(const Node& node) {
 
     auto beta_times_input_c = std::make_shared<v1::Multiply>(beta_node, input_c);
 
-    return OutputVector{std::make_shared<v1::Add>(matmul_node, beta_times_input_c)};
+    return ov::OutputVector{std::make_shared<v1::Add>(matmul_node, beta_times_input_c)};
 }
 
 }  // namespace set_1
 
 namespace set_6 {
-OutputVector gemm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
-    Output<ov::Node> input_a = inputs.at(0);
-    Output<ov::Node> input_b = inputs.at(1);
-    Output<ov::Node> input_c;
+ov::OutputVector gemm(const Node& node) {
+    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::Output<ov::Node> input_a = inputs.at(0);
+    ov::Output<ov::Node> input_b = inputs.at(1);
+    ov::Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);

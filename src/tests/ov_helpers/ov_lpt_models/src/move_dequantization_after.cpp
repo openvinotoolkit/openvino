@@ -20,17 +20,12 @@ namespace subgraph {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deq = makeDequantization(input, dequantization);
-        const auto op = ov::opset1::MaxPool(
-            deq,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+        const auto op =
+            ov::opset1::MaxPool(deq, Strides{1, 1}, Shape{1, 1}, Shape{0, 0}, Shape{2, 2}, ov::op::RoundingType::FLOOR);
         const auto targetOp = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MaxPool>>(
             op,
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = "targetOp";
 
@@ -49,17 +44,16 @@ namespace subgraph {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deqBefore = makeDequantization(input, dequantizationBefore);
-        const auto op = ov::opset1::MaxPool(
-            deqBefore,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+        const auto op = ov::opset1::MaxPool(deqBefore,
+                                            Strides{1, 1},
+                                            Shape{1, 1},
+                                            Shape{0, 0},
+                                            Shape{2, 2},
+                                            ov::op::RoundingType::FLOOR);
         const auto targetOp = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MaxPool>>(
             op,
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
         ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(targetOp, precisionAfterOperation);
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = "targetOp";
