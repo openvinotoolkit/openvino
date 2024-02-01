@@ -202,7 +202,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         auto N = input1_pshape[n_idx];
 
         auto output_pshape = input_layouts[0].get_partial_shape();
-        for (size_t i = 0; i != input_layouts.size(); ++i) {
+        for (size_t i = 0; i != primitive->input_size(); ++i) {
             auto input_pshape = input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
                 ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
