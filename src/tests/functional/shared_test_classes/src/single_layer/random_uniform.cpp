@@ -82,9 +82,4 @@ void RandomUniformLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "random_uniform");
 }
 
-void RandomUniformLayerTest::ConvertRefsParams() {
-    // we shouldn't use default conversion from f16 to f32
-    ngraph::pass::ConvertPrecision<ov::element::Type_t::bf16, ov::element::Type_t::f32>().run_on_model(functionRefs);
-}
-
 }  // namespace LayerTestsDefinitions
