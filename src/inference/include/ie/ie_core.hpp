@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_version.hpp"
+#include "openvino/core/version.hpp"
 
 namespace InferenceEngine {
 
@@ -61,7 +61,7 @@ public:
      * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
-    std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
