@@ -17,16 +17,11 @@
 #include <tuple>
 
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {
-using ov::evaluate_as_partial_shape;
-using ov::get_constant_from_source;
-using ov::has_no_labels;
-using ov::normalize_axes;
-using ov::normalize_axis;
 using ov::op::v0::Constant;
 
 namespace element {
@@ -70,7 +65,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 void validate_conv_params_spatial_dimensions(const Node* node,
                                              const size_t num_spatial_dims,
-                                             const op::PadType auto_pad,
+                                             const ov::op::PadType auto_pad,
                                              Strides& strides,
                                              Strides& dilations,
                                              CoordinateDiff& pads_begin,
@@ -99,20 +94,11 @@ ov::PartialShape infer_slice_shape(const Node* node,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
                                    const std::vector<int64_t>& strides,
-                                   const AxisSet& begin_mask,
-                                   const AxisSet& end_mask,
-                                   const AxisSet& new_axis_mask,
-                                   const AxisSet& shrink_axis_mask,
-                                   const AxisSet& ellipsis_mask);
-
-/// \brief Try to compute the maximum value of value
-/// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
-/// if not.
-/// \deprecated Use evaluate_upper_bound instead
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-OPENVINO_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
+                                   const ov::AxisSet& begin_mask,
+                                   const ov::AxisSet& end_mask,
+                                   const ov::AxisSet& new_axis_mask,
+                                   const ov::AxisSet& shrink_axis_mask,
+                                   const ov::AxisSet& ellipsis_mask);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
@@ -155,11 +141,9 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       const Shape& output_shape,
                                       const Strides& strides,
                                       const Strides& dilations,
-                                      const op::PadType auto_pad_type,
+                                      const ov::op::PadType auto_pad_type,
                                       const CoordinateDiff& output_padding,
                                       CoordinateDiff& pads_begin,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
-
-using ngraph::get_constant_from_source;
