@@ -36,7 +36,7 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _, _)).WillByDefault(Throw(ov::Exception("")));
         ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
             .WillByDefault(Throw(ov::Exception("")));
         ON_CALL(*plugin, parse_meta_devices)
@@ -80,7 +80,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, get_available_devices()).Times(1);
-    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
+    EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
@@ -115,7 +115,7 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, get_available_devices()).Times(1);
-    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
+    EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
