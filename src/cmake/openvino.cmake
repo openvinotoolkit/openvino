@@ -23,7 +23,6 @@ add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:openvino_core_obj_version>
     $<TARGET_OBJECTS:openvino_frontend_common_obj>
     $<TARGET_OBJECTS:openvino_runtime_obj>
-    $<TARGET_OBJECTS:openvino_runtime_obj_version>
     $<TARGET_OBJECTS:openvino_transformations_obj>
     $<TARGET_OBJECTS:openvino_lp_transformations_obj>
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>)

@@ -21,7 +21,6 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/pp.hpp"
-#include "ie_version.hpp"
 
 using namespace ov::threading;
 
@@ -119,7 +118,7 @@ GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
  */
 class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public std::enable_shared_from_this<IInferencePlugin> {
-    class VersionStore : public Version {
+    class VersionStore : public ov::Version {
         void copyFrom(const Version& v);
 
     public:
@@ -140,13 +139,13 @@ public:
      * @brief Sets a plugin version
      * @param version A version to set
      */
-    void SetVersion(const Version& version);
+    void SetVersion(const ov::Version& version);
 
     /**
      * @brief Gets a plugin version
-     * @return A const InferenceEngine::Version object
+     * @return A const ov::Version object
      */
-    const Version& GetVersion() const;
+    const ov::Version& GetVersion() const;
 
     /**
      * @brief      Provides a name of a plugin
