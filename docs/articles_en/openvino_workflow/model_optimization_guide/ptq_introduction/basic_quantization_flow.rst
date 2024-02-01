@@ -156,7 +156,7 @@ Tune quantization parameters
 
     .. code-block:: sh
 
-       nncf.quantize(model, dataset, preset=nncf.Preset.MIXED)
+       nncf.quantize(model, dataset, preset=nncf.QuantizationPreset.MIXED)
 
 * ``fast_bias_correction`` - when set to ``False``, enables a more accurate bias (error) correction algorithm that can be used to improve the accuracy of the model. This parameter is available only for OpenVINO and ONNX representations. ``True`` is used by default to minimize quantization time.
 
