@@ -38,7 +38,7 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(const ov::elemen
     convolutionBackpropData->set_friendly_name("convolutionBackpropData");
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolutionBackpropData) };
-    return std::make_shared<ov::Model>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
 }
 
 std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
@@ -124,7 +124,7 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getOriginal(
 
     convolutionBackpropData->set_friendly_name("output");
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolutionBackpropData) };
-    return std::make_shared<ov::Model>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
 }
 
 std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getReference(
@@ -155,7 +155,7 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getReference(
     const auto result = makeDequantization(convolutionBackpropData, dequantizationStructureAfter);
     result->set_friendly_name("output");
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(result) };
-    return std::make_shared<ov::Model>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
 }
 
 }  // namespace subgraph

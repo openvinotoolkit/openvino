@@ -6,7 +6,6 @@
 
 #include "ctc_loss_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
