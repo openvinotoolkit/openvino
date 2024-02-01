@@ -256,9 +256,9 @@ void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedO
     case ov::element::Type_t::elem_type: {                                                                                 \
         using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>;                                      \
         using actual_type = ov::fundamental_type_for<ov::element::Type_t::act_type>;                                       \
-        LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const tensor_type*>(expectedBuffer) + expected_offset, \
-                                                   reinterpret_cast<const actual_type*>(actualBuffer) + actual_offset,     \
-                                                   size, _threshold);                                                      \
+        ov::test::utils::compare_raw_data(reinterpret_cast<const tensor_type*>(expectedBuffer) + expected_offset, \
+                                          reinterpret_cast<const actual_type*>(actualBuffer) + actual_offset,     \
+                                          size, _threshold);                                                      \
         break;                                                                                                             \
     }
                 switch (precision) {
