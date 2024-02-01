@@ -452,7 +452,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
 
         auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-        set_node_name(operation_name, param);
+        param->set_friendly_name(operation_name);
+        set_out_name(operation_name + ":" + std::to_string(port_index), param);
         params.push_back(param);
         (*ov_tensors_map)[input_name] = {NamedOutput(param)};
     }
