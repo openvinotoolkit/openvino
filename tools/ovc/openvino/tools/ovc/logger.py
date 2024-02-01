@@ -10,7 +10,7 @@ from copy import copy
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
 if importlib.util.find_spec('absl') is not None:
-    import absl.logging
+    import absl.logging # pylint: disable=import-error
 
     log.root.removeHandler(absl.logging._absl_handler)
 
