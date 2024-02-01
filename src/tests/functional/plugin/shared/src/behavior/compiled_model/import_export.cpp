@@ -2,7 +2,7 @@
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
-
+#include <gmock/gmock-matchers.h>
 #include "behavior/compiled_model/import_export.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -296,6 +296,24 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
     OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
     OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
     OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
+}
+
+TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
+    // only CPU plugin supports this exception now.
+    if (target_device != "CPU") {
+        GTEST_SKIP();
+    }
+    ov::Core ie = createCoreWithTemplate();
+    std::stringstream strm;
+    // Import model with IR input throw exception
+    std::string prefix = target_device + "_import_model";
+    std::string irFile = prefix + ".xml";
+    std::string irBin = prefix + ".bin";
+    ov::serialize(actualNetwork, irFile, irBin);
+    std::ifstream stream{irFile, std::ios::in | std::ios::binary};
+    OV_EXPECT_THROW((ie.import_model(stream, target_device)),
+                    ov::Exception,
+                    testing::HasSubstr("import_model only accepts model with correct format"));
 }
 
 //
