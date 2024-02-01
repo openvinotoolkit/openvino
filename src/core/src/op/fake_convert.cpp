@@ -50,19 +50,13 @@ struct Evaluate : element::NoAction<bool> {
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)
-    : Op({data, scale}),
-      m_destination_type(ov::element::Type(destination_type)) {
-    constructor_validate_and_infer_types();
-}
+    : FakeConvert(data, scale, ov::element::Type(destination_type)) {}
 
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
                          std::string destination_type)
-    : Op({data, scale, shift}),
-      m_destination_type(ov::element::Type(destination_type)) {
-    constructor_validate_and_infer_types();
-}
+    : FakeConvert(data, scale, shift, ov::element::Type(destination_type)) {}
 
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
