@@ -40,13 +40,12 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
             (ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 }),
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
-    auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        fqOnData.empty() ? input : fakeQuantizeOnActivations,
-        Strides(rankLength - 2, 1ul),
-        Shape(rankLength - 2, 1ul),
-        Shape(rankLength - 2, 0ul),
-        Shape(rankLength - 2, 2ul),
-        op::RoundingType::FLOOR);
+    auto maxPool = std::make_shared<ov::opset1::MaxPool>(fqOnData.empty() ? input : fakeQuantizeOnActivations,
+                                                         Strides(rankLength - 2, 1ul),
+                                                         Shape(rankLength - 2, 1ul),
+                                                         Shape(rankLength - 2, 0ul),
+                                                         Shape(rankLength - 2, 2ul),
+                                                         ov::op::RoundingType::FLOOR);
     maxPool->set_friendly_name("maxPool");
 
     const auto convolution = std::make_shared<ov::opset1::Convolution>(

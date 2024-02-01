@@ -64,14 +64,13 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginal(
 
     std::shared_ptr<Node> lastOperation = fakeQuantize;
     if (addNotPrecisionPreservedOperation) {
-        lastOperation = std::make_shared<ov::opset1::AvgPool>(
-            fakeQuantize,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 2, 2 },
-            true,
-            op::RoundingType::FLOOR);
+        lastOperation = std::make_shared<ov::opset1::AvgPool>(fakeQuantize,
+                                                              Strides{1, 1},
+                                                              Shape{1, 1},
+                                                              Shape{1, 1},
+                                                              Shape{2, 2},
+                                                              true,
+                                                              ov::op::RoundingType::FLOOR);
     }
     lastOperation->set_friendly_name("lastOperation");
 
@@ -99,9 +98,9 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
     std::shared_ptr<Node> lastOperation = fakeQuantize;
     if (addNotPrecisionPreservedOperation) {
         lastOperation = std::make_shared<ov::op::TypeRelaxed<ov::opset1::AvgPool>>(
-            std::vector<ov::element::Type>{ov::element::f32},
-            std::vector<ov::element::Type>{ov::element::f32},
-            ov::op::TemporaryReplaceOutputType(fakeQuantize, ov::element::f32).get(),
+            std::vector<element::Type>{element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(fakeQuantize, element::f32).get(),
             Strides{1, 1},
             Shape{1, 1},
             Shape{1, 1},

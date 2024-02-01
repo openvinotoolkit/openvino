@@ -39,17 +39,18 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getOriginal(
         // branch with limitation precision operation (Convolution)
         std::shared_ptr<ov::Node> branch1Operation =
             values.operationBeforeLimitedOperationIsPrecisionTransparent
-                ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
-                                                                                            Strides{1, 1},
-                                                                                            Shape{1, 1},
-                                                                                            Shape{0, 0},
-                                                                                            Shape{2, 2},
-                                                                                            op::RoundingType::FLOOR))
+                ? std::dynamic_pointer_cast<ov::Node>(
+                      std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                            Strides{1, 1},
+                                                            Shape{1, 1},
+                                                            Shape{0, 0},
+                                                            Shape{2, 2},
+                                                            op::RoundingType::FLOOR))
                 : std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
                       ov::opset1::PRelu(
                           fakeQuantize,
-                          std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.01})),
-                      ov::element::f32);
+                          std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.01})),
+                      element::f32);
 
         const size_t inputChannelsCount = inputShape[1].get_length();
         const size_t outputChannelsCount = 2 * inputShape[1].get_length();
@@ -122,7 +123,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
                                                                                         op::RoundingType::FLOOR))
             : std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
                   fakeQuantize,
-                  std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.01}));
+                  std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.01}));
 
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
