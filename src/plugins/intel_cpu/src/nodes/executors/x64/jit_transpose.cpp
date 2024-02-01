@@ -14,8 +14,8 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     if (!pKernel)
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(src[0]->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dst[0]->getData());
+    const uint8_t* srcData = src[0]->getDataAs<const uint8_t>();
+    uint8_t* dstData = dst[0]->getDataAs<uint8_t>();
 
     pKernel->execute(srcData, dstData, MB);
 }

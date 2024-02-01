@@ -17,8 +17,6 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/op.hpp"
 #include "openvino/op/split.hpp"
 
 namespace ngraph {

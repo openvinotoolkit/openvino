@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "ie_iextension.h"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -40,8 +39,6 @@ public:
     void set_core(std::weak_ptr<ICore> core);
 
     const ov::Version get_version() const;
-
-    void add_extension(const InferenceEngine::IExtensionPtr& extension);
 
     void set_property(const ov::AnyMap& config);
 

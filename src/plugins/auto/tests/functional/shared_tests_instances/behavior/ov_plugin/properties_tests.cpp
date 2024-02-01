@@ -4,10 +4,10 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
-#include <openvino/runtime/auto/properties.hpp>
+#include "ie_plugin_config.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 const std::vector<ov::AnyMap> multi_Auto_properties = {

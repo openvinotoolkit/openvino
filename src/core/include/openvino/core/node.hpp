@@ -53,9 +53,6 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
-OPENVINO_SUPPRESS_DEPRECATED_START
-using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;
@@ -192,26 +189,6 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the op.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values,
-                          const ov::HostTensorVector& input_values,
-                          const EvaluationContext& evaluationContext) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
@@ -457,6 +434,7 @@ private:
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
+    mutable std::string m_auto_generated_friendly_name;
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;

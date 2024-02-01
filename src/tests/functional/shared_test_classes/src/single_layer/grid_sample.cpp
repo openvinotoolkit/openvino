@@ -44,14 +44,14 @@ void GridSampleLayerTest::SetUp() {
 
     auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
     auto ngInGridPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inGridPrc);
-    auto data = std::make_shared<ov::op::v0::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
-    auto grid = std::make_shared<ov::op::v0::Parameter>(ngInGridPrc, ngraph::Shape(gridShape));
+    auto data = std::make_shared<ov::op::v0::Parameter>(ngInDataPrc, ov::Shape(dataShape));
+    auto grid = std::make_shared<ov::op::v0::Parameter>(ngInGridPrc, ov::Shape(gridShape));
     auto gridSample = std::make_shared<ov::op::v9::GridSample>(
         data,
         grid,
         ov::op::v9::GridSample::Attributes(alignCorners, mode, paddingMode));
-    function = std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(gridSample),
-                                                  ngraph::ParameterVector{data, grid},
+    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(gridSample),
+                                                  ov::ParameterVector{data, grid},
                                                   "GridSample");
 }
 

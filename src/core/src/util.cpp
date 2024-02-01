@@ -193,28 +193,6 @@ uint8_t parse_string<uint8_t>(const std::string& s) {
     return result;
 }
 
-AxisVector get_default_order(const Shape& shape) {
-    return get_default_order(shape.size());
-}
-
-AxisVector get_default_order(const PartialShape& shape) {
-    return get_default_order(shape.rank());
-}
-
-AxisVector get_default_order(size_t rank) {
-    AxisVector default_order(rank);
-    std::iota(begin(default_order), end(default_order), 0);
-    return default_order;
-}
-
-AxisVector get_default_order(const Rank& rank) {
-    OPENVINO_ASSERT(rank.is_static(), "Can not calculate default order for dynamic rank");
-
-    AxisVector default_order(rank.get_length());
-    std::iota(begin(default_order), end(default_order), 0);
-    return default_order;
-}
-
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra) {
     // Since regex is broken in gcc 4.8 I will just manually parse the version string
     // Version strings look like `0.25.0-rc.0+7c32240` or `v0.25.0-rc.0+7c32240`
@@ -262,7 +240,7 @@ void parse_version_string(std::string version, size_t& major, size_t& minor, siz
 }
 }  // namespace ngraph
 
-std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<float> read_float_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<float> float_vec;
     ov::element::Type element_type = tv->get_element_type();
 
@@ -338,7 +316,7 @@ std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv
     return float_vec;
 }
 
-std::vector<int64_t> read_index_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+std::vector<int64_t> read_index_vector(std::shared_ptr<ov::Tensor> tv) {
     std::vector<int64_t> index_vec;
     ov::element::Type element_type = tv->get_element_type();
 
