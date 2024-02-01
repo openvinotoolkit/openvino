@@ -106,17 +106,6 @@ public:
 
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("EXECUTION_DEVICES"))).WillByDefault(Return("CPU"));
 
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
-            .WillByDefault(Return("CPU"));
-
-        ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("SUPPORTED_CONFIG_KEYS")))
-            .WillByDefault([](const std::string& name) {
-                std::vector<std::string> res_config;
-                res_config.emplace_back(ov::cache_dir.name());
-                res_config.emplace_back(ov::optimal_batch_size.name());
-                return res_config;
-            });
-
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("CACHE_DIR"))).WillByDefault(Return("./abc"));
 
         ON_CALL(*m_mock_i_compile_model.get(), get_property(StrEq("OPTIMAL_BATCH_SIZE"))).WillByDefault(Return("16"));

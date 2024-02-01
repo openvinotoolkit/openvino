@@ -158,7 +158,7 @@ public:
      * @brief Checks whether device supports model caching feature
      *
      * @param deviceName - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT and CACHING_PROPERTIES metric in SUPPORTED_METRICS and
+     * @return True if device has IMPORT_EXPORT_SUPPORT and CACHING_PROPERTIES metric in SUPPORTED_PROPERTIES and
      * this metric returns 'true', False otherwise.
      */
     virtual bool DeviceSupportsModelCaching(const std::string& deviceName) const = 0;

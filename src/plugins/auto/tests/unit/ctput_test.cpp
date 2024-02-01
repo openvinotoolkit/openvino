@@ -94,7 +94,7 @@ TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
     std::tie(targetDevices) = this->GetParam();
 
     plugin->set_device_name("AUTO");
-    config.insert({{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}});
+    config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     config.insert(ov::device::priorities(targetDevices[0]));
     // Call single device logic and performance hint is THROUGHPUT
     ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
@@ -174,7 +174,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    config.insert({{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}});
+    config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     config.insert(ov::device::priorities(targetDev));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

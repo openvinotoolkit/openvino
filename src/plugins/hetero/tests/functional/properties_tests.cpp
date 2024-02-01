@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "hetero_tests.hpp"
-#include "ie/ie_plugin_config.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 using namespace ov::hetero::tests;

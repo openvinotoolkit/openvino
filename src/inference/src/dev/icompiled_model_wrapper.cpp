@@ -5,7 +5,6 @@
 #include "icompiled_model_wrapper.hpp"
 
 #include "dev/converter_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/except.hpp"
 
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
@@ -49,48 +48,7 @@ ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& 
     if (ov::loaded_from_cache == name) {
         return m_model->isLoadedFromCache();
     }
-
-    auto get_supported_properties = [&]() {
-        auto ro_properties = m_model->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-        auto rw_properties = m_model->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-        std::vector<ov::PropertyName> supported_properties;
-        for (auto&& ro_property : ro_properties) {
-            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) && ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                supported_properties.emplace_back(ro_property, ov::PropertyMutability::RO);
-            }
-        }
-        for (auto&& rw_property : rw_properties) {
-            supported_properties.emplace_back(rw_property, ov::PropertyMutability::RW);
-        }
-        supported_properties.emplace_back(ov::supported_properties.name(), ov::PropertyMutability::RO);
-        supported_properties.emplace_back(ov::loaded_from_cache.name(), ov::PropertyMutability::RO);
-        return supported_properties;
-    };
-
-    if (ov::supported_properties == name) {
-        try {
-            auto supported_properties = m_model->GetMetric(name).as<std::vector<ov::PropertyName>>();
-            supported_properties.erase(std::remove_if(supported_properties.begin(),
-                                                      supported_properties.end(),
-                                                      [](const ov::PropertyName& name) {
-                                                          return name == METRIC_KEY(SUPPORTED_METRICS) ||
-                                                                 name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
-                                                      }),
-                                       supported_properties.end());
-            return supported_properties;
-        } catch (ov::Exception&) {
-            return get_supported_properties();
-        } catch (InferenceEngine::Exception&) {
-            return get_supported_properties();
-        }
-    }
-    try {
-        return m_model->GetMetric(name);
-    } catch (ov::Exception&) {
-        return m_model->GetConfig(name);
-    } catch (InferenceEngine::Exception&) {
-        return m_model->GetConfig(name);
-    }
+    return m_model->GetConfig(name);
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>

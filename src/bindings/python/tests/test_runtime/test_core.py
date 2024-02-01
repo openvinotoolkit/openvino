@@ -19,6 +19,7 @@ from openvino import (
     serialize,
 )
 
+import openvino.properties as props
 import openvino.properties.hint as hints
 from openvino.runtime import Extension
 from tests.utils.helpers import (
@@ -229,7 +230,7 @@ def test_available_devices(device):
 
 def test_get_property(device):
     core = Core()
-    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    conf = core.get_property(device, props.supported_properties())
     assert "PERF_COUNT" in conf
 
 

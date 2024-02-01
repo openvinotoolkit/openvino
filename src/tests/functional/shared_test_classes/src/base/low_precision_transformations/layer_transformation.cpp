@@ -8,13 +8,9 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
-
-using namespace InferenceEngine;
-using namespace ngraph;
 
 namespace LayerTestsUtils {
 ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
@@ -36,7 +32,7 @@ ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNG
 LayerTransformation::LayerTransformation() {
     rel_threshold = 1.1;
     abs_threshold = 1.0e-4;
-    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
+    configuration["LP_TRANSFORMS_MODE"] = true;
 }
 
 std::pair<float, float> LayerTransformation::get_quantization_interval(ov::element::Type precision) {

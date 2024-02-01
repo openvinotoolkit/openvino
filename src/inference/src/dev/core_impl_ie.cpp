@@ -8,7 +8,6 @@
 #include "blob_factory.hpp"
 #include "compilation_context.hpp"
 #include "core_impl.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"

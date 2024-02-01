@@ -9,12 +9,12 @@
 #include <stdexcept>
 
 #include "compiled_model.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/proxy/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"

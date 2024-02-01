@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
 namespace InferenceEngine {
@@ -217,7 +216,7 @@ public:
                                     const std::map<std::string, std::string>& config = {}) const;
 
     /**
-     * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief Sets configuration for device, acceptable keys can be found in properties.hpp
      *
      * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
      * registered devices.

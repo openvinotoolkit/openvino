@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
-#include <ie_plugin_config.hpp>
 #include <unordered_map>
 
 #include "common_test_utils/file_utils.hpp"

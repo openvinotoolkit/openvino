@@ -3,7 +3,6 @@
 //
 
 #include "behavior/compiled_model/compiled_model_base.hpp"
-#include "ie_plugin_config.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
 
