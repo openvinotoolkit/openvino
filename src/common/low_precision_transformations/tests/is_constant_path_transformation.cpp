@@ -5,7 +5,6 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
@@ -15,7 +14,7 @@
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 TEST(LPT, isConstantPathFQAfterInputTransformation) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });

@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/emitter.hpp"
 
 
 namespace ov {
@@ -41,12 +42,14 @@ public:
     const VectorDims& get_shape() const {return m_tensor_shape;}
     const VectorDims& get_subtensor() const {return m_subtensor_shape;}
     const std::vector<size_t>& get_layout() const {return m_layout;}
-    size_t get_reg() const { return m_reg; }
+    const Reg& get_reg() const { return m_reg; }
 
     void set_shape(const VectorDims& tensor) { m_tensor_shape = tensor; }
     void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
     void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
-    void set_reg(size_t reg) { m_reg = reg; }
+    void set_reg(Reg reg) { m_reg = std::move(reg); }
+    void set_reg_type(RegType type) { m_reg.type = type; }
+    void set_reg_idx(size_t idx) { m_reg.idx = idx; }
 
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
@@ -64,7 +67,7 @@ private:
     /// \brief Minimal tensor size that could be processed in one call
     VectorDims m_subtensor_shape{};
     /// \brief The corresponding abstract/physical register
-    size_t m_reg = 0;
+    Reg m_reg { RegType::gpr, 0 };
 
     /// Notes:
     ///   - `m_tensor_shape` is dense shape which is controlled by expression outputs.

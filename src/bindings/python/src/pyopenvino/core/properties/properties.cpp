@@ -33,7 +33,9 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     wrap_property_RW(m_properties, ov::affinity, "affinity");
+    OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
 

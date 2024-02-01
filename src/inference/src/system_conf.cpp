@@ -13,6 +13,10 @@
 #include <numeric>
 #include <vector>
 
+#ifdef __linux__
+#    include <sched.h>
+#endif
+
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
@@ -203,6 +207,10 @@ int get_number_of_blocked_cores() {
     return 0;
 }
 
+int get_current_socket_id() {
+    return 0;
+}
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -258,6 +266,10 @@ int get_number_of_blocked_cores() {
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
     return cpu._proc_type_table.size() > 0;
+}
+
+int get_current_socket_id() {
+    return 0;
 }
 
 std::vector<std::vector<int>> get_proc_type_table() {
@@ -353,6 +365,22 @@ std::vector<int> get_available_numa_nodes() {
     return nodes;
 }
 #        endif
+int get_current_socket_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = sched_getcpu();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_SOCKET_ID];
+        }
+    }
+
+    return 0;
+}
+#    else
+int get_current_socket_id() {
+    return 0;
+}
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {

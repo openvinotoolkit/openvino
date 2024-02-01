@@ -170,7 +170,7 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsY,
                 const std::string& mode);
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,

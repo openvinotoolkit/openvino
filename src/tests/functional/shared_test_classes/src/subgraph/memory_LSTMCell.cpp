@@ -12,7 +12,6 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 

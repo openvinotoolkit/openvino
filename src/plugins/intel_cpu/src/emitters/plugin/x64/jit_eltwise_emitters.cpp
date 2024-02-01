@@ -22,9 +22,9 @@ ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov:
         input_precisions.push_back(input.get_source_output().get_element_type());
     }
 
-    OPENVINO_ASSERT(std::all_of(input_precisions.cbegin(), input_precisions.cend(),
-                                [&input_precisions](const ov::element::Type& precision) { return precision == input_precisions[0]; }),
-                    "Arithmetic binary node has not equal input precisions");
+    OV_CPU_JIT_EMITTER_ASSERT(std::all_of(input_precisions.cbegin(), input_precisions.cend(),
+                                          [&input_precisions](const ov::element::Type& precision) { return precision == input_precisions[0]; }),
+                           "Arithmetic binary node has not equal input precisions");
 
     return input_precisions[0];
 }
@@ -46,7 +46,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -61,7 +61,7 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
         switch (exec_prc_) {
             case ov::element::f32: h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
             case ov::element::i32:  h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -93,7 +93,7 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -117,7 +117,7 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
                 h->uni_vpmulld(vmm_dst, vmm_dst, vmm_src1);
                 h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
             } break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -149,7 +149,7 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
                 h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
                 h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
             } break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -184,7 +184,7 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -199,7 +199,7 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
         switch (exec_prc_) {
             case ov::element::f32: h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1); break;
             case ov::element::i32:  h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -231,7 +231,7 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -246,7 +246,7 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
         switch (exec_prc_) {
             case ov::element::f32: h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
             case ov::element::i32:  h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1); break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -278,7 +278,7 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -307,7 +307,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
                 h->uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             }
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -347,7 +347,7 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -380,7 +380,7 @@ void jit_ceiling_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -417,7 +417,7 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, co
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -471,7 +471,7 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -521,7 +521,7 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -536,7 +536,7 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
         switch (exec_prc_) {
             case ov::element::f32: h->uni_vmaxps(vmm_dst, vmm_src0, vmm_src1); break;
             case ov::element::i32:  h->uni_vpmaxsd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -569,7 +569,7 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -584,7 +584,7 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
         switch (exec_prc_) {
             case ov::element::f32: h->uni_vminps(vmm_dst, vmm_src0, vmm_src1); break;
             case ov::element::i32:  h->uni_vpminsd(vmm_dst, vmm_src0, vmm_src1); break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -618,7 +618,7 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -639,7 +639,7 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
                 h->uni_vpmulld(vmm_dst, vmm_dst, vmm_dst);
             } break;
-            default: OPENVINO_THROW("Unsupported precision");
+            default: OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
         }
     };
 
@@ -677,7 +677,7 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -792,7 +792,7 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -860,7 +860,7 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, co
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -923,7 +923,7 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, cons
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -987,7 +987,7 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1050,7 +1050,7 @@ void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const s
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1118,7 +1118,7 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, c
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1187,7 +1187,7 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1275,7 +1275,7 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, c
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1363,7 +1363,7 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1451,7 +1451,7 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1497,7 +1497,7 @@ jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator* host,
     : jit_emitter(host, host_isa, exec_prc) {
     auto powerStaticNode = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
-        OPENVINO_THROW("Can't cast to snippets::op::PowerStatic");
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to snippets::op::PowerStatic");
     }
 
     power = powerStaticNode->get_power();
@@ -1528,7 +1528,7 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1709,7 +1709,7 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1771,7 +1771,7 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const s
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1805,7 +1805,7 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, con
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -1848,7 +1848,7 @@ void jit_erf_emitter::emit_impl(
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2035,7 +2035,7 @@ void jit_soft_sign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, co
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2097,7 +2097,7 @@ void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("jit_is_finite_emitter doesn't support ISA ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2170,7 +2170,7 @@ void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("jit_is_inf_emitter doesn't support ISA ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2220,7 +2220,7 @@ void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("jit_is_nan_emitter doesn't support ISA ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2262,7 +2262,7 @@ void jit_select_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2325,7 +2325,7 @@ void jit_bitwise_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2344,7 +2344,7 @@ void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, c
     } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
         h->vandps(vmm_dst, vmm_src0, vmm_src1);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2382,7 +2382,7 @@ void jit_bitwise_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2400,7 +2400,7 @@ void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, c
     } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
         h->vandnps(vmm_dst, vmm_src, table_val("all_bits"));
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2436,7 +2436,7 @@ void jit_bitwise_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, c
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2455,7 +2455,7 @@ void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, co
     } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
         h->vorps(vmm_dst, vmm_src0, vmm_src1);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -2487,7 +2487,7 @@ void jit_bitwise_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
     } else if (host_isa_ == x64::avx512_core) {
         emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Unsupported ISA");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 

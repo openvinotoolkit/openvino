@@ -7,7 +7,6 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -18,7 +17,7 @@ namespace set_1 {
 ///
 /// \param node The ONNX node object representing this operation.
 /// \return The vector containing nGraph a node producing the output of the Tile op.
-OutputVector tile(const Node& node);
+ov::OutputVector tile(const Node& node);
 
 }  // namespace set_1
 

@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_extension.h"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
@@ -172,20 +171,6 @@ public:
                                   const std::map<std::string, std::string>& config = {});
 
     /**
-     * @brief Registers extension
-     * @param extension Pointer to already loaded extension
-     */
-    void AddExtension(const IExtensionPtr& extension);
-
-    /**
-     * @brief Registers extension for the specified plugin
-     *
-     * @param extension Pointer to already loaded extension
-     * @param deviceName Device name to identify plugin to add an executable extension
-     */
-    void AddExtension(IExtensionPtr extension, const std::string& deviceName);
-
-    /**
      * @brief Creates an executable network from a previously exported network
      *
      * @param modelFileName Path to the location of the exported file
@@ -250,7 +235,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
+    ov::Any GetConfig(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -263,7 +248,7 @@ public:
      * @param options - optional parameters to get a metric value
      * @return Metric value corresponding to metric key.
      */
-    Parameter GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options = {}) const;
+    ov::Any GetMetric(const std::string& deviceName, const std::string& name, const ov::AnyMap& options = {}) const;
 
     /**
      * @brief Returns devices available for neural networks inference

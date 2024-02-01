@@ -1,9 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "helper.hpp"
+#include "node/include/helper.hpp"
 
-#include "tensor.hpp"
+#include "node/include/tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -67,7 +67,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
 
         std::vector<size_t> nativeArray;
 
-        for (size_t i = 0; i < arrayLength; ++i) {
+        for (uint32_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsNumber()) {
                 OPENVINO_THROW(std::string("Passed array must contain only numbers."));
@@ -107,7 +107,7 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
 
         std::unordered_set<std::string> nativeArray;
 
-        for (size_t i = 0; i < arrayLength; ++i) {
+        for (uint32_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsString()) {
                 OPENVINO_THROW(std::string("Passed array must contain only strings."));
@@ -199,7 +199,7 @@ std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
     const auto& config = elem.ToObject();
     const auto& keys = config.GetPropertyNames();
 
-    for (size_t i = 0; i < keys.Length(); ++i) {
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
         const std::string& option = static_cast<Napi::Value>(keys[i]).ToString();
         properties_to_cpp[option] = js_to_cpp<ov::Any>(config.Get(option), {napi_string});
     }
@@ -216,7 +216,7 @@ Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackIn
 template <>
 Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, const ov::Shape shape) {
     auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); ++i)
+    for (uint32_t i = 0; i < shape.size(); ++i)
         arr[i] = shape[i];
     return arr;
 }
@@ -226,7 +226,7 @@ Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& i
     size_t size = shape.size();
     Napi::Array dimensions = Napi::Array::New(info.Env(), size);
 
-    for (size_t i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         ov::Dimension dim = shape[i];
 
         if (dim.is_static()) {
@@ -254,7 +254,7 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 
     // Indexes looks wierd, but clear assignment,
     // like: interval[0] = value doesn't work here
-    size_t indexes[] = {0, 1};
+    uint32_t indexes[] = {0, 1};
     interval[indexes[0]] = dim.get_min_length();
     interval[indexes[1]] = dim.get_max_length();
 
@@ -270,13 +270,13 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
     ov::TensorVector parsed_input;
     if (input.IsArray()) {
         auto inputs = input.As<Napi::Array>();
-        for (size_t i = 0; i < inputs.Length(); ++i) {
+        for (uint32_t i = 0; i < inputs.Length(); ++i) {
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
         }
     } else if (input.IsObject()) {
         auto inputs = input.ToObject();
         const auto& keys = inputs.GetPropertyNames();
-        for (size_t i = 0; i < keys.Length(); ++i) {
+        for (uint32_t i = 0; i < keys.Length(); ++i) {
             auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
         }

@@ -18,14 +18,16 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/core/model.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/iteration_chaining.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {
@@ -42,7 +44,7 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     auto concat_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params, concat_const}, 0 /*axis*/);
     auto eltwise_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
-    auto eltwise = ov::test::utils::make_eltwise(concat, eltwise_const, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ov::test::utils::make_eltwise(concat, eltwise_const, ov::test::utils::EltwiseTypes::ADD);
     concat->get_output_tensor(0).set_names({"result_tensor_0"});
     concat->set_friendly_name("result_0");
     eltwise->get_output_tensor(0).set_names({"result_tensor_1"});
@@ -76,7 +78,7 @@ void OVIterationChaining::TearDown() {
     OVInferRequestTests::TearDown();
 }
 
-bool OVIterationChaining::checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual) {
+bool OVIterationChaining::checkOutput(const ov::Tensor& in, const ov::Tensor& actual) {
     bool result = true;
     auto net = core->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
     ov::InferRequest req;

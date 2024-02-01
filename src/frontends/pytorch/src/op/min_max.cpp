@@ -42,10 +42,11 @@ OutputVector translate_max(const NodeContext& context) {
     auto keepdims = context.const_input<bool>(2);
     auto values = context.mark_node(std::make_shared<v1::ReduceMax>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MAX, v3::TopK::SortType::NONE);
+    auto topk =
+        context.mark_node(std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MAX, v3::TopK::SortType::NONE));
     auto indicies = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
     if (!keepdims) {
-        indicies = std::make_shared<v0::Squeeze>(indicies, axes_node);
+        indicies = context.mark_node(std::make_shared<v0::Squeeze>(indicies, axes_node));
     }
     return {values, indicies};
 };
@@ -72,10 +73,11 @@ OutputVector translate_min(const NodeContext& context) {
     auto keepdims = context.const_input<bool>(2);
     auto values = context.mark_node(std::make_shared<v1::ReduceMin>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MIN, v3::TopK::SortType::NONE);
+    auto topk =
+        context.mark_node(std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MIN, v3::TopK::SortType::NONE));
     auto indicies = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
     if (!keepdims) {
-        indicies = std::make_shared<v0::Squeeze>(indicies, axes_node);
+        indicies = context.mark_node(std::make_shared<v0::Squeeze>(indicies, axes_node));
     }
     return {values, indicies};
 };

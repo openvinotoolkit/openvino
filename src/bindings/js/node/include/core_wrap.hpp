@@ -7,8 +7,6 @@
 
 #include <thread>
 
-#include "async_reader.hpp"
-#include "errors.hpp"
 #include "openvino/runtime/core.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {
