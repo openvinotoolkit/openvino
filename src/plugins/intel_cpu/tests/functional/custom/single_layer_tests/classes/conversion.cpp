@@ -134,8 +134,8 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
             break;
         }
         case ov::element::u8: {
-            auto* rawBlobDataPtr = static_cast<u_int8_t*>(tensor.data());
-            rawBlobDataPtr[0] = std::numeric_limits<u_int8_t>::max();
+            auto* rawBlobDataPtr = static_cast<unsigned char*>(tensor.data());
+            rawBlobDataPtr[0] = std::numeric_limits<unsigned char>::max();
             break;
         }
         default:
