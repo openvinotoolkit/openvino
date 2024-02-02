@@ -10,6 +10,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
+#include "utils/debug_capabilities.h"
 
 #include <string>
 #include <vector>
@@ -143,7 +144,7 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
+    BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to) {
         mem_holder_src = from->getPrimitive();
         mem_holder_dst = to->getPrimitive();
         reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
@@ -570,6 +571,7 @@ void TensorIterator::prepareParams() {
 void TensorIterator::execute(dnnl::stream strm) {
     //Special case, the subgraph is dynamic while the node has all static shapes
     if (runAsDynamic()) {
+        restoreSubgraphInputByBackEdges();
         executeDynamicImpl(strm);
         return;
     }
@@ -580,7 +582,7 @@ void TensorIterator::execute(dnnl::stream strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
-        mapper->execute(strm);
+        mapper.second->execute(strm);
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
     for (int i = 0; i != max_num_iter && continue_cond; i++) {
@@ -610,7 +612,7 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
-        mapper->execute(strm);
+        mapper.second->execute(strm);
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
     for (int i = 0; i != max_num_iter && continue_cond; i++) {
@@ -644,7 +646,8 @@ void TensorIterator::prepareInputPorts() {
         auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
 
         if (map_rule.axis == -1)
-            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
+            first_mappers.emplace(std::make_pair(map_rule.from, map_rule.to),
+                                std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem));
         else
             before_mappers.emplace_back(
                     std::make_shared<PortIteratorHelper>(context->getParamsCache(), from_mem, to_mem, true, map_rule, eng));
@@ -658,24 +661,22 @@ void TensorIterator::prepareOutputPorts() {
         auto &from_mem = output_mem[map_rule.to];
 
         if (map_rule.axis == -1)
-            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
+            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem));
         else
             after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(context->getParamsCache(), from_mem, to_mem, false, map_rule, eng));
     }
 }
 
 void TensorIterator::prepareBackEdges() {
-    const auto &eng = getEngine();
     for (auto map_rule : backEdges) {
         auto from_mem = output_mem[map_rule.from];
         auto to_mem = input_mems[map_rule.to].front();
 
-        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
+        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem));
     }
 }
 
 void TensorIterator::prepareDynamicBackEdges() {
-    const auto &eng = getEngine();
     back_mappers.clear();
     for (auto map_rule : backEdges) {
         auto from_mem = output_mem[map_rule.from];
@@ -684,7 +685,7 @@ void TensorIterator::prepareDynamicBackEdges() {
         redefineToMemories(to_mems, from_mem->getDescPtr());
 
         // first memory is enough to get common memory ptr
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mems.front(), eng));
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mems.front()));
     }
 }
 
@@ -753,7 +754,6 @@ void TensorIterator::reshapeSubgraphInput() {
 }
 
 void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
-    auto eng = strm.get_engine();
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis == -1) {
             auto to_mems = getToMemories(this, map_rule.from);
@@ -769,7 +769,7 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
-                BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front(), eng);
+                BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
                 mapper.execute(strm);
             }
         }
@@ -791,6 +791,27 @@ bool TensorIterator::checkForInputAndBodyShapesInequality() const {
     }
 
     return false;
+}
+
+// redefine memory for input nodes of subgraph and reset first_mappers as the primitives are invalid,
+// when the node is static while runs a dynamic subgraph.
+void TensorIterator::restoreSubgraphInputByBackEdges() {
+    for (auto& input_map : first_mappers) {
+        const auto extern_input_index = std::get<0>(input_map.first);
+        const auto body_input_index = std::get<1>(input_map.first);
+        auto from_mem = getParentEdgeAt(extern_input_index)->getMemoryPtr();
+        auto &to_mems = input_mems[body_input_index];
+        auto &to_mem = to_mems.front();
+        const auto& input_dims = from_mem->getStaticDims();
+        const auto& body_dims = to_mem->getStaticDims();
+        if (body_dims != input_dims) {
+            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mem->getDesc().getPrecision(), Shape(input_dims));
+            redefineToMemories(to_mems, desc);
+
+            // update first_mappers to replace its legacy input memory addr.
+            input_map.second.reset(new BackEdgePortHelper(context->getParamsCache(), from_mem, to_mem));
+        }
+    }
 }
 
 int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {
