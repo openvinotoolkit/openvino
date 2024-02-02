@@ -33,7 +33,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
-#include "preprocessing/preprocessing.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -741,14 +740,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-            return compile_model_and_cache(model,
-                                           plugin,
+            return compile_model_and_cache(plugin,
+                                           model,
                                            parsed._config,
                                            ov::SoPtr<ov::IRemoteContext>{},
                                            cacheContent);
         });
     } else {
-        res = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
+        res = plugin.compile_model(model, parsed._config);
     }
     return res;
 }
@@ -774,32 +773,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
-            return compile_model_and_cache(model, plugin, parsed._config, context, cacheContent);
+            return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
     } else {
-        res = compile_model_with_preprocess(plugin, model, context, parsed._config);
+        res = plugin.compile_model(model, context, parsed._config);
     }
     return res;
-}
-
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Plugin& plugin,
-                                                                          const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                          const ov::AnyMap& config) const {
-    std::shared_ptr<const ov::Model> preprocessed_model = model;
-
-    // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
-    if (!is_new_api() && !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::AddPreprocessing>();
-
-        auto cloned_model = model->clone();
-        manager.run_passes(cloned_model);
-        preprocessed_model = cloned_model;
-    }
-
-    return context ? plugin.compile_model(preprocessed_model, context, config)
-                   : plugin.compile_model(preprocessed_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
@@ -820,7 +799,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
                 auto model = read_model(model_path, std::string{});
-                return compile_model_and_cache(model, plugin, parsed._config, {}, cacheContent);
+                return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else if (cacheManager) {
         // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
@@ -828,7 +807,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
         auto model = read_model(model_path, std::string());
-        compiled_model = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
+        compiled_model = plugin.compile_model(model, parsed._config);
     }
     return compiled_model;
 }
@@ -853,15 +832,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
                 auto model = read_model(model_str, weights);
-                return compile_model_and_cache(model,
-                                               plugin,
+                return compile_model_and_cache(plugin,
+                                               model,
                                                parsed._config,
                                                ov::SoPtr<ov::IRemoteContext>{},
                                                cacheContent);
             });
     } else {
         auto model = read_model(model_str, weights);
-        compiled_model = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
+        compiled_model = plugin.compile_model(model, parsed._config);
     }
     return compiled_model;
 }
@@ -1404,14 +1383,14 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     }
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
-                                                                    ov::Plugin& plugin,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& plugin,
+                                                                    const std::shared_ptr<const ov::Model>& model,
                                                                     const ov::AnyMap& parsedConfig,
                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
-    ov::SoPtr<ov::ICompiledModel> execNetwork;
-    execNetwork = compile_model_with_preprocess(plugin, model, context, parsedConfig);
+    ov::SoPtr<ov::ICompiledModel> compiled_model =
+        context ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
     if (cacheContent.cacheManager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"
@@ -1425,14 +1404,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
                 networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
                                                         compiled_model_runtime_properties);
-                execNetwork->export_model(networkStream);
+                compiled_model->export_model(networkStream);
             });
         } catch (...) {
             cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
             throw;
         }
     }
-    return execNetwork;
+    return compiled_model;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
