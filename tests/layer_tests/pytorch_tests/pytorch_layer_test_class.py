@@ -9,10 +9,12 @@ import os
 import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
+from packaging import version
 import openvino.frontend.pytorch.torchdynamo.backend
 
 
@@ -74,27 +76,59 @@ class PytorchLayerTest:
                     return True
             return False
 
+        def use_torch_export():
+            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+            if torch_compile_env is not None:
+                return torch_compile_env == "EXPORT"
+            return False
+
         ov_inputs = flattenize_inputs(inputs)
 
         if use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
-            trace_model = kwargs.get('trace_model', False)
-            freeze_model = kwargs.get('freeze_model', True)
-            with torch.no_grad():
-                if kwargs.get('use_convert_model', False):
-                    smodel, converted_model = self.convert_via_mo(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
-                else:
-                    smodel, converted_model = self.convert_directly_via_frontend(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+            if use_torch_export():
+                from openvino import convert_model
+                from torch.export import export
+                from torch.fx.experimental.proxy_tensor import make_fx
 
-            if kind is not None and not isinstance(kind, (tuple, list)):
-                kind = [kind]
-            if kind is not None:
-                for op in kind:
-                    assert self._check_kind_exist(
-                        smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
+                em = export(model, tuple(torch_inputs))
+                if version.parse(torch.__version__) >= version.parse("2.2"):
+                    em = em.run_decompositions()
+                print(em.graph_module.code)
+
+                try:
+                    gm = make_fx(em)(*torch_inputs)
+                except:
+                    gm = make_fx(em, tracing_mode='symbolic')(*torch_inputs)
+
+                input_shapes = []
+                input_types = []
+                for input_data in torch_inputs:
+                    input_types.append(input_data.type())
+                    input_shapes.append(input_data.size())
+
+                decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+                converted_model = convert_model(decoder, example_input=torch_inputs)
+                self._resolve_input_shape_dtype(
+                    converted_model, ov_inputs, dynamic_shapes)
+                smodel = model
+            else:
+                trace_model = kwargs.get('trace_model', False)
+                freeze_model = kwargs.get('freeze_model', True)
+                with torch.no_grad():
+                    if kwargs.get('use_convert_model', False):
+                        smodel, converted_model = self.convert_via_mo(
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                    else:
+                        smodel, converted_model = self.convert_directly_via_frontend(
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                if kind is not None and not isinstance(kind, (tuple, list)):
+                    kind = [kind]
+                if kind is not None:
+                    for op in kind:
+                        assert self._check_kind_exist(
+                            smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
             compiled = core.compile_model(converted_model, ie_device)

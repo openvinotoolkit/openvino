@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/conv_transpose.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -19,6 +20,9 @@
 #include "utils/convpool.hpp"
 
 using namespace ov::op;
+using ov::CoordinateDiff;
+using ov::Shape;
+using ov::Strides;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -30,8 +34,8 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
                                               const ov::Output<ov::Node>& filters,
                                               const Strides& strides,
                                               const Strides& dilations,
-                                              const CoordinateDiff& pads_begin,
-                                              const CoordinateDiff& pads_end,
+                                              const ov::CoordinateDiff& pads_begin,
+                                              const ov::CoordinateDiff& pads_end,
                                               const ov::op::PadType& auto_pad_type,
                                               const std::vector<std::int64_t>& output_shape,
                                               const std::vector<std::int64_t>& output_padding) {
@@ -44,7 +48,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     } else {
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
@@ -53,7 +57,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
             strides,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     }
 }
 
@@ -61,8 +65,8 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
                                         const ov::Output<ov::Node>& filters,
                                         const Strides& strides,
                                         const Strides& dilations,
-                                        const CoordinateDiff& pads_begin,
-                                        const CoordinateDiff& pads_end,
+                                        const ov::CoordinateDiff& pads_begin,
+                                        const ov::CoordinateDiff& pads_end,
                                         const ov::op::PadType& auto_pad_type,
                                         const std::vector<std::int64_t>& output_shape,
                                         const std::vector<std::int64_t>& output_padding) {
@@ -75,7 +79,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     } else {
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
@@ -86,7 +90,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
             pads_end,
             dilations,
             auto_pad_type,
-            CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
+            ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)));
     }
 }
 
@@ -140,7 +144,7 @@ ov::OutputVector conv_transpose(const Node& node) {
 
     std::size_t num_spatial_dims = 0;
     Strides strides, dilations;
-    std::pair<CoordinateDiff, CoordinateDiff> paddings;
+    std::pair<ov::CoordinateDiff, ov::CoordinateDiff> paddings;
     ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 
     // Get attirbutes or infer them from input data rank it it's static.
@@ -163,8 +167,8 @@ ov::OutputVector conv_transpose(const Node& node) {
     strides = convpool::get_strides(node, num_spatial_dims);
     dilations = convpool::get_dilations(node, num_spatial_dims);
     paddings = convpool::get_pads(node, num_spatial_dims);
-    CoordinateDiff pads_begin = paddings.first;
-    CoordinateDiff pads_end = paddings.second;
+    ov::CoordinateDiff pads_begin = paddings.first;
+    ov::CoordinateDiff pads_end = paddings.second;
 
     std::vector<std::int64_t> output_shape{node.get_attribute_value<std::vector<std::int64_t>>("output_shape", {})};
 

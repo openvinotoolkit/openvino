@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/specialize_function.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 using namespace ngraph;
-NGRAPH_SUPPRESS_DEPRECATED_START;
+OPENVINO_SUPPRESS_DEPRECATED_START;
 
 using ov::op::v0::Constant;
 
@@ -26,7 +26,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_element_types.size());
     OPENVINO_ASSERT(f->get_parameters().size() == parameter_values.size());
 
-    NodeMap m;
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> m;
 
     for (size_t i = 0; i < parameter_shapes.size(); i++) {
         OPENVINO_ASSERT(f->get_parameters()[i]->get_element_type().is_dynamic() ||
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
     }
 
     for (auto old_node : f->get_ordered_ops()) {
-        if (op::is_parameter(old_node)) {
+        if (ov::op::util::is_parameter(old_node)) {
             continue;
         }
 
@@ -58,7 +58,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
 
         ov::NodeVector cloned_dependencies;
         for (auto& dependency : old_node->get_control_dependencies()) {
-            std::shared_ptr<Node> dependent = m.at(dependency.get());
+            std::shared_ptr<ov::Node> dependent = m.at(dependency.get());
             if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) == cloned_dependencies.end()) {
                 cloned_dependencies.push_back(dependent);
             }
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> ngraph::specialize_function(std::shared_ptr<ov::Model
         new_parameters[i]->set_friendly_name(name);
     }
 
-    ResultVector new_results = f->get_results();
+    ov::ResultVector new_results = f->get_results();
     for (size_t i = 0; i < new_results.size(); i++) {
         auto name = new_results[i]->get_friendly_name();
         new_results[i] = std::static_pointer_cast<ov::op::v0::Result>(m[new_results[i].get()]);

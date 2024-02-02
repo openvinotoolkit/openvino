@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,14 +181,14 @@ void MemoryTest::CreateTIFunc() {
 void MemoryTest::CreateCommonFunc() {
     ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU
-                                   ? ov::op::util::VariableInfo{Shape{inputShape}, ngPrc, "v0"}
+                                   ? ov::op::util::VariableInfo{ov::Shape{inputShape}, ngPrc, "v0"}
                                    : ov::op::util::VariableInfo{inputShape, ngPrc, "v0"};
     auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
     auto read_value = CreateReadValueOp(param.at(0), variable);
     auto add = std::make_shared<ov::op::v1::Add>(read_value, param.at(0));
     auto assign = CreateAssignOp(add, variable);
     auto res = std::make_shared<ov::op::v0::Result>(add);
-    function = std::make_shared<ov::Model>(ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
+    function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, param, "TestMemory");
 }
 
 void MemoryTest::ApplyLowLatency() {

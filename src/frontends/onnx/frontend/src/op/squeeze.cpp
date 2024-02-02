@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/squeeze.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -16,10 +19,10 @@ ov::OutputVector squeeze(const Node& node) {
     const auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
     if (axes.empty()) {
-        return {std::make_shared<default_opset::Squeeze>(data)};
+        return {std::make_shared<v0::Squeeze>(data)};
     } else {
-        const auto axes_const = std::make_shared<default_opset::Constant>(ov::element::i64, Shape{axes.size()}, axes);
-        return {std::make_shared<default_opset::Squeeze>(data, axes_const)};
+        const auto axes_const = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
+        return {std::make_shared<v0::Squeeze>(data, axes_const)};
     }
 }
 
@@ -29,9 +32,9 @@ namespace set_13 {
 ov::OutputVector squeeze(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     if (inputs.size() < 2) {
-        return {std::make_shared<default_opset::Squeeze>(inputs.at(0))};
+        return {std::make_shared<v0::Squeeze>(inputs.at(0))};
     } else {
-        return {std::make_shared<default_opset::Squeeze>(inputs.at(0), inputs.at(1))};
+        return {std::make_shared<v0::Squeeze>(inputs.at(0), inputs.at(1))};
     }
 }
 

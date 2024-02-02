@@ -183,7 +183,7 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
+    template <typename C, typename = ov::util::enableIfSupportedChar<C>>
     void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
         try {
             auto plugin_extensions = ov::detail::load_extensions(path);
@@ -277,7 +277,7 @@ public:
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
-    std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
     // Common API
 
@@ -362,7 +362,7 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
+    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config, const bool keep_core_property = true) const override;
 
     bool is_new_api() const override;
 

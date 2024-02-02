@@ -7,11 +7,8 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/op/select.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -20,7 +17,7 @@ namespace set_1 {
 inline ov::OutputVector where(const Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
 
-    return {std::make_shared<default_opset::Select>(ng_inputs.at(0), ng_inputs.at(1), ng_inputs.at(2))};
+    return {std::make_shared<ov::op::v1::Select>(ng_inputs.at(0), ng_inputs.at(1), ng_inputs.at(2))};
 }
 }  // namespace set_1
 

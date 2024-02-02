@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,12 @@
 
 namespace LayerTestsDefinitions {
 
-using BroadcastParamsTuple = typename std::tuple<
-        InferenceEngine::SizeVector,       // target shape
-        ngraph::AxisSet,                   // axes mapping
-        ov::op::BroadcastType,         // broadcast mode
-        InferenceEngine::SizeVector,       // Input shape
-        InferenceEngine::Precision,        // Network precision
-        std::string>;                      // Device name
+using BroadcastParamsTuple = typename std::tuple<InferenceEngine::SizeVector,  // target shape
+                                                 ov::AxisSet,                  // axes mapping
+                                                 ov::op::BroadcastType,        // broadcast mode
+                                                 InferenceEngine::SizeVector,  // Input shape
+                                                 InferenceEngine::Precision,   // Network precision
+                                                 std::string>;                 // Device name
 
 class BroadcastLayerTest : public testing::WithParamInterface<BroadcastParamsTuple>,
                         virtual public LayerTestsUtils::LayerTestsCommon {

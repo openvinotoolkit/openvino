@@ -170,7 +170,7 @@ void fill_psroi(ov::Tensor& tensor,
                 int spatialBinsY,
                 const std::string& mode);
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,
@@ -545,6 +545,52 @@ inline ov::float8_e4m3 ie_abs(const ov::float8_e4m3& val) {
 
 inline ov::float8_e5m2 ie_abs(const ov::float8_e5m2& val) {
     return ov::float8_e5m2::from_bits(val.to_bits() & 0x7F);
+}
+
+template <class T_ACTUAL, class T_EXPECTED>
+static void compare_raw_data(const T_EXPECTED* expected,
+                             const T_ACTUAL* actual,
+                             std::size_t size,
+                             float threshold,
+                             float abs_threshold = -1.f) {
+    for (std::size_t i = 0; i < size; ++i) {
+        const T_EXPECTED& ref = expected[i];
+        const auto& res = actual[i];
+        const auto absoluteDifference = ov::test::utils::ie_abs(res - ref);
+        if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
+            OPENVINO_THROW("Absolute comparison of values expected: ",
+                           std::to_string(ref),
+                           " and actual: ",
+                           std::to_string(res),
+                           " at index ",
+                           i,
+                           " with absolute threshold ",
+                           abs_threshold,
+                           " failed");
+        }
+        if (absoluteDifference <= threshold) {
+            continue;
+        }
+        double max;
+        if (sizeof(T_ACTUAL) < sizeof(T_EXPECTED)) {
+            max = static_cast<double>(std::max(ov::test::utils::ie_abs(T_EXPECTED(res)), ov::test::utils::ie_abs(ref)));
+        } else {
+            max = static_cast<double>(std::max(ov::test::utils::ie_abs(res), ov::test::utils::ie_abs(T_ACTUAL(ref))));
+        }
+        double diff = static_cast<float>(absoluteDifference) / max;
+        if (max == 0 || (diff > static_cast<float>(threshold)) ||
+            (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
+            OPENVINO_THROW("Relative comparison of values expected: ",
+                           std::to_string(ref),
+                           " and actual: ",
+                           std::to_string(res),
+                           " at index ",
+                           i,
+                           " with threshold ",
+                           threshold,
+                           " failed");
+        }
+    }
 }
 
 }  // namespace utils

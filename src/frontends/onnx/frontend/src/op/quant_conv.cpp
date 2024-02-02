@@ -16,7 +16,6 @@
 #    include "default_opset.hpp"
 #    include "exceptions.hpp"
 #    include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
-#    include "ngraph/coordinate_diff.hpp"
 #    include "ngraph/frontend/onnx_import/utils/convpool.hpp"
 #    include "ngraph/op/util/attr_types.hpp"
 #    include "ngraph/opsets/opset0.hpp"
@@ -34,21 +33,21 @@ namespace ngraph
                 {
                     struct OpScale
                     {
-                        Output<ngraph::Node> data_scale;
-                        Output<ngraph::Node> filter_scale;
-                        Output<ngraph::Node> output_scale;
+                        Output<ov::Node> data_scale;
+                        Output<ov::Node> filter_scale;
+                        Output<ov::Node> output_scale;
                     };
 
                     struct OpZeroPoint
                     {
-                        Output<ngraph::Node> data_zero_point;
-                        Output<ngraph::Node> filter_zero_point;
-                        Output<ngraph::Node> output_zero_point;
+                        Output<ov::Node> data_zero_point;
+                        Output<ov::Node> filter_zero_point;
+                        Output<ov::Node> output_zero_point;
                     };
 
-                    std::shared_ptr<ngraph::Node>
-                        make_ng_quant_conv(const Output<ngraph::Node>& data,
-                                           const Output<ngraph::Node>& filters,
+                    std::shared_ptr<ov::Node>
+                        make_ng_quant_conv(const Output<ov::Node>& data,
+                                           const Output<ov::Node>& filters,
                                            const Strides& strides,
                                            const Strides& filter_dilations,
                                            const CoordinateDiff& padding_below,
@@ -57,7 +56,7 @@ namespace ngraph
                                            int groups,
                                            const OpScale& op_scale,
                                            const OpZeroPoint& op_zero_point,
-                                           const Output<ngraph::Node>& bias = nullptr)
+                                           const Output<ov::Node>& bias = nullptr)
                     {
                         ngraph:: ov::element::Type output_type;
                         if (data.get_element_type() == ngraph:: ov::element::u8 &&
@@ -125,9 +124,9 @@ namespace ngraph
                                             op_scale.output_scale,
                                             op_zero_point.output_zero_point,
                                             output_type,
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{}));
+                                            ov::AxisSet{},
+                                            ov::AxisSet{},
+                                            ov::AxisSet{}));
                                 }
                             }
                             std::size_t concatenation_axis = 1;
@@ -168,9 +167,9 @@ namespace ngraph
                                     op_scale.output_scale,
                                     op_zero_point.output_zero_point,
                                     output_type,
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{});
+                                    ov::AxisSet{},
+                                    ov::AxisSet{},
+                                    ov::AxisSet{});
                             }
                         }
                     }
@@ -228,7 +227,7 @@ namespace ngraph
                                                   padding_below,
                                                   padding_above);
 
-                    std::shared_ptr<ngraph::Node> conv_node = nullptr;
+                    std::shared_ptr<ov::Node> conv_node = nullptr;
 
                     // no bias param
                     if (inputs.size() == 9 && !ngraph::op::is_null(inputs.at(8)))

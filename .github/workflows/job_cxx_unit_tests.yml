@@ -33,6 +33,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     if: ${{ github.event_name != 'merge_group' }}
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:

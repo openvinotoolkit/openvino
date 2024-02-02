@@ -8,7 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
 #include "openvino/opsets/opset1.hpp"
-#include <precision_utils.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 
@@ -56,8 +55,8 @@ GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphC
 }
 
 void GatherElements::prepareParams() {
-    const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
-    const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& dataDims = getParentEdgeAt(dataIndex_)->getMemory().getStaticDims();
+    const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     strideAxDst_ = 1;
     for (size_t i = dstDims.size() - 1; i > axis_; i--)
         strideAxDst_ *= dstDims[i];
@@ -101,11 +100,11 @@ void GatherElements::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename dataType>
 void GatherElements::directExecution() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->getData());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->getData());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
+    const auto *indices = getSrcDataAtPortAs<const int>(indicesIndex_);
+    auto *dstData = getDstDataAtPortAs<dataType>(0);
 
-    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
+    const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);
