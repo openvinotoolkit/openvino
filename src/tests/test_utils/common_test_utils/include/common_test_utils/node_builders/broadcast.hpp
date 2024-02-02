@@ -7,13 +7,13 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
-namespace op {
-namespace util {
+namespace test {
+namespace utils {
 std::shared_ptr<Node> make_broadcast(const Output<Node>& node,
                                      const Shape& target_shape,
                                      const AxisSet& broadcast_axes);
 
 std::shared_ptr<Node> make_broadcast(const Output<Node>& node, const Shape& target_shape, std::size_t start_match_axis);
-}  // namespace util
-}  // namespace op
+}  // namespace utils
+}  // namespace test
 }  // namespace ov

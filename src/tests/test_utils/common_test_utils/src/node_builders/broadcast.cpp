@@ -14,8 +14,8 @@
 #include "openvino/op/shape_of.hpp"
 
 namespace ov {
-namespace op {
-namespace util {
+namespace test {
+namespace utils {
 namespace {
 ///
 /// \brief      Reconstructs axes mapping vector for Broadcast:v1 operation.
@@ -55,7 +55,7 @@ Output<ov::Node> get_axes_mapping_output(const PartialShape& output_shape,
     const auto zero_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
     const auto start_match_axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {start_match_axis});
     const auto target_shape_rank_node =
-        ov::op::util::reshape(std::make_shared<ov::op::v3::ShapeOf>(input_shape), Shape{});
+        ov::test::utils::reshape(std::make_shared<ov::op::v3::ShapeOf>(input_shape), Shape{});
 
     const auto range_node =
         std::make_shared<ov::op::v4::Range>(zero_node, target_shape_rank_node, one_node, element::i64);
@@ -87,6 +87,6 @@ std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node,
         ov::op::v0::Constant::create(ov::element::i64, Shape{target_shape.size()}, target_shape),
         get_axes_mapping_output(target_shape, node_shape, start_match_axis));
 }
-}  // namespace util
-}  // namespace op
+}  // namespace utils
+}  // namespace test
 }  // namespace ov
