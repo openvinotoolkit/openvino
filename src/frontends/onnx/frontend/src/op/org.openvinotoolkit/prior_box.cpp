@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
+#include "core/node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"
@@ -15,6 +15,7 @@
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {

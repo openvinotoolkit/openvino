@@ -4,6 +4,8 @@
 
 #include "def_conv.h"
 
+#include <openvino/op/deformable_convolution.hpp>
+
 #include <string>
 #include <vector>
 #include <math.h>
@@ -1176,10 +1178,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 }
 
 void DeformableConvolution::prepareParams() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
-    auto weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto offMemPtr = getSrcMemoryAtPort(OFF_ID);
+    auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
@@ -1191,7 +1193,7 @@ void DeformableConvolution::prepareParams() {
         OPENVINO_THROW(errorPrefix, " did not allocate weights memory");
 
     if (getOriginalInputsNumber() > 3) {
-        auto modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
         if (!modMemPtr || !modMemPtr->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate modulations memory");
     }
@@ -1214,7 +1216,7 @@ void DeformableConvolution::prepareParams() {
     if (withModulation) {
         descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
-    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>());
+    descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
     DefConvKey key = {
         descVector,
@@ -1223,8 +1225,8 @@ void DeformableConvolution::prepareParams() {
     };
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
-    const int OH = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[2];
-    const int OW = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[3];
+    const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
+    const int OW = getChildEdgeAt(0)->getMemory().getStaticDims()[3];
 
     const int KH = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[2];
     const int KW = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[3];
@@ -1294,15 +1296,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.getData());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.getData());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.getData());
+    const auto *src = srcMemory0.getDataAs<const float>();
+    const auto *offsets = srcMemory1.getDataAs<const float>();
+    const auto *weights = srcMemory2.getDataAs<const float>();
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().getData());
+        modulation = getParentEdgeAt(3)->getMemory().getDataAs<float>();
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.getData());
+    float *dst = dstMemory.getDataAs<float>();
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

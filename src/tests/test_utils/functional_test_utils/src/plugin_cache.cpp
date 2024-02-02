@@ -13,7 +13,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "ie_core.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace {
@@ -69,13 +68,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string& device
         std::vector<std::string> metrics;
         if (deviceToCheck.find(':') != std::string::npos) {
             std::string realDevice = deviceToCheck.substr(0, deviceToCheck.find(':'));
-            metrics = {ie_core->GetMetric(realDevice, METRIC_KEY(SUPPORTED_METRICS)).as<std::string>()};
+            metrics = {ie_core->GetMetric(realDevice, ov::supported_properties.name()).as<std::string>()};
         } else {
-            metrics = {ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS)).as<std::string>()};
+            metrics = {ie_core->GetMetric(deviceToCheck, ov::supported_properties.name()).as<std::string>()};
         }
-        if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
+        if (std::find(metrics.begin(), metrics.end(), ov::supported_properties.name()) != metrics.end()) {
             auto availableDevices =
-                ie_core->GetMetric(deviceToCheck, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+                ie_core->GetMetric(deviceToCheck, ov::supported_properties.name()).as<std::vector<std::string>>();
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;

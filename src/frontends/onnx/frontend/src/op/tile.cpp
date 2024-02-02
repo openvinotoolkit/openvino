@@ -4,10 +4,11 @@
 
 #include "op/tile.hpp"
 
-#include <memory>
+#include "core/node.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/tile.hpp"
 
-#include "default_opset.hpp"
-#include "onnx_import/core/node.hpp"
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -20,9 +21,9 @@ ov::OutputVector tile(const Node& node) {
 
     // Workaround for backends which require repeats to be i64.
     // Remove the following line when no longer needed.
-    repeats = std::make_shared<default_opset::Convert>(repeats, ov::element::i64);
+    repeats = std::make_shared<v0::Convert>(repeats, ov::element::i64);
 
-    return {std::make_shared<default_opset::Tile>(input, repeats)};
+    return {std::make_shared<v0::Tile>(input, repeats)};
 }
 
 }  // namespace set_1
