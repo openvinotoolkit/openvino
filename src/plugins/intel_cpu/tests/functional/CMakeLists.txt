@@ -4,12 +4,9 @@
 
 set(TARGET_NAME ov_cpu_func_tests)
 
-add_library(cpuSpecificRtInfo STATIC
-    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
-    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
-target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
-
 add_library(cpuUtils STATIC
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp)
 set(CPU_UTILS_LINK_LIBRARIES openvino::runtime)
