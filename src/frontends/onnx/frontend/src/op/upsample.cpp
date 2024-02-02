@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ ov::OutputVector upsample(const onnx_import::Node& node) {
     scales[rank_size - 1] = width_scale;
     scales[rank_size - 2] = height_scale;
 
-    const auto scales_const = v0::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = v0::Constant::create(ov::element::f32, ov::Shape({scales.size()}), scales);
 
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
@@ -94,7 +94,7 @@ ov::OutputVector upsample(const onnx_import::Node& node) {
                      "Input tensor's rank is required to be the same as number of "
                      "elements of 'scales' attribute.");
 
-    const auto scales_const = v0::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = v0::Constant::create(ov::element::f32, ov::Shape({scales.size()}), scales);
 
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
