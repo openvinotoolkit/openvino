@@ -39,11 +39,13 @@ class Tensor;
 class SparseTensor;
 class Attribute;
 
+using ::ONNX_NAMESPACE::NodeProto;
+
 class Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
-    Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
+    Node(const NodeProto& node_proto, Graph* graph);
 
     Node(Node&&) noexcept;
     Node(const Node&);

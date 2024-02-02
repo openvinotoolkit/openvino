@@ -13,20 +13,19 @@
 #include "openvino/op/parameter.hpp"
 #include "utils/common.hpp"
 
-using namespace ov::frontend::onnx::common;
-
-using namespace ov::op;
-
 namespace ov {
 namespace frontend {
 namespace onnx {
+
+using ::ONNX_NAMESPACE::ValueInfoProto;
+
 class ValueInfo {
 public:
     ValueInfo(ValueInfo&&) = default;
     ValueInfo(const ValueInfo&) = default;
 
     ValueInfo() = delete;
-    explicit ValueInfo(const ONNX_NAMESPACE::ValueInfoProto& value_info_proto) : m_value_info_proto{&value_info_proto} {
+    explicit ValueInfo(const ValueInfoProto& value_info_proto) : m_value_info_proto{&value_info_proto} {
         if (value_info_proto.type().has_tensor_type()) {
             const auto& onnx_tensor = value_info_proto.type().tensor_type();
 
@@ -63,19 +62,19 @@ public:
     }
 
 protected:
-    std::shared_ptr<v0::Parameter> get_ov_parameter() const {
-        auto parameter = std::make_shared<v0::Parameter>(get_element_type(), get_shape());
+    std::shared_ptr<ov::op::v0::Parameter> get_ov_parameter() const {
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(get_element_type(), get_shape());
         parameter->set_friendly_name(get_name());
         parameter->get_output_tensor(0).set_names({get_name()});
         return parameter;
     }
 
-    std::shared_ptr<v0::Constant> get_ov_constant(const Tensor& tensor) const {
+    std::shared_ptr<ov::op::v0::Constant> get_ov_constant(const Tensor& tensor) const {
         return tensor.get_ov_constant();
     }
 
 private:
-    const ONNX_NAMESPACE::ValueInfoProto* m_value_info_proto;
+    const ValueInfoProto* m_value_info_proto;
     ov::PartialShape m_partial_shape = ov::PartialShape::dynamic();
 };
 

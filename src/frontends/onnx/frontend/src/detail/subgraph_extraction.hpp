@@ -21,9 +21,12 @@ class ValueInfoProto;
 namespace ov {
 namespace frontend {
 namespace onnx {
+
+using ::ONNX_NAMESPACE::GraphProto;
+
 /// \brief Subgraph extraction helper structure
 struct SubgraphExtractor {
-    SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph);
+    SubgraphExtractor(GraphProto& graph);
 
     /// \brief Adds new inputs to the graph and connects them to the nodes indicated by
     ///        the provided input edges.
@@ -71,7 +74,7 @@ struct SubgraphExtractor {
     };
 
 private:
-    ONNX_NAMESPACE::GraphProto& m_onnx_graph;
+    GraphProto& m_onnx_graph;
 
     // Graph traversal helper: the input names of each node
     std::vector<std::vector<std::string>> m_node_inputs;

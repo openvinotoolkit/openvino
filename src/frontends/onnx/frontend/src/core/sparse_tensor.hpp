@@ -15,10 +15,12 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
+using ::ONNX_NAMESPACE::SparseTensorProto;
+
 class SparseTensor {
 public:
     SparseTensor() = delete;
-    SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
+    SparseTensor(const SparseTensorProto& sparse_tensor,
                  const std::string& model_dir,
                  detail::MappedMemoryHandles mmap_cache)
         : m_values{sparse_tensor.values(), model_dir, mmap_cache},

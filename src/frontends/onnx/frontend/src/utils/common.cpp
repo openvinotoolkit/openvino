@@ -21,6 +21,7 @@
 #include "openvino/op/subtract.hpp"
 
 using namespace ov::op;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -30,33 +31,33 @@ namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
-    case ONNX_NAMESPACE::TensorProto_DataType_BOOL:
+    case TensorProto_DataType::TensorProto_DataType_BOOL:
         return ov::element::boolean;
-    case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+    case TensorProto_DataType::TensorProto_DataType_DOUBLE:
         return ov::element::f64;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT16:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT16:
         return ov::element::f16;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT8:
+    case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT16:
+    case TensorProto_DataType::TensorProto_DataType_INT16:
         return ov::element::i16;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+    case TensorProto_DataType::TensorProto_DataType_INT32:
         return ov::element::i32;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+    case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT8:
+    case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT16:
+    case TensorProto_DataType::TensorProto_DataType_UINT16:
         return ov::element::u16;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT32:
+    case TensorProto_DataType::TensorProto_DataType_UINT32:
         return ov::element::u32;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+    case TensorProto_DataType::TensorProto_DataType_UINT64:
         return ov::element::u64;
-    case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED:
+    case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
         return ov::element::dynamic;
-    case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
+    case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
     }
     OPENVINO_THROW("unsupported element type");

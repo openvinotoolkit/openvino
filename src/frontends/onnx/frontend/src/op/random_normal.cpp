@@ -10,6 +10,7 @@
 #include "utils/common.hpp"
 
 using namespace ov::op;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -23,7 +24,8 @@ ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomNormal operator must specify a 'shape' attribute.");
 
     const auto dtype =
-        node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
+        node.get_attribute_value<int64_t>("dtype",
+                                          static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT));
     const auto target_type = common::get_ov_element_type(dtype);
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);

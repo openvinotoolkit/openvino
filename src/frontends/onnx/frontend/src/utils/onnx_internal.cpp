@@ -57,7 +57,7 @@ void remove_dangling_results(std::shared_ptr<ov::Model>& model) {
     }
 }
 
-void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto) {
+void apply_transformations(ModelProto& model_proto) {
     transform::fixup_legacy_operators(model_proto);
 }
 
@@ -91,7 +91,7 @@ void convert_decoded_model(std::shared_ptr<ov::Model> model) {
     detail::remove_dangling_results(model);
 }
 
-std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ModelProto> model_proto,
                                              const std::string& model_path,
                                              detail::MappedMemoryHandles mmap_cache,
                                              ov::frontend::ExtensionHolder extensions) {
@@ -103,7 +103,7 @@ std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mod
     return graph.convert();
 }
 
-std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto> model_proto,
                                                      const std::string& model_path,
                                                      detail::MappedMemoryHandles mmap_cache,
                                                      ov::frontend::ExtensionHolder extensions) {

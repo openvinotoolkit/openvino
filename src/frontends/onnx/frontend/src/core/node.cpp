@@ -18,7 +18,7 @@ class Node::Impl {
 public:
     Impl() = delete;
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
+    Impl(const NodeProto& node_proto, Graph* graph)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
@@ -34,7 +34,7 @@ public:
         }
     }
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
+    Impl(const NodeProto& node_proto,
          Graph* graph,
          const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& subgraphs)
         : m_node_proto{&node_proto},
@@ -88,13 +88,13 @@ public:
                                                                     T default_value,
                                                                     ov::element::Type type) const;
 
-    const ONNX_NAMESPACE::NodeProto& node_proto() const;
+    const NodeProto& node_proto() const;
     Graph* graph() const;
 
 private:
     Subgraph get_subgraph_from_attribute(const std::string& name) const;
 
-    const ONNX_NAMESPACE::NodeProto* m_node_proto;
+    const NodeProto* m_node_proto;
     std::string m_name;
     std::string m_domain;
     Graph* m_graph;
@@ -106,7 +106,7 @@ private:
 };
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
+const NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
 Graph* Node::Impl::graph() const {
@@ -296,7 +296,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                         value);
 }
 
-Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
+Node::Node(const NodeProto& node_proto, Graph* graph)
     : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
                   delete impl;
               }} {}

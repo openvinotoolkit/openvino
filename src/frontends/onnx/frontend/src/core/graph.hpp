@@ -25,7 +25,7 @@ namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::string& model_dir,
-          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          const std::shared_ptr<ModelProto>& model_proto,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
@@ -64,7 +64,7 @@ public:
 
 protected:
     Graph(const std::string& model_dir,
-          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
+          const std::shared_ptr<ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
@@ -106,7 +106,7 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model, Graph* parent_graph);
+    Subgraph(const std::shared_ptr<ModelProto>& model, Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.

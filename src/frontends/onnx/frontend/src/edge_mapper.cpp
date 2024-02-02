@@ -14,7 +14,7 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
+EdgeMapper::EdgeMapper(const GraphProto& graph_proto)
     : m_node_inputs(graph_proto.node().size()),
       m_node_outputs(graph_proto.node().size()) {
     int topological_index = 0;

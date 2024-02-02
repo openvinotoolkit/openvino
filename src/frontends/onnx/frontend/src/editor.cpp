@@ -21,12 +21,11 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
+using namespace ::ONNX_NAMESPACE;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace {
-using namespace ONNX_NAMESPACE;
-
 ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name) {
     for (int i = 0; i < graph.input_size(); ++i) {
         auto* input_desc = graph.mutable_input(i);
@@ -92,7 +91,7 @@ void modify_input_type(ValueInfoProto& onnx_input, const ov::element::Type_t ele
     tensor_type->set_elem_type(ov_to_onnx_data_type(elem_type));
 }
 
-void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProto& onnx_shape) {
+void add_dim_to_onnx_shape(const Dimension& dim, TensorShapeProto& onnx_shape) {
     auto* new_dim = onnx_shape.add_dim();
     if (dim.is_static()) {
         new_dim->set_dim_value(dim.get_length());
@@ -179,15 +178,15 @@ bool is_topologically_sorted(const GraphProto& graph) {
     std::transform(std::begin(graph.input()),
                    std::end(graph.input()),
                    std::inserter(known_tensors, std::end(known_tensors)),
-                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+                   extract_name<ValueInfoProto>);
     std::transform(std::begin(graph.output()),
                    std::end(graph.output()),
                    std::inserter(known_tensors, std::end(known_tensors)),
-                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+                   extract_name<ValueInfoProto>);
     std::transform(std::begin(graph.initializer()),
                    std::end(graph.initializer()),
                    std::inserter(known_tensors, std::end(known_tensors)),
-                   extract_name<ONNX_NAMESPACE::TensorProto>);
+                   extract_name<TensorProto>);
 
     for (const auto& node : graph.node()) {
         for (const auto& input : node.input()) {
@@ -256,13 +255,13 @@ void graph_topological_sort(GraphProto* graph) {
 
 class InferShapesAutoRelease {
 public:
-    InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
+    InferShapesAutoRelease(std::shared_ptr<ModelProto> model_proto)
         : m_model_proto{model_proto},
           m_infer_shapes_was_run{false} {}
 
     bool infer_shapes() {
         try {  // unexpected exceptions of external onnx lib
-            ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+            shape_inference::InferShapes(*m_model_proto);
             m_infer_shapes_was_run = true;
         } catch (...) {
             release();
@@ -284,32 +283,29 @@ public:
     }
 
 private:
-    std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
+    std::shared_ptr<ModelProto> m_model_proto;
     bool m_infer_shapes_was_run;
 };
 }  // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
 struct ONNXModelEditor::Impl {
-    std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
+    std::shared_ptr<ModelProto> m_model_proto;
     EdgeMapper m_edge_mapper;
     bool m_is_mapper_updated = false;
 
     Impl() = delete;
 
-    Impl(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto) : m_model_proto{model_proto} {
+    Impl(const std::shared_ptr<ModelProto>& model_proto) : m_model_proto{model_proto} {
         graph_topological_sort(m_model_proto->mutable_graph());
     }
 
-    Impl(const std::string& model_path)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_file(model_path))) {}
+    Impl(const std::string& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
 
-    Impl(std::istream& model_stream)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(model_stream))) {}
+    Impl(std::istream& model_stream) : Impl(std::make_shared<ModelProto>(parse_from_istream(model_stream))) {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    Impl(const std::wstring& model_path)
-        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_file(model_path))) {}
+    Impl(const std::wstring& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
 #endif
 };
 
@@ -491,7 +487,7 @@ std::vector<std::string> ONNXModelEditor::model_outputs() const {
     std::transform(graph.output().begin(),
                    graph.output().end(),
                    std::back_inserter(outputs),
-                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+                   extract_name<ValueInfoProto>);
 
     return outputs;
 }

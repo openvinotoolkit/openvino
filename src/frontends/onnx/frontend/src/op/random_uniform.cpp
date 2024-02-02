@@ -9,6 +9,7 @@
 #include "utils/common.hpp"
 
 using namespace ov::op;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
@@ -21,7 +22,8 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
 
     const auto dtype =
-        node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
+        node.get_attribute_value<int64_t>("dtype",
+                                          static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT));
     const auto high_const = node.get_attribute_as_constant<float>("high", 1.0f);
     const auto low_const = node.get_attribute_as_constant<float>("low", 0.0f);
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);

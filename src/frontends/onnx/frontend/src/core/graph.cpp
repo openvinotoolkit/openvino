@@ -23,6 +23,7 @@
 #include "utils/common.hpp"
 
 using namespace ov;
+using namespace ::ONNX_NAMESPACE;
 
 namespace ov {
 namespace frontend {
@@ -67,14 +68,13 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
     return register_extensions(bridge, conversions);
 }
 
-Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
+Model::ModelOpSet build_model_opset(const ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
     // copy the opset imports from the ONNX model and sort them by their version in ascending order
     // this will make sure that multiple opset imports for the same domain will cause the largest
     // version to be used for this model, for example:
     // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
     auto opset_imports = model_proto.opset_import();
-    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
-                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+    const auto sort_by_version_ascending = [](const OperatorSetIdProto& lhs, const OperatorSetIdProto& rhs) {
         return lhs.version() < rhs.version();
     };
     std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
@@ -82,7 +82,7 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     Model::ModelOpSet opset;
     std::for_each(opset_imports.rbegin(),
                   opset_imports.rend(),
-                  [&opset, &ops_bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                  [&opset, &ops_bridge](const OperatorSetIdProto& onnx_opset) {
                       const auto domain =
                           onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
                       if (opset.find(domain) == std::end(opset)) {
@@ -112,13 +112,13 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 }  // namespace detail
 
 Graph::Graph(const std::string& model_dir,
-             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const std::shared_ptr<ModelProto>& model_proto,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
     : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), mmap_cache, std::move(extensions)) {}
 
 Graph::Graph(const std::string& model_dir,
-             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const std::shared_ptr<ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
@@ -202,13 +202,12 @@ void Graph::convert_to_ov_nodes() {
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Graph::remove_dangling_parameters() {
-    const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output,
-                                                        const ONNX_NAMESPACE::GraphProto& graph) {
+    const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output, const GraphProto& graph) {
         const auto found_in_outputs = [&graph](const std::string& tensor_name) {
             const auto& graph_outputs = graph.output();
             return std::any_of(std::begin(graph_outputs),
                                std::end(graph_outputs),
-                               [&tensor_name](const ONNX_NAMESPACE::ValueInfoProto& output) {
+                               [&tensor_name](const ValueInfoProto& output) {
                                    return tensor_name == output.name();
                                });
         };
@@ -445,7 +444,7 @@ const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();
 }
 
-Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, Graph* parent_graph)
+Subgraph::Subgraph(const std::shared_ptr<ModelProto>& model_proto, Graph* parent_graph)
     : Graph(parent_graph->model_dir(),
             model_proto,
             common::make_unique<GraphCache>(),

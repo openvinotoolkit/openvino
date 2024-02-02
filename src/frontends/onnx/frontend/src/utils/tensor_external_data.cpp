@@ -15,7 +15,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace detail {
-TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor) {
+TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
             m_data_location = ov::util::sanitize_path(entry.value());

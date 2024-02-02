@@ -14,13 +14,14 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace detail {
+using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
 public:
-    TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor);
+    TensorExternalData(const TensorProto& tensor);
 
     /// \brief      Load external data from tensor passed to constructor
     ///

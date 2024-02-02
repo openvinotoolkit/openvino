@@ -11,6 +11,8 @@ namespace frontend {
 namespace onnx {
 namespace transform {
 
+using ::ONNX_NAMESPACE::ModelProto;
+
 static const std::vector<std::string> onnx_functions_to_expand =
     {"AffineGrid", "Bernoulli", "Celu", "CenterCropPad", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
 
@@ -22,7 +24,7 @@ static const std::vector<std::string> onnx_functions_to_expand =
 /// with their expanded subgraphs.
 ///
 /// \param model_proto Protobuf message with ONNX model to transform.
-void expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto);
+void expand_onnx_functions(ModelProto& model_proto);
 
 static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
                                                              "DetectionOutput",
@@ -49,7 +51,7 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
 /// in the OpenVINO ONNX Frontend.
 ///
 /// \param model_proto Protobuf message with ONNX model to transform.
-void fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto);
+void fixup_legacy_operators(ModelProto& model_proto);
 
 }  // namespace transform
 }  // namespace onnx
