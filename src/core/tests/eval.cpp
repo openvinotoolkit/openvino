@@ -2688,7 +2688,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E4M3 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e4m3);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3189,6 +3189,68 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e4m3_scale_1) {
     EXPECT_THAT(read_vector<bfloat16>(result), Pointwise(FloatEq(), input_data));
 }
 
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_str_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(
+        read_vector<float>(result),
+        Pointwise(FloatEq(), std::vector<float>{0.f,         0.1015625f, 0.203125f, 0.3125f,   0.40625f, 0.5f,
+                                                0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
+                                                -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
+                                                -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_default_type_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(
+        read_vector<float>(result),
+        Pointwise(FloatEq(), std::vector<float>{0.f,         0.1015625f, 0.203125f, 0.3125f,   0.40625f, 0.5f,
+                                                0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
+                                                -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
+                                                -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
+}
+
 ///////////////////////////////////// FakeConvert f8e5m2
 TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     using namespace testing;
@@ -3204,7 +3266,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3235,7 +3297,7 @@ TEST(eval, evaluate_fake_convert_f16_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3265,7 +3327,7 @@ TEST(eval, evaluate_fake_convert_bf16_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3295,7 +3357,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3322,7 +3384,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3349,7 +3411,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_small_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3376,7 +3438,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3404,7 +3466,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3435,7 +3497,7 @@ TEST(eval, evaluate_fake_convert_f16_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3466,7 +3528,7 @@ TEST(eval, evaluate_fake_convert_bf16_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3495,7 +3557,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_big_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3562,7 +3624,7 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3626,7 +3688,7 @@ TEST(eval, evaluate_fake_convert_f16_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3690,7 +3752,7 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3724,7 +3786,7 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3736,6 +3798,39 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1_str_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(),
+                          std::vector<float>{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
+                                             0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
+                                             -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f}));
 }
 
 TEST(eval, evaluate_f8e5m2_const_from_f32) {
@@ -3837,7 +3932,7 @@ TEST(eval, evaluate_fake_convert_f32_seq_to_f8e5m2_scale_shift) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {5.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3900,7 +3995,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_4x3_scale_big) {
                                            fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
     auto shift = op::v0::Constant::create(et, Shape{4, 1}, {0.f, 0.f, 0.f, 0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3959,7 +4054,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_3x4_scale_big) {
                                            fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
     auto shift = op::v0::Constant::create(et, Shape{1, 4}, {0.f, 0.f, 0.f, 0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();

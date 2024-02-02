@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/specialize_function.hpp"
+#include "common_test_utils/specialize_function.hpp"
 
 #include "gtest/gtest.h"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 
-using namespace ngraph;
 using namespace ov;
-OPENVINO_SUPPRESS_DEPRECATED_START;
+using namespace ov::test::utils;
 
 using ov::op::v0::Constant;
 using ov::op::v0::Convert;
