@@ -799,7 +799,7 @@ void TensorIterator::restoreSubgraphInputByBackEdges() {
     for (auto& input_map : first_mappers) {
         const auto extern_input_index = std::get<0>(input_map.first);
         const auto body_input_index = std::get<1>(input_map.first);
-        auto from_mem = getParentEdgesAtPort(extern_input_index)[0]->getMemoryPtr();
+        auto from_mem = getParentEdgeAt(extern_input_index)->getMemoryPtr();
         auto &to_mems = input_mems[body_input_index];
         auto &to_mem = to_mems.front();
         const auto& input_dims = from_mem->getStaticDims();
