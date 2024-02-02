@@ -4,35 +4,36 @@
 
 #pragma once
 
-#include "cache/multi_cache.h"
-#include "config.h"
+#include <ie_api.h>
+#include <common/utils.hpp>
+#include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
-#include "dnnl_postops_composer.h"
-#include "dnnl_scratch_pad.h"
 #include "edge.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/mvn_list.hpp"
-#include "nodes/node_config.h"
-#include "oneapi/dnnl/dnnl.hpp"
+#include "selective_build.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
+#include <openvino/itt.hpp>
+#include "openvino/cc/factory.h"
 #include "openvino/core/node.hpp"
-#include "openvino/itt.hpp"
-#include "selective_build.h"
-#include "shape_inference/shape_inference_cpu.hpp"
+#include <nodes/common/blocked_desc_creator.h>
+#include "cpu_types.h"
+#include "cpu_shape.h"
+#include "nodes/node_config.h"
+#include <shape_inference/shape_inference_cpu.hpp>
+#include "perf_count.h"
+#include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/ngraph_utils.hpp"
-#include "weights_cache.hpp"
 
-#include <algorithm>
-#include <cassert>
+#include "graph_context.h"
+#include "nodes/executors/executor.hpp"
+
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 
 #define THROW_CPU_NODE_ERR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 #define CPU_NODE_ASSERT(condition, ...) OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
@@ -75,7 +76,7 @@ public:
     NodeDesc(NodeConfig conf, impl_desc_type type):
         config(std::move(conf)), implementationType(type), executorFactory(nullptr) {}
 
-    NodeDesc(NodeConfig conf, impl_desc_type type, ExecutorFactoryPtr factory):
+    NodeDesc(NodeConfig conf, impl_desc_type type, ExecutorFactoryLegacyPtr factory):
         config(std::move(conf)), implementationType(type), executorFactory(factory) {}
 
     const NodeConfig& getConfig() const {
@@ -94,13 +95,13 @@ public:
         implementationType = type;
     }
 
-    ExecutorFactoryPtr getExecutorFactory() const {
+    ExecutorFactoryLegacyPtr getExecutorFactory() const {
         return executorFactory;
     }
 
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<ExecutorFactory, T>::value, int>::type = 0>
+            typename std::enable_if<std::is_base_of<ExecutorFactoryLegacy, T>::value, int>::type = 0>
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         if (!casted)
@@ -108,14 +109,14 @@ public:
         return casted;
     }
 
-    void setExecutorFactory(ExecutorFactoryPtr factory) {
+    void setExecutorFactory(ExecutorFactoryLegacyPtr factory) {
         executorFactory = factory;
     }
 
 private:
     NodeConfig config;
     impl_desc_type implementationType;
-    ExecutorFactoryPtr executorFactory;
+    ExecutorFactoryLegacyPtr executorFactory;
 };
 
 class Node {
@@ -624,6 +625,9 @@ public:
                                        NameFromType(getType()));
         return false;
     }
+    const bool keepOrigPrecision() const {
+        return keepOriginalPrecision;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -639,7 +643,7 @@ protected:
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
-    typedef std::function<DnnlMemoryDescPtr (dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx)>
+    typedef std::function<DnnlMemoryDescPtr (dnnl::primitive_desc& primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
@@ -648,10 +652,12 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
+    std::string primitivesPriority;
     std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
+    bool keepOriginalPrecision  = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
@@ -765,6 +771,15 @@ protected:
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
+    // we cannot rely on per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to constant weight
+    // copies of same content with different layouts.
+    std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeightCache
+    = std::make_shared<std::unordered_map<std::string, MemoryPtr>>();
+
 private:
     static void removeEdge(const EdgePtr edge, std::vector<EdgeWeakPtr> &edges) {
         edges.erase(std::remove_if(edges.begin(), edges.end(),
@@ -800,13 +815,6 @@ private:
 
     // Hold output scales
     std::vector<float> DQScales;
-    // we cannot rely on per-NUMA weightCache for caching weights because:
-    //   1.it may not exist(in single stream configuration)
-    //   2.it only holds weak references, the life-cycle of cached item
-    //     is still under control of strong references outside of cache.
-    // privateWeightCache is for holding strong references to constant weight
-    // copies of same content with different layouts.
-    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
     CPU_DEBUG_CAP_ENABLE(friend class Verbose);
 };

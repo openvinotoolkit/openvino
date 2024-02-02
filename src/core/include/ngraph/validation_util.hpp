@@ -16,17 +16,16 @@
 
 #include <tuple>
 
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
-using ov::evaluate_as_partial_shape;
-using ov::get_constant_from_source;
-using ov::has_no_labels;
-using ov::normalize_axes;
-using ov::normalize_axis;
+using ov::CoordinateDiff;
+using ov::Shape;
+using ov::Strides;
 using ov::op::v0::Constant;
 
 namespace element {
@@ -38,7 +37,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-Strides conv_default_strides(const Node* node,
+Strides conv_default_strides(const ov::Node* node,
                              const ov::PartialShape& data_batch_shape,
                              const ov::PartialShape& filters_shape);
 
@@ -46,7 +45,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-CoordinateDiff conv_default_padding(const Node* node,
+CoordinateDiff conv_default_padding(const ov::Node* node,
                                     const ov::PartialShape& data_batch_shape,
                                     const ov::PartialShape& filters_shape);
 
@@ -54,7 +53,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
+ov::PartialShape infer_windowed_reduction_output_shape(const ov::Node* node,
                                                        const ov::PartialShape& data_shape,
                                                        const Strides& data_dilation,
                                                        const CoordinateDiff& data_padding_below,
@@ -68,9 +67,9 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
 OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-void validate_conv_params_spatial_dimensions(const Node* node,
+void validate_conv_params_spatial_dimensions(const ov::Node* node,
                                              const size_t num_spatial_dims,
-                                             const op::PadType auto_pad,
+                                             const ov::op::PadType auto_pad,
                                              Strides& strides,
                                              Strides& dilations,
                                              CoordinateDiff& pads_begin,
@@ -80,7 +79,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_batched_pooling_forward(const Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
@@ -94,7 +93,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_slice_shape(const Node* node,
+ov::PartialShape infer_slice_shape(const ov::Node* node,
                                    const ov::PartialShape& input_shape,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
@@ -104,15 +103,6 @@ ov::PartialShape infer_slice_shape(const Node* node,
                                    const ov::AxisSet& new_axis_mask,
                                    const ov::AxisSet& shrink_axis_mask,
                                    const ov::AxisSet& ellipsis_mask);
-
-/// \brief Try to compute the maximum value of value
-/// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
-/// if not.
-/// \deprecated Use evaluate_upper_bound instead
-OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
-                    "For instructions on transitioning to the new API, please refer to "
-                    "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-OPENVINO_API std::pair<bool, uint64_t> maximum_value(const ov::Output<Node>& value);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
@@ -155,11 +145,9 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       const Shape& output_shape,
                                       const Strides& strides,
                                       const Strides& dilations,
-                                      const op::PadType auto_pad_type,
+                                      const ov::op::PadType auto_pad_type,
                                       const CoordinateDiff& output_padding,
                                       CoordinateDiff& pads_begin,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
-
-using ngraph::get_constant_from_source;

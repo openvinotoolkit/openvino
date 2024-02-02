@@ -4,6 +4,8 @@
 
 #include "conv.h"
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
 #include "common/primitive_desc.hpp"
@@ -330,53 +332,58 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static std::vector<impl_desc_type> priorities = {
-        impl_desc_type::unknown,
-        impl_desc_type::dw_acl,
-        impl_desc_type::winograd_acl,
-        impl_desc_type::gemm_acl,
-        impl_desc_type::acl,
-        impl_desc_type::brgconv_avx512_amx_1x1,
-        impl_desc_type::brgconv_avx512_amx,
-        impl_desc_type::jit_avx512_amx_dw,
-        impl_desc_type::jit_avx512_amx_1x1,
-        impl_desc_type::jit_avx512_amx,
-        impl_desc_type::brgconv_avx512_1x1,
-        impl_desc_type::brgconv_avx512,
-        impl_desc_type::jit_uni_dw,
-        impl_desc_type::jit_uni_1x1,
-        impl_desc_type::jit_uni,
-        impl_desc_type::jit_avx512_dw,
-        impl_desc_type::jit_avx512_1x1,
-        impl_desc_type::jit_avx512,
-        impl_desc_type::brgconv_avx2_1x1,
-        impl_desc_type::brgconv_avx2,
-        impl_desc_type::jit_avx2_dw,
-        impl_desc_type::jit_avx2_1x1,
-        impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,
-        impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,
-        impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1,
-        impl_desc_type::jit_sse42,
-        impl_desc_type::gemm_any,
-        impl_desc_type::gemm_blas,
-        impl_desc_type::gemm_avx512,
-        impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
-        impl_desc_type::gemm_sse42,
-        impl_desc_type::jit_gemm,
-        impl_desc_type::ref_any,
-        impl_desc_type::ref,
-    };
+    static const auto priorities = [] {
+        std::vector<impl_desc_type> priorities = {
+            impl_desc_type::unknown,
+            impl_desc_type::dw_acl,
+            impl_desc_type::winograd_acl,
+            impl_desc_type::gemm_acl,
+            impl_desc_type::acl,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
+            impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1,
+            impl_desc_type::jit_avx512,
+            impl_desc_type::brgconv_avx2_1x1,
+            impl_desc_type::brgconv_avx2,
+            impl_desc_type::jit_avx2_dw,
+            impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw,
+            impl_desc_type::jit_sse42_1x1,
+            impl_desc_type::jit_sse42,
+            impl_desc_type::gemm_any,
+            impl_desc_type::gemm_blas,
+            impl_desc_type::gemm_avx512,
+            impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
+            impl_desc_type::gemm_sse42,
+            impl_desc_type::jit_gemm,
+            impl_desc_type::ref_any,
+            impl_desc_type::ref,
+        };
+        if (!isBrgConvAvailable()) {
+            priorities.erase(std::remove_if(priorities.begin(),
+                                            priorities.end(),
+                                            [](impl_desc_type type) {
+                                                return type & impl_desc_type::brgconv;
+                                            }),
+                             priorities.end());
+        }
 
-    priorities.erase(std::remove_if(priorities.begin(),
-                                    priorities.end(),
-                                    [](impl_desc_type type) {
-                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
-                                    }),
-                     priorities.end());
+        return priorities;
+    }();
 
     return priorities;
 }
@@ -627,7 +634,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     bool isINT8 = canBeExecutedInInt8();
     // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 

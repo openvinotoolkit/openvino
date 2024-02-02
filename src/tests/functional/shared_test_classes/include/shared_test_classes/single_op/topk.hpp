@@ -21,10 +21,30 @@ typedef std::tuple<
         std::string                     // Target device name
 > TopKParams;
 
+typedef std::tuple<
+        int64_t,                        // keepK
+        int64_t,                        // axis
+        ov::op::v1::TopK::Mode,         // mode
+        ov::op::v1::TopK::SortType,     // sort
+        ov::element::Type,              // Model type
+        std::vector<InputShape>,        // Input shape
+        bool,                           // Stable
+        std::string                     // Target device name
+> TopK11Params;
+
 class TopKLayerTest : public testing::WithParamInterface<TopKParams>,
                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj);
+
+protected:
+    void SetUp() override;
+};
+
+class TopK11LayerTest : public testing::WithParamInterface<TopK11Params>,
+                      virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<TopK11Params>& obj);
 
 protected:
     void SetUp() override;

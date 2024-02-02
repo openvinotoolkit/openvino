@@ -5,7 +5,7 @@
 #include "op/bitwise_not.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "default_opset.hpp"
+#include "openvino/op/bitwise_not.hpp"
 
 using namespace ov::op;
 
@@ -14,7 +14,9 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 ov::OutputVector bitwise_not(const Node& node) {
-    return {std::make_shared<v13::BitwiseNot>(node.get_ng_inputs().at(0))};
+    const auto inputs = node.get_ng_inputs();
+    OPENVINO_ASSERT(inputs.size() == 1);
+    return {std::make_shared<v13::BitwiseNot>(inputs[0])};
 }
 }  // namespace set_1
 }  // namespace op
