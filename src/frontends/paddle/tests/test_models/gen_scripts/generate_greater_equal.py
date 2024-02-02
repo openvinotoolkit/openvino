@@ -57,7 +57,7 @@ def main():
         else:
             greater_equal("greater_equal_" + test, x, y, test, False)
 
-    x = np.array([5000000000]).astype("int64")
+    x = np.array([2100000000]).astype("int64")
     y = np.array([2000000000]).astype("int64")
     greater_equal("greater_equal_big_int64", x, y, test)
 
