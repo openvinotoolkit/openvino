@@ -4,11 +4,11 @@
 
 #include <common_test_utils/data_utils.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <single_op_tests/experimental_detectron_prior_grid_generator.hpp>
+#include <single_layer_tests/experimental_detectron_prior_grid_generator.hpp>
 
 namespace {
 
-const std::initializer_list<ov::test::ExperimentalDetectronPriorGridGeneratorTestParam> params{
+const std::initializer_list<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTestParam> params{
     // flatten = true (output tensor is 2D)
     {{true, 0, 0, 4.0f, 4.0f},
      ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 4, 5}, {1, 3, 100, 200}})},
@@ -54,7 +54,7 @@ std::vector<std::pair<std::string, std::vector<ov::Tensor>>> getInputTensors() {
     return tensors;
 }
 
-using ov::test::ExperimentalDetectronPriorGridGeneratorLayerTest;
+using ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorLayerTest;
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator_f32,
                          ExperimentalDetectronPriorGridGeneratorLayerTest,
