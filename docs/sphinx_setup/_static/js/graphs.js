@@ -23,7 +23,7 @@ const OVdefaultSelections = {
             'resnet-50',
         ]
     },
-    parameters: {name: 'kpi', data: ['Throughput']},
+    parameters: {name: 'kpi', data: ['Throughput','Latency']},
     pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
 
