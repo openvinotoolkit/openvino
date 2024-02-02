@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
-                                      const ov::Output<Node>& in1,
+std::shared_ptr<ov::Node> makeLogical(const ov::Output<ov::Node>& in0,
+                                      const ov::Output<ov::Node>& in1,
                                       ov::test::utils::LogicalTypes logicalType) {
     switch (logicalType) {
     case ov::test::utils::LogicalTypes::LOGICAL_AND:
