@@ -237,13 +237,24 @@ const auto convParams_ExplicitPadding_1D = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-const std::vector<CPUSpecificParams> CPUParams_1D = {
+const std::vector<CPUSpecificParams> CPUParams_1D_f32 = {
         conv_sse42_1D,
         conv_avx2_1D,
         conv_avx512_1D,
         conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
         conv_avx2_1D_nspc_brgconv,
+        conv_avx512_1D_nspc,
+        conv_avx512_1D_nspc_brgconv
+};
+
+//Current avx2 I8 fall back on JIT avx2 implement when having src zero point.Not enabling conv_avx2_1D_nspc_brgconv for I8 precision.
+const std::vector<CPUSpecificParams> CPUParams_1D_I8 = {
+        conv_sse42_1D,
+        conv_avx2_1D,
+        conv_avx512_1D,
+        conv_sse42_1D_nspc,
+        conv_avx2_1D_nspc,
         conv_avx512_1D_nspc,
         conv_avx512_1D_nspc_brgconv
 };
@@ -257,7 +268,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes1d()),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_1D)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_1D_f32)),
                                  ::testing::ValuesIn(fusingParamsSetWithEmpty()),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -286,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_I8, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes1d()),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_1D)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_1D_I8)),
                                  ::testing::Values(fusingSum),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
