@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
-        const auto axis_node = v0::Constant::create(ov::element::i64, Shape{1}, {axis});
+        const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             axis = ov::util::normalize_axis(node_description,
@@ -70,7 +70,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
         const auto axis = scan_output_axes[i];
-        const auto axis_node = v0::Constant::create(ov::element::i64, Shape{1}, {axis});
+        const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         body_outputs[out_idx] = std::make_shared<v0::Unsqueeze>(body_outputs[out_idx], axis_node);
     }
 

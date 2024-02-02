@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ template <ov::element::Type_t from, ov::element::Type_t to>
 class ConvertParametersPrecision : public ov::pass::MatcherPass {
 public:
     ConvertParametersPrecision() {
-        auto constant = std::make_shared<ov::op::v0::Parameter>(to, Shape{1});
+        auto constant = std::make_shared<ov::op::v0::Parameter>(to, ov::Shape{1});
 
         ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             auto parameter = std::dynamic_pointer_cast<ov::op::v0::Parameter>(m.get_match_root());

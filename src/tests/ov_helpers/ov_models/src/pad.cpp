@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
+std::shared_ptr<ov::Node> makePad(const ov::Output<ov::Node>& data,
                                   const std::vector<int64_t>& padsBegin,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,

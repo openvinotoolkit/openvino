@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {

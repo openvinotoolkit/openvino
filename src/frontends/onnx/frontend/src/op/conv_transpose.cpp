@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,8 @@
 
 using namespace ov::op;
 using ov::CoordinateDiff;
+using ov::Shape;
+using ov::Strides;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {

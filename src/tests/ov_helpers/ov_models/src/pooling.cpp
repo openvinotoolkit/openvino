@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,15 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
-                                  const std::vector<size_t>& strides,
-                                  const std::vector<size_t>& padsBegin,
-                                  const std::vector<size_t>& padsEnd,
-                                  const std::vector<size_t>& kernel,
-                                  const ov::op::RoundingType& roundingType,
-                                  const ov::op::PadType& padType,
-                                  bool excludePad,
-                                  const ov::test::utils::PoolingTypes& poolType) {
+std::shared_ptr<ov::Node> makePooling(const ov::Output<ov::Node>& in,
+                                      const std::vector<size_t>& strides,
+                                      const std::vector<size_t>& padsBegin,
+                                      const std::vector<size_t>& padsEnd,
+                                      const std::vector<size_t>& kernel,
+                                      const ov::op::RoundingType& roundingType,
+                                      const ov::op::PadType& padType,
+                                      bool excludePad,
+                                      const ov::test::utils::PoolingTypes& poolType) {
     std::shared_ptr<ov::Node> pooling;
     switch (poolType) {
     case ov::test::utils::PoolingTypes::MAX:

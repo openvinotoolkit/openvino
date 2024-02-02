@@ -17,7 +17,6 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <numeric>
 #include <ostream>
 #include <set>

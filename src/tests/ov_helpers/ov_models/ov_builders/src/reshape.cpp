@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@
 namespace ov {
 namespace op {
 namespace util {
-std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape) {
+std::shared_ptr<ov::Node> reshape(const Output<ov::Node>& value, const Shape& shape) {
     if (value.get_partial_shape().same_scheme(shape)) {
         return value.get_node_shared_ptr();
     } else if (is_scalar(shape)) {
@@ -40,7 +40,7 @@ std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape) {
     }
 }
 
-std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order) {
+std::shared_ptr<ov::Node> reorder_axes(const Output<ov::Node>& value, std::vector<size_t> axes_order) {
     const auto axes_order_const =
         ov::op::v0::Constant::create(ov::element::i64,
                                      Shape{axes_order.size()},
@@ -48,7 +48,7 @@ std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t
     return std::make_shared<ov::op::v1::Transpose>(value, axes_order_const);
 }
 
-std::shared_ptr<Node> transpose(const Output<Node>& value) {
+std::shared_ptr<ov::Node> transpose(const Output<ov::Node>& value) {
     // This part is left to preserve backward compatibility and ensure passing ONNX tests.
     if (value.get_partial_shape().is_static()) {
         std::vector<size_t> axes_order(value.get_shape().size());
@@ -76,7 +76,7 @@ namespace {
 ///
 /// \return     The new Constant node representing normalized axis value.
 ///
-std::shared_ptr<Node> get_normalized_axis_node(const std::shared_ptr<Node> node_rank, int64_t axis) {
+std::shared_ptr<ov::Node> get_normalized_axis_node(const std::shared_ptr<ov::Node> node_rank, int64_t axis) {
     auto axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {axis});
     // shortcut for already positive value
     if (axis >= 0) {
@@ -89,11 +89,11 @@ std::shared_ptr<Node> get_normalized_axis_node(const std::shared_ptr<Node> node_
 }
 }  // namespace
 
-std::shared_ptr<Node> flatten(const Output<Node>& value, int axis) {
+std::shared_ptr<ov::Node> flatten(const Output<ov::Node>& value, int axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:
     // [d_{axis}, ..., d_n]
-    std::shared_ptr<Node> output_shape;
+    std::shared_ptr<ov::Node> output_shape;
     if (axis == 0) {
         output_shape = ov::op::v0::Constant::create(ov::element::i64, Shape{2}, {1, -1});
     } else if (axis == 1) {
