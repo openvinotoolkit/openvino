@@ -11,6 +11,18 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER MATCHES "clang")
+    if (ENABLE_SANITIZER)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+        if (ENABLE_UB_SANITIZER)
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+        endif()
+        if (ENABLE_THREAD_SANITIZER)
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+        endif()
+    endif()
+endif()
+
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
 project(time_tests)
