@@ -235,7 +235,7 @@ OutputVector translate_empty_like(const NodeContext& context) {
         if (!context.input_is_none(dtype_id)) {
             empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
         } else {
-            empty = base_translate_full(context, sizes, value);
+            empty = base_translate_full_with_convertlike(context, sizes, value, input);
         }
     } else if (context.get_input_size() == 4) {
         auto out = context.input_is_none(3) ? input : context.get_input(3);

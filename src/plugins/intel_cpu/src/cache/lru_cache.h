@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <list>
 #include <unordered_map>
 
