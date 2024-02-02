@@ -2143,9 +2143,9 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
             for (auto pwEdge : siblingReorder->getChildEdges()) {
                 auto pEdge = pwEdge.lock();
                 if (pEdge) {
+                    graph.RemoveEdge(pEdge);
                     if (pEdge->getInputNum() == 0)
                         graph.CreateEdge(node, pEdge->getChild(), 0, pEdge->getOutputNum());
-                    graph.RemoveEdge(pEdge);
                 }
             }
 
