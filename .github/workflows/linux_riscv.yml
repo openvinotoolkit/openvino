@@ -49,7 +49,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -64,7 +64,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_master_release
+#      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_master_release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_riscv64_master_release
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
