@@ -10,15 +10,18 @@ add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp)
 set(CPU_UTILS_LINK_LIBRARIES openvino::runtime)
+set(INCLUDE_PATHS $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 if(OV_CPU_WITH_ACL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
+    list(APPEND INCLUDE_PATHS $<TARGET_PROPERTY:arm_compute::arm_compute,SOURCE_DIR>)
 endif()
 if(OV_CPU_WITH_DNNL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES dnnl)
+    list(APPEND INCLUDE_PATHS $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src)
 endif()
 target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATHS})
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
 
