@@ -349,6 +349,12 @@ public:
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
+        case Type_t::f8e4m3:
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e5m2:
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
+            break;
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
