@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # default ONNX Model Zoo commit hash ID:
-$ONNX_SHA="d58213534f2a4d1c4b19ba62b3bb5f544353256e".Substring(0, 8)
+$ONNX_SHA="5faef4c33eba0395177850e1e31c4a6a9e634c82".Substring(0, 8)
 $MODELS_DIR="."
 $ENABLE_ONNX_MODELS_ZOO=$false
 $ENABLE_MSFT_MODELS=$false

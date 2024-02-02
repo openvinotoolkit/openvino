@@ -29,7 +29,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       MODELS_SHARE_PATH: "/mount/onnxtestdata"
-      ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
+      ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
