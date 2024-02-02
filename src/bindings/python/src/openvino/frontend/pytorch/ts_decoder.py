@@ -10,13 +10,23 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, prepare_example_inputs_and_model, convert_quantized_tensor, graph_has_ops
 from openvino.runtime import opset11 as ops
 from openvino.frontend.pytorch import gptq
+from openvino.frontend.pytorch import patch_model
 
 import typing
 import torch
 
 
+class no_jit_trace:
+    def __enter__(self):
+        self.state = torch._C._get_tracing_state()
+        torch._C._set_tracing_state(None)
+
+    def __exit__(self, *args):
+        torch._C._set_tracing_state(self.state)
+        self.state = None
+
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False, constant_cache=None):
+    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False, constant_cache=None, module_extensions=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
@@ -24,6 +34,7 @@ class TorchScriptPythonDecoder (Decoder):
         self._shared_memory = shared_memory
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()
+        self.module_extensions = module_extensions
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(
@@ -76,6 +87,41 @@ class TorchScriptPythonDecoder (Decoder):
                     preserved_attributes.append(name)
         return preserved_attributes
 
+    def _patch_modules(self, model):
+        print('[ INFO ] _path_modules', self.module_extensions)
+        def module_patcher(module, name):
+            extension = None
+
+            if module in self.module_extensions:
+                extension = self.module_extensions[module]
+            elif module.__class__ in self.module_extensions:
+                extension = self.module_extensions[module.__class__]
+            elif name in self.module_extensions:
+                extension = self.module_extensions[name]
+
+            if extension:
+                print('extension is identified')
+                class Trampoline(torch.autograd.Function):
+                    @staticmethod
+                    def forward(*args, **kwargs):
+                        if extension.replacer:
+                            # if replacer code cannot be traced, it is a responsibility of the replacer to apply no_jit_trace
+                            results = extension.replacer(module, *args[1:], **kwargs)
+                        else:
+                            with no_jit_trace():
+                                # this code is know to be incompatible with tracer, so unconditionally disable tracing
+                                results = module._openvino_patch_orig_forward_v2(*args[1:], **kwargs)
+                        return results
+                def new_forward(*args, **kwargs):
+                    return Trampoline.apply(*args, **kwargs)
+                module._openvino_patch_orig_forward_v2 = module.forward
+                module.forward = new_forward
+
+        patch_model.patch_model(model, module_patcher)
+
+    def _unpatch_modules(self, model):
+        patch_model.unpatch_model(model)
+
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
         import torch
         import inspect
@@ -95,6 +141,10 @@ class TorchScriptPythonDecoder (Decoder):
             else:
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
+
+                if self.module_extensions:
+                    self._patch_modules(pt_module)
+
                 gptq_patched = False
 
                 if gptq.detect_gptq_model(pt_module):
@@ -115,6 +165,8 @@ class TorchScriptPythonDecoder (Decoder):
                 finally:
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
+                    if self.module_extensions:
+                        self._unpatch_modules(pt_module)
 
             if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops
@@ -230,7 +282,8 @@ class TorchScriptPythonDecoder (Decoder):
                                                node,
                                                alias_db=self.alias_db,
                                                shared_memory=self._shared_memory,
-                                               constant_cache=self.constant_cache)
+                                               constant_cache=self.constant_cache,
+                                               module_extensions=self.module_extensions)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -239,6 +292,7 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
+            print(f'[ INFO ] Found prim::PythonOp: {self.graph_element.attributeNames()}')
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
                     self.graph_element, torch.Node), "Graph element must be of type torch.Node."
@@ -253,7 +307,8 @@ class TorchScriptPythonDecoder (Decoder):
         decoder = TorchScriptPythonDecoder(self.pt_module,
                                            self.get_subgraphs()[index],
                                            alias_db=self.alias_db,
-                                           shared_memory=self._shared_memory)
+                                           shared_memory=self._shared_memory,
+                                           module_extensions=self.module_extensions)
         self.m_decoders.append(decoder)
         return decoder
 

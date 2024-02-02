@@ -8,6 +8,11 @@ import numpy as np
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Tensor, PartialShape
 from openvino.tools.ovc.error import Error
+from openvino.frontend.pytorch.module_extension import ModuleExtension
+
+
+def extract_module_extensions(args):
+    return {extension.module: extension for extension in args.get('extension', []) or [] if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -37,7 +42,11 @@ def get_pytorch_decoder(model, example_inputs, args):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             raise RuntimeError("Models received from torch.export are not yet supported by convert_model.")
         else:
-            decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
+            decoder = TorchScriptPythonDecoder(
+                model,
+                example_input=inputs,
+                shared_memory=args.get("share_weights", True),
+                module_extensions=extract_module_extensions(args))
     else:
         decoder = model
     args['input_model'] = decoder
