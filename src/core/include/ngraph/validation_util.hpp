@@ -16,12 +16,16 @@
 
 #include <tuple>
 
-#include "ngraph/coordinate_diff.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
+using ov::CoordinateDiff;
+using ov::Shape;
+using ov::Strides;
 using ov::op::v0::Constant;
 
 namespace element {
@@ -33,7 +37,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-Strides conv_default_strides(const Node* node,
+Strides conv_default_strides(const ov::Node* node,
                              const ov::PartialShape& data_batch_shape,
                              const ov::PartialShape& filters_shape);
 
@@ -41,7 +45,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-CoordinateDiff conv_default_padding(const Node* node,
+CoordinateDiff conv_default_padding(const ov::Node* node,
                                     const ov::PartialShape& data_batch_shape,
                                     const ov::PartialShape& filters_shape);
 
@@ -49,7 +53,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
+ov::PartialShape infer_windowed_reduction_output_shape(const ov::Node* node,
                                                        const ov::PartialShape& data_shape,
                                                        const Strides& data_dilation,
                                                        const CoordinateDiff& data_padding_below,
@@ -63,7 +67,7 @@ ov::PartialShape infer_windowed_reduction_output_shape(const Node* node,
 OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 2024.0 release. "
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-void validate_conv_params_spatial_dimensions(const Node* node,
+void validate_conv_params_spatial_dimensions(const ov::Node* node,
                                              const size_t num_spatial_dims,
                                              const ov::op::PadType auto_pad,
                                              Strides& strides,
@@ -75,7 +79,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_batched_pooling_forward(const Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const CoordinateDiff& data_padding_below,
                                                const CoordinateDiff& data_padding_above,
@@ -89,7 +93,7 @@ OPENVINO_DEPRECATED("The nGraph API is deprecated and will be removed in the 202
                     "For instructions on transitioning to the new API, please refer to "
                     "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 OPENVINO_API
-ov::PartialShape infer_slice_shape(const Node* node,
+ov::PartialShape infer_slice_shape(const ov::Node* node,
                                    const ov::PartialShape& input_shape,
                                    const std::vector<int64_t>& begin,
                                    const std::vector<int64_t>& end,
