@@ -4017,42 +4017,7 @@ TEST(eval, invalid_shape) {
     ASSERT_THROW(model->evaluate(out_vector, in_vector), ov::Exception);
 }
 
-TEST(eval, evaluate_gather_string_1D_single_val_equal_size) {
-    std::vector<std::string> input_values = {"Abc", "xyz", "..."};
-    std::vector<std::string> out_expected{"xyz"};
-    std::vector<int32_t> indices_val{1};
-
-    const auto data_shape = Shape{input_values.size()};
-    const auto exp_out_shape = Shape{out_expected.size()};
-    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
-    auto indices = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{indices_val.size()}, indices_val);
-    auto axis = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{1}, {0});
-    auto cs = make_shared<op::v8::Gather>(data, indices, axis, 0);
-    auto model = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
-
-    auto result = ov::Tensor(element::string, exp_out_shape);
-    auto out_vector = ov::TensorVector{result};
-    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
-    auto in_vector = ov::TensorVector{in_tensor};
-
-    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
-    EXPECT_EQ(result.get_element_type(), element::string);
-    EXPECT_EQ(result.get_shape(), exp_out_shape);
-
-    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
-    const std::string* result_ptr = result_const.get_data_ptr<std::string>();
-
-    std::cout << " result_ptr[0] " << result_ptr[0] << std::endl;
-    std::cout << " result_const.get_value_strings()[0] " << result_const.get_value_strings()[0] << std::endl;
-
-    EXPECT_EQ(out_expected, result_const.get_value_strings());
-    for (size_t i = 0; i != shape_size(result.get_shape()); ++i) {
-        std::cout << "result_ptr[i]: " << i << " " << result_ptr[i] << std::endl;
-        EXPECT_EQ(out_expected[i], result_const.convert_value_to_string(i));
-    }
-}
-
-TEST(eval, evaluate_gather_string_1D_2_val_diff_size) {
+TEST(eval, evaluate_gather_string_basic) {
     std::vector<std::string> input_values = {"Abc", "x", "1234", "...."};
     std::vector<std::string> out_expected{"x", "...."};
     std::vector<int32_t> indices_val{1, 3};
@@ -4062,8 +4027,8 @@ TEST(eval, evaluate_gather_string_1D_2_val_diff_size) {
     auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
     auto indices = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{indices_val.size()}, indices_val);
     auto axis = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{1}, {0});
-    auto cs = make_shared<op::v8::Gather>(data, indices, axis, 0);
-    auto model = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+    auto op = make_shared<op::v8::Gather>(data, indices, axis, 0);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor(element::string, exp_out_shape);
     auto out_vector = ov::TensorVector{result};
@@ -4075,14 +4040,5 @@ TEST(eval, evaluate_gather_string_1D_2_val_diff_size) {
     EXPECT_EQ(result.get_shape(), exp_out_shape);
 
     const auto result_const = ov::op::v0::Constant(out_vector.at(0));
-    const std::string* result_ptr = result_const.get_data_ptr<std::string>();
-
-    std::cout << " result_ptr[0] " << result_ptr[0] << std::endl;
-    std::cout << " result_const.get_value_strings()[0] " << result_const.get_value_strings()[0] << std::endl;
-
     EXPECT_EQ(out_expected, result_const.get_value_strings());
-    for (size_t i = 0; i != shape_size(result.get_shape()); ++i) {
-        std::cout << "result_ptr[i]: " << i << " " << result_ptr[i] << std::endl;
-        EXPECT_EQ(out_expected[i], result_const.convert_value_to_string(i));
-    }
 }

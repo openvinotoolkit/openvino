@@ -375,14 +375,6 @@ void compare(const ov::Tensor& expected,
         return;
     }
 
-    // if (expected.get_element_type() == ov::element::string) {
-    //     auto expected_const = ov::op::v0::Constant(expected);
-    //     auto result_const = ov::op::v0::Constant(actual);
-
-    //     // EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
-    //     return;
-    // }
-
     auto expected_data = expected.data<ExpectedT>();
     auto actual_data = actual.data<ActualT>();
     double abs_threshold = abs_threshold_;
@@ -480,27 +472,13 @@ void compare(const ov::Tensor& expected,
 }
 
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
-    const auto& expected_shape = expected.get_shape();
-    const auto& actual_shape = actual.get_shape();
-    if (expected_shape != actual_shape) {
-        std::ostringstream out_stream;
-        out_stream << "Expected and actual shape are different: " << expected_shape << " " << actual_shape;
-        throw std::runtime_error(out_stream.str());
-    }
-
     ASSERT_EQ(expected.get_element_type(), ov::element::string);
     ASSERT_EQ(actual.get_element_type(), ov::element::string);
+    EXPECT_EQ(expected.get_shape(), actual.get_shape());
 
     const auto expected_const = ov::op::v0::Constant(expected);
     const auto result_const = ov::op::v0::Constant(actual);
-
     EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
-
-    // DEBUG // TO BE REMOVED
-    for (size_t i = 0; i != shape_size(actual_shape); ++i) {
-        std::cout << "result_const[i]: " << i << " " << result_const.convert_value_to_string(i) << std::endl;
-        std::cout << "expected_const[i]: " << i << " " << expected_const.convert_value_to_string(i) << std::endl;
-    }
 }
 
 void compare(const ov::Tensor& expected,
