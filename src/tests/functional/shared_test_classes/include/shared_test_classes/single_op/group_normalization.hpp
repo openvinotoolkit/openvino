@@ -8,7 +8,6 @@
 
 namespace ov {
 namespace test {
-namespace subgraph {
 
 using GroupNormalizationTestParams = std::tuple<ElementType,   // netPrecision
                                                 ElementType,   // inPrecision
@@ -90,6 +89,5 @@ protected:
     }
 };
 
-}  // namespace subgraph
 }  // namespace test
 }  // namespace ov

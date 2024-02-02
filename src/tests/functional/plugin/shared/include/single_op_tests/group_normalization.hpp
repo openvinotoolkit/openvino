@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "shared_test_classes/single_layer/multinomial.hpp"
+#include "shared_test_classes/single_op/group_normalization.hpp"
 
 namespace ov {
 namespace test {
-namespace subgraph {
 
-TEST_P(MultinomialTest, CompareWithRefs) {
+TEST_P(GroupNormalizationTest, CompareWithRefs) {
     run();
 }
 
-TEST_P(MultinomialTest, CompareQueryModel) {
+TEST_P(GroupNormalizationTest, CompareQueryModel) {
     query_model();
 }
 
-}  // namespace subgraph
 }  // namespace test
 }  // namespace ov
