@@ -146,6 +146,7 @@ OP_CONVERTER(translate_softmax_op);
 OP_CONVERTER(translate_space_to_depth_op);
 OP_CONVERTER(translate_split_op);
 OP_CONVERTER(translate_split_v_op);
+OP_CONVERTER(ApproximateEqual);
 OP_CONVERTER(translate_square_op);
 OP_CONVERTER(translate_squeeze_op);
 OP_CONVERTER(translate_strided_slice_op);
