@@ -19,7 +19,7 @@
 // typedef std::tuple<
 //        RangeSpecificParams,
 //        InferenceEngine::Precision,     // Net precision
-//        LayerTestsUtils::TargetDevice   // Device name
+//        ov::test::TargetDevice   // Device name
 //> RangeLayerTestParams;
 //
 // typedef std::tuple<
