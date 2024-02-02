@@ -1373,6 +1373,52 @@ TEST(constant, float16_vector) {
     EXPECT_EQ(p[3], float16(0));
 }
 
+TEST(constant, float8_e4m3_vector) {
+    const auto data_vec = std::vector<ov::float8_e4m3>{std::numeric_limits<ov::float8_e4m3>::lowest(),
+                                                       -std::numeric_limits<ov::float8_e4m3>::min(),
+                                                       std::numeric_limits<ov::float8_e4m3>::min(),
+                                                       std::numeric_limits<ov::float8_e4m3>::max(),
+                                                       std::numeric_limits<ov::float8_e4m3>::denorm_min(),
+                                                       -1.5f,
+                                                       -1.f,
+                                                       -0.5f,
+                                                       0.f,
+                                                       0.5f,
+                                                       1.f,
+                                                       1.5f};
+    Shape data_shape{data_vec.size()};
+    EXPECT_EQ(data_vec.size(), shape_size(data_shape));
+
+    ov::op::v0::Constant const_op_from_vec(ov::element::f8e4m3, data_shape, data_vec);
+    EXPECT_EQ(data_vec, const_op_from_vec.get_vector<ov::float8_e4m3>());
+
+    ov::op::v0::Constant const_op_from_ptr(ov::element::f8e4m3, data_shape, data_vec.data());
+    EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e4m3>());
+}
+
+TEST(constant, float8_e5m3_vector) {
+    const auto data_vec = std::vector<ov::float8_e5m2>{std::numeric_limits<ov::float8_e5m2>::lowest(),
+                                                       -std::numeric_limits<ov::float8_e5m2>::min(),
+                                                       std::numeric_limits<ov::float8_e5m2>::min(),
+                                                       std::numeric_limits<ov::float8_e5m2>::max(),
+                                                       std::numeric_limits<ov::float8_e5m2>::denorm_min(),
+                                                       -1.5f,
+                                                       -1.f,
+                                                       -0.5f,
+                                                       0.f,
+                                                       0.5f,
+                                                       1.f,
+                                                       1.5f};
+    Shape data_shape{data_vec.size()};
+    EXPECT_EQ(data_vec.size(), shape_size(data_shape));
+
+    ov::op::v0::Constant const_op_from_vec(ov::element::f8e5m2, data_shape, data_vec);
+    EXPECT_EQ(data_vec, const_op_from_vec.get_vector<ov::float8_e5m2>());
+
+    ov::op::v0::Constant const_op_from_ptr(ov::element::f8e5m2, data_shape, data_vec.data());
+    EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e5m2>());
+}
+
 TEST(constant, float16_vector_broadcast) {
     Shape shape{4};
     ov::op::v0::Constant c(element::f16, shape, vector<float16>{1});
