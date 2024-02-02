@@ -197,6 +197,14 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Convert> &
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "ConvertGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::ConvertAlignTypes> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{256, 56});
+    const auto like = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3});
+    const auto convertNode = std::make_shared<ov::op::v14::ConvertAlignTypes>(data, like, true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convertNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, like}, "ConvertAlignTypesGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::ConvertLike> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{256, 56});
     const auto like = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3});
