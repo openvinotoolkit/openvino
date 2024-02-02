@@ -30,8 +30,8 @@ namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ov::Node> find_min_value(const ov::Output<ov::Node>& input) {
-    const auto& zero_node = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto& one_node = v0::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto& zero_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto& one_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     const auto& input_shape = std::make_shared<v3::ShapeOf>(input);
     const auto& input_rank = std::make_shared<v3::ShapeOf>(input_shape);
@@ -41,13 +41,13 @@ std::shared_ptr<ov::Node> find_min_value(const ov::Output<ov::Node>& input) {
 
     const auto& input_min = std::make_shared<v1::ReduceMin>(input, reduce_axes);
 
-    const auto& zero_node_u8 = v0::Constant::create(ov::element::f32, Shape{}, {0});
+    const auto& zero_node_u8 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0});
     return std::make_shared<v1::Minimum>(zero_node_u8, input_min);
 }
 
 std::shared_ptr<ov::Node> find_max_value(const ov::Output<ov::Node>& input) {
-    const auto& zero_node = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto& one_node = v0::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto& zero_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto& one_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     const auto& input_shape = std::make_shared<v3::ShapeOf>(input);
     const auto& input_rank = std::make_shared<v3::ShapeOf>(input_shape);
@@ -57,7 +57,7 @@ std::shared_ptr<ov::Node> find_max_value(const ov::Output<ov::Node>& input) {
 
     const auto& input_max = std::make_shared<v1::ReduceMax>(input, reduce_axes);
 
-    const auto& zero_node_u8 = v0::Constant::create(ov::element::f32, Shape{}, {0});
+    const auto& zero_node_u8 = v0::Constant::create(ov::element::f32, ov::Shape{}, {0});
     return std::make_shared<v1::Maximum>(zero_node_u8, input_max);
 }
 
@@ -84,8 +84,8 @@ ov::OutputVector dynamic_quantize_linear(const Node& node) {
     const auto& x = inputs.at(0);
 
     // quantization range in case of uint8 is [0, 255]
-    const auto& quant_range_min = v0::Constant::create(ov::element::f32, Shape{}, {0});
-    const auto& quant_range_max = v0::Constant::create(ov::element::f32, Shape{}, {255});
+    const auto& quant_range_min = v0::Constant::create(ov::element::f32, ov::Shape{}, {0});
+    const auto& quant_range_max = v0::Constant::create(ov::element::f32, ov::Shape{}, {255});
     const auto& quant_range_span = std::make_shared<v1::Subtract>(quant_range_max, quant_range_min);
 
     const auto& x_max = find_max_value(x);

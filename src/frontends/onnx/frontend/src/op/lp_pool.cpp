@@ -45,10 +45,11 @@ ov::OutputVector global_lp_pool(const Node& node) {
         slice = ov::op::util::lp_norm(slice, reduction_axes, static_cast<std::size_t>(p_norm));
 
         // output shape is all ones except N channel
-        Shape output_shape(data_shape.rank().get_length(), 1);
+        ov::Shape output_shape(data_shape.rank().get_length(), 1);
         output_shape.at(0) = data_shape[0].get_length();
 
-        const auto reshape_pattern = v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape);
+        const auto reshape_pattern =
+            v0::Constant::create(ov::element::i64, ov::Shape{output_shape.size()}, output_shape);
 
         slice = std::make_shared<v1::Reshape>(slice, reshape_pattern, false);
     }

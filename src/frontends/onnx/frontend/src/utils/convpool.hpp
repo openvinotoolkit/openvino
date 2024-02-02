@@ -35,7 +35,7 @@ ov::Strides get_strides(const Node& node, const std::size_t kernel_rank = 0UL);
 /// \param[in]  node         The Node ptr representing ONNX operation.
 /// \param[in]  kernel_rank  The operator'skernel rank.
 ///
-/// \return     The Strides object containing number of pixels for filter dilation
+/// \return     The ov::Strides object containing number of pixels for filter dilation
 ///             (height, width, depth).
 ov::Strides get_dilations(const Node& node, const std::size_t kernel_rank = 0UL);
 

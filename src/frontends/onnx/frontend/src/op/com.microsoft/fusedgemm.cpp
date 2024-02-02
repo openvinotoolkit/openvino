@@ -56,7 +56,7 @@ ov::OutputVector fusedgemm(const Node& node) {
     if (activation_type == "LeakyRelu") {
         double activation_alpha = node.get_attribute_value<double>("activation_alpha", 0.01);
         std::shared_ptr<ov::Node> activation_alpha_node =
-            v0::Constant::create(input_c.get_element_type(), Shape{1}, {activation_alpha});
+            v0::Constant::create(input_c.get_element_type(), ov::Shape{1}, {activation_alpha});
         return {std::make_shared<v0::PRelu>(gemm_res, activation_alpha_node)};
     }
     return {std::make_shared<v0::Relu>(gemm_res)};
