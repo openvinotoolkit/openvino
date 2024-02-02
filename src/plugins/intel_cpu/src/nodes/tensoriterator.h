@@ -139,7 +139,7 @@ private:
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
-    /* run as dynamic support */
+    /* run dynamic subgraph inside a static node */
     bool runAsDynamic() const;
     void restoreSubgraphInputByBackEdges();
 
