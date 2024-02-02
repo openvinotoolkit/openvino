@@ -158,6 +158,21 @@ protected:
     std::shared_ptr<ov::Model> function;
 };
 
+// DEPRECATED
+// Replace the usage by `ov::test::utils::create_core()`
+// in NVIDIA and NPU plugin
+inline ov::Core createCoreWithTemplate() {
+    ov::test::utils::PluginCache::get().reset();
+    ov::Core core;
+#ifndef OPENVINO_STATIC_LIBRARY
+    std::string pluginName = "openvino_template_plugin";
+    pluginName += OV_BUILD_POSTFIX;
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
+        ov::test::utils::DEVICE_TEMPLATE);
+#endif // !OPENVINO_STATIC_LIBRARY
+    return core;
+}
+
 class OVClassNetworkTest {
 public:
     std::shared_ptr<ov::Model> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
