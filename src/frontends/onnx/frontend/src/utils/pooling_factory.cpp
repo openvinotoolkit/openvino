@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
