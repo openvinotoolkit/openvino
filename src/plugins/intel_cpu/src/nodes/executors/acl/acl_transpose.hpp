@@ -5,6 +5,9 @@
 #pragma once
 
 #include "nodes/executors/transpose.hpp"
+
+#include "arm_compute/runtime/Tensor.h"
+#include "arm_compute/runtime/NEON/functions/NEPermute.h"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -18,10 +21,9 @@ public:
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr &attr) override;
-    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) override;
-    impl_desc_type getImplType() const override { return implType; }
+    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
+    impl_desc_type implType() const override { return impl_desc_type::acl; }
 private:
-    static const impl_desc_type implType = impl_desc_type::acl;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEPermute> acl_permute;
 };

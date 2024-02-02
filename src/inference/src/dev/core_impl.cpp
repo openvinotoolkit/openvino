@@ -11,7 +11,6 @@
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
 #include "dev/iplugin_wrapper.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -921,7 +920,7 @@ bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     std::vector<std::string> devices;
-    const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+    const std::string propertyName = ov::available_devices.name();
 
     for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;
@@ -1006,18 +1005,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     if (keep_core_property) {
         supported_config_keys = core_level_properties;
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
-    try {
-        const auto supported_keys =
-            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
-        for (auto&& config_key : supported_keys) {
-            supported_config_keys.emplace_back(config_key);
-        }
-    } catch (ov::Exception&) {
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
@@ -1435,7 +1422,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                networkStream << ov::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
+                networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
                                                         compiled_model_runtime_properties);
                 execNetwork->export_model(networkStream);
