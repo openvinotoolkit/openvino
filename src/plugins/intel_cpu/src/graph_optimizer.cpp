@@ -562,12 +562,10 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         // Get decompressionConstShape
         VectorDims decompressionConstShape;
         const auto gatherInputWeightsShape = gatherNode->getInputShapeAtPort(0);
-
-        // Ordinary case: one decompression group
-        if (gatherInputWeightsShape.getRank() == weightsShape.getRank()) {
-            const auto& out_channels = gatherInputWeightsShape.getDims()[0];
-            decompressionConstShape = VectorDims{out_channels, 1};
-        }
+        if (gatherInputWeightsShape.getRank() != 2u || weightsShape.getRank() != 2u)
+            continue;
+        // Should be [vocab_size, 1]
+        decompressionConstShape = VectorDims{gatherInputWeightsShape.getDims()[0], 1};
 
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
             if (shape_to_check.size() != decompressionConstShape.size())
