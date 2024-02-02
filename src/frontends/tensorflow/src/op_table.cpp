@@ -282,6 +282,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"IteratorGetNext", CreatorFunction(translate_iterator_get_next_op)},
         {"IteratorV2", CreatorFunction(translate_iterator_op)},
         {"InvertPermutation", CreatorFunction(translate_invert_permutation_op)},
+        {"ApproximateEqual", CreatorFunction(translate_approximate_equal_op)},
         {"output_arg", CreatorFunction(translate_output_arg_op)},
         {"L2Loss", CreatorFunction(translate_l2_loss_op)},
         {"LeakyRelu", CreatorFunction(translate_leaky_relu_op)},
