@@ -190,7 +190,7 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction, torch.export.ExportedProgram)):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
             return "pytorch"
         try:
             from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ inline ov::OutputVector gather(const Node& node) {
 
     return {std::make_shared<ov::op::v8::Gather>(data,
                                                  indices,
-                                                 ov::op::v0::Constant::create(ov::element::i64, Shape{}, {axis}))};
+                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}))};
 }
 
 }  // namespace set_1
