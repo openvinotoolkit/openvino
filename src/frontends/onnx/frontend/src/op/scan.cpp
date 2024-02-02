@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,12 @@
 #include "core/graph.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -49,14 +49,12 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
-        const auto axis_node = v0::Constant::create(ov::element::i64, Shape{1}, {axis});
+        const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ov::normalize_axis(node_description,
-                                      scan_input_axes[i],
-                                      node_inputs[in_idx + in_offset].get_partial_shape().rank());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axis = ov::util::normalize_axis(node_description,
+                                            scan_input_axes[i],
+                                            node_inputs[in_idx + in_offset].get_partial_shape().rank());
             shape[axis] = 1;
         }
         body_inputs[in_idx]->set_partial_shape(shape);
@@ -72,7 +70,7 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
         const auto axis = scan_output_axes[i];
-        const auto axis_node = v0::Constant::create(ov::element::i64, Shape{1}, {axis});
+        const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         body_outputs[out_idx] = std::make_shared<v0::Unsqueeze>(body_outputs[out_idx], axis_node);
     }
 
@@ -84,11 +82,9 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     // Set slicing for Scan (TensorIterator) inputs
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto axis = ov::normalize_axis(node_description,
-                                             scan_input_axes[i],
-                                             node_inputs[in_idx + in_offset].get_partial_shape().rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis = ov::util::normalize_axis(node_description,
+                                                   scan_input_axes[i],
+                                                   node_inputs[in_idx + in_offset].get_partial_shape().rank());
         if (scan_input_directions[i]) {  // reverse direction
             tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
         } else {  // forward direction
@@ -105,10 +101,9 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
     }
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto axis =
-            ov::normalize_axis(node_description, scan_output_axes[i], body_outputs[out_idx].get_partial_shape().rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis = ov::util::normalize_axis(node_description,
+                                                   scan_output_axes[i],
+                                                   body_outputs[out_idx].get_partial_shape().rank());
         if (scan_output_directions[i]) {  // reverse direction
             outputs.push_back(tensor_iterator->get_concatenated_slices(body_outputs[out_idx], -1, -1, 1, 0, axis));
         } else {  // forward direction

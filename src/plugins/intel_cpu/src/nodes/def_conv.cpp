@@ -4,6 +4,8 @@
 
 #include "def_conv.h"
 
+#include <openvino/op/deformable_convolution.hpp>
+
 #include <string>
 #include <vector>
 #include <math.h>

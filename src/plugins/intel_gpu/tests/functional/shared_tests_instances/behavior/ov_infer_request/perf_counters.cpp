@@ -3,7 +3,6 @@
 //
 
 #include "behavior/ov_infer_request/perf_counters.hpp"
-#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 
@@ -13,11 +12,10 @@ auto configs = []() {
 };
 
 auto AutoBatchConfigs = []() {
-    return std::vector<ov::AnyMap>{
-        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_GPU) + "(4)"},
-         // no timeout to avoid increasing the test time
-         {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
+    return std::vector<ov::AnyMap>{// explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
+                                   {ov::device::priorities(std::string(ov::test::utils::DEVICE_GPU) + "(4)"),
+                                    // no timeout to avoid increasing the test time
+                                    ov::auto_batch_timeout(0)}};
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,

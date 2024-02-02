@@ -63,9 +63,10 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* ds
     });
 }
 
-void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const uint8_t* src_data = src[0]->getDataAs<const uint8_t>();
     uint8_t* dst_data = dst[0]->getDataAs<uint8_t>();
+    const int MB = src[0]->getStaticDims()[0];
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 

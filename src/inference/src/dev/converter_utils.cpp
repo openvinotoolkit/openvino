@@ -20,8 +20,6 @@
 #include "ie_input_info.hpp"
 #include "ie_layouts.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
 #include "legacy_op_extension.hpp"
 #include "openvino/core/except.hpp"
@@ -213,7 +211,7 @@ class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
     IInferencePluginWrapper(const ov::SoPtr<ov::IPlugin>& plugin) : m_plugin(plugin) {
         auto& ver = plugin->get_version();
-        InferenceEngine::Version version;
+        ov::Version version;
         version.buildNumber = ver.buildNumber;
         version.description = ver.description;
         SetVersion(version);
@@ -378,26 +376,6 @@ public:
     }
 
     ov::Any GetMetric(const std::string& name) const override {
-        // Add legacy supported properties
-        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-            try {
-                return m_model->get_property(name);
-            } catch (const ov::Exception&) {
-                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
-                std::vector<std::string> legacy_properties;
-                for (const auto& prop : props) {
-                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
-                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
-                        legacy_properties.emplace_back(prop);
-                }
-                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
-                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                }
-
-                return legacy_properties;
-            }
-        }
         return m_model->get_property(name);
     }
 

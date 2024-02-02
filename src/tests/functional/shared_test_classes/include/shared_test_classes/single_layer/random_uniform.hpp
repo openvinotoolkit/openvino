@@ -34,8 +34,6 @@ public:
 
 protected:
     void SetUp() override;
-
-    void ConvertRefsParams() override;
 };
 
 }  // namespace LayerTestsDefinitions

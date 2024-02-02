@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,12 +65,12 @@ ov::OutputVector aten(const Node& node) {
         const auto data_type = emb_tbl_in.get_element_type();
         const auto ind_type = indices_in.get_element_type();
 
-        const auto zero_const = std::make_shared<v0::Constant>(ind_type, Shape{}, 0);
+        const auto zero_const = std::make_shared<v0::Constant>(ind_type, ov::Shape{}, 0);
 
         // Shape aligned node, filled with zeros
-        const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
+        const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
         const auto weights_shape_node = std::make_shared<v3::ShapeOf>(emb_tbl_in, ind_type);
-        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, -1);
+        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, -1);
         const auto weights_last_dim =
             std::make_shared<v8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
         const auto zero_col_node = std::make_shared<v3::Broadcast>(zero_of_data_type_const, weights_last_dim);
