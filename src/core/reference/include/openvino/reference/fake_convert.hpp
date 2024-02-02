@@ -113,7 +113,7 @@ void apply_scale_shift(T* out,
  * @param count                Number of elements in the data input.
  * @param destination_type     Name of the destination type.
  */
-void apply_conversion(const float16* data, float16* out, size_t element_count, const std::string& destination_type);
+void apply_conversion(const float16* data, float16* out, size_t element_count, const element::Type& destination_type);
 }  // namespace fake_convert_details
 
 /**
@@ -140,7 +140,7 @@ void fake_convert(const T* data,
                   const Shape& data_shape,
                   const Shape& scale_shape,
                   const Shape& shift_shape,
-                  const std::string& destination_type) {
+                  const element::Type& destination_type) {
     const size_t element_count = shape_size(data_shape);
     fake_convert_details::apply_scale_shift<float16>(out,
                                                      data,
@@ -185,7 +185,7 @@ void fake_convert(const T* data,
                   const Shape& data_shape,
                   const Shape& scale_shape,
                   const Shape& shift_shape,
-                  const std::string& destination_type) {
+                  const element::Type& destination_type) {
     const size_t element_count = shape_size(data_shape);
     fake_convert_details::apply_scale_shift<T>(out, data, scale, shift, data_shape, scale_shape, shift_shape, false);
 
@@ -206,7 +206,7 @@ void fake_convert(const T* data,
                   T* out,
                   const Shape& data_shape,
                   const Shape& scale_shape,
-                  const std::string& destination_type) {
+                  const element::Type& destination_type) {
     const auto shift = std::vector<T>(shape_size(scale_shape), 0.f);
     fake_convert<T>(data, scale, shift.data(), out, data_shape, scale_shape, scale_shape, destination_type);
 }

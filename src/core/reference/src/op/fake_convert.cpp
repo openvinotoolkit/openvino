@@ -149,10 +149,10 @@ namespace fake_convert_details {
  * @param count                Number of elements in the data input.
  * @param destination_type     Name of the destination type.
  */
-void apply_conversion(const float16* data, float16* out, size_t element_count, const std::string& destination_type) {
-    if (destination_type == "f8e5m2") {
+void apply_conversion(const float16* data, float16* out, size_t element_count, const element::Type& destination_type) {
+    if (destination_type == element::f8e5m2) {
         reference::func::emulate_f8e5m2_on_fp16(data, out, element_count);
-    } else if (destination_type == "f8e4m3") {
+    } else if (destination_type == element::f8e4m3) {
         reference::func::emulate_f8e4m3_on_fp16(data, out, element_count);
     } else {
         OPENVINO_THROW("Unsupported destination type.");
