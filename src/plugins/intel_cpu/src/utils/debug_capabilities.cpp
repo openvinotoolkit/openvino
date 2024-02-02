@@ -17,7 +17,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/iml_type_mapper.h"
-
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include <memory>
 
 namespace dnnl {
@@ -162,7 +162,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     const char * comma = "";
     auto node_id = [](Node & node) {
         auto id = node.getName();
-        if (id.size() > 20)
+        if (id.size() > 50)
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
         return id;
     };
@@ -538,7 +538,11 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         }
     }
     os << prefix << "}\n";
-
+    os << prefix << "fp16_compress disabled Ngraph nodes:\n";
+    for (const auto& op : f.get_ordered_ops()) {
+        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+            os << "\t" << tag << op->get_friendly_name() << "\n";
+    }
     return os;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ ov::OutputVector squeeze(const Node& node) {
     if (axes.empty()) {
         return {std::make_shared<v0::Squeeze>(data)};
     } else {
-        const auto axes_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{axes.size()}, axes);
+        const auto axes_const = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
         return {std::make_shared<v0::Squeeze>(data, axes_const)};
     }
 }

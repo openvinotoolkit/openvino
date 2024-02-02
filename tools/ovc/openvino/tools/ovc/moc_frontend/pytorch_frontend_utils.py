@@ -34,8 +34,8 @@ def get_pytorch_decoder(model, example_inputs, args):
                 "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
-        if isinstance(model, torch.export.ExportedProgram):
-            raise RuntimeException("Models recieved from torch.export are not yet supported by convert_model.")
+        if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
+            raise RuntimeError("Models received from torch.export are not yet supported by convert_model.")
         else:
             decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
     else:
