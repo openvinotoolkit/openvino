@@ -20,7 +20,7 @@ target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo cpuUtils openvino::snippets ov_snippets_models)
+set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
