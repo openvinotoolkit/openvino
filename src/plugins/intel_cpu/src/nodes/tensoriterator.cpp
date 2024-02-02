@@ -792,7 +792,7 @@ bool TensorIterator::checkForInputAndBodyShapesInequality() const {
 }
 
 // redefine memory for input nodes of subgraph and reset first_mappers as the primitives are invalid,
-// when the node is static while runs as dynamic.
+// when the node is static while runs a dynamic subgraph.
 void TensorIterator::restoreSubgraphInputByBackEdges() {
     for (auto& input_map : first_mappers) {
         const auto extern_input_index = std::get<0>(input_map.first);
