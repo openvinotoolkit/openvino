@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 

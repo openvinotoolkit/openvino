@@ -4,7 +4,7 @@
 
 #include "op/dft.hpp"
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "utils/common.hpp"
 #include "utils/dft.hpp"
 

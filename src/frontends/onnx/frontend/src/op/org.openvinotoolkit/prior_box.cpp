@@ -4,8 +4,8 @@
 
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
+#include "core/node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"

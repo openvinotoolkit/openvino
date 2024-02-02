@@ -8,7 +8,7 @@
 #include <map>
 #include <memory>
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/attr_types.hpp"

@@ -7,8 +7,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/batch_norm.hpp"
 
 using namespace ov::op;

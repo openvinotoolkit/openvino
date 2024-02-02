@@ -7,9 +7,9 @@
 #include <onnx/onnx_pb.h>
 
 #include "core/graph.hpp"
+#include "core/null_node.hpp"
 #include "core/transform.hpp"
 #include "onnx_framework_node.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/util/file_util.hpp"
 

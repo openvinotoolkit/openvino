@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <onnx_import/core/node.hpp>
+#include <core/node.hpp>
 #include <openvino/frontend/onnx/node_context.hpp>
 #include <utils/common.hpp>
 

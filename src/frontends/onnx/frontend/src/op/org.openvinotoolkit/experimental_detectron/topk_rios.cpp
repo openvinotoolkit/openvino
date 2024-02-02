@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 
 using namespace ov::op;

@@ -10,7 +10,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "onnx_import/core/operator_set.hpp"
+#include "core/operator_set.hpp"
 
 namespace ngraph {
 namespace onnx_import {
