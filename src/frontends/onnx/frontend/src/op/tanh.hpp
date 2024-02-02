@@ -7,17 +7,15 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
+#include "openvino/op/tanh.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector tanh(const Node& node) {
-    return {std::make_shared<default_opset::Tanh>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v0::Tanh>(node.get_ng_inputs().at(0))};
 }
 
 }  // namespace set_1

@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/group_norm.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/squeeze.hpp"

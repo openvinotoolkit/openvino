@@ -8,7 +8,6 @@
 #include "blob_factory.hpp"
 #include "compilation_context.hpp"
 #include "core_impl.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
@@ -185,8 +184,8 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
     return ov::any_copy(get_supported_property(deviceName, any_copy(configs)));
 }
 
-std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
-    std::map<std::string, InferenceEngine::Version> versions;
+std::map<std::string, ov::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
+    std::map<std::string, ov::Version> versions;
     std::vector<std::string> deviceNames;
 
     {

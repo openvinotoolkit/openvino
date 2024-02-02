@@ -225,9 +225,10 @@ public:
      * @brief Get only properties that are supported by specified device
      * @param full_device_name Name of a device (can be either virtual or hardware)
      * @param properties Properties that can contains configs that are not supported by device
+     * @param keep_core_property Whether to return core-level properties
      * @return map of properties that are supported by device
      */
-    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties) const = 0;
+    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties, const bool keep_core_property = true) const = 0;
 
     virtual bool device_supports_model_caching(const std::string& device_name) const = 0;
 

@@ -3,10 +3,12 @@
 //
 
 #include "transpose.h"
-#include "openvino/core/parallel.hpp"
+
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/constant.hpp"
+
 #include "nodes/common/reorder_prim.h"
 
-#include <algorithm>
 #include <string>
 #include "dnnl_extension_utils.h"
 #include "common/primitive_hashing_utils.hpp"
@@ -137,8 +139,8 @@ void Transpose::prepareParams() {
 
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
-        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
+        auto dstMemPtr = getDstMemoryAtPort(0);
         auto dstDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
@@ -166,8 +168,8 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->getSize();
+        auto orderPtr = getSrcDataAtPortAs<const int32_t>(0);
+        auto orderLen = getSrcMemoryAtPort(0)->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
 
@@ -196,8 +198,8 @@ void Transpose::createPrimitive() {
     if (isOptimized)
         return;
 
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory was not allocated.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -241,12 +243,10 @@ void Transpose::execute(dnnl::stream strm) {
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
 
-        int MB = srcMemPtr->getStaticDims()[0];
-
-        execPtr->exec({srcMemPtr}, {dstMemPtr}, MB);
+        execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
         OPENVINO_THROW("Could not execute Transpose node. Primitive was not created.");
     }

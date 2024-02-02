@@ -3,7 +3,12 @@
 //
 
 #include "tile.h"
+
+#include "openvino/op/tile.hpp"
+#include "openvino/op/constant.hpp"
+
 #include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -114,9 +119,9 @@ bool Tile::needPrepareParams() const {
 
 void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
-        const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
+        const auto& repeatsMem = getParentEdgeAt(TILE_REPEATS)->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
+        const int32_t* repeatsData = repeatsMem.getDataAs<const int32_t>();
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -140,7 +145,7 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().getData());
+        const int32_t* repeatsData = getParentEdgeAt(TILE_REPEATS)->getMemory().getDataAs<const int32_t>();
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
@@ -156,7 +161,7 @@ void Tile::executeDynamicImpl(dnnl::stream strm) {
 
 void Tile::execute(dnnl::stream strm) {
     if (optimizedCase) {
-        optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0));
     } else {
         plainExecute(strm);
     }
@@ -169,8 +174,8 @@ void Tile::plainExecute(dnnl::stream strm) {
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.getData());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().getData());
+    const uint8_t* src_ptr = srcMemory.getDataAs<const uint8_t>();
+    uint8_t* dst_ptr = getChildEdgeAt(0)->getMemory().getDataAs<uint8_t>();
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;

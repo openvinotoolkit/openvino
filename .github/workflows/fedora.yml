@@ -91,7 +91,7 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -247,10 +247,10 @@ jobs:
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
           python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
           python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
