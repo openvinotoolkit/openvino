@@ -570,11 +570,9 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         }
 
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
-            if (shape_to_check.size() > decompressionConstShape.size())
+            if (shape_to_check.size() != decompressionConstShape.size())
                 return false;
-            const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
-            // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
-            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
+            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin());
         };
         if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
             continue;

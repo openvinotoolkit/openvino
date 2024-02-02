@@ -617,10 +617,10 @@ void Gather::execCompressedEmbedding() {
     const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
-    const auto* zp = decompressionSubtractPtr->getDataAs<float_t>();
-    const auto* scale = decompressionMultiplyPtr->getDataAs<float_t>();
+    const auto* zp = decompressionSubtractPtr->getDataAs<float>();
+    const auto* scale = decompressionMultiplyPtr->getDataAs<float>();
 
-    auto* pdst = getDstDataAtPortAs<float_t>(0);
+    auto* pdst = getDstDataAtPortAs<float>(0);
 
     const auto& idxDims = idxMemPtr->getStaticDims();
     const auto batch = idxDims[0];
