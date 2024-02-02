@@ -164,6 +164,11 @@ const OPENVINO_API OpSet& get_opset12();
  */
 const OPENVINO_API OpSet& get_opset13();
 /**
+ * @brief Returns opset14
+ * @ingroup ov_opset_cpp_api
+ */
+const OPENVINO_API OpSet& get_opset14();
+/**
  * @brief Returns map of available opsets
  * @ingroup ov_opset_cpp_api
  */
