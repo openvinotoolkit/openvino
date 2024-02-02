@@ -9,9 +9,21 @@ add_library(cpuSpecificRtInfo STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
+add_library(cpuUtils STATIC
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp)
+set(CPU_UTILS_LINK_LIBRARIES openvino::runtime)
+if(OV_CPU_WITH_ACL)
+    list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
+endif()
+if(OV_CPU_WITH_DNNL)
+    list(APPEND CPU_UTILS_LINK_LIBRARIES dnnl)
+endif()
+target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
+
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snippets_models)
+set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo cpuUtils openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")

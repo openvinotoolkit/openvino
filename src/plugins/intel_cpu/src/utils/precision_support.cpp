@@ -4,7 +4,9 @@
 
 #include "precision_support.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 
