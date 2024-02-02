@@ -32,7 +32,7 @@ ov::OutputVector crop(const Node& node) {
 
     // Set slice begin values to border values (note order of indexes)
     const auto begin =
-        v0::Constant::create(ov::element::i64, Shape{4}, std::vector<std::int64_t>{0, 0, border[1], border[0]});
+        v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<std::int64_t>{0, 0, border[1], border[0]});
 
     // If scale is given, then start crop at left/top `border`
     // and end on left/top `border` + `scale`.
@@ -48,7 +48,7 @@ ov::OutputVector crop(const Node& node) {
         // Set slice end values to topBorder+heightScale and leftBorder+widthScale
         // Note that indexes don't match, e.g. border[0] + scale[1]
         end = v0::Constant::create(ov::element::i64,
-                                   Shape{4},
+                                   ov::Shape{4},
                                    std::vector<std::int64_t>{0, 0, border[1] + scale[0], border[0] + scale[1]});
     }
     // If scale is not provided, crop the image by values provided in `border`.
@@ -60,8 +60,9 @@ ov::OutputVector crop(const Node& node) {
 
         // Calculate ends as shape(input) - border[2:3]
         const auto input_shape = std::make_shared<v3::ShapeOf>(input_data);
-        const auto end_offset =
-            v0::Constant::create(ov::element::i64, Shape{4}, std::vector<std::int64_t>{0, 0, -border[3], -border[2]});
+        const auto end_offset = v0::Constant::create(ov::element::i64,
+                                                     ov::Shape{4},
+                                                     std::vector<std::int64_t>{0, 0, -border[3], -border[2]});
         end = std::make_shared<v1::Add>(input_shape, end_offset);
     }
 

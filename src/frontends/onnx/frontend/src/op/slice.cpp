@@ -53,16 +53,17 @@ ov::OutputVector slice(const Node& node) {
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 
-    const auto starts = std::make_shared<v0::Constant>(ov::element::i64, Shape{starts_atr.size()}, starts_atr);
+    const auto starts = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{starts_atr.size()}, starts_atr);
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
-    const auto steps =
-        v0::Constant::create(ov::element::i64, Shape{starts_atr.size()}, std::vector<int64_t>(starts_atr.size(), 1));
+    const auto steps = v0::Constant::create(ov::element::i64,
+                                            ov::Shape{starts_atr.size()},
+                                            std::vector<int64_t>(starts_atr.size(), 1));
 
     if (axes_atr.empty()) {
         return {std::make_shared<v8::Slice>(data, starts, ends, steps)};
     } else {
-        const auto& axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{axes_atr.size()}, axes_atr);
+        const auto& axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_atr.size()}, axes_atr);
         return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
     }
 }

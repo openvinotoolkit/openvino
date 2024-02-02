@@ -79,7 +79,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
 }
 
 ov::Output<ov::Node> interpret_as_scalar(const ov::Output<ov::Node>& node) {
-    Shape node_shape = node.get_shape();
+    ov::Shape node_shape = node.get_shape();
 
     // If node is already a scalar, return original
     if (is_scalar(node_shape)) {
@@ -90,20 +90,20 @@ ov::Output<ov::Node> interpret_as_scalar(const ov::Output<ov::Node>& node) {
                             "Scalar value can't be derived from a node with ",
                             node_shape);
 
-    // If node is a Constant, recreate as Constant with Shape{}
+    // If node is a Constant, recreate as Constant with ov::Shape{}
     if (ov::op::util::is_constant(node.get_node())) {
         const auto value = ov::as_type_ptr<v0::Constant>(node.get_node_shared_ptr())->get_data_ptr();
         return std::make_shared<v0::Constant>(node.get_element_type(), ov::Shape{}, value);
     }
 
-    return ov::op::util::reshape(node, Shape{});
+    return ov::op::util::reshape(node, ov::Shape{});
 }
 
 ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::Node>& node,
                                                          const ov::Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
-    const auto one_const = v0::Constant::create(ov::element::i64, Shape{1}, {1});
-    const auto two_const = v0::Constant::create(ov::element::i64, Shape{1}, {2});
+    const auto one_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    const auto two_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
     const auto tail_shape_rank = std::make_shared<v1::Subtract>(expected_rank, two_const);
     const auto tail_shape = std::make_shared<v3::Broadcast>(one_const, tail_shape_rank);
 

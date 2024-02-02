@@ -81,18 +81,18 @@ ov::OutputVector stft(const Node& node) {
     const auto nstfts = static_cast<int64_t>((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
     const auto axis_const = v0::Constant::create(ov::element::i64, {}, {axis});
     const auto zero_const = v0::Constant::create(ov::element::i64, {}, {0});
-    const auto step = v0::Constant::create(ov::element::i64, Shape{2}, {1, 1});
+    const auto step = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
     ov::OutputVector all_signals;
     for (int64_t batch = 0; batch < batch_size; ++batch) {
         ov::OutputVector signals_in_batch;
         for (int64_t sig_idx = 0; sig_idx < nstfts; ++sig_idx) {
             const auto start =
-                v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{batch, sig_idx * frame_step});
+                v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{batch, sig_idx * frame_step});
             const auto stop =
                 v0::Constant::create(ov::element::i64,
-                                     Shape{2},
+                                     ov::Shape{2},
                                      std::vector<int64_t>{batch + 1, sig_idx * frame_step + frame_length});
-            const auto slice_axes = v0::Constant::create(ov::element::i64, Shape{2}, std::vector<int64_t>{0, axis});
+            const auto slice_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, axis});
             const auto slice = std::make_shared<v8::Slice>(signal, start, stop, step, slice_axes);
             const ov::Output<ov::Node> flatten_slice = std::make_shared<v1::Reshape>(
                 slice,
