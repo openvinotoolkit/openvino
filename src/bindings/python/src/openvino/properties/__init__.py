@@ -12,10 +12,10 @@ from openvino.properties._properties import __make_properties
 __make_properties(__properties, __name__)
 
 # Submodules
-from openvino.runtime.properties import hint
-from openvino.runtime.properties import intel_cpu
-from openvino.runtime.properties import intel_gpu
-from openvino.runtime.properties import intel_auto
-from openvino.runtime.properties import device
-from openvino.runtime.properties import log
-from openvino.runtime.properties import streams
+from openvino.properties import hint
+from openvino.properties import intel_cpu
+from openvino.properties import intel_gpu
+from openvino.properties import intel_auto
+from openvino.properties import device
+from openvino.properties import log
+from openvino.properties import streams
