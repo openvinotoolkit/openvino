@@ -10,6 +10,9 @@
 #include "nodes/softmax.h"
 #include "nodes/shapeof.h"
 #include "nodes/convert.h"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
 
 using namespace ov::intel_cpu;
 

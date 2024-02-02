@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "multiclass_nms_shape_inference.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {

@@ -19,14 +19,12 @@
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -41,7 +39,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 
-using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
 using namespace std::placeholders;
 
@@ -92,7 +89,7 @@ Core::Core(const std::string& xmlConfigFile) {
     }
 }
 
-std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
+std::map<std::string, ov::Version> Core::GetVersions(const std::string& deviceName) const {
     return _impl->GetVersions(deviceName);
 }
 
@@ -297,9 +294,8 @@ ov::Any Core::GetConfig(const std::string& deviceName, const std::string& name) 
         }
     }
 
-    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
-        const auto flag = ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
-        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+    if (name == ov::force_tbb_terminate.name()) {
+        return ov::threading::executor_manager()->get_property(ov::force_tbb_terminate.name()).as<bool>();
     }
 
     try {

@@ -17,7 +17,6 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "execution_graph_tests/disable_lowering_precision.hpp"
-#include "ie/ie_plugin_config.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace ExecutionGraphTests {
