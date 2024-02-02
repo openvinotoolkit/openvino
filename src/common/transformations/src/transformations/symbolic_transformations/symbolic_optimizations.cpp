@@ -120,6 +120,9 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
             auto tmp_tensor = std::make_shared<ov::descriptor::Tensor>(output.get_element_type(),
                                                                        shape,
                                                                        output.get_tensor_ptr()->get_names());
+            for (auto& item : output.get_tensor_ptr()->get_rt_info()) {
+                tmp_tensor->get_rt_info()[item.first] = item.second;
+            }
             output.set_tensor_ptr(tmp_tensor);
         }
     }

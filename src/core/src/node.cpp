@@ -275,6 +275,9 @@ void ov::Node::set_output_type(size_t i, const element::Type& element_type, cons
     auto tmp_tensor = std::make_shared<ov::descriptor::Tensor>(element_type,
                                                                pshape,
                                                                get_output_descriptor(i).get_tensor_ptr()->get_names());
+    for (auto& item : get_output_descriptor(i).get_tensor_ptr()->get_rt_info()) {
+        tmp_tensor->get_rt_info()[item.first] = item.second;
+    }
     get_output_descriptor(i).set_tensor_ptr(tmp_tensor);
 }
 
