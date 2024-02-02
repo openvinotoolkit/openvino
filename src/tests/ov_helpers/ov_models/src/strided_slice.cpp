@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
                                     const std::vector<int64_t>& begin,
                                     const std::vector<int64_t>& end,
                                     const std::vector<int64_t>& stride,
@@ -27,18 +27,18 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
     }
 }
 
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
-                                    const ov::Output<Node>& begin,
-                                    const ov::Output<Node>& end,
-                                    const ov::Output<Node>& stride,
-                                    const ov::Output<Node>& axes) {
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
+                                    const ov::Output<ov::Node>& begin,
+                                    const ov::Output<ov::Node>& end,
+                                    const ov::Output<ov::Node>& stride,
+                                    const ov::Output<ov::Node>& axes) {
     return std::make_shared<ov::op::v8::Slice>(in, begin, end, stride, axes);
 }
 
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
-                                    const ov::Output<Node>& begin,
-                                    const ov::Output<Node>& end,
-                                    const ov::Output<Node>& stride) {
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
+                                    const ov::Output<ov::Node>& begin,
+                                    const ov::Output<ov::Node>& end,
+                                    const ov::Output<ov::Node>& stride) {
     return std::make_shared<ov::op::v8::Slice>(in, begin, end, stride);
 }
 }  // namespace builder

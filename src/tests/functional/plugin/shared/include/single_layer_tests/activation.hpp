@@ -20,16 +20,4 @@ TEST_P(ActivationDynamicLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(ActivationLayerTest, QueryNetwork) {
-    QueryNetwork();
-}
-
-TEST_P(ActivationParamLayerTest, QueryNetwork) {
-    QueryNetwork();
-}
-
-TEST_P(ActivationDynamicLayerTest, QueryNetwork) {
-    QueryNetwork();
-}
-
 }  // namespace LayerTestsDefinitions

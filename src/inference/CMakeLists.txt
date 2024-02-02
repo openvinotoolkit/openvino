@@ -84,7 +84,6 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
 
-ov_add_version_defines(src/ie_version.cpp ${TARGET_NAME}_obj)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
