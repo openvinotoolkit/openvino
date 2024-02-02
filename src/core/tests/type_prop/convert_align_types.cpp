@@ -28,7 +28,7 @@ struct ConvertAlignTypesTest : ::testing::TestWithParam<ConvertAlignTypesTestPar
 TEST_F(ConvertAlignTypesTest, default_ctor) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::u8, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
-    auto c = std::make_shared<op::v1::ConvertAlignTypes>();
+    auto c = std::make_shared<op::v14::ConvertAlignTypes>();
     c->set_arguments(OutputVector{lhs, rhs});
     c->set_pytorch_scalar_align(true);
     c->set_promote_unsafe(true);
@@ -55,11 +55,11 @@ TEST_P(ConvertAlignTypesTest, suite) {
 
     auto lhs = std::make_shared<op::v0::Parameter>(params.lhs_type, lhs_shape);
     auto rhs = std::make_shared<op::v0::Parameter>(params.rhs_type, rhs_shape);
-    auto c = std::make_shared<op::v1::ConvertAlignTypes>(lhs,
-                                                         rhs,
-                                                         params.pytorch_scalar_align,
-                                                         params.promote_unsafe,
-                                                         params.u64_integer);
+    auto c = std::make_shared<op::v14::ConvertAlignTypes>(lhs,
+                                                          rhs,
+                                                          params.pytorch_scalar_align,
+                                                          params.promote_unsafe,
+                                                          params.u64_integer);
     ASSERT_EQ(c->get_output_element_type(0), c->get_output_element_type(1));
     ASSERT_EQ(c->get_output_element_type(0), params.expected_type);
     ASSERT_EQ(c->get_output_partial_shape(0), (lhs_shape));
@@ -227,7 +227,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(ConvertAlignTypesTest, exception_u_i_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::u8, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::i8, Shape{});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Unsigned integer input cannot be safely promoted into any supported signed integer."));
 }
@@ -235,7 +235,7 @@ TEST_F(ConvertAlignTypesTest, exception_u_i_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_u64_int_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::u64, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::i8, Shape{});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Unsigned integer input cannot be safely promoted into any supported signed integer."));
 }
@@ -243,7 +243,7 @@ TEST_F(ConvertAlignTypesTest, exception_u64_int_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_uint_float_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::u16, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Integer input cannot be safely promoted to floating-point."));
 }
@@ -251,7 +251,7 @@ TEST_F(ConvertAlignTypesTest, exception_uint_float_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_int_float_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Integer input cannot be safely promoted to floating-point."));
 }
@@ -259,7 +259,7 @@ TEST_F(ConvertAlignTypesTest, exception_int_float_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_torch_signed_unsigned_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::u4, Shape{1});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, true),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, true),
                     Exception,
                     HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
@@ -267,7 +267,7 @@ TEST_F(ConvertAlignTypesTest, exception_torch_signed_unsigned_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_torch_unsigned_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::u64, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::u4, Shape{1});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, true),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, true),
                     Exception,
                     HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
@@ -275,7 +275,7 @@ TEST_F(ConvertAlignTypesTest, exception_torch_unsigned_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_torch_floating_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::f64, Shape{});
     auto rhs = std::make_shared<op::v0::Parameter>(element::f16, Shape{1});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, true),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, true),
                     Exception,
                     HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
@@ -283,7 +283,7 @@ TEST_F(ConvertAlignTypesTest, exception_torch_floating_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_bf16_f16_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::f16, Shape{1});
     auto rhs = std::make_shared<op::v0::Parameter>(element::bf16, Shape{1});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Unsupported input element types for ConvertAlignTypes with given attributes."));
 }
@@ -291,7 +291,7 @@ TEST_F(ConvertAlignTypesTest, exception_bf16_f16_unsafe) {
 TEST_F(ConvertAlignTypesTest, exception_f8e4m3_f8e5m2_unsafe) {
     auto lhs = std::make_shared<op::v0::Parameter>(element::f8e4m3, Shape{1});
     auto rhs = std::make_shared<op::v0::Parameter>(element::f8e5m2, Shape{1});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v1::ConvertAlignTypes>(lhs, rhs, false, false),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::ConvertAlignTypes>(lhs, rhs, false, false),
                     Exception,
                     HasSubstr("Unsupported input element types for ConvertAlignTypes with given attributes."));
 }

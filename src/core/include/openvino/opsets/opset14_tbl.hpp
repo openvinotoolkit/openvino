@@ -219,3 +219,4 @@ _OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)
 _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
+_OPENVINO_OP_REG(ConvertAlignTypes, ov::op::v14)

@@ -8,12 +8,12 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
+namespace v14 {
 /// \brief Elementwise type alignment conversion operation.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvertAlignTypes : public Op {
 public:
-    OPENVINO_OP("ConvertAlignTypes", "", op::Op);
+    OPENVINO_OP("ConvertAlignTypes", "opset14", op::Op);
 
     /// \brief Constructs a type alignment and conversion operation.
     ConvertAlignTypes() = default;
@@ -64,6 +64,6 @@ private:
     bool m_pytorch_scalar_align = false;
     element::Type m_u64_integer_promotion_target = element::f32;
 };
-}  // namespace v1
+}  // namespace v14
 }  // namespace op
 }  // namespace ov

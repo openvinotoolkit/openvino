@@ -5,7 +5,7 @@
 #include "openvino/op/convert_align_types.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -19,7 +19,7 @@ std::unordered_map<size_t, element::Type> bit_to_int{
     {64, element::i64},
 };
 
-element::Type infer_types(const v1::ConvertAlignTypes* op) {
+element::Type infer_types(const v14::ConvertAlignTypes* op) {
     const auto lhs = op->input(0);
     const auto rhs = op->input(1);
     const auto promote_unsafe = op->get_promote_unsafe();
@@ -127,7 +127,7 @@ element::Type infer_types(const v1::ConvertAlignTypes* op) {
     NODE_VALIDATION_CHECK(op, false, "Unsupported input element types for ConvertAlignTypes with given attributes.");
 }
 }  // namespace
-namespace v1 {
+namespace v14 {
 
 ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& lhs,
                                      const Output<Node>& rhs,
@@ -166,6 +166,6 @@ std::shared_ptr<Node> ConvertAlignTypes::clone_with_new_inputs(const OutputVecto
                                                m_u64_integer_promotion_target);
 }
 
-}  // namespace v1
+}  // namespace v14
 }  // namespace op
 }  // namespace ov
