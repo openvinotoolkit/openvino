@@ -21,7 +21,7 @@ namespace util {
 /// \return     The vector containing multiple outputs we split input node into.
 ///             The vector is output of Split:v1 op
 ///
-ov::OutputVector split(const Output<Node>& value, const std::vector<int64_t>& split_lengths, int64_t axis = 0);
+ov::OutputVector make_split(const Output<Node>& value, const std::vector<int64_t>& split_lengths, int64_t axis = 0);
 
 /// \brief      Split value on specified axis into multiple parts.
 ///
@@ -39,7 +39,7 @@ ov::OutputVector split(const Output<Node>& value, const std::vector<int64_t>& sp
 /// \return     The vector containing multiple nodes we split input node into.
 ///             The vector is output of VariadicSplit:v1 op
 ///
-ov::OutputVector split(const Output<Node>& value, int64_t num_splits, int64_t axis = 0);
+ov::OutputVector make_split(const Output<Node>& value, int64_t num_splits, int64_t axis = 0);
 }  // namespace util
 }  // namespace op
 }  // namespace ov

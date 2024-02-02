@@ -9,9 +9,9 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
-#include "ov_models/ov_builders/norm.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/common.hpp"
+#include "utils/norm.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;
@@ -36,7 +36,7 @@ ov::OutputVector global_lp_pool(const Node& node) {
 
     CHECK_VALID_NODE(node, p_norm >= 0, "Only positive (including zero) values are supported for 'p' attribute.");
 
-    ov::OutputVector slices = ov::op::util::split(data, channels_count, channel_axis);
+    ov::OutputVector slices = ov::op::util::make_split(data, channels_count, channel_axis);
 
     for (auto& slice : slices) {
         // all dimensions except spatial/feature
