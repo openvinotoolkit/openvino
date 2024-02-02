@@ -49,6 +49,15 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
         return input_shape_update;
     };
 
+    auto transpose_shape = [](const ov::Shape& shape, const std::vector<int64_t>& order) {
+        auto shape_transposed = ov::Shape(shape);
+        for (size_t i = 0; i < order.size(); i++) {
+            shape_transposed[i] = shape[order[i]];
+        }
+
+        return shape_transposed;
+    };
+
     auto input0_shape_update = update_input_shape(input0_shape, input_rank, input0_order, true);
     auto input1_shape_update = update_input_shape(input1_shape, weight_rank, input1_order, false);
 
@@ -71,6 +80,9 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     size_t ones_to_add = 4 - std::min(output_shape.size(), static_cast<size_t>(4));
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
+
+    if (prim->output_order.size() > 0)
+        output_shape = transpose_shape(output_shape, prim->output_order);
 
     auto output_type = input0_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_types[0])
