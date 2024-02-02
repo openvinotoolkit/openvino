@@ -57,7 +57,8 @@ ov::op::RoundingType get_rounding_type(const ov::frontend::onnx::Node& node);
 ///
 /// \return A pair of (padding_above, padding_below), which elements contains number of
 ///         pixels to pad in respective dimensions (height, width, depth).
-std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const ov::frontend::onnx::Node& node, const size_t kernel_rank);
+std::pair<ov::CoordinateDiff, ov::CoordinateDiff> get_pads(const ov::frontend::onnx::Node& node,
+                                                           const size_t kernel_rank);
 
 /// \brief Get padding values for the operation described by an ONNX node.
 /// \details Values are taken from the `pads` attribute.

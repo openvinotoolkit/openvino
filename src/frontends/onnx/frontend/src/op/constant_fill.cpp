@@ -24,8 +24,7 @@ namespace op {
 namespace set_1 {
 ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> target_shape;
-    const auto dtype =
-        node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
+    const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
     const auto ng_type = onnx_to_ov_data_type(static_cast<TensorProto_DataType>(dtype));
     const auto const_val_to_fill = node.get_attribute_as_constant<float>("value", 0.f, ng_type);
     const auto input_as_shape = node.get_attribute_value<int64_t>("input_as_shape", 1);
