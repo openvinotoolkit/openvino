@@ -346,14 +346,14 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::jit_avx512_amx,
             impl_desc_type::brgconv_avx512_1x1,
             impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx512_dw,
             impl_desc_type::jit_avx512_1x1,
             impl_desc_type::jit_avx512,
             impl_desc_type::brgconv_avx2_1x1,
             impl_desc_type::brgconv_avx2,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx2_dw,
             impl_desc_type::jit_avx2_1x1,
             impl_desc_type::jit_avx2,
@@ -390,7 +390,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 
 const bool Convolution::isBrgConvAvailable() {
     static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
     return isBrgConvAvailable;
 }
 
@@ -566,7 +566,6 @@ void Convolution::getSupportedDescriptors() {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = ov::element::f32;
     }
-
     SetPostOpsAndZeroPoints(attrs);
 
     if (!one_of(ndims, 3, 4, 5))
@@ -1652,6 +1651,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
             inputZeroPointType = zpType::PerChannel;
     }
     // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
+    // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit per-channel zp
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
