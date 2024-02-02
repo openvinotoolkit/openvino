@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "blob_transform.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -461,26 +460,6 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(const Inferenc
         IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
-}
-
-inline InferenceEngine::Blob::Ptr convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
-                                                    InferenceEngine::Layout layout) {
-    IE_ASSERT(in != nullptr) << "Got NULL pointer";
-
-    const auto& inDesc = in->getTensorDesc();
-
-    if (inDesc.getLayout() == layout) {
-        return in;
-    }
-
-    const auto outDesc = InferenceEngine::TensorDesc(inDesc.getPrecision(), inDesc.getDims(), layout);
-
-    const auto out = make_blob_with_precision(outDesc);
-    out->allocate();
-
-    InferenceEngine::blob_copy(in, out);
-
-    return out;
 }
 
 template <typename dType>
