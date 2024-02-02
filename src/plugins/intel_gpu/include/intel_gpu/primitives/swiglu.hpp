@@ -23,7 +23,7 @@ struct swiglu : public primitive_base<swiglu> {
     swiglu(const primitive_id& id,
            const input_info& input,
            const int64_t& axis,
-           const std::vector<int64_t>& split_lengths,
+           const int64_t& split_lengths,
            const tensor output_size,
            const padding& output_padding = padding())
            : primitive_base(id, {input}, {output_padding}),
@@ -32,13 +32,13 @@ struct swiglu : public primitive_base<swiglu> {
              output_size(output_size) {}
 
     int64_t axis;
-    std::vector<int64_t> split_lengths;
+    int64_t split_lengths;
     tensor output_size;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, axis);
-        seed = hash_range(seed, split_lengths.begin(), split_lengths.end());
+        seed = hash_combine(seed, split_lengths);
         return seed;
     }
 

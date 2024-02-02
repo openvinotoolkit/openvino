@@ -14,7 +14,7 @@ namespace op {
 
 SwiGLU::SwiGLU(const Output<Node>& data,
                int64_t axis,
-               const std::vector<int64_t>& split_lengths,
+               int64_t split_lengths,
                const ov::element::Type output_type)
     : Op({data}), m_axis(axis), m_split_lengths(split_lengths), m_output_type(output_type) {
     validate_and_infer_types();
@@ -33,7 +33,7 @@ void SwiGLU::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {
         get_input_partial_shape(0),
         ov::PartialShape(ov::Shape{}),
-        ov::PartialShape(ov::Shape{m_split_lengths.size()})
+        ov::PartialShape(ov::Shape{2})
     };
 
     set_output_type(0, output_type, shape_infer(this, input_shapes)[0]);
@@ -50,7 +50,7 @@ std::shared_ptr<Node> SwiGLU::clone_with_new_inputs(const ov::OutputVector& new_
 std::vector<ov::PartialShape> shape_infer(const SwiGLU* op, std::vector<ov::PartialShape> input_shapes) {
     ov::op::v1::VariadicSplit variadic_split;
     std::vector<int64_t> axis = { op->get_axis() };
-    auto split_lengths = op->get_split_lengths();
+    std::vector<int64_t> split_lengths = { op->get_split_lengths(), -1 };
 
     std::unordered_map<size_t, ov::Tensor> const_data;
     const_data.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{}, static_cast<void*>(axis.data())));

@@ -51,11 +51,7 @@ SwiGLUFusion::SwiGLUFusion() {
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
         if (!mul || transformation_callback(mul))
             return false;
-
         if (mul->input_value(1).get_index() != 1)
-            return false;
-        auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
-        if (swish->input_value(0).get_index() != 0)
             return false;
 
         auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
@@ -67,20 +63,20 @@ SwiGLUFusion::SwiGLUFusion() {
                                        ov::op::util::has_constant_value<int64_t>(axis, last_dim);
         if (!valid_axis_const_values)
             return false;
-        auto axis_value = axis->cast_vector<int64_t>();
+        auto axis_value = axis->cast_vector<int64_t>()[0];
 
         auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
-        auto split_lengths_value = split_lengths->cast_vector<int64_t>();
+        auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;
-        if (split_lengths_value[0] != split_length)
+        if (split_lengths_value != split_length)
             return false;
 
         auto data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
         auto swiglu = std::make_shared<op::SwiGLU>(data,
-                                                   axis_value[0],
+                                                   axis_value,
                                                    split_lengths_value,
                                                    output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());

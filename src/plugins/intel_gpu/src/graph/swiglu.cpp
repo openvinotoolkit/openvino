@@ -35,7 +35,7 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     std::vector<ShapeType> input_shapes = {
         impl_param.get_input_layout(0).get<ShapeType>(),
         ShapeType(ov::Shape({})),
-        ShapeType(ov::Shape{desc->split_lengths.size()})
+        ShapeType(ov::Shape{2})
     };
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);

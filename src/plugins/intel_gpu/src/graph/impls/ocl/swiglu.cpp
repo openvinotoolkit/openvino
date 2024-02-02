@@ -40,7 +40,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
 
         auto rank = impl_param.get_input_layout(0).get_partial_shape().rank();
         params.axis = ov::util::normalize(primitive->axis, rank.get_length());
-        params.split_length = primitive->split_lengths[0];
+        params.split_length = primitive->split_lengths;
 
         return {params, optional_params};
     }

@@ -28,7 +28,7 @@ void swiglu_ref(const memory::ptr input, memory::ptr output, int32_t split_lengt
     cldnn::mem_lock<T> dst(output, get_test_stream());
 
     T res;
-     for (uint32_t b = 0; b < batch_size; ++b) {
+    for (uint32_t b = 0; b < batch_size; ++b) {
         for (uint32_t f = 0; f < feature_size; ++f) {
             for (uint32_t y = 0; y < y_size; ++y) {
                 for (uint32_t x = 0; x < x_size; ++x) {
@@ -63,7 +63,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(swiglu("swiglu", input_info("input"), {-1}, {3, -1}, tensor()));
+    topology.add(swiglu("swiglu", input_info("input"), -1, 3, tensor()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

@@ -15,13 +15,13 @@
 namespace {
 using ov::test::InputShape;
 
-using SwiGLUDecompositionParams = std::tuple<std::vector<InputShape>,   // input shapes
+using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,   // input shapes
                                              ov::element::Type>;        // input precision
 
-class SwiGLUDecomposition : public testing::WithParamInterface<SwiGLUDecompositionParams>,
+class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SwiGLUDecompositionParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<SwiGLUFusionParams> obj) {
         std::vector<InputShape> input_shapes;
         ov::element::Type input_precision;
 
@@ -64,7 +64,7 @@ protected:
         // Mul(Xw, Xv) = Swish(Xw) * Xv
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul}, params, "SwiGLUDecomposition");
+        return std::make_shared<ov::Model>(ov::NodeVector{mul}, params, "SwiGLUFusion");
     }
 
     void SetUp() override {
@@ -83,11 +83,11 @@ protected:
     }
 };
 
-TEST_P(SwiGLUDecomposition, Inference) {
+TEST_P(SwiGLUFusion, Inference) {
     run();
 }
 
-TEST_P(SwiGLUDecomposition, Inference_cached) {
+TEST_P(SwiGLUFusion, Inference_cached) {
     std::stringstream ss;
     ss << "gpu_model_cache_" << std::hash<std::string>{}(
           std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
@@ -115,9 +115,9 @@ const std::vector<std::vector<InputShape>> input_shapes_dyn = {
     {{{-1, -1, -1}, {{1, 1, 96}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_SwiGLUDecomposition_basic,
-                         SwiGLUDecomposition,
+INSTANTIATE_TEST_SUITE_P(smoke_SwiGLUFusion_basic,
+                         SwiGLUFusion,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_dyn),
                                             ::testing::ValuesIn(input_precisions)),
-                         SwiGLUDecomposition::getTestCaseName);
+                         SwiGLUFusion::getTestCaseName);
 } // namespace

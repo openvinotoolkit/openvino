@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, SwiGLUFusionTest1) {
     }
     {
         int64_t axis = -1;
-        std::vector<int64_t> split_lenghts = {3, -1};
+        int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ 2, 1, 6 });;
         auto swiglu = std::make_shared<op::SwiGLU>(input, axis, split_lenghts, ov::element::f16);
 
@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, SwiGLUFusionTest3) {
     }
     {
         int64_t axis = -1;
-        std::vector<int64_t> split_lenghts = {3, -1};
+        int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 6 });
         auto swiglu = std::make_shared<op::SwiGLU>(input, axis, split_lenghts, ov::element::f16);
 
