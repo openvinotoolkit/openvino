@@ -20,7 +20,7 @@ try:
     from openvino import helpers as helpers
     from openvino import preprocess as preprocess
     from openvino import utils as utils
-    from openvino.runtime import properties as properties
+    from openvino import properties as properties
 
     # Import most important classes and functions from openvino.runtime
     from openvino.runtime import Model
