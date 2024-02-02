@@ -349,6 +349,12 @@ public:
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
+        case Type_t::f8e4m3:
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e5m2:
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
+            break;
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
@@ -748,7 +754,8 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::nf4 &&
                                           (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
-                                           std::is_same<T, float16>::value),
+                                           std::is_same<T, float16>::value || std::is_same<T, float8_e4m3>::value ||
+                                           std::is_same<T, float8_e5m2>::value),
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
