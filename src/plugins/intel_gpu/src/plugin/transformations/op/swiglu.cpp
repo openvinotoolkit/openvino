@@ -13,7 +13,7 @@ namespace intel_gpu {
 namespace op {
 
 SwiGLU::SwiGLU(const Output<Node>& data,
-               const std::vector<int64_t>& axis,
+               int64_t axis,
                const std::vector<int64_t>& split_lengths,
                const ov::element::Type output_type)
     : Op({data}), m_axis(axis), m_split_lengths(split_lengths), m_output_type(output_type) {
@@ -49,7 +49,7 @@ std::shared_ptr<Node> SwiGLU::clone_with_new_inputs(const ov::OutputVector& new_
 
 std::vector<ov::PartialShape> shape_infer(const SwiGLU* op, std::vector<ov::PartialShape> input_shapes) {
     ov::op::v1::VariadicSplit variadic_split;
-    auto axis = op->get_axis();
+    std::vector<int64_t> axis = { op->get_axis() };
     auto split_lengths = op->get_split_lengths();
 
     std::unordered_map<size_t, ov::Tensor> const_data;

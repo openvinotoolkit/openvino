@@ -24,7 +24,7 @@ public:
     /// \param split_lenghts A list containing the sizes of each output tensor along the split "axis"
     /// \param output_type Output element type
     SwiGLU(const Output<Node>& data,
-           const std::vector<int64_t>& axis,
+           int64_t axis,
            const std::vector<int64_t>& split_lengths,
            const ov::element::Type output_type = ov::element::undefined);
 
@@ -34,14 +34,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    const std::vector<int64_t>& get_axis() const { return m_axis; }
+    int64_t get_axis() const { return m_axis; }
     const std::vector<int64_t>& get_split_lengths() const { return m_split_lengths; }
 
-    void set_axis(const std::vector<int64_t>& axis) { m_axis = axis; }
+    void set_axis(int64_t axis) { m_axis = axis; }
     void set_split_lengths(const std::vector<int64_t>& split_lengths) { m_split_lengths = split_lengths; }
 
 private:
-    std::vector<int64_t> m_axis;
+    int64_t m_axis;
     std::vector<int64_t> m_split_lengths;
     ov::element::Type m_output_type;
 };
