@@ -11,7 +11,6 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 #include "validation_util.hpp"
 

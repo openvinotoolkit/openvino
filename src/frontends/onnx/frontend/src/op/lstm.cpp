@@ -15,8 +15,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/util/common_util.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
-#include "ov_models/ov_builders/split.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;
@@ -96,7 +96,7 @@ struct LSTMNgInputMap {
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
             auto bias = ng_inputs.at(3);
-            auto split_bias = ov::op::util::split(bias, 2, 1);
+            auto split_bias = ov::op::util::make_split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 ov::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],

@@ -9,9 +9,9 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/recurrent.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;
@@ -35,7 +35,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
                 auto bias = ng_inputs.at(3);
                 // gates_count * 2 since B is: [Wb, Rb]
                 const int split_parts = 2 * 3;
-                const auto split_bias = ov::op::util::split(bias, split_parts, 1);
+                const auto split_bias = ov::op::util::make_split(bias, split_parts, 1);
                 const auto wr_z_bias = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(3));
                 const auto wr_r_bias = std::make_shared<v1::Add>(split_bias.at(1), split_bias.at(4));
                 // The result has shape: [num_directions, 4 * hidden_size]

@@ -20,8 +20,8 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 using namespace ov::op::v0;
