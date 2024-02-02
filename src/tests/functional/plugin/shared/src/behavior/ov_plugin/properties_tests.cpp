@@ -135,8 +135,8 @@ TEST_P(OVBasicPropertiesTestsP, GetMetricThrowUnsupported) {
 }
 
 TEST_P(OVBasicPropertiesTestsP, SetConfigAllThrows) {
-    ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, {{"unsupported_key", "4"}}));
+    ov::Core ie;
+    OV_ASSERT_NO_THROW(ie.set_property({{"unsupported_key", "4"}}));
     ASSERT_ANY_THROW(ie.get_versions(target_device));
 }
 
