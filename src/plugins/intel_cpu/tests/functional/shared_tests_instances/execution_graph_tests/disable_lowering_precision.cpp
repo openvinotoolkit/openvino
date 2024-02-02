@@ -14,8 +14,8 @@ using namespace InferenceEngine;
 namespace {
 
 const std::vector<ExecGraphDisableLoweringPrecisionSpecificParams> disableLoweringPrecisionTestParams = {
-    {true,  "CPU", "bf16"},
-    {false, "CPU", "bf16"},
+    {true,  "CPU", ov::element::bf16},
+    {false, "CPU", ov::element::bf16},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphDisableLoweringPrecision,

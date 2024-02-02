@@ -26,12 +26,12 @@ std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestPara
     std::ostringstream result;
     bool disableLoweringPrecision;
     std::string targetDevice;
-    std::string loweringPrecision;
+    ov::element::Type loweringPrecision;
 
     std::tie(disableLoweringPrecision, targetDevice, loweringPrecision) = obj.param;
     result << "matmul_disable_lowingprecision=" << disableLoweringPrecision << "_";
     result << "device=" << targetDevice << "_";
-    result << "loweringPrecision=" << loweringPrecision;
+    result << "loweringPrecision=" << loweringPrecision.to_string();
     return result.str();
 }
 
@@ -72,9 +72,8 @@ void ExecGraphDisableLoweringPrecision::create_model() {
 void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     ov::CompiledModel compiledModel;
     auto core = ov::test::utils::PluginCache::get().core();
-    ov::element::Type hintPrecision = loweringPrecision == "bf16" ? ov::element::bf16 : ov::element::f16;
     compiledModel = core->compile_model(funcPtr, targetDevice,
-                                    ov::hint::inference_precision(hintPrecision));
+                                    ov::hint::inference_precision(loweringPrecision));
     const auto runtime_model = compiledModel.get_runtime_model();
     ASSERT_NE(nullptr, runtime_model);
     auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
@@ -94,7 +93,8 @@ void ExecGraphDisableLoweringPrecision::checkInferPrecision() {
     if (disableLoweringPrecision)
         ASSERT_EQ(matmulPrecision, "f32");
     else
-        ASSERT_EQ(matmulPrecision, loweringPrecision);
+        ASSERT_EQ(matmulPrecision, loweringPrecision.to_string());
+    funcPtr.reset();
 }
 
 TEST_P(ExecGraphDisableLoweringPrecision, CheckRuntimePrecision) {

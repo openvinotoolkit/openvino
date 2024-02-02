@@ -17,7 +17,7 @@ namespace ExecutionGraphTests {
 using ExecGraphDisableLoweringPrecisionSpecificParams = std::tuple<
     bool,                               //Disable lowering precision on device
     std::string,                        //Target Device
-    std::string                         //infer precision
+    ov::element::Type                   //Infer precision on target device
 >;
 
 class ExecGraphDisableLoweringPrecision : public testing::WithParamInterface<ExecGraphDisableLoweringPrecisionSpecificParams>,
@@ -32,7 +32,7 @@ protected:
     void checkInferPrecision();
     bool disableLoweringPrecision;
     std::string targetDevice;
-    std::string loweringPrecision;
+    ov::element::Type loweringPrecision;
     std::shared_ptr<ov::Model> funcPtr = nullptr;
 };
 
