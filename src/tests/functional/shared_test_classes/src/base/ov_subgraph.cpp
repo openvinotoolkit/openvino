@@ -8,7 +8,6 @@
 
 #include <fstream>
 #include <thread>
-#include "openvino/runtime/system_conf.hpp"
 
 #ifdef _WIN32
 #include <process.h>
@@ -532,6 +531,5 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
         }
     }
 }
-
 }  // namespace test
 }  // namespace ov
