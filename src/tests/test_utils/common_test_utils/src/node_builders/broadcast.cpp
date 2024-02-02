@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/ov_builders/broadcast.hpp"
+#include "common_test_utils/node_builders/broadcast.hpp"
 
+#include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -11,11 +12,10 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 
 namespace ov {
-namespace op {
-namespace util {
+namespace test {
+namespace utils {
 namespace {
 ///
 /// \brief      Reconstructs axes mapping vector for Broadcast:v1 operation.
@@ -48,14 +48,14 @@ Output<ov::Node> get_axes_mapping_output(const Shape& output_shape, const AxisSe
     return ov::op::v0::Constant::create(ov::element::i64, Shape{axes_mapping.size()}, axes_mapping);
 }
 
-static Output<ov::Node> get_axes_mapping_output(const PartialShape& output_shape,
-                                                const Output<ov::Node>& input_shape,
-                                                std::size_t start_match_axis) {
+Output<ov::Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                         const Output<ov::Node>& input_shape,
+                                         std::size_t start_match_axis) {
     const auto one_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
     const auto zero_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
     const auto start_match_axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {start_match_axis});
     const auto target_shape_rank_node =
-        ov::op::util::reshape(std::make_shared<ov::op::v3::ShapeOf>(input_shape), Shape{});
+        ov::test::utils::reshape(std::make_shared<ov::op::v3::ShapeOf>(input_shape), Shape{});
 
     const auto range_node =
         std::make_shared<ov::op::v4::Range>(zero_node, target_shape_rank_node, one_node, element::i64);
@@ -65,27 +65,28 @@ static Output<ov::Node> get_axes_mapping_output(const PartialShape& output_shape
         std::make_shared<ov::op::v0::Convert>(range_node, start_match_axis_node->get_element_type());
     // end of workaround
 
-    const auto result = std::make_shared<ov::op::v1::Add>(range_node_converted, start_match_axis_node);
-    return result;
+    return std::make_shared<ov::op::v1::Add>(range_node_converted, start_match_axis_node);
 }
 }  // namespace
 
-Output<ov::Node> make_broadcast(const Output<ov::Node>& node,
-                                const Shape& target_shape,
-                                const AxisSet& broadcast_axes) {
+std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node,
+                                         const Shape& target_shape,
+                                         const AxisSet& broadcast_axes) {
     return std::make_shared<ov::op::v1::Broadcast>(
         node,
         ov::op::v0::Constant::create(ov::element::i64, Shape{target_shape.size()}, target_shape),
         get_axes_mapping_output(target_shape, broadcast_axes));
 }
 
-Output<ov::Node> make_broadcast(const Output<ov::Node>& node, const Shape& target_shape, size_t start_match_axis) {
+std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node,
+                                         const Shape& target_shape,
+                                         size_t start_match_axis) {
     const auto node_shape = std::make_shared<ov::op::v3::ShapeOf>(node);
     return std::make_shared<ov::op::v1::Broadcast>(
         node,
         ov::op::v0::Constant::create(ov::element::i64, Shape{target_shape.size()}, target_shape),
         get_axes_mapping_output(target_shape, node_shape, start_match_axis));
 }
-}  // namespace util
-}  // namespace op
+}  // namespace utils
+}  // namespace test
 }  // namespace ov
