@@ -30,6 +30,8 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
+#include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
@@ -257,6 +259,20 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
+
+    regclass_RemoteContext(m);
+    regclass_RemoteTensor(m);
+// GPU-related
+#ifdef PY_ENABLE_OPENCL
+    regclass_ClContext(m);
+    regclass_ClImage2DTensor(m);
+#endif  // PY_ENABLE_OPENCL
+#ifdef PY_ENABLE_LIBVA
+    regclass_VADisplayWrapper(m);
+    regclass_VAContext(m);
+    regclass_VASurfaceTensor(m);
+#endif  // PY_ENABLE_LIBVA
+// GPU-related
 
     // Properties and hints
     regmodule_properties(m);
