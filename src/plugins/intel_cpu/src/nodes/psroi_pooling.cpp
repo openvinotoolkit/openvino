@@ -13,6 +13,7 @@
 #include "psroi_pooling.h"
 #include "cpu/x64/jit_generator.hpp"
 #include "nodes/common/blocked_desc_creator.h"
+#include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -492,9 +493,9 @@ void PSROIPooling::executeBilinearDeformable(const inputType *srcData, outputTyp
 
 template <typename inputType, typename outputType>
 void PSROIPooling::executeSpecified() {
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const inputType>(0);
+    const auto *bottomRoisBeginning = getSrcDataAtPortAs<const float>(1);
+    auto *dstData = getDstDataAtPortAs<outputType>(0);
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
@@ -512,8 +513,8 @@ void PSROIPooling::executeSpecified() {
     int numClasses = 1;
     int channelsEachClass = outputDim;
     if (!noTrans) {
-        const auto mem = getParentEdgeAt(2)->getMemoryPtr();
-        bottomTrans = reinterpret_cast<const float *>(mem->getData());
+        const auto mem = getSrcMemoryAtPort(2);
+        bottomTrans = mem->getDataAs<const float>();
         numClasses = static_cast<int>(mem->getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }
@@ -551,8 +552,8 @@ struct PSROIPooling::PSROIPoolingExecute {
 };
 
 void PSROIPooling::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
-    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
     if (!((inputPrec == ov::element::bf16 && outputPrec == ov::element::bf16) ||
           (inputPrec == ov::element::f32 && outputPrec == ov::element::f32))) {

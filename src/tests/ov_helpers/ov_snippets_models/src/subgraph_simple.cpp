@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -209,6 +209,12 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto relu = std::make_shared<op::v0::Relu>(hswish);
     relu->set_friendly_name("relu");
 
+    auto& out_tensor0 = add->get_output_tensor(0);
+    out_tensor0.set_names({"y0"});
+
+    auto& out_tensor1 = relu->get_output_tensor(0);
+    out_tensor1.set_names({"y1"});
+
     auto res0 = std::make_shared<op::v0::Result>(add);
     res0->set_friendly_name("res0");
     auto res1 = std::make_shared<op::v0::Result>(relu);
@@ -238,6 +244,12 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
                                         std::make_shared<ov::Model>(NodeVector{relu},
                                                                     ParameterVector{indata2}));
     subgraph1->set_friendly_name("relu");
+
+    auto& out_tensor0 = subgraph0->get_output_tensor(0);
+    out_tensor0.set_names({"y0"});
+
+    auto& out_tensor1 = subgraph1->get_output_tensor(0);
+    out_tensor1.set_names({"y1"});
 
     auto res0 = std::make_shared<op::v0::Result>(subgraph0->output(0));
     res0->set_friendly_name("res0");

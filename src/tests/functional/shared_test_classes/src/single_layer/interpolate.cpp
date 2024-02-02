@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_plugin_config.hpp>
 #include "shared_test_classes/single_layer/interpolate.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -112,7 +111,7 @@ std::string Interpolate1LayerTest::getTestCaseName(testing::TestParamInfo<Interp
     InferenceEngine::Layout dataLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string mode;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool antialias;
     std::vector<size_t> pads;
     std::string targetDevice;
@@ -140,7 +139,7 @@ void Interpolate1LayerTest::SetUp() {
     InferenceEngine::Precision dataPrecision;
     InferenceEngine::Layout dataLayout;
     std::string mode;
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     bool antialias;
     std::vector<size_t> pads;
     std::tie(netPrecision, dataPrecision, dataLayout, inputShape, targetShape,

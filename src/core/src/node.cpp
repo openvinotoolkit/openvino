@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "shape_validation.hpp"
@@ -509,16 +510,18 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     return true;
 }
 
+namespace ov {
+bool is_used(Node* node);
+}
+
 ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     NodeVector result;
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!check_is_used || ngraph::is_used(input_node)) {
+            if (!check_is_used || is_used(input_node)) {
                 result.push_back(input_node->shared_from_this());
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;

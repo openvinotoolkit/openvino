@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,13 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeFullyConnected(const ov::Output<Node>& in,
-                                         const ov::element::Type& type,
-                                         const size_t outputSize,
-                                         bool addBias,
-                                         const ov::Shape& weightsShape,
-                                         const std::vector<float>& weights,
-                                         const std::vector<float>& biasWeights) {
+std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<ov::Node>& in,
+                                             const ov::element::Type& type,
+                                             const size_t outputSize,
+                                             bool addBias,
+                                             const ov::Shape& weightsShape,
+                                             const std::vector<float>& weights,
+                                             const std::vector<float>& biasWeights) {
     auto shape = weightsShape;
     if (shape.empty()) {
         auto inputShape = in.get_shape();

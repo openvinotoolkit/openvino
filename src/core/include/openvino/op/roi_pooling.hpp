@@ -42,12 +42,6 @@ public:
     /// \return Shape with pooled_h and pooled_w attributes.
     const Shape& get_output_roi() const;
 
-    OPENVINO_DEPRECATED("Use 'get_output_roi' instead. Use of this member can be ambiguous with Node base "
-                        "'get_output_size' which return number of outputs.")
-    const Shape& get_output_size() const {
-        return m_output_size;
-    }
-
     /// \brief Set the spatial scale value.
     /// \param scale Scale value to set.
     void set_spatial_scale(float scale);

@@ -5,7 +5,6 @@
 #include "openvino/op/proposal.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "proposal_shape_inference.hpp"
 
 namespace ov {

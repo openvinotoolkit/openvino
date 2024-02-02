@@ -16,7 +16,6 @@
 #    include "default_opset.hpp"
 #    include "exceptions.hpp"
 #    include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
-#    include "ngraph/coordinate_diff.hpp"
 #    include "ngraph/frontend/onnx_import/utils/convpool.hpp"
 #    include "ngraph/op/util/attr_types.hpp"
 #    include "ngraph/opsets/opset0.hpp"
@@ -125,9 +124,9 @@ namespace ngraph
                                             op_scale.output_scale,
                                             op_zero_point.output_zero_point,
                                             output_type,
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{},
-                                            ngraph::AxisSet{}));
+                                            ov::AxisSet{},
+                                            ov::AxisSet{},
+                                            ov::AxisSet{}));
                                 }
                             }
                             std::size_t concatenation_axis = 1;
@@ -168,9 +167,9 @@ namespace ngraph
                                     op_scale.output_scale,
                                     op_zero_point.output_zero_point,
                                     output_type,
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{},
-                                    ngraph::AxisSet{});
+                                    ov::AxisSet{},
+                                    ov::AxisSet{},
+                                    ov::AxisSet{});
                             }
                         }
                     }

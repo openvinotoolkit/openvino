@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,18 +65,18 @@ protected:
 } // namespace v11
 
 //Interpolate-1 test
-typedef std::tuple<
-        InferenceEngine::Precision,        // Net precision
-        InferenceEngine::Precision,        // Input precision, output is the same
-        InferenceEngine::Layout,           // Input layout, output is the same
-        InferenceEngine::SizeVector,       // Input shapes
-        InferenceEngine::SizeVector,       // Target shapes
-        std::string,                       // InterpolateMode
-        ngraph::AxisSet,                   // Axes
-        bool,                              // AntiAlias
-        std::vector<size_t>,               // Pads
-        LayerTestsUtils::TargetDevice      // Device name
-> Interpolate1LayerTestParams;
+typedef std::tuple<InferenceEngine::Precision,    // Net precision
+                   InferenceEngine::Precision,    // Input precision, output is the same
+                   InferenceEngine::Layout,       // Input layout, output is the same
+                   InferenceEngine::SizeVector,   // Input shapes
+                   InferenceEngine::SizeVector,   // Target shapes
+                   std::string,                   // InterpolateMode
+                   ov::AxisSet,                   // Axes
+                   bool,                          // AntiAlias
+                   std::vector<size_t>,           // Pads
+                   LayerTestsUtils::TargetDevice  // Device name
+                   >
+    Interpolate1LayerTestParams;
 
 class Interpolate1LayerTest : public testing::WithParamInterface<Interpolate1LayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
