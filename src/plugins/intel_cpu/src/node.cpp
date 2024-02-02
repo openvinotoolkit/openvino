@@ -602,23 +602,24 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
 }
 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
-    const auto edges = getChildEdgesAtPort(port);
-
     // avoid 0D shape incompatible
-    auto new_shape = new_output_shape;
-    if (new_shape.empty()) {
-        new_shape.push_back(1);
-    }
+    static const VectorDims scalar_shape_1D = {1};
+    const auto new_shape = new_output_shape.empty() ? scalar_shape_1D : new_output_shape;
 
-    const auto& curr_desc = edges[0]->getMemory().getDesc();
+    const auto& curr_desc = getSrcMemoryAtPort(port)->getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
         return;
     }
 
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
-    for (size_t j = 0lu; j < edges.size(); j++) {
-        edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
+
+    for (auto& edge : getChildEdges()) {
+        auto edgePtr = edge.lock();
+        assert(edgePtr);
+        if (edgePtr->getInputNum() == static_cast<int>(port)) {
+            edgePtr->getMemoryPtr()->redefineDesc(mem_desc);
+        }
     }
 }
 
