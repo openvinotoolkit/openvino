@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/runtime/core.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/core.hpp"
 
 void ppp_input_1(ov::preprocess::PrePostProcessor& ppp) {
 //! [ov:preprocess:input_1]

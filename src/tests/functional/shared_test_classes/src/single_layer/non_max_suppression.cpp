@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -333,11 +333,14 @@ void NmsLayerTest::SetUp() {
         function = std::make_shared<ov::Model>(nms, params, "NMS");
     } else {
         auto nms_0_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(outType, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(0),
+                                                   ov::op::v0::Constant::create(outType, ov::Shape{1}, {1}));
         auto nms_1_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(1), ov::op::v0::Constant::create(ngPrc, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(1),
+                                                   ov::op::v0::Constant::create(ngPrc, ov::Shape{1}, {1}));
         auto nms_2_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(2), ov::op::v0::Constant::create(outType, Shape{1}, {1}));
+            std::make_shared<ov::op::v1::Multiply>(nms->output(2),
+                                                   ov::op::v0::Constant::create(outType, ov::Shape{1}, {1}));
         nms_0_identity->set_friendly_name("Multiply_0");
         nms_1_identity->set_friendly_name("Multiply_1");
         nms_2_identity->set_friendly_name("Multiply_2");

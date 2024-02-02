@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ ov::OutputVector softmax(const Node& node) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = v0::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     default: {
@@ -61,7 +61,7 @@ ov::OutputVector softmax(const Node& node) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = v0::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     default: {

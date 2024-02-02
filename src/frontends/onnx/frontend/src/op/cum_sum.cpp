@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ ov::OutputVector cum_sum(const Node& node) {
         const auto& axis_shape = inputs.at(1).get_partial_shape();
         axis = axis_shape.is_dynamic() ? inputs.at(1) : ngraph::onnx_import::reshape::interpret_as_scalar(inputs.at(1));
     } else {
-        axis = v0::Constant::create(ov::element::i64, Shape{}, {0});  // default
+        axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});  // default
     }
     return ov::OutputVector{std::make_shared<v0::CumSum>(data, axis, exclusive, reverse)};
 }

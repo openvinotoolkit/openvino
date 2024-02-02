@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ ov::OutputVector mean_variance_normalization(const Node& node) {
     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
     const std::vector<std::size_t> normalized_axes =
         ov::util::normalize_axes(node.get_description(), axes, data.get_partial_shape().rank());
-    auto const_axes = v0::Constant::create(ov::element::i64, Shape{normalized_axes.size()}, normalized_axes);
+    auto const_axes = v0::Constant::create(ov::element::i64, ov::Shape{normalized_axes.size()}, normalized_axes);
     return {std::make_shared<v6::MVN>(data, const_axes, true, 1e-09f, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<Node>>& in,
+std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<ov::Node>>& in,
                                    const std::vector<ov::Shape>& constants,
                                    std::size_t hidden_size,
                                    const std::vector<std::string>& activations,
@@ -76,7 +76,7 @@ std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<Node>>& in,
                                                               activations,
                                                               clip);
         } else {
-            std::shared_ptr<Node> seq_lengths;
+            std::shared_ptr<ov::Node> seq_lengths;
             switch (mode) {
             case ov::test::utils::SequenceTestsMode::PURE_SEQ:
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {

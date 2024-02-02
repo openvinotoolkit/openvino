@@ -297,7 +297,7 @@ auto pow = std::make_shared<ov::opset8::Power>(div->input(1).get_source_output()
                                                ov::op::v0::Constant::create(div->get_input_element_type(1), ov::Shape{1}, {-1}));
 auto mul = std::make_shared<ov::opset8::Multiply>(div->input(0).get_source_output(), pow);
 mul->set_friendly_name(div->get_friendly_name());
-ngraph::replace_node(div, mul);
+ov::replace_node(div, mul);
 // ! [ov:replace_friendly_name]
 }
 
