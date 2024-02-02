@@ -6,9 +6,9 @@
 
 #include <onnx/onnx_pb.h>
 
+#include "core/node.hpp"
 #include "core/tensor.hpp"
 #include "onnx_common/utils.hpp"
-#include "onnx_import/core/node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "utils/common.hpp"

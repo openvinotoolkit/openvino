@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,14 @@
 #include <cmath>
 #include <cstring>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
-
-#include "ngraph/util.hpp"
-#include "openvino/core/rtti.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 
@@ -355,6 +348,12 @@ public:
             break;
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e4m3:
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e5m2:
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
             break;
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);

@@ -27,6 +27,7 @@ using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
 using namespace ov::op::v8;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
