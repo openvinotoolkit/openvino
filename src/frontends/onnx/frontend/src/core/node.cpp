@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 #include <onnx/onnx_pb.h>
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
-#include "onnx_import/core/null_node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
