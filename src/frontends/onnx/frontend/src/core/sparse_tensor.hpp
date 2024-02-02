@@ -25,8 +25,8 @@ public:
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
         if (m_shape == ov::Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
-            // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
-            // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
+            // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
+            // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.
             m_shape = ov::Shape{};
         }
     }

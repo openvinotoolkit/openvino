@@ -12,6 +12,7 @@
 using namespace ov;
 using namespace ov::test::utils;
 
+using ov::Shape;
 using ov::op::v0::Constant;
 using ov::op::v0::Convert;
 using ov::op::v0::Parameter;

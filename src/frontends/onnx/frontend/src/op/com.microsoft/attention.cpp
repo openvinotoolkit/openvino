@@ -120,8 +120,8 @@ namespace detail {
 namespace {
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
-    static const auto zero = v0::Constant::create(ov::element::i32, Shape{}, {0});
-    const auto dims_const = v0::Constant::create(ov::element::i32, Shape{dims.size()}, dims);
+    static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
@@ -131,9 +131,9 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, 
 
 std::shared_ptr<ov::Node> get_hidden_size(const std::shared_ptr<v3::ShapeOf>& node_shape) {
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
-    const auto zero = v0::Constant::create(ov::element::i32, Shape{}, {0});
+    const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto hidden_size_x3 = get_dimensions(node_shape, {2});
-    const auto three = v0::Constant::create(ov::element::i64, Shape{}, {3});
+    const auto three = v0::Constant::create(ov::element::i64, ov::Shape{}, {3});
     const auto hidden_size = std::make_shared<v1::Divide>(hidden_size_x3, three);
     return hidden_size;
 }
@@ -148,7 +148,7 @@ ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
     // fetch the first two dimensions
     const auto batch_size_seq_len = get_dimensions(node_shape, {0, 1});
-    const auto num_heads_node = v0::Constant::create(ov::element::i64, Shape{1}, {num_heads});
+    const auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
     if (qkv_hidden_sizes.size() == 0) {
         const auto hidden_size = get_hidden_size(node_shape);
         // head_size = hidden_size / num_heads
@@ -178,17 +178,17 @@ ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
             auto new_shape = std::make_shared<v0::Concat>(
                 ov::NodeVector{batch_size_seq_len,
                                num_heads_node,
-                               v0::Constant::create(ov::element::i64, Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
+                               v0::Constant::create(ov::element::i64, ov::Shape{1}, {qkv_hidden_sizes[i] / num_heads})},
                 0);
             split[i] = std::make_shared<v1::Reshape>(split[i], new_shape, false);
         }
         float head_size_val = qkv_hidden_sizes[0] > 0 ? static_cast<float>(qkv_hidden_sizes[0]) / num_heads
                                                       : static_cast<float>(qkv_hidden_sizes[2]) / num_heads;
-        head_size = v0::Constant::create(node_type, Shape{1}, {head_size_val});
+        head_size = v0::Constant::create(node_type, ov::Shape{1}, {head_size_val});
     }
 
     // transpose Q, K and V to (batch_size, num_heads, sequence_len, head_size)
-    auto perm = v0::Constant::create(ov::element::i64, Shape{4}, {0, 2, 1, 3});
+    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
     auto Q = std::make_shared<v1::Transpose>(split[0], perm);
     auto K = std::make_shared<v1::Transpose>(split[1], perm);
     auto V = std::make_shared<v1::Transpose>(split[2], perm);
@@ -270,42 +270,43 @@ std::shared_ptr<ov::Node> attention_mask_from_indices(const ov::Output<ov::Node>
                                                       const ov::element::Type_t& type,
                                                       const std::shared_ptr<ov::Node>& batch_size,
                                                       const std::shared_ptr<ov::Node>& all_seq_len) {
-    const auto zero = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto one = v0::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
     std::shared_ptr<ov::Node> base = std::make_shared<v4::Range>(zero, stop, one, mask_index.get_element_type());
     const auto target_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch_size, all_seq_len}, 0);
     // broadcast 'base' to (batch_size, all_seq_len)
     base = std::make_shared<v3::Broadcast>(base, target_shape);
-    const auto indices_shape =
-        std::make_shared<v0::Concat>(ov::NodeVector{v0::Constant::create(ov::element::i64, Shape{1}, {-1}), batch_size},
-                                     0);
+    const auto indices_shape = std::make_shared<v0::Concat>(
+        ov::NodeVector{v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), batch_size},
+
+        0);
     std::shared_ptr<ov::Node> indices = std::make_shared<v1::Reshape>(mask_index, indices_shape, false);
     // fetch first row from indices
     std::shared_ptr<ov::Node> tail_range_indices = std::make_shared<v8::Gather>(indices, zero, zero);
     tail_range_indices = std::make_shared<v1::Reshape>(tail_range_indices,
-                                                       v0::Constant::create(ov::element::i32, Shape{2}, {-1, 1}),
+                                                       v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 1}),
                                                        false);
     const auto greater_eq = std::make_shared<v1::GreaterEqual>(base, tail_range_indices);
     std::shared_ptr<ov::Node> tail_range_mask =
         std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(greater_eq, type),
-                                       v0::Constant::create(type, Shape{}, {-10000}));
+                                       v0::Constant::create(type, ov::Shape{}, {-10000}));
     tail_range_mask =
-        std::make_shared<v0::Unsqueeze>(tail_range_mask, v0::Constant::create(ov::element::i64, Shape{2}, {1, 2}));
+        std::make_shared<v0::Unsqueeze>(tail_range_mask, v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2}));
 
-    const auto gather_index = std::make_shared<v1::FloorMod>(v0::Constant::create(ov::element::i64, Shape{}, {1}),
+    const auto gather_index = std::make_shared<v1::FloorMod>(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                              get_dimensions(indices, {0}));
     // fetch indices from the second row (or first if not available)
     std::shared_ptr<ov::Node> head_range_indices = std::make_shared<v8::Gather>(indices, gather_index, zero);
     head_range_indices = std::make_shared<v1::Reshape>(head_range_indices,
-                                                       v0::Constant::create(ov::element::i32, Shape{2}, {-1, 1}),
+                                                       v0::Constant::create(ov::element::i32, ov::Shape{2}, {-1, 1}),
                                                        false);
     const auto less = std::make_shared<v1::Less>(base, head_range_indices);
     std::shared_ptr<ov::Node> mask = std::make_shared<v1::LogicalOr>(less, greater_eq);
     mask = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(mask, type),
-                                          v0::Constant::create(type, Shape{}, {-10000}));
+                                          v0::Constant::create(type, ov::Shape{}, {-10000}));
     // reshape from (batch_size, all_seq_len) to (batch_size, 1, 1, all_seq_len)
-    mask = std::make_shared<v0::Unsqueeze>(mask, v0::Constant::create(ov::element::i64, Shape{2}, {1, 2}));
+    mask = std::make_shared<v0::Unsqueeze>(mask, v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2}));
 
     const auto mask_index_first_dim = get_dimensions(mask_index.get_node_shared_ptr(), {0});
     // compare mask_index.shape[0] with batch_size value
@@ -346,8 +347,8 @@ NodeTuple unidirectional_mask(const ov::element::Type_t& type,
                               const std::shared_ptr<ov::Node>& seq_len,
                               const std::shared_ptr<ov::Node>& all_seq_len,
                               const std::shared_ptr<ov::Node>& past_seq_len) {
-    const auto zero = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto one = v0::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto stop = std::make_shared<v0::Squeeze>(all_seq_len, zero);
     std::shared_ptr<ov::Node> bin_mask = std::make_shared<v4::Range>(zero, stop, one, ov::element::i32);
     auto target_shape = std::make_shared<v0::Concat>(ov::NodeVector{seq_len, all_seq_len}, 0);
@@ -355,11 +356,11 @@ NodeTuple unidirectional_mask(const ov::element::Type_t& type,
     auto start = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(past_seq_len, one), zero);
     auto end = std::make_shared<v0::Squeeze>(std::make_shared<v1::Add>(all_seq_len, one), zero);
     auto indices = std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(start, end, one, ov::element::i32),
-                                                   v0::Constant::create(ov::element::i32, Shape{1}, {1}));
+                                                   v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}));
     bin_mask = std::make_shared<v1::GreaterEqual>(bin_mask, indices);
     std::shared_ptr<ov::Node> attention_mask =
         std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(bin_mask, type),
-                                       v0::Constant::create(type, Shape{}, {-10000}));
+                                       v0::Constant::create(type, ov::Shape{}, {-10000}));
     bin_mask = std::make_shared<v0::Convert>(std::make_shared<v1::LogicalNot>(bin_mask), type);
     return NodeTuple{attention_mask, bin_mask};
 }
@@ -373,27 +374,29 @@ NodeTuple unidirectional_mask(const ov::element::Type_t& type,
 // (batch_size, past_sequence_length + sequence_length) or
 // (batch_size, sequence_length, past_sequence_length + sequence_length)
 //
-// Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
+// ov::Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
 std::shared_ptr<ov::Node> raw_mask(const ov::Output<ov::Node>& mask_index,
                                    ov::Dimension::value_type mask_rank,
                                    const ov::element::Type_t& type) {
     std::shared_ptr<ov::Node> mask = std::make_shared<v0::Convert>(mask_index, type);
     mask = std::make_shared<v0::Convert>(mask, type);
-    mask = std::make_shared<v1::Subtract>(v0::Constant::create(type, Shape{}, {1}), mask);
-    mask = std::make_shared<v1::Multiply>(mask, v0::Constant::create(type, Shape{}, {-10000}));
+    mask = std::make_shared<v1::Subtract>(v0::Constant::create(type, ov::Shape{}, {1}), mask);
+    mask = std::make_shared<v1::Multiply>(mask, v0::Constant::create(type, ov::Shape{}, {-10000}));
     switch (mask_rank) {
     // Handle mask_index with (batch_size, past_sequence_length + sequence_length) shape
     // Reshape it to (batch_size, 1, 1, past_sequence_length + sequence_length)
     case 2:
-        mask =
-            std::make_shared<v1::Reshape>(mask, v0::Constant::create(ov::element::i64, Shape{4}, {0, 1, 1, -1}), true);
+        mask = std::make_shared<v1::Reshape>(mask,
+                                             v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 1, -1}),
+                                             true);
         break;
     // Handle mask_index with (batch_size, sequence_length, past_sequence_length + sequence_length) shape
     // Reshape it to (batch_size, 1, sequence_length, past_sequence_length + sequence_length)
     case 3:
-        mask =
-            std::make_shared<v1::Reshape>(mask, v0::Constant::create(ov::element::i64, Shape{4}, {0, 1, 0, -1}), true);
+        mask = std::make_shared<v1::Reshape>(mask,
+                                             v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 0, -1}),
+                                             true);
         break;
     }
     return mask;
@@ -404,8 +407,8 @@ bool is_past_input_available(const ov::OutputVector& op_inputs) {
 }
 
 NodeTuple get_attention_mask(const ov::OutputVector& op_inputs, bool unidirectional) {
-    const auto zero = v0::Constant::create(ov::element::i64, Shape{1}, {0});
-    const auto one = v0::Constant::create(ov::element::i64, Shape{1}, {1});
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
     std::shared_ptr<ov::Node> past_seq_len;
     // get the value of past_sequence_length
@@ -464,7 +467,7 @@ std::shared_ptr<ov::Node> attention_softmax(const ov::OutputVector& op_inputs,
                                             const std::shared_ptr<ov::Node>& bin_mask,
                                             const std::shared_ptr<ov::Node>& head_size,
                                             bool unidirectional) {
-    auto zero = v0::Constant::create(ov::element::i64, Shape{}, {0});
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     if (is_past_input_available(op_inputs)) {
         // concat past K and V with present ones
         const auto& past = op_inputs[4];
@@ -508,9 +511,9 @@ std::shared_ptr<ov::Node> attention_softmax(const ov::OutputVector& op_inputs,
     std::shared_ptr<ov::Node> output = std::make_shared<v0::MatMul>(softmax, V);
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
     // to (batch_size, sequence_length, num_heads, head_size)
-    const auto perm = v0::Constant::create(ov::element::i64, Shape{4}, {0, 2, 1, 3});
+    const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
     output = std::make_shared<v1::Transpose>(output, perm);
-    auto new_shape = v0::Constant::create(ov::element::i32, Shape{3}, {0, 0, -1});
+    auto new_shape = v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1});
     // reshape the result from (batch_size, sequence_length, num_heads, head_size) to (batch_size, sequence_length,
     // num_heads * head_size)
     output = std::make_shared<v1::Reshape>(output, new_shape, true);
@@ -525,7 +528,7 @@ std::shared_ptr<ov::Node> attention_softmax(const ov::OutputVector& op_inputs,
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
                                             const std::shared_ptr<ov::Node>& V,
                                             const ov::OutputVector& op_inputs) {
-    auto zero = v0::Constant::create(ov::element::i64, Shape{1}, {0});
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     // expand K shape (batch_size, num_heads, sequence_length, head_size) to
     // (1, batch_size, num_heads, sequence_length, head_size)
     auto K_unsqueezed = std::make_shared<v0::Unsqueeze>(K, zero);

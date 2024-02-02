@@ -34,11 +34,11 @@ namespace {
 std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto shape_of_input = std::make_shared<v3::ShapeOf>(input);
-    const auto scalar = v0::Constant::create(ov::element::i32, Shape{1}, {0});
+    const auto scalar = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
     const auto rank_of_input = std::make_shared<v3::ShapeOf>(shape_of_input);
     const auto rank_of_input_scalar = std::make_shared<v0::Squeeze>(rank_of_input, scalar);
-    const auto start = v0::Constant::create(ov::element::i32, Shape{}, {0});
-    const auto step = v0::Constant::create(ov::element::i32, Shape{}, {1});
+    const auto start = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto step = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
     return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
@@ -52,7 +52,7 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
                                 "The axes tensor's shape needs to be known(static). Node: ",
                                 node.get_description());
 
-        if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != Shape{0}) {
+        if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != ov::Shape{0}) {
             return reduction_axes.get_node_shared_ptr();
         }
     }
@@ -87,7 +87,7 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
                          ")");
     }
 
-    return v0::Constant::create(ov::element::i64, Shape{reduction_axes.size()}, reduction_axes);
+    return v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes);
 }
 
 template <typename OpType>

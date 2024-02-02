@@ -4,6 +4,7 @@
 
 #include "op/size.hpp"
 
+#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/shape_of.hpp"
