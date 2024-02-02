@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ ov::OutputVector split(const Node& node) {
         const auto outputs_number = node.get_output_names().size();
         return ov::op::util::split(inputs.at(0), outputs_number, axis);
     } else {
-        const auto axis_node = v0::Constant::create(ov::element::Type_t::i64, Shape{}, {axis});
+        const auto axis_node = v0::Constant::create(ov::element::Type_t::i64, ov::Shape{}, {axis});
         return {std::make_shared<v1::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
     }
 }

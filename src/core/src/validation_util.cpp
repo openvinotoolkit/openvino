@@ -14,6 +14,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/util/common_util.hpp"
 #include "sequnce_generator.hpp"
 
 namespace {
@@ -49,7 +50,7 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
-std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<Node>& subgraph_sink) {
+std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::Output<ov::Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 
@@ -86,7 +87,7 @@ namespace ov {
 namespace util {
 using ov::op::v0::Constant;
 
-std::shared_ptr<Constant> get_constant_from_source(const ov::Output<Node>& source) {
+std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& source) {
     if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
         return c;
     } else if (has_and_set_equal_bounds(source)) {
@@ -189,7 +190,7 @@ std::vector<ov::PartialShape> get_tensors_partial_shapes(const TensorVector& ten
     return shapes;
 }
 
-std::vector<ov::PartialShape> get_node_input_partial_shapes(const Node& node) {
+std::vector<ov::PartialShape> get_node_input_partial_shapes(const ov::Node& node) {
     std::vector<ov::PartialShape> shapes;
     shapes.reserve(node.get_input_size());
     for (size_t i = 0; i < node.get_input_size(); ++i) {
@@ -204,7 +205,7 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
-bool evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape& pshape) {
+bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialShape& pshape) {
     Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
@@ -237,7 +238,7 @@ bool evaluate_as_partial_shape(const ov::Output<Node>& output, ov::PartialShape&
     return shape_defined;
 }
 
-bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+bool default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
     return default_label_evaluator(node, {0}, output_labels);
 }
 
@@ -266,7 +267,7 @@ std::vector<size_t> normalize_axes(const std::string& node_description,
     return new_axes;
 }
 
-void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+void normalize_axes(const ov::Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
     const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
     NODE_VALIDATION_CHECK(node,
@@ -275,7 +276,7 @@ void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<in
     std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
 }
 
-int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
+int64_t normalize_axis(const ov::Node* node, std::int64_t axis, const Rank& tensor_rank) {
     return ov::util::normalize_axis(node->description(), axis, tensor_rank);
 }
 
@@ -299,7 +300,7 @@ int64_t normalize_axis(const std::string& node_description, std::int64_t axis, c
                           tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
-int64_t normalize_axis(const Node* node,
+int64_t normalize_axis(const ov::Node* node,
                        std::int64_t axis,
                        std::uint64_t tensor_rank,
                        std::int64_t axis_range_min,

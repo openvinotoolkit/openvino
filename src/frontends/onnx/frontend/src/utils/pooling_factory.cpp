@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
@@ -14,6 +15,7 @@
 #include "utils/convpool.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {
