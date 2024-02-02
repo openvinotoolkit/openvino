@@ -98,6 +98,34 @@ bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+ov::op::util::RNNMultiCellBase::RNNMultiCellBase(const OutputVector& args,
+                                                 size_t lstm_count,
+                                                 size_t hidden_size,
+                                                 float clip,
+                                                 const std::vector<std::string>& activations,
+                                                 const std::vector<float>& activations_alpha,
+                                                 const std::vector<float>& activations_beta)
+    : Op(args),
+      m_lstm_count(lstm_count),
+      m_hidden_size(hidden_size),
+      m_clip(clip),
+      m_activations(to_lower_case(activations)),
+      m_activations_alpha(activations_alpha),
+      m_activations_beta(activations_beta) {}
+
+ov::op::util::RNNMultiCellBase::RNNMultiCellBase() : m_lstm_count(1), m_hidden_size(0), m_clip(0.f) {}
+
+bool ov::op::util::RNNMultiCellBase::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(util_RNNMultiCellBase_visit_attributes);
+    visitor.on_attribute("lstm_count", m_lstm_count);
+    visitor.on_attribute("hidden_size", m_hidden_size);
+    visitor.on_attribute("activations", m_activations);
+    visitor.on_attribute("activations_alpha", m_activations_alpha);
+    visitor.on_attribute("activations_beta", m_activations_beta);
+    visitor.on_attribute("clip", m_clip);
+    return true;
+}
+
 void ov::op::util::RNNCellBase::validate_input_rank_dimension(const std::vector<ov::PartialShape>& input) {
     enum { X, initial_hidden_state, W, R, B };
 

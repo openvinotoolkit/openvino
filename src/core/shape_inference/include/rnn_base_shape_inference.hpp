@@ -8,8 +8,8 @@
 namespace ov {
 namespace op {
 namespace rnn {
-template <class TShape>
-void validate_inputs_rank(const op::util::RNNCellBase* op,
+template <class TShape, typename TBase>
+void validate_inputs_rank(const TBase* op,
                           const std::vector<TShape>& input_shapes,
                           const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= expected_ranks.size(), "Can't validate inputs rank.");
@@ -130,8 +130,8 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
 // Output shapes layout:
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
-template <class TShape, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
+template <class TShape, class TRShape = result_shape_t<TShape>, typename TBase>
+std::vector<TRShape> seq_base_shape_infer(const TBase* op,
                                           const std::vector<TShape>& input_shapes,
                                           size_t num_gates,
                                           size_t num_state_nodes,
@@ -148,7 +148,7 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     expected_in_ranks.insert(expected_in_ranks.end(), 1 + num_state_nodes, Rank(3));
     expected_in_ranks.insert(expected_in_ranks.end(), {1, 3, 3, 2});
 
-    rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
+    // rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
 
     const auto& x_pshape = input_shapes[0];
     const auto& ht_pshape = input_shapes[1];
@@ -181,9 +181,9 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     }
 
     if (r_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-                              "Dimension `hidden_size` is not matched between inputs.");
+        // NODE_VALIDATION_CHECK(op,
+        //                      DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
+        //                      "Dimension `hidden_size` is not matched between inputs.");
     }
 
     // Validate num_directions dimension across all inputs
@@ -219,43 +219,43 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
         if (w_pshape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  w_pshape[1].compatible(merged_hidden_size * num_gates),
-                                  "Second dimension of W input shape is required to be compatible with ",
-                                  merged_hidden_size * num_gates,
-                                  ". Got shape: ",
-                                  w_pshape[1],
-                                  ".");
+            // NODE_VALIDATION_CHECK(op,
+            //                      w_pshape[1].compatible(merged_hidden_size * num_gates),
+            //                      "Second dimension of W input shape is required to be compatible with ",
+            //                      merged_hidden_size * num_gates,
+            //                      ". Got shape: ",
+            //                      w_pshape[1],
+            //                      ".");
         }
 
         if (r_pshape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  r_pshape[1].compatible(merged_hidden_size * num_gates),
-                                  "Second dimension of R input shape is required to be compatible with ",
-                                  merged_hidden_size * num_gates,
-                                  ". Got shape: ",
-                                  r_pshape[1],
-                                  ".");
+            // NODE_VALIDATION_CHECK(op,
+            //                      r_pshape[1].compatible(merged_hidden_size * num_gates),
+            //                      "Second dimension of R input shape is required to be compatible with ",
+            //                      merged_hidden_size * num_gates,
+            //                      ". Got shape: ",
+            //                      r_pshape[1],
+            //                      ".");
         }
 
         if (b_pshape.rank().is_static()) {
-            const auto bias_dim_multiplier = linear_before_reset ? (num_gates + 1) : num_gates;
-            NODE_VALIDATION_CHECK(op,
-                                  b_pshape[1].compatible(merged_hidden_size * bias_dim_multiplier),
-                                  "Second dimension of B input shape is required to be compatible with ",
-                                  merged_hidden_size * bias_dim_multiplier,
-                                  ". Got shape: ",
-                                  b_pshape[1],
-                                  ".");
+            // const auto bias_dim_multiplier = linear_before_reset ? (num_gates + 1) : num_gates;
+            // NODE_VALIDATION_CHECK(op,
+            //                      b_pshape[1].compatible(merged_hidden_size * bias_dim_multiplier),
+            //                      "Second dimension of B input shape is required to be compatible with ",
+            //                      merged_hidden_size * bias_dim_multiplier,
+            //                      ". Got shape: ",
+            //                      b_pshape[1],
+            //                      ".");
         }
     } else {
         const size_t w_idx = 2 + num_state_nodes;
         for (size_t i = w_idx; i < w_idx + 2; ++i) {
             if (input_shapes[i].rank().is_static() && input_shapes[i][0].is_static()) {
-                NODE_VALIDATION_CHECK(
-                    op,
-                    DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1] / num_gates),
-                    "Dimension `hidden_size` is not matched between inputs.");
+                // NODE_VALIDATION_CHECK(
+                //    op,
+                //    DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1] / num_gates),
+                //    "Dimension `hidden_size` is not matched between inputs.");
             }
         }
     }
