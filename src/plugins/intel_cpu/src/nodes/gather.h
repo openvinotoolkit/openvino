@@ -64,7 +64,7 @@ private:
     void exec1DCase();
 
     bool canOptimizeCompressedEmbedding = false;
-    void execCompressedEmbedding();
+    void execCompressedCase();
 
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;

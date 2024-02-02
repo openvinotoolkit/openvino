@@ -22,6 +22,7 @@
 #include "snippets/utils.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -142,6 +143,9 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     canOptimizeCompressedEmbedding = false;
     if ((decompressionSubtractPtr != nullptr) && (decompressionMultiplyPtr != nullptr)) {
+        if (dataPrecision != ov::element::u8 || !isAxisInputConst || inputShapes[GATHER_DATA].getRank() != 2u) {
+            OPENVINO_THROW("Compression gather doesn't support demanded precisions, axis, data rank");
+        }
         canOptimizeCompressedEmbedding = true;
     }
 
@@ -350,7 +354,7 @@ void Gather::execute(dnnl::stream strm) {
     }
 
     if (canOptimizeCompressedEmbedding) {
-        execCompressedEmbedding();
+        execCompressedCase();
         return;
     }
 
@@ -423,7 +427,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         return;
     }
     if (canOptimizeCompressedEmbedding) {
-        execCompressedEmbedding();
+        execCompressedCase();
         return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -609,8 +613,8 @@ void Gather::exec1DCase() {
     }
 }
 
-void Gather::execCompressedEmbedding() {
-    DEBUG_LOG(getName(), " execCompressedEmbedding");
+void Gather::execCompressedCase() {
+    DEBUG_LOG(getName(), " execCompressedCase");
     auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
 
