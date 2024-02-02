@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/detection_output.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/detection_output.hpp"
 

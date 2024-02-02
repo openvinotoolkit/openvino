@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"

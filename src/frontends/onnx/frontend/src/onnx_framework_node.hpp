@@ -17,7 +17,7 @@
 #pragma once
 
 #include "core/graph.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 

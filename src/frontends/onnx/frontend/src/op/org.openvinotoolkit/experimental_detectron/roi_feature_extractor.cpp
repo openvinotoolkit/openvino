@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 using namespace ov::op;

@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "onnx_import/core/operator_set.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "version_range.hpp"
 

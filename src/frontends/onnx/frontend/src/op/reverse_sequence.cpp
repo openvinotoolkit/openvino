@@ -4,7 +4,7 @@
 
 #include "op/reverse_sequence.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/convert.hpp"

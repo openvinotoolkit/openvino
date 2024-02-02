@@ -6,7 +6,7 @@
 
 #include <limits>
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"

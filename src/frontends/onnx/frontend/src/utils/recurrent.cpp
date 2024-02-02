@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <vector>
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"

@@ -4,8 +4,8 @@
 
 #include "op/constant_of_shape.hpp"
 
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "op/constant.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"

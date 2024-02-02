@@ -12,7 +12,7 @@
 
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
-#include "onnx_import/core/operator_set.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/op/parameter.hpp"

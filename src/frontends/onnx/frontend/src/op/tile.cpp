@@ -4,7 +4,7 @@
 
 #include "op/tile.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/tile.hpp"
 
