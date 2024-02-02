@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
@@ -38,6 +39,9 @@ void CommonReferenceTest::FillInputs() {
 
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
+        if (param->get_element_type() == ov::element::string) {
+            continue;
+        }
 
         ov::Tensor blob;
         if (param->get_partial_shape().is_static()) {
@@ -74,6 +78,30 @@ void CommonReferenceTest::Validate() {
         ValidateBlobs(refOutData[i], actualOutData[i], i, threshold, abs_threshold, actual_comparision_size);
     }
 }
+
+// void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
+//     const auto& expected_shape = expected.get_shape();
+//     const auto& actual_shape = actual.get_shape();
+//     if (expected_shape != actual_shape) {
+//         std::ostringstream out_stream;
+//         out_stream << "Expected and actual shape are different: " << expected_shape << " " << actual_shape;
+//         throw std::runtime_error(out_stream.str());
+//     }
+
+//     ASSERT_EQ(expected.get_element_type(), ov::element::string);
+//     ASSERT_EQ(actual.get_element_type(), ov::element::string);
+
+//     const auto expected_const = ov::op::v0::Constant(expected);
+//     const auto result_const = ov::op::v0::Constant(actual);
+
+//     EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
+
+//     // DEBUG // TO BE REMOVED
+//     for (size_t i = 0; i != shape_size(actual_shape); ++i) {
+//         std::cout << "result_const[i]: " << i << " " << result_const.convert_value_to_string(i) << std::endl;
+//         std::cout << "expected_const[i]: " << i << " " << expected_const.convert_value_to_string(i) << std::endl;
+//     }
+// }
 
 void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                         const ov::Tensor& outBlob,
@@ -210,6 +238,9 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           actual_comparision_size / 8,
                                                           threshold,
                                                           abs_threshold);
+        break;
+    case ov::element::string:
+        ov::test::utils::compare_str(refBlob, outBlob);
         break;
     default:
         FAIL() << "Comparator for " << element_type << " element type isn't supported";

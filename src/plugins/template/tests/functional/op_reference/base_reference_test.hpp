@@ -57,6 +57,11 @@ ov::Tensor CreateTensor(const ov::element::Type& element_type, const std::vector
 // Create blob with correct input shape (not 1-dimensional). Will be used in tests with dynamic input shapes
 template <class T>
 ov::Tensor CreateTensor(const ov::Shape& shape, const ov::element::Type& element_type, const std::vector<T>& values) {
+    if (element_type == ov::element::string) {
+        ov::Tensor tensor{element_type, shape};
+        std::copy_n(values.data(), shape_size(shape), tensor.data<T>());
+        return tensor;
+    }
     ov::Tensor tensor{element_type, shape};
     size_t size = sizeof(T) * values.size();
     if (tensor.get_byte_size() < size)
