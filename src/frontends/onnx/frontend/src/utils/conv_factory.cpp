@@ -4,7 +4,6 @@
 
 #include "utils/conv_factory.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -17,8 +16,8 @@
 namespace ngraph {
 namespace onnx_import {
 namespace conv_factory {
-std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ov::Node>& data,
-                                                const Output<ov::Node>& filters,
+std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data,
+                                                const ov::Output<ov::Node>& filters,
                                                 const ov::Strides& strides,
                                                 const ov::Strides& dilations,
                                                 const ov::CoordinateDiff& padding_below,

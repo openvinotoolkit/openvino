@@ -16,10 +16,8 @@
 #include "blob_transform.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ie_compound_blob.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/common.hpp"
-#include "precision_utils.h"
 
 namespace FuncTestUtils {
 namespace Bf16TestUtils {
@@ -227,93 +225,6 @@ inline void compareRawBuffers(const std::vector<dType*> res,
     compareRawBuffers(res, ref, resSizes, refSizes, CompareType::ABS_AND_REL, thr, thr, printData);
 }
 
-template <InferenceEngine::Precision::ePrecision PRC>
-inline void compareBlobData(const InferenceEngine::Blob::Ptr& res,
-                            const InferenceEngine::Blob::Ptr& ref,
-                            float max_diff = 0.01,
-                            const std::string& assertDetails = "",
-                            bool printData = false) {
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    const dataType* res_ptr = res->cbuffer().as<dataType*>();
-    size_t res_size = res->byteSize();
-
-    const dataType* ref_ptr = ref->cbuffer().as<dataType*>();
-    size_t ref_size = ref->byteSize();
-
-    ASSERT_EQ(res_size, ref_size) << "Comparing blobs have different size. " << assertDetails;
-    if (printData) {
-        std::cout << "Reference results: " << std::endl;
-        for (size_t i = 0; i < ref_size / sizeof(dataType); i++) {
-            std::cout << ref_ptr[i] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Test results: " << std::endl;
-        for (size_t i = 0; i < res_size / sizeof(dataType); i++) {
-            std::cout << res_ptr[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    for (size_t i = 0; i < ref_size / sizeof(dataType); i++) {
-        auto resVal = PRC == InferenceEngine::Precision::FP16
-                          ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(res_ptr[i]))
-                          : static_cast<float>(res_ptr[i]);
-        auto refVal = PRC == InferenceEngine::Precision::FP16
-                          ? InferenceEngine::PrecisionUtils::f16tof32(static_cast<InferenceEngine::ie_fp16>(ref_ptr[i]))
-                          : static_cast<float>(ref_ptr[i]);
-        float absDiff = std::abs(resVal - refVal);
-        if (absDiff > max_diff) {
-            float relDiff = absDiff / std::max(res_ptr[i], ref_ptr[i]);
-            ASSERT_LE(relDiff, max_diff) << "Relative comparison of values ref: " << ref_ptr[i]
-                                         << " and res: " << res_ptr[i] << " , index in blobs: " << i << " failed!"
-                                         << assertDetails;
-        }
-    }
-}
-
-template <InferenceEngine::Precision::ePrecision PRC>
-inline void compareBlobData(const std::vector<InferenceEngine::Blob::Ptr>& res,
-                            const std::vector<InferenceEngine::Blob::Ptr>& ref,
-                            float max_diff = 0.01,
-                            const std::string& assertDetails = "",
-                            bool printData = false) {
-    IE_ASSERT(res.size() == ref.size()) << "Length of comparing and references blobs vector are not equal!"
-                                        << assertDetails;
-    for (size_t i = 0; i < res.size(); i++) {
-        if (printData)
-            std::cout << "BEGIN CHECK BLOB [" << i << "]" << std::endl;
-        compareBlobData<PRC>(res[i], ref[i], max_diff, assertDetails, printData);
-        if (printData)
-            std::cout << "END CHECK BLOB [" << i << "]" << std::endl;
-    }
-}
-
-inline void compareBlobs(const InferenceEngine::Blob::Ptr& res,
-                         const InferenceEngine::Blob::Ptr& ref,
-                         float max_diff = 0.01,
-                         const std::string& assertDetails = "",
-                         bool printData = false) {
-    ASSERT_EQ(res->byteSize(), ref->byteSize())
-        << "Blobs have different byteSize(): " << res->byteSize() << " and " << ref->byteSize();
-
-    ASSERT_EQ(res->getTensorDesc(), ref->getTensorDesc()) << "Blobs have different TensorDesc()";
-
-    switch (res->getTensorDesc().getPrecision()) {
-#define COMPARE_WITH_REF(TYPE)                                                              \
-    case TYPE: {                                                                            \
-        FuncTestUtils::compareBlobData<TYPE>(res, ref, max_diff, assertDetails, printData); \
-        break;                                                                              \
-    }
-        COMPARE_WITH_REF(InferenceEngine::Precision::FP32);
-        COMPARE_WITH_REF(InferenceEngine::Precision::FP16);
-        COMPARE_WITH_REF(InferenceEngine::Precision::I64);
-#undef COMPARE_WITH_REF
-    default:
-        IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
-                   << " is not covered by FuncTestUtils::compareBlobs() method";
-    }
-}
-
 inline void GetComparisonThreshold(InferenceEngine::Precision prc, float& absoluteThreshold, float& relativeThreshold) {
     switch (prc) {
     case InferenceEngine::Precision::FP32:
@@ -351,17 +262,10 @@ inline void convertArrayPrecision(typename InferenceEngine::PrecisionTrait<PREC_
 }
 
 template <>
-inline void convertArrayPrecision<InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32>(float* dst,
-                                                                                                      const short* src,
-                                                                                                      size_t nelem) {
-    InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
-}
-
-template <>
 inline void convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32>(float* dst,
                                                                                                       const short* src,
                                                                                                       size_t nelem) {
-    auto srcBf16 = reinterpret_cast<const ngraph::bfloat16*>(src);
+    auto srcBf16 = reinterpret_cast<const ov::bfloat16*>(src);
     for (size_t i = 0; i < nelem; i++) {
         dst[i] = static_cast<float>(srcBf16[i]);
     }
@@ -380,39 +284,6 @@ inline InferenceEngine::Blob::Ptr convertBlobPrecision(const InferenceEngine::Bl
     auto source = blob->buffer().as<from_d_type*>();
     convertArrayPrecision<PREC_FROM, PREC_TO>(target, source, blob->size());
     return new_blob;
-}
-// Copy from net_pass.h
-
-template <InferenceEngine::Precision::ePrecision targetPRC>
-inline InferenceEngine::Blob::Ptr copyBlobWithCast(const InferenceEngine::Blob::Ptr& blob) {
-    InferenceEngine::Blob::Ptr newBlob;
-    switch (blob->getTensorDesc().getPrecision()) {
-    case InferenceEngine::Precision::FP32:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::FP32, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::FP16:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::FP16, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::I16:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I16, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::I8:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I8, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::U8:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::U8, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::I32:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I32, targetPRC>(blob);
-        break;
-    case InferenceEngine::Precision::BOOL:
-        newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::BOOL, targetPRC>(blob);
-        break;
-    default:
-        IE_THROW() << "Conversion from blob with precision " << blob->getTensorDesc().getPrecision().name()
-                   << " not implemented yet!";
-    }
-    return newBlob;
 }
 
 inline InferenceEngine::Blob::Ptr createAndFillBlobFloatNormalDistribution(const InferenceEngine::TensorDesc& td,
@@ -675,7 +546,6 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 enum class BlobType {
     Memory,
-    Batched,
     Compound,
     Remote,
 };
@@ -684,40 +554,10 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
     switch (type) {
     case BlobType::Memory:
         return os << "Memory";
-    case BlobType::Batched:
-        return os << "Batched";
-    case BlobType::Compound:
-        return os << "Compound";
     case BlobType::Remote:
         return os << "Remote";
     default:
         IE_THROW() << "Not supported blob type";
-    }
-}
-
-inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType blobType) {
-    switch (blobType) {
-    case BlobType::Memory:
-        return createAndFillBlob(td);
-    case BlobType::Batched:
-    case BlobType::Compound: {
-        auto dims = td.getDims();
-        const size_t subBlobsNum = dims.front();
-        dims[0] = 1;
-        std::vector<InferenceEngine::Blob::Ptr> subBlobs;
-        InferenceEngine::TensorDesc subBlobDesc(td.getPrecision(), dims, td.getLayout());
-        for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(createAndFillBlob(subBlobDesc));
-        }
-        return blobType == BlobType::Batched
-                   ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs)
-                   : InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
-    }
-        // TODO: ocl + remote
-        //    case BlobType::Remote:
-        //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
-    default:
-        IE_THROW() << "Test does not support the blob kind";
     }
 }
 

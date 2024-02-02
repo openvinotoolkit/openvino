@@ -10,14 +10,14 @@
 namespace LayerTestsDefinitions {
 class VariadicSplitTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     int64_t splitedAxis;
     std::vector<size_t> splitLengths;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     VariadicSplitTransformationParam
@@ -28,7 +28,6 @@ class VariadicSplitTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<VariadicSplitTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 protected:
     void SetUp() override;
 };

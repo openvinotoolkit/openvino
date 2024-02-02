@@ -46,8 +46,10 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
     if (!params.has_dynamic_tensors()) {
         GemmTuningData td = SetTuningParams(params);
 
-        auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
-        std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
+        auto total_batches = output.LogicalSize() /
+                            (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
+        std::vector<size_t> global = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
+                                       total_batches };
 
         dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
         dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
@@ -109,6 +111,27 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     GemmTuningData tuning_data = SetTuningParams(params);
     auto b_vec_size = tuning_data.tile_n_size / tuning_data.simd_size;
 
+    auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
+        auto output_dims_order = Parent::GetDimsOrder(output_order_idx);
+
+        switch (output_dims_order.at(target_idx)) {
+            case 'b':
+                return "OUTPUT_BATCH_NUM";
+            case 'f':
+                return "OUTPUT_FEATURE_NUM";
+            case 'w':
+                return "OUTPUT_SIZE_W";
+            case 'z':
+                return "OUTPUT_SIZE_Z";
+            case 'y':
+                return "OUTPUT_SIZE_Y";
+            case 'x':
+                return "OUTPUT_SIZE_X";
+            default:
+                return "";
+        }
+    };
+
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
         DimensionAccessHelper dims0(params.inputs[0]);
@@ -117,13 +140,13 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         DimensionAccessHelper dims1_padded(params.inputs[1], true);
         // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
         // Because we cannot get the original rank
-        auto m_size = params.transpose_input0 ? dims0.x() : dims0.y();
-        auto n_size = params.transpose_input1 ? dims1.y() : dims1.x();
-        auto n_padded_size = params.transpose_input1 ? "(" + dims1_padded.y() + ")"
-                                                     : "(" + dims1_padded.x() + ")";
-        auto k_size = params.transpose_input0 ? dims0.y() : dims0.x();
-        auto k_padded_size_in0 = params.transpose_input0 ? "(" + dims0_padded.y() + ")"
-                                                         : "(" + dims0_padded.x() + ")";
+        auto input0_dims = ConvTo8dims(params.input0_order);
+        auto input1_dims = ConvTo8dims(params.input1_order);
+        auto m_size = dims0.dims_sizes[input0_dims[6]];
+        auto n_size = dims1.dims_sizes[input1_dims[7]];
+        auto n_padded_size = "(" + dims1_padded.dims_sizes[input1_dims[7]] + ")";
+        auto k_size = dims0.dims_sizes[input0_dims[7]];
+        auto k_padded_size_in0 = "(" + dims0_padded.dims_sizes[input0_dims[7]] + ")";
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
         const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";
@@ -149,6 +172,16 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
+            MakeJitConstant("TR_B", GetTransposedDims(params.output_order, true).at(0)),
+            MakeJitConstant("TR_F", GetTransposedDims(params.output_order, true).at(1)),
+            MakeJitConstant("TR_W", GetTransposedDims(params.output_order, true).at(4)),
+            MakeJitConstant("TR_Z", GetTransposedDims(params.output_order, true).at(5)),
+            MakeJitConstant("TR_Y", GetTransposedDims(params.output_order, true).at(6)),
+            MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
+            MakeJitConstant("TR_OUTPUT_SIZE_Z", get_output_size(params.output_order, 6)),
+            MakeJitConstant("TR_OUTPUT_SIZE_W", get_output_size(params.output_order, 4)),
+            MakeJitConstant("TR_OUTPUT_FEATURE_NUM", get_output_size(params.output_order, 2)),
+            MakeJitConstant("TR_OUTPUT_BATCH_NUM", get_output_size(params.output_order, 0)),
         });
 
         bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
@@ -160,9 +193,49 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         if (has_dynamic_n_padding)
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
     } else {
-        auto m_size = output.Y().v;
-        auto n_size = output.X().v;
-        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
+        auto get_untransposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
+                                            const std::vector<int64_t>& dims_order, const std::string dim) {
+            int64_t target_dim_idx;
+            const size_t rank = data_tensor.GetDims().size();
+            if (dim.compare("Y") == 0) {
+                target_dim_idx = rank - 2;
+            } else if (dim.compare("X") == 0) {
+                target_dim_idx = rank - 1;
+            } else {
+                OPENVINO_THROW("Unsupported dimension: ", dim);
+            }
+
+            size_t loc = (dims_order.size() < rank) ? (rank - dims_order.size()) : 0;
+            if (dims_order.size() == 0) {
+                loc = static_cast<size_t>(target_dim_idx);
+            } else {
+                target_dim_idx = (dims_order.size() < rank) ? (target_dim_idx + dims_order.size() - rank) : target_dim_idx;
+                for (auto dim_idx : dims_order) {
+                    if (dim_idx == target_dim_idx)
+                        break;
+                    loc += 1;
+                }
+            }
+
+            if (loc == 0) {
+                return data_tensor.Batch().v;
+            } else if (loc == 1) {
+                return data_tensor.Feature().v;
+            } else if (loc == (rank - 1) && rank >= 3) {
+                return data_tensor.X().v;
+            } else if (loc == (rank - 2) && rank >= 4) {
+                return data_tensor.Y().v;
+            } else if (loc == (rank - 3) && rank >= 5) {
+                return data_tensor.Z().v;
+            } else if (loc == (rank - 4) && rank >= 6) {
+                return data_tensor.W().v;
+            }
+            OPENVINO_THROW("Target dimension is not found.");
+        };
+
+        auto m_size = get_untransposed_dim_size(output, params.output_order, "Y");
+        auto n_size = get_untransposed_dim_size(output, params.output_order, "X");
+        auto k_size = get_untransposed_dim_size(params.inputs[0], params.input0_order, "X");
         auto leftover_m = m_size % tuning_data.tile_m_size;
         auto leftover_n = n_size % tuning_data.tile_n_size;
         auto leftover_k = k_size % tuning_data.tile_k_size;
@@ -184,6 +257,16 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
+            MakeJitConstant("TR_B", GetTransposedDims(params.output_order, true).at(0)),
+            MakeJitConstant("TR_F", GetTransposedDims(params.output_order, true).at(1)),
+            MakeJitConstant("TR_W", GetTransposedDims(params.output_order, true).at(4)),
+            MakeJitConstant("TR_Z", GetTransposedDims(params.output_order, true).at(5)),
+            MakeJitConstant("TR_Y", GetTransposedDims(params.output_order, true).at(6)),
+            MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
+            MakeJitConstant("TR_OUTPUT_SIZE_Z", get_output_size(params.output_order, 6)),
+            MakeJitConstant("TR_OUTPUT_SIZE_W", get_output_size(params.output_order, 4)),
+            MakeJitConstant("TR_OUTPUT_FEATURE_NUM", get_output_size(params.output_order, 2)),
+            MakeJitConstant("TR_OUTPUT_BATCH_NUM", get_output_size(params.output_order, 0)),
         });
     }
 
@@ -261,6 +344,9 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
 
     for (size_t input_idx = 0; input_idx < gmm_params.inputs.size(); ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
+        if (!Tensor::SimpleLayout(input.GetLayout())) {
+            return false;
+        }
         // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
         // in case of shape agnostic kernel
         bool proper_pad_f = input.Feature().pad.is_dynamic ? false : input.Feature().pad.Total() == 0;
@@ -280,7 +366,8 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
                           gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
     // If gmm_params has dynamic inputs, the correct dimension value cannot be obtained
     // and leftovers cannot be calculated, so it returns false
-    if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && (gemm_leftovers || gmm_params.has_dynamic_inputs()))
+    if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && (gemm_leftovers || gmm_params.has_dynamic_inputs()) &&
+        !gmm_params.is_shape_agnostic)
         return false;
 
     for (size_t i = 1; i < gmm_params.inputs.size(); i++)

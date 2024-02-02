@@ -39,7 +39,7 @@ public:
 
     ONNXFrameworkNode(const onnx_import::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
 
-    ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
+    ONNXFrameworkNode(const onnx_import::Node& node, const ov::OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node) {
         ov::op::util::FrameworkNodeAttrs attrs;
@@ -48,17 +48,17 @@ public:
         set_attrs(attrs);
     }
 
-    OutputVector get_ov_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
-        OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
+    ov::OutputVector get_ov_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
+        ov::OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
         if (ov_nodes.size() > get_output_size()) {
             ov_nodes.resize(get_output_size());
         }
         return ov_nodes;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
-    virtual bool visit_attributes(AttributeVisitor& visitor) override {
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // TODO: implement reading as well, now it work for serialization only
         std::string domain = m_node.domain();
         std::string op_type = m_node.op_type();
@@ -77,7 +77,7 @@ public:
 
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
                               const std::vector<std::shared_ptr<ov::Model>>& models,
-                              const OutputVector& inputs)
+                              const ov::OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
           m_models(models) {}
 
@@ -90,7 +90,7 @@ public:
         return m_models;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
 private:
     std::vector<std::shared_ptr<ov::Model>> m_models;
@@ -105,7 +105,7 @@ class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("NotSupportedONNXNode", "util", ov::op::util::FrameworkNode);
 
-    NotSupportedONNXNode(const OutputVector& inputs,
+    NotSupportedONNXNode(const ov::OutputVector& inputs,
                          const size_t output_size,
                          const std::string& domain,
                          const std::string& op_type,
@@ -123,8 +123,8 @@ public:
         return attrs[failed_conversion_key];
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
-    virtual bool visit_attributes(AttributeVisitor& visitor) override;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 
 }  // namespace frontend

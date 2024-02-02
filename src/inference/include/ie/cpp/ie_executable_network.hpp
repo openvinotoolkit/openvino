@@ -29,8 +29,6 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "ie_iexecutable_network.hpp"
-#include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 
 namespace ov {
 class Core;
@@ -143,9 +141,9 @@ public:
     /**
      * @brief Sets configuration for current executable network
      *
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param config Map of pairs: (config name, config value)
      */
-    void SetConfig(const std::map<std::string, Parameter>& config);
+    void SetConfig(const ov::AnyMap& config);
 
     /** @brief Gets configuration for current executable network.
      *
@@ -155,10 +153,10 @@ public:
      * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
      * device.
      *
-     * @param name config key, can be found in ie_plugin_config.hpp
-     * @return Configuration parameter value
+     * @param name config key, can be found in properties.hpp
+     * @return Configuration ov::Any value
      */
-    Parameter GetConfig(const std::string& name) const;
+    ov::Any GetConfig(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -167,16 +165,9 @@ public:
      * which executable network is running or all other properties which cannot be changed dynamically.
      *
      * @param name metric name to request
-     * @return Metric parameter value
+     * @return Metric ov::Any value
      */
-    Parameter GetMetric(const std::string& name) const;
-
-    /**
-     * @brief Returns pointer to plugin-specific shared context
-     * on remote accelerator device that was used to create this ExecutableNetwork
-     * @return A context
-     */
-    RemoteContext::Ptr GetContext() const;
+    ov::Any GetMetric(const std::string& name) const;
 
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized

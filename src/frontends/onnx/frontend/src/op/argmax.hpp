@@ -7,31 +7,30 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-/// \brief Convert ONNX ArgMax operation to an nGraph node.
+/// \brief Convert ONNX ArgMax operation to an OV node.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing an Ngraph node which produces the output
+/// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMax operation.
-OutputVector argmax(const Node& node);
+ov::OutputVector argmax(const Node& node);
 
 }  // namespace set_1
 
 namespace set_12 {
-/// \brief Convert ONNX ArgMax operation to an nGraph node.
+/// \brief Convert ONNX ArgMax operation to an OV node.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing an Ngraph node which produces the output
+/// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMax operation.
-OutputVector argmax(const Node& node);
+ov::OutputVector argmax(const Node& node);
 
 }  // namespace set_12
 

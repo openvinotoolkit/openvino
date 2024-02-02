@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <ie_plugin_config.hpp>
 #include "shared_test_classes/single_layer/multinomial.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -55,7 +54,7 @@ void MultinomialTest::SetUp() {
     }
 
     auto numSamplesConstant = std::make_shared<ov::op::v0::Constant>(
-        ngraph::element::Type_t::i64, ov::Shape{1}, numSamples);
+        ov::element::Type_t::i64, ov::Shape{1}, numSamples);
     const auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
@@ -68,7 +67,7 @@ void MultinomialTest::SetUp() {
         0,
         2);
 
-    function = std::make_shared<ngraph::Function>(multinomial, params, "Multinomial");
+    function = std::make_shared<ov::Model>(multinomial, params, "Multinomial");
 }
 
 } // namespace subgraph

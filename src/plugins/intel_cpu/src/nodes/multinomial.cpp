@@ -5,6 +5,8 @@
 #include "multinomial.hpp"
 
 #include "openvino/op/multinomial.hpp"
+#include <openvino/op/constant.hpp>
+#include <openvino/core/type.hpp>
 #include "utils/bfloat16.hpp"
 
 namespace ov {
@@ -93,10 +95,10 @@ void Multinomial::prepareParams() {
 
     if (m_num_samples_precision == ov::element::i32) {
         m_samples_count =
-            reinterpret_cast<const int32_t*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
+            getSrcDataAtPortAs<const int32_t>(NUM_SAMPLES_PORT)[0];
     } else {
         m_samples_count =
-            reinterpret_cast<const int64_t*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
+            getSrcDataAtPortAs<const int64_t>(NUM_SAMPLES_PORT)[0];
     }
 
     m_batches_count = probs_shape[0];
@@ -144,8 +146,8 @@ void Multinomial::execute_probs_type() {
 
 template <typename P, typename O>
 void Multinomial::execute_convert_type() {
-    const auto* probs = reinterpret_cast<const P*>(getParentEdgeAt(PROBS_PORT)->getMemoryPtr()->getData());
-    auto* output = reinterpret_cast<O*>(getChildEdgeAt(OUTPUT_PORT)->getMemoryPtr()->getData());
+    const auto* probs = getSrcDataAtPortAs<const P>(PROBS_PORT);
+    auto* output = getDstDataAtPortAs<O>(OUTPUT_PORT);
 
     std::vector<P> m_cdf(m_input_elements_count);
     std::vector<P> m_max_per_batch(m_batches_count);

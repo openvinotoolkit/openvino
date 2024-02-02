@@ -4,15 +4,19 @@
 
 #include "op/image_scaler.hpp"
 
-#include "default_opset.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector image_scaler(const Node& node) {
+ov::OutputVector image_scaler(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
 
@@ -32,10 +36,9 @@ OutputVector image_scaler(const Node& node) {
 
     const auto scale_const = node.get_attribute_as_constant<float>("scale", 1.0, data.get_element_type());
 
-    const auto bias_const = default_opset::Constant::create(data.get_element_type(), {1, bias.size(), 1, 1}, bias);
+    const auto bias_const = v0::Constant::create(data.get_element_type(), {1, bias.size(), 1, 1}, bias);
 
-    const auto scaler =
-        std::make_shared<default_opset::Add>(std::make_shared<default_opset::Multiply>(data, scale_const), bias_const);
+    const auto scaler = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(data, scale_const), bias_const);
 
     return {scaler};
 }

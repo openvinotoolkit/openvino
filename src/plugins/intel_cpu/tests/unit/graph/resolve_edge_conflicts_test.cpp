@@ -4,10 +4,12 @@
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/input.h"
 #include "nodes/concat.h"
-
-#include "ov_models/builders.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -36,7 +38,7 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, nullptr, false);
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
     const dnnl::engine cpuEngine = context->getEngine();
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());

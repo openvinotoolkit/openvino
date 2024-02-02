@@ -14,13 +14,13 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
-                                           const element::Type& type,
+                                           const ov::element::Type& type,
                                            const std::vector<size_t>& filterSize,
                                            const std::vector<size_t>& strides,
                                            const std::vector<ptrdiff_t>& padsBegin,
                                            const std::vector<ptrdiff_t>& padsEnd,
                                            const std::vector<size_t>& dilations,
-                                           const op::PadType& autoPad,
+                                           const ov::op::PadType& autoPad,
                                            size_t numOutChannels,
                                            size_t numGroups,
                                            bool addBiases,
@@ -52,12 +52,12 @@ std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
 
 std::shared_ptr<Node> makeGroupConvolution(const ov::Output<Node>& in,
                                            const ov::Output<Node>& weights,
-                                           const element::Type& type,
+                                           const ov::element::Type& type,
                                            const std::vector<size_t>& strides,
                                            const std::vector<ptrdiff_t>& padsBegin,
                                            const std::vector<ptrdiff_t>& padsEnd,
                                            const std::vector<size_t>& dilations,
-                                           const op::PadType& autoPad,
+                                           const ov::op::PadType& autoPad,
                                            bool addBiases,
                                            const std::vector<float>& biasesWeights) {
     auto conv =

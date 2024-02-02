@@ -69,9 +69,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         libffi-dev \
         `# spell checking for MO sources` \
         python3-enchant \
-        `# samples and tools` \
-        libgflags-dev \
-        zlib1g-dev \
+        `# tools` \
         wget
     # TF lite frontend
     if apt-cache search --names-only '^libflatbuffers-dev'| grep -q libflatbuffers-dev; then
@@ -128,10 +126,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         opencl-headers \
         `# python API` \
         python3-pip \
-        python3-devel \
-        `# samples and tools` \
-        zlib-devel \
-        gflags-devel
+        python3-devel
 elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper refresh
     zypper install -y \
@@ -169,11 +164,7 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         `# python API` \
         python39-pip \
         python39-setuptools \
-        python39-devel \
-        `# samples and tools` \
-        zlib-devel \
-        gflags-devel-static \
-        nlohmann_json-devel
+        python39-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
@@ -200,11 +191,7 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         python3-pip \
         python3-venv \
         python3-setuptools \
-        libpython3-dev \
-        `# samples and tools` \
-        libgflags-dev \
-        zlib1g-dev \
-        nlohmann-json-dev
+        libpython3-dev
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
@@ -218,7 +205,7 @@ elif command -v cmake3 &> /dev/null; then
 fi
 
 current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
-required_cmake_ver=3.20.0
+required_cmake_ver=3.24.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     installed_cmake_ver=3.26.0
     arch=$(uname -m)

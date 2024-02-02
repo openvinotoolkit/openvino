@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
@@ -68,15 +69,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
         // Not implemented yet:
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
-        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*ExecGraphInfo.*)",
-        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
         R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*canCreateTwoCompiledModelAndCheckTheir.*)",
         // CPU does not support dynamic rank
         // Issue: 66778
@@ -137,11 +133,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
         // Issue: 105838
         R"(smoke_NmsLayerTest.*)",
-        // Issue: 95590
-        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
-        // Issue: 95607
-        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
-        R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
         // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
         // float values like 0.333333745.
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
@@ -214,9 +205,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
         // Issue: 129025
         R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
-#ifdef OPENVINO_ARCH_32_BIT
+        // Issue: 119648
+        R"(.*smoke_LPT/InterpolateTransformation.*)",
+        // Issue: 129931
+        R"(smoke_FQLayerDQBias_4D_dynamic/FQLayerDQBias.*)",
+        R"(smoke_FQLayerDQBias_4D_static/FQLayerDQBias.*)",
+        R"(smoke_LPT/ConvolutionTransformation.*)",
+        R"(smoke_LPT/ConvolutionWIthIncorrectWeightsTransformation.*)",
+        R"(smoke_LPT/EliminateFakeQuantizeTransformation.*)",
+        R"(smoke_LPT/FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation.*)",
+        R"(smoke_LPT/FakeQuantizePrecisionSelectionTransformation.*)",
+        R"(smoke_LPT/GroupConvolutionTransformation.*)",
+        R"(smoke_LPT/MatMulTransformation.*)",
+        R"(smoke_LPT/MatMulWithOptimizedConstantFq.*)",
+        R"(smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.*)",
+        R"(smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.*)",
+#if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
-        R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.CompareWithRefs/.*_eltwiseOpType=Bitwise.*_NetType=i32_.*)"
+        R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"
 #endif
     };
 
@@ -274,14 +280,14 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     // Issue: 124309
     retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
-    retVector.emplace_back(R"(.*smoke_NoReshape/ExecGraphUniqueNodeNames.CheckUniqueNodeNames.*)");
+    retVector.emplace_back(R"(.*smoke_NoReshape/OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*)");
     retVector.emplace_back(R"(.*smoke_BehaviorTests/InferRequestPerfCountersTest.CheckOperationInPerfMap.*)");
-    retVector.emplace_back(R"(smoke_BehaviorTests/ExecutableNetworkBaseTest.CheckExecGraphInfo.*)");
     retVector.emplace_back(R"(smoke_BehaviorTests/OVCompiledModelBaseTestOptional.CheckExecGraphInfo.*)");
     retVector.emplace_back(
         R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=FakeQuantizeBinaryConvolution.*)");
     // Issue: 124395
     retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
+    retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
 #    endif
 
 #endif
@@ -354,6 +360,26 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
+    }
+
+    if (ov::with_cpu_x86_avx512_core_amx()) {
+        // Issue: 130463
+        retVector.emplace_back(R"(smoke_Conv_1D_GEMM_BF16/ConvolutionLayerCPUTest.*K\(1\)_S\(1\)_PB\(0\)_PE\(0\).*O=6.*_Fused=Add\(PerChannel\).*)");
+        // Issue: 130466
+        retVector.emplace_back(R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\[\].*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)");
+        // Issue: 130467
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(10\.10\.10\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*IS=\[1.*TS=\(\(10\.10\.10\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(55\.12\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        // Issue: 130471
+        retVector.emplace_back(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)");
+    }
+
+    if (ov::with_cpu_x86_avx512_core_fp16()) {
+        // Issue: 130473
+        retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
+        retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
+        retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
     }
 
     return retVector;

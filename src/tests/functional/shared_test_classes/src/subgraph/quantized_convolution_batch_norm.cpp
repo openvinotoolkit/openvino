@@ -6,6 +6,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace test {
@@ -140,9 +141,7 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         auto output_high_weights = ov::op::v0::Constant::create(element::f32, Shape{}, {254});
         weights = std::make_shared<ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::i8);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        weights = get_constant_from_source(weights);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        weights = ov::util::get_constant_from_source(weights);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
         auto scale_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
         weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_weights);
@@ -171,7 +170,7 @@ void QuantizedConvolutionBatchNorm::TearDown() {
     auto get_layer_type = [] (const std::shared_ptr<ov::Node>& node) -> const std::string& {
         const auto& rt_info = node->get_rt_info();
         auto it = rt_info.find(ov::exec_model_info::LAYER_TYPE);
-        IE_ASSERT(it != rt_info.end());
+        OPENVINO_ASSERT(it != rt_info.end());
         return it->second.as<std::string>();
     };
 

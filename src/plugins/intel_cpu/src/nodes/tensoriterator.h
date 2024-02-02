@@ -143,7 +143,6 @@ private:
     bool runAsDynamic() const;
     void restoreSubgraphInputByBackEdges();
 
-    ExtensionManager::Ptr ext_mng;
     Graph sub_graph;
     std::vector<std::vector<MemoryPtr>> input_mems;
     std::vector<MemoryPtr> output_mem;

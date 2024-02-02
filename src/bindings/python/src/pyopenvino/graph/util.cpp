@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <openvino/core/node_output.hpp>
 
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"

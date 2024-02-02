@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
 #include "async_infer_request.h"
@@ -40,13 +39,11 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
-                             const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
       m_cfg{cfg},
-      extensionManager(extMgr),
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache) {
     bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
@@ -125,7 +122,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, extensionManager, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
@@ -166,35 +163,6 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph()._graph.dump();
 }
 
-ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(NETWORK_NAME));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        for (auto&& key : graph.getConfig()._config) {
-            configKeys.push_back(key.first);
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graph.getConfig();
-        auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        OPENVINO_ASSERT(option != engConfig._config.end());
-        auto streams = std::stoi(option->second);
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
-    } else {
-        OPENVINO_THROW("Unsupported property: ", name);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
@@ -219,6 +187,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::vector<ov::PropertyName>{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
@@ -239,6 +208,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (name == ov::model_name) {
@@ -253,6 +223,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -266,6 +237,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -300,13 +272,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
     }
-    /* Internally legacy parameters are used with new API as part of migration procedure.
-     * This fallback can be removed as soon as migration completed */
-    return get_metric_legacy(name, graph);
+    OPENVINO_THROW("Unsupported property: ", name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, extensionManager);
+    ModelSerializer serializer(modelStream);
     serializer << m_model;
 }
 

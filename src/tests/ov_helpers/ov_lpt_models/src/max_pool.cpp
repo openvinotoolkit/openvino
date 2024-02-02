@@ -7,11 +7,10 @@
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "low_precision/network_helper.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -25,13 +24,12 @@ std::shared_ptr<ov::Model> MaxPoolFunction::getOriginal(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ov::Node> maxPool = std::make_shared<ov::opset1::MaxPool>(
-        fakeQuantize,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        op::RoundingType::FLOOR);
+    const std::shared_ptr<ov::Node> maxPool = std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                                                    Strides{1, 1},
+                                                                                    Shape{1, 1},
+                                                                                    Shape{0, 0},
+                                                                                    Shape{2, 2},
+                                                                                    ov::op::RoundingType::FLOOR);
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(maxPool) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "MaxPoolTransformation");
@@ -40,21 +38,20 @@ std::shared_ptr<ov::Model> MaxPoolFunction::getOriginal(
 std::shared_ptr<ov::Model> MaxPoolFunction::get(
     const ov::PartialShape& inputShape,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ov::Node> parent = input;
 
     parent = makeDequantization(parent, dequantizationBefore);
 
-    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        parent,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        op::RoundingType::FLOOR);
+    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(parent,
+                                                               Strides{1, 1},
+                                                               Shape{1, 1},
+                                                               Shape{0, 0},
+                                                               Shape{2, 2},
+                                                               ov::op::RoundingType::FLOOR);
     parent = maxPool;
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, precisionAfterOperation);
 
@@ -72,4 +69,4 @@ std::shared_ptr<ov::Model> MaxPoolFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
