@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 void regmodule_properties(py::module m) {
     // Top submodule
-    py::module m_properties = m.def_submodule("properties", "openvino.runtime.properties submodule");
+    py::module m_properties = m.def_submodule("properties", "openvino.properties submodule");
 
     // Submodule properties - enums
     py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
@@ -52,7 +52,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule hint
     py::module m_hint =
-        m_properties.def_submodule("hint", "openvino.runtime.properties.hint submodule that simulates ov::hint");
+        m_properties.def_submodule("hint", "openvino.properties.hint submodule that simulates ov::hint");
 
     // Submodule hint - enums
     py::enum_<ov::hint::Priority>(m_hint, "Priority", py::arithmetic())
@@ -89,8 +89,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule intel_cpu
     py::module m_intel_cpu =
-        m_properties.def_submodule("intel_cpu",
-                                   "openvino.runtime.properties.intel_cpu submodule that simulates ov::intel_cpu");
+        m_properties.def_submodule("intel_cpu", "openvino.properties.intel_cpu submodule that simulates ov::intel_cpu");
 
     // Submodule intel_cpu property
     wrap_property_RW(m_intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
@@ -100,8 +99,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule intel_gpu
     py::module m_intel_gpu =
-        m_properties.def_submodule("intel_gpu",
-                                   "openvino.runtime.properties.intel_gpu submodule that simulates ov::intel_gpu");
+        m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
@@ -112,9 +110,9 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::disable_winograd_convolution, "disable_winograd_convolution");
 
     // Submodule hint (intel_gpu)
-    py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(
-        "hint",
-        "openvino.runtime.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint");
+    py::module m_intel_gpu_hint =
+        m_intel_gpu.def_submodule("hint",
+                                  "openvino.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint");
 
     // `ThrottleLevel` enum is conflicting with `priorities.hint.Priority` in bindings.
     // `ov::intel_gpu::hint::ThrottleLevel` workaround proxy class:
@@ -123,7 +121,7 @@ void regmodule_properties(py::module m) {
     py::class_<ThrottleLevelProxy, std::shared_ptr<ThrottleLevelProxy>> m_throttle_level(
         m_intel_gpu_hint,
         "ThrottleLevel",
-        "openvino.runtime.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel");
+        "openvino.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel");
 
     m_throttle_level.attr("LOW") = ov::intel_gpu::hint::ThrottleLevel::LOW;
     m_throttle_level.attr("MEDIUM") = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
@@ -137,7 +135,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule device
     py::module m_device =
-        m_properties.def_submodule("device", "openvino.runtime.properties.device submodule that simulates ov::device");
+        m_properties.def_submodule("device", "openvino.properties.device submodule that simulates ov::device");
 
     // Submodule device - enums
     py::enum_<ov::device::Type>(m_device, "Type", py::arithmetic())
@@ -208,7 +206,7 @@ void regmodule_properties(py::module m) {
     py::class_<FakeCapability, std::shared_ptr<FakeCapability>> m_capability(
         m_device,
         "Capability",
-        "openvino.runtime.properties.device.Capability that simulates ov::device::capability");
+        "openvino.properties.device.Capability that simulates ov::device::capability");
 
     m_capability.attr("FP32") = ov::device::capability::FP32;
     m_capability.attr("BF16") = ov::device::capability::BF16;
@@ -225,7 +223,7 @@ void regmodule_properties(py::module m) {
     py::class_<FakeMemoryType, std::shared_ptr<FakeMemoryType>> m_memory_type(
         m_intel_gpu,
         "MemoryType",
-        "openvino.runtime.properties.intel_gpu.MemoryType submodule that simulates ov::intel_gpu::memory_type");
+        "openvino.properties.intel_gpu.MemoryType submodule that simulates ov::intel_gpu::memory_type");
 
     m_memory_type.attr("surface") = ov::intel_gpu::memory_type::surface;
     m_memory_type.attr("buffer") = ov::intel_gpu::memory_type::buffer;
@@ -236,13 +234,12 @@ void regmodule_properties(py::module m) {
     py::class_<FakeCapabilityGPU, std::shared_ptr<FakeCapabilityGPU>> m_capability_gpu(
         m_intel_gpu,
         "CapabilityGPU",
-        "openvino.runtime.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability");
+        "openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability");
 
     m_capability_gpu.attr("HW_MATMUL") = ov::intel_gpu::capability::HW_MATMUL;
 
     // Submodule log
-    py::module m_log =
-        m_properties.def_submodule("log", "openvino.runtime.properties.log submodule that simulates ov::log");
+    py::module m_log = m_properties.def_submodule("log", "openvino.properties.log submodule that simulates ov::log");
 
     // Submodule log - enums
     py::enum_<ov::log::Level>(m_log, "Level", py::arithmetic())
@@ -258,8 +255,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule streams
     py::module m_streams =
-        m_properties.def_submodule("streams",
-                                   "openvino.runtime.properties.streams submodule that simulates ov::streams");
+        m_properties.def_submodule("streams", "openvino.properties.streams submodule that simulates ov::streams");
 
     py::class_<ov::streams::Num, std::shared_ptr<ov::streams::Num>> cls_num(m_streams, "Num");
 
@@ -285,7 +281,7 @@ void regmodule_properties(py::module m) {
     // Submodule auto
     py::module m_intel_auto =
         m_properties.def_submodule("intel_auto",
-                                   "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+                                   "openvino.properties.intel_auto submodule that simulates ov::intel_auto");
     // Submodule intel_auto - enums
     py::enum_<ov::intel_auto::SchedulePolicy>(m_intel_auto, "SchedulePolicy", py::arithmetic())
         .value("ROUND_ROBIN", ov::intel_auto::SchedulePolicy::ROUND_ROBIN)
