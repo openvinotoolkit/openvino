@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
