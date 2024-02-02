@@ -4,7 +4,7 @@
 
 #include "op/transpose.hpp"
 
-#include "utils/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 

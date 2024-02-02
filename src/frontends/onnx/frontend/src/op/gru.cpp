@@ -9,9 +9,9 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
-#include "utils/ov_builders/reshape.hpp"
-#include "utils/ov_builders/split.hpp"
 #include "utils/recurrent.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;

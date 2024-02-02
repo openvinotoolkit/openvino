@@ -10,8 +10,8 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/convpool.hpp"
-#include "utils/ov_builders/split.hpp"
 #include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {

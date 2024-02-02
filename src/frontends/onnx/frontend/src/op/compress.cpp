@@ -8,7 +8,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "utils/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 using ov::Shape;

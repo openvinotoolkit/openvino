@@ -78,7 +78,9 @@ std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node,
         get_axes_mapping_output(target_shape, broadcast_axes));
 }
 
-std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node, const Shape& target_shape, size_t start_match_axis) {
+std::shared_ptr<ov::Node> make_broadcast(const Output<ov::Node>& node,
+                                         const Shape& target_shape,
+                                         size_t start_match_axis) {
     const auto node_shape = std::make_shared<ov::op::v3::ShapeOf>(node);
     return std::make_shared<ov::op::v1::Broadcast>(
         node,

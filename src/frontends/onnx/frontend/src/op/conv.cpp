@@ -11,7 +11,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
-#include "utils/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START

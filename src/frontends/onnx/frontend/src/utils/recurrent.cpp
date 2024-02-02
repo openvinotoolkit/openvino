@@ -18,8 +18,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/util/common_util.hpp"
-#include "utils/ov_builders/reshape.hpp"
-#include "utils/ov_builders/split.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;

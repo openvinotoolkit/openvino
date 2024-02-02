@@ -7,7 +7,7 @@
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
-#include "utils/ov_builders/norm.hpp"
+#include "utils/norm.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;

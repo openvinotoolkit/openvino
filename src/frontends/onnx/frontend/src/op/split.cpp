@@ -6,7 +6,7 @@
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "utils/ov_builders/split.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 

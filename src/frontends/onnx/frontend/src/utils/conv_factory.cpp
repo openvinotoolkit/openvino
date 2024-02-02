@@ -10,7 +10,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
-#include "utils/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {

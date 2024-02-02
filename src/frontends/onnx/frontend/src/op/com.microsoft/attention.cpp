@@ -36,7 +36,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "utils/ov_builders/split.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;

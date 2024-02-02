@@ -10,8 +10,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils/common.hpp"
-#include "utils/ov_builders/norm.hpp"
-#include "utils/ov_builders/split.hpp"
+#include "utils/norm.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;

@@ -9,7 +9,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
-#include "utils/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 
