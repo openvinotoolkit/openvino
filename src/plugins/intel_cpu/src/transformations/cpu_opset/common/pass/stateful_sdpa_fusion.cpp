@@ -57,15 +57,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
-        auto constant_bcst = wrap_type<opset1::Constant>([] (Output<Node> output) -> bool {
+        auto check_one = [] (Output<Node> output) -> bool {
             auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0;
+                return i == 1.0f;
             });
-        });
+        };
+        auto constant_bcst = wrap_type<opset1::Constant>(check_one);
 
-        auto computed_bcst = makePattern<opset1::Broadcast>({{1.000000f},
+        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
             any_input(), any_input()}, {{"mode", "numpy"}});
 
         auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
