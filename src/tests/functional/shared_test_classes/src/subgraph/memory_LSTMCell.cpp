@@ -6,14 +6,11 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-
-using namespace ngraph;
 
 namespace ov {
 namespace test {

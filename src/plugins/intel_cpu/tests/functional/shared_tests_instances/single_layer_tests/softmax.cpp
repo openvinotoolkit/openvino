@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/softmax.hpp"
+#include "single_op_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::subgraph;

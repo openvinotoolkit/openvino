@@ -10,7 +10,6 @@
 #include <thread>
 
 #include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/core_config.hpp"
 #include "ie_icore.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -365,7 +364,6 @@ void LayerTestsCommon::ConfigureNetwork() {
 
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
-    CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
