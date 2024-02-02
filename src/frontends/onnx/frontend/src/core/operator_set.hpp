@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
