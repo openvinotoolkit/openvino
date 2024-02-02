@@ -36,13 +36,13 @@ Several examples for case when `axis = 0`:
 *   **1**: ``data`` tensor of arbitrary rank ``r`` and type *T_NUMERIC*. **Required.**
 
 *   **2**: ``indices`` tensor with indices of type *T_IND*. All index values are expected to be within bounds ``[0, s - 1]`` along the axis of size ``s``. If multiple indices point to the
-same output location, the order of updating the values is undefined. If an index points to a non-existing output
-tensor element or is negative, then an exception is raised. **Required.**
+    same output location, the order of updating the values is undefined. If an index points to a non-existing output
+    tensor element or is negative, then an exception is raised. **Required.**
 
 *   **3**: ``updates`` tensor of type *T_NUMERIC* and rank equal to ``rank(indices) + rank(data) - 1`` **Required.**
 
 *   **4**: ``axis`` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``data``. **Required.**
+    The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``data``. **Required.**
 
 **Outputs**:
 
