@@ -184,8 +184,8 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
     return ov::any_copy(get_supported_property(deviceName, any_copy(configs)));
 }
 
-std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
-    std::map<std::string, InferenceEngine::Version> versions;
+std::map<std::string, ov::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
+    std::map<std::string, ov::Version> versions;
     std::vector<std::string> deviceNames;
 
     {
