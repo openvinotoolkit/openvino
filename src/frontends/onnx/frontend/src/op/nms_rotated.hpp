@@ -9,7 +9,7 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/nms_rotated.hpp"
 
