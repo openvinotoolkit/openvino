@@ -191,23 +191,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.Inference/.*_TS=\(3.2.5.7\).*)",
         // Issue: 122094
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
-        // Issue 110112
-        R"(smoke_Deconv_2D_Blocked_FP16/.*brgconv_avx512_amx.*)",
-        R"(nightly_Deconv_2D_Blocked_FP16/.*brgconv_avx512_amx.*)",
-        R"(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
-        R"(smoke_Deconv_3D_Blocked_FP16/.*brgconv_avx512_amx.*)",
-        R"(nightly_Deconv_3D_Blocked_FP16/.*brgconv_avx512_amx.*)",
-        R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
-        R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)",
-        R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
-        R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
-        R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)",
-        R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)",
-        R"(smoke_MM_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
-        R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
-        R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
-        R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
-        R"(smoke_CompareWithRefs_4D.*_(f|F)using.*INFERENCE_PRECISION_HINT=f16.*enforceSnippets=1.*)",
 
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
@@ -398,6 +381,27 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
         retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
+        retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_MM_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_Conv_3D_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_Conv_2D_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_Deconv_2D_Blocked_FP16/.*brgconv_avx512.*)");
+        retVector.emplace_back(R"(nightly_Deconv_2D_Blocked_FP16/.*brgconv_avx512.*)");
+        retVector.emplace_back(R"(smoke_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
+        retVector.emplace_back(R"(nightly_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
+    }
+
+    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
+        // Issue 110112
+       retVector.emplace_back(R"(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
+       retVector.emplace_back(R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
+       retVector.emplace_back(R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
+       retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
+       retVector.emplace_back(R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
+       retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)");
     }
 
     return retVector;

@@ -114,31 +114,37 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
      4},
 };
 
-const std::vector<ov::AnyMap> deviceConfig = {
-    cpu_f16_plugin_config
-};
-
-
-const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32),
                                               testing::ValuesIn(optimizedConfigsFP32),
                                               testing::Values(ov::test::utils::DEVICE_CPU),
                                               testing::Values(notOptimizedCPUSpec),
-                                              testing::ValuesIn(deviceConfig));
+                                              testing::Values(cpu_f16_plugin_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU_FP16,
                          SoftMaxLayerCPUTest,
                          OptimizedParams,
                          SoftMaxLayerCPUTest::getTestCaseName);
 
-const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32),
                                                  testing::ValuesIn(notOptimizedConfigsFP32),
                                                  testing::Values(ov::test::utils::DEVICE_CPU),
                                                  testing::Values(notOptimizedCPUSpec),
-                                                 testing::ValuesIn(deviceConfig));
+                                                 testing::Values(cpu_f16_plugin_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU_FP16,
                          SoftMaxLayerCPUTest,
                          NotOptimizedParams,
+                         SoftMaxLayerCPUTest::getTestCaseName);
+
+const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32),
+                                                testing::ValuesIn(unsupportedConfigsFP32),
+                                                testing::Values(ov::test::utils::DEVICE_CPU),
+                                                testing::Values(notOptimizedCPUSpec),
+                                                testing::Values(cpu_f16_plugin_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU_FP16,
+                         SoftMaxLayerCPUTest,
+                         UnsupportedParams,
                          SoftMaxLayerCPUTest::getTestCaseName);
 
 }  // namespace SoftMax

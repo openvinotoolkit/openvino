@@ -61,7 +61,6 @@ const std::vector<InputShape> inputShapes4D_FP16 = {
         }
 };
 
-
 const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
         maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                                                         ov::element::Type_t::i32, 0,
@@ -183,6 +182,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
                               ::testing::Values(CPUTestUtils::empty_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D_FP16 = {avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D_FP16 = {avx512_ndhwc};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D()),
+                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D_FP16)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          PoolingLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D()),
+                              ::testing::ValuesIn(inputShapes5D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_5D_FP16)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          PoolingLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D_FP16, PoolingLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMax3D()),
@@ -266,31 +290,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D_FP16, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
                                  ::testing::Values(cpu_f16_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
-
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D_FP16 = {avx512_nhwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D_FP16 = {avx512_ndhwc};
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8_FP16, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                              ::testing::ValuesIn(paramsAvg4D()),
-                              ::testing::ValuesIn(inputShapes4D_int8),
-                              ::testing::Values(ElementType::f32),
-                              ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D_FP16)),
-                              ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(cpu_f16_plugin_config)),
-                          PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                              ::testing::ValuesIn(paramsAvg5D()),
-                              ::testing::ValuesIn(inputShapes5D_int8),
-                              ::testing::Values(ElementType::f32),
-                              ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_5D_FP16)),
-                              ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(cpu_f16_plugin_config)),
-                          PoolingLayerCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace Pooling
