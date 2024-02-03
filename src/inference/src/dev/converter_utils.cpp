@@ -21,7 +21,6 @@
 #include "ie_layouts.h"
 #include "ie_ngraph_utils.hpp"
 #include "iplugin_wrapper.hpp"
-#include "legacy_op_extension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"

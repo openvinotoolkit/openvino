@@ -9,7 +9,6 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
-#include "utils/legacy_conversion_extension.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ONNX_NAMESPACE {
@@ -56,10 +55,6 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESP
 ///            to a complete function with actual compute operations
 void convert_decoded_model(std::shared_ptr<ov::Model> model);
 
-/// \brief Get the legacy conversion extension.
-///
-/// \return const LegacyConversionExtension::Ptr
-const LegacyConversionExtension::Ptr get_legacy_conversion_extension();
 }  // namespace detail
 }  // namespace onnx_import
 }  // namespace ngraph
