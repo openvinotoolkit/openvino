@@ -16,8 +16,8 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
-    const auto A = node.get_ng_inputs().at(0);
-    const auto B = node.get_ng_inputs().at(1);
+    const auto A = node.get_ov_inputs().at(0);
+    const auto B = node.get_ov_inputs().at(1);
 
     FRONT_END_GENERAL_CHECK(A.get_element_type() != ov::element::bf16 && B.get_element_type() != ov::element::bf16,
                             "The input data bfloat16 isn't supported in opset 12");
@@ -30,8 +30,8 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
 namespace set_16 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
-    const auto A = node.get_ng_inputs().at(0);
-    const auto B = node.get_ng_inputs().at(1);
+    const auto A = node.get_ov_inputs().at(0);
+    const auto B = node.get_ov_inputs().at(1);
 
     const auto C = std::make_shared<v1::GreaterEqual>(A, B);
 
