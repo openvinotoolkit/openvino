@@ -13,7 +13,6 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 using namespace ov::op;
 
 namespace ov {
@@ -82,4 +81,3 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

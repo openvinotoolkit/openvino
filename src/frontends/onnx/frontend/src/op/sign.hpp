@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "core/node.hpp"
 #include "openvino/op/sign.hpp"
 
@@ -23,4 +20,3 @@ inline ov::OutputVector sign(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

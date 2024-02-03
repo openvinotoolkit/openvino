@@ -8,7 +8,6 @@
 #include "openvino/op/topk.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ov::Output<ov::Node> get_k(const ov::frontend::onnx::Node& node) {
@@ -89,4 +88,3 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

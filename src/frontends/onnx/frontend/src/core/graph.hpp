@@ -13,7 +13,6 @@
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "core/operator_set.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/op/parameter.hpp"
 #include "ops_bridge.hpp"
@@ -52,9 +51,9 @@ public:
     }
     virtual bool is_ov_node_in_cache(const std::string& name) const;
     virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
-    OPENVINO_SUPPRESS_DEPRECATED_START
+
     ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
@@ -69,14 +68,11 @@ protected:
           detail::MappedMemoryHandles mmap_cache,
           ov::frontend::ExtensionHolder extensions = {});
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     void set_friendly_names(const Node& onnx_node, const ov::OutputVector& ng_subgraph_outputs) const;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::OutputVector make_framework_nodes(const ov::frontend::onnx::Node& onnx_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     void decode_to_framework_nodes();
     void convert_to_ov_nodes();
     void remove_dangling_parameters();
@@ -89,9 +85,8 @@ protected:
     ov::frontend::ExtensionHolder m_extensions = {};
 
 private:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<Node> m_nodes;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
     OperatorsBridge m_ops_bridge;

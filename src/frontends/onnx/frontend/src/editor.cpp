@@ -23,8 +23,6 @@ using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
 using namespace ::ONNX_NAMESPACE;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 namespace {
 ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name) {
     for (int i = 0; i < graph.input_size(); ++i) {
@@ -527,12 +525,10 @@ std::string ONNXModelEditor::model_string() const {
 }
 
 std::shared_ptr<Model> ONNXModelEditor::get_function() const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::frontend::onnx::detail::import_onnx_model(m_pimpl->m_model_proto,
                                                          m_model_path,
                                                          m_mmap_cache,
                                                          m_extensions);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void ONNXModelEditor::set_input_values(

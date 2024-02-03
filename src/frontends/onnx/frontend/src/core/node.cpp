@@ -105,7 +105,6 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 const NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
@@ -207,9 +206,7 @@ ov::OutputVector Node::Impl::get_ng_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ov_node_from_cache(name));
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
             result.push_back(std::make_shared<NullNode>()->output(0));
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -378,7 +375,6 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     }
     return *found_attr;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {

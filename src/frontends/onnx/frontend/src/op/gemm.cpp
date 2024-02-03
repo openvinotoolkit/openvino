@@ -13,7 +13,6 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {

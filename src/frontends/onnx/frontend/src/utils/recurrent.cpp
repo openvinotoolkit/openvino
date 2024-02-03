@@ -24,7 +24,6 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -119,4 +118,3 @@ OpAttributes::OpAttributes(const Node& node)
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

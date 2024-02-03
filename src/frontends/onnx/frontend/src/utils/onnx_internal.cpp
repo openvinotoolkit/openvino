@@ -47,9 +47,7 @@ void remove_dangling_results(std::shared_ptr<ov::Model>& model) {
         const auto result_inputs = result->input_values();
         const bool is_dangling_result =
             std::all_of(result_inputs.begin(), result_inputs.end(), [](const Output<ov::Node>& node) -> bool {
-                OPENVINO_SUPPRESS_DEPRECATED_START
                 return ov::op::util::is_null(node);
-                OPENVINO_SUPPRESS_DEPRECATED_END
             });
         if (is_dangling_result) {
             model->remove_result(result);

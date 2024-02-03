@@ -6,10 +6,6 @@
 
 #include <sstream>
 
-#include "openvino/core/deprecated.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 namespace ov {
 namespace frontend {
 namespace onnx_error {
@@ -32,5 +28,3 @@ void OnnxNodeValidationFailure::create(const char* file,
 }  // namespace onnx_error
 }  // namespace frontend
 }  // namespace ov
-
-OPENVINO_SUPPRESS_DEPRECATED_END

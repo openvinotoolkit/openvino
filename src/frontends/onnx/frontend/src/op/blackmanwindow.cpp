@@ -19,7 +19,6 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -82,4 +81,3 @@ ov::OutputVector blackmanwindow(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

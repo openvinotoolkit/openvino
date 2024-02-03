@@ -14,9 +14,8 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 /// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
-OPENVINO_SUPPRESS_DEPRECATED_START
-using Operator = std::function<ov::OutputVector(const Node&)>;
-OPENVINO_SUPPRESS_DEPRECATED_END
+
+using Operator = std::function<OutputVector(const Node&)>;
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.
 using OperatorSet = std::unordered_map<std::string, Operator>;

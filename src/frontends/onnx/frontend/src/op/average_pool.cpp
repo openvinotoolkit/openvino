@@ -6,7 +6,6 @@
 
 #include "utils/pooling_factory.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -21,4 +20,3 @@ ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

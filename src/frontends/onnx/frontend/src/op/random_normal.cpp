@@ -13,7 +13,6 @@ using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -44,4 +43,3 @@ ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

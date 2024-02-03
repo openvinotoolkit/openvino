@@ -6,10 +6,8 @@
 
 #include <string>
 
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -31,4 +29,3 @@ bool ov::op::util::is_null(const std::shared_ptr<ov::Node>& node) {
 bool ov::op::util::is_null(const Output<ov::Node>& output) {
     return is_null(output.get_node());
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
