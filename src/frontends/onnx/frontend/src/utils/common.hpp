@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -132,10 +131,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \param node ONNX node
 ///
 /// \return     ov::OutputVector with binary op
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <typename T>
 ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node);
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
 ///         encountered in the original model.

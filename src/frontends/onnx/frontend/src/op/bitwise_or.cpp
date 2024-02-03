@@ -3,7 +3,6 @@
 //
 
 #include "op/bitwise_or.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "openvino/op/bitwise_or.hpp"
 

@@ -12,8 +12,6 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
