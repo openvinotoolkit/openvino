@@ -310,7 +310,7 @@ void Graph::InitDescriptors() {
 }
 
 void Graph::ResolveInplaceDirections() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
+     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
 
     for (auto& node : graphNodes) {
         node->resolveInPlaceDirection();

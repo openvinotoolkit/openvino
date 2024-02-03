@@ -12,7 +12,6 @@
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
-#include "nodes/gather.h"
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
@@ -70,10 +69,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
     FuseFCAndWeightsDecompression(graph);
-    graph.RemoveDroppedNodes();
-
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndWeightsDecompression");
-    FuseGatherAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
@@ -516,6 +511,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
     }
 }
 
+<<<<<<< HEAD
 void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
     std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8};
     auto expectedNode = [](NodePtr node, Type expectedType) {
@@ -628,6 +624,8 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
     }
 }
 
+=======
+>>>>>>> parent of 0ea791e9b7 ([CPU][LLM] Compressed embeddings support for gather (#22445))
 void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
