@@ -25,7 +25,7 @@ typedef std::tuple<
         ElementType,     // Input precision
         ElementType,     // Output precision
         InputShape,      // Input shape
-        LayerTestsUtils::TargetDevice   // Device name
+        ov::test::TargetDevice   // Device name
 > convLayerTestParamsSet;
 
 typedef std::tuple<
