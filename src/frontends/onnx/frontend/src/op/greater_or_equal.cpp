@@ -28,6 +28,47 @@ ov::OutputVector greater_or_equal(const Node& node) {
 }
 }  // namespace set_1
 
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+
+OutputVector relu(const Node& node) {
+    const auto opset_version = node.get_opset_version();
+
+    if (opset_version >= 1 && opset_version <= 6) {
+        // Handle opset 1-6
+        // Provide relevant implementation and error messages
+        // Example:
+        FRONT_END_GENERAL_CHECK(false, "Relu op not supported in opset 1-6");
+    } else if (opset_version > 6 && opset_version <= 13) {
+        // Handle opset 6-13
+        // Provide relevant implementation and error messages
+        // Example:
+        FRONT_END_GENERAL_CHECK(false, "Relu op not supported in opset 6-13");
+    } else if (opset_version > 13 && opset_version <= 14) {
+        // Handle opset 13-14
+        // Provide relevant implementation and error messages
+        // Example:
+        FRONT_END_GENERAL_CHECK(false, "Relu op not supported in opset 13-14");
+    } else if (opset_version > 14) {
+        // Handle opset 14+
+        // Provide relevant implementation and error messages
+        // Example:
+        FRONT_END_GENERAL_CHECK(false, "Relu op not supported in opset 14+");
+    } else {
+        // Handle cases where opset version is less than 1 (unsupported)
+        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported opset version");
+    }
+
+    // Default return, modify as needed
+    return {std::make_shared<default_opset::Relu>(node.get_ng_inputs().at(0))};
+}
+
+}  // namespace op
+}  // namespace onnx_import
+}  // namespace ngraph
+
+
 namespace set_16 {
 ov::OutputVector greater_or_equal(const Node& node) {
     const auto A = node.get_ng_inputs().at(0);

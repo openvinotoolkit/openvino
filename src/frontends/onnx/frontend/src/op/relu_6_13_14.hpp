@@ -7,20 +7,15 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "core/node.hpp"
-#include "openvino/op/relu.hpp"
+#include <memory>
+
+#include "default_opset.hpp"
+#include "ngraph/node.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
-inline ov::OutputVector relu(const Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
-    return {std::make_shared<ov::op::v0::Relu>(ng_inputs.at(0))};
-}
-
-}  // namespace set_1
-
 namespace set_6 {
 
 OutputVector relu(const Node& node) {
@@ -52,8 +47,7 @@ OutputVector relu(const Node& node) {
     const auto data_type = get_data_type(node);
     return {std::make_shared<default_opset::Relu>(ng_inputs.at(0))};
 }
-
-}  // namespace set_14
+}  // namespace set_1
 
 }  // namespace op
 

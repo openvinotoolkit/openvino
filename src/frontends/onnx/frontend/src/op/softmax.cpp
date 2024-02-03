@@ -50,6 +50,7 @@ ov::OutputVector softmax(const Node& node) {
     return {result};
 }
 }  // namespace set_1
+
 namespace set_11 {
 ov::OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);

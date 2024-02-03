@@ -58,6 +58,46 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_test_test_case) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, align_relu_opset_6) {
+    auto model = ngraph::onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "op/relu.hpp"));
+
+    auto test_case = ngraph::test::TestCase<ngraph::test::MockBackend>(
+        std::move(model));
+
+    test_case.add_input<float>({1.0f, -2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 0.0f, 3.0f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, align_relu_opset_13) {
+    auto model = ngraph::onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "op/relu.hpp"));
+
+    auto test_case = ngraph::test::TestCase<ngraph::test::MockBackend>(
+        std::move(model));
+
+    test_case.add_input<float>({1.0f, -2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 0.0f, 3.0f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, align_relu_opset_14) {
+    auto model = ngraph::onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "op/relu.hpp"));
+
+    auto test_case = ngraph::test::TestCase<ngraph::test::MockBackend>(
+        std::move(model));
+
+    test_case.add_input<float>({1.0f, -2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 0.0f, 3.0f});
+
+    test_case.run();
+}
+
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_test_test_case_mutliple_inputs) {
     auto model = convert_model("add_abc.onnx");
 

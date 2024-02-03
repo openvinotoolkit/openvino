@@ -551,6 +551,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Upsample", 9, upsample);
 
     // custom ops
+    REGISTER_OPERATOR(OPENVINO_ONNX_DOMAIN, "Relu", 6, set_6::relu);
+    REGISTER_OPERATOR(OPENVINO_ONNX_DOMAIN, "Relu", 13, set_13::relu);
+    REGISTER_OPERATOR(OPENVINO_ONNX_DOMAIN, "Relu", 14, set_14::relu);
+
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
