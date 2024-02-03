@@ -106,7 +106,7 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-          python3 -m pip install ${INSTALL_DIR}/openvino-tokenizers.whl
+          python3 -m pip install ${INSTALL_DIR}/openvino-tokenizers-*
 
       - name: Install PyTorch tests requirements
         run: |
