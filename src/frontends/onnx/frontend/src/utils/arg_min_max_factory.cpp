@@ -17,8 +17,9 @@
 using namespace ov;
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
@@ -106,5 +107,6 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
     return result;
 }
 }  // namespace utils
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

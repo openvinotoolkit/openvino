@@ -21,16 +21,15 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector deformable_conv_2d(const Node& node);
+ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

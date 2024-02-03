@@ -9,8 +9,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief      Creates OpenVino node representing ONNX Scan operator.
@@ -22,16 +23,14 @@ namespace set_1 {
 ///
 /// \return     ov::OutputVector of resulting OpenVino nodes.
 ///
-ov::OutputVector scan(const Node& node);
+ov::OutputVector scan(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
 
 namespace set_9 {
-ov::OutputVector scan(const Node& node);
+ov::OutputVector scan(const ov::frontend::onnx::Node& node);
 }  // namespace set_9
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

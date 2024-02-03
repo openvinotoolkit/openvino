@@ -12,12 +12,15 @@
 #include "openvino/core/type/element_type.hpp"
 #include "tensor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
+using ::ONNX_NAMESPACE::SparseTensorProto;
+
 class SparseTensor {
 public:
     SparseTensor() = delete;
-    SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
+    SparseTensor(const SparseTensorProto& sparse_tensor,
                  const std::string& model_dir,
                  detail::MappedMemoryHandles mmap_cache)
         : m_values{sparse_tensor.values(), model_dir, mmap_cache},
@@ -66,5 +69,6 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const SparseTensor& tensor) {
     return (outs << "<Sparse Tensor>");
 }
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

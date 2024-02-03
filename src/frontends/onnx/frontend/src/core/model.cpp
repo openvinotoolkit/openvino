@@ -10,19 +10,22 @@
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
+using namespace ::ONNX_NAMESPACE;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+std::string get_node_domain(const NodeProto& node_proto) {
     return node_proto.has_domain() ? node_proto.domain() : "";
 }
 
-std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
+std::int64_t get_opset_version(const ModelProto& model_proto, const std::string& domain) {
     // copy the opsets and sort them (descending order)
     // then return the version from the first occurrence of a given domain
     auto opset_imports = model_proto.opset_import();
     std::sort(std::begin(opset_imports),
               std::end(opset_imports),
-              [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs, const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+              [](const OperatorSetIdProto& lhs, const OperatorSetIdProto& rhs) {
                   return lhs.version() > rhs.version();
               });
 
@@ -35,7 +38,7 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
     OPENVINO_THROW("Couldn't find operator set's version for domain: ", domain, ".");
 }
 
-Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset)
+Model::Model(std::shared_ptr<ModelProto> model_proto, ModelOpSet&& model_opset)
     : m_model_proto{std::move(model_proto)},
       m_opset{std::move(model_opset)} {}
 
@@ -76,6 +79,6 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     }
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

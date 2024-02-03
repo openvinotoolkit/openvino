@@ -17,7 +17,10 @@ class GraphProto;
 }  // namespace ONNX_NAMESPACE
 
 namespace ov {
-namespace onnx_editor {
+namespace frontend {
+namespace onnx {
+using ::ONNX_NAMESPACE::GraphProto;
+
 /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX
 /// names.
 class EdgeMapper {
@@ -30,7 +33,7 @@ public:
     ///       is outdated. In such a case the update method should be called.
     ///
     /// \param graph_proto Reference to a GraphProto object.
-    EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
+    EdgeMapper(const GraphProto& graph_proto);
 
     /// \brief Returns the InputEdge based on a node (node name or output name)
     ///        and an input (input name or input index).
@@ -148,5 +151,6 @@ private:
     std::map<std::string, int> m_node_output_name_to_index;
     std::multimap<std::string, int> m_output_consumers_index;
 };
-}  // namespace onnx_editor
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ov

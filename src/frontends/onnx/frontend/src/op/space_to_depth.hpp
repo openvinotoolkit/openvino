@@ -9,8 +9,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief      Permutes input tensor blocks of spatial data into depth.
@@ -19,12 +20,10 @@ namespace set_1 {
 ///
 /// \return     ov::OutputVector containing Tensor with shape:
 ///             [N, C * blocksize * blocksize, H / blocksize, W / blocksize]
-ov::OutputVector space_to_depth(const Node& node);
+ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

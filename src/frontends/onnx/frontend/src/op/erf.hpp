@@ -10,18 +10,17 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "core/node.hpp"
 #include "openvino/op/erf.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector erf(const Node& node) {
+inline ov::OutputVector erf(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Erf>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

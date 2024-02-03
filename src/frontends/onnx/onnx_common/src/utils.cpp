@@ -4,11 +4,9 @@
 
 #include "onnx_common/utils.hpp"
 
-#include <onnx/onnx_pb.h>
-
-#include <algorithm>
-
 #include "openvino/core/except.hpp"
+
+using namespace ::ONNX_NAMESPACE;
 
 namespace ov {
 namespace frontend {
@@ -49,8 +47,6 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     }
     OPENVINO_THROW("unsupported element type");
 }
-namespace {
-using namespace ONNX_NAMESPACE;
 const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
     {ov::element::Type_t::bf16, TensorProto_DataType::TensorProto_DataType_BFLOAT16},
     {ov::element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
@@ -65,7 +61,6 @@ const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
     {ov::element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
     {ov::element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
     {ov::element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
-}  // namespace
 
 ov::element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
     const auto result = std::find_if(OV_2_ONNX_TYPES.begin(),

@@ -14,8 +14,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
@@ -35,7 +36,7 @@ void validate_generate_proposals_inputs(const ov::OutputVector& inputs) {
 }
 }  // namespace
 
-ov::OutputVector generate_proposals(const Node& node) {
+ov::OutputVector generate_proposals(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
     validate_generate_proposals_inputs(inputs);
 
@@ -67,5 +68,6 @@ ov::OutputVector generate_proposals(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

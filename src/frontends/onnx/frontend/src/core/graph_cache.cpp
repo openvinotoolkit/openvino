@@ -6,8 +6,9 @@
 
 #include "openvino/core/except.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 void GraphCache::emplace_node(const std::string& name, ov::Output<ov::Node>&& node) {
     m_graph_cache_map[name] = std::move(node);
 }
@@ -30,5 +31,6 @@ ov::Output<ov::Node> GraphCache::get_node(const std::string& name) const {
 bool GraphCache::contains(const std::string& name) const {
     return (m_graph_cache_map.count(name) > 0);
 }
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -11,13 +11,14 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
 struct RNNInputMap : public recurrent::OpInputMap {
-    RNNInputMap(const onnx_import::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
+    RNNInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
 
     virtual ~RNNInputMap() = default;
 };
@@ -29,7 +30,7 @@ struct RNNAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-ov::OutputVector rnn(const Node& node) {
+ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 1;
     RNNInputMap input_map{node, gates_count};
     RNNAttributes attributes{node};
@@ -54,6 +55,7 @@ ov::OutputVector rnn(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

@@ -17,8 +17,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace pooling {
 
 namespace {
@@ -95,5 +96,6 @@ ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
     }
 }
 }  // namespace pooling
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -15,8 +15,9 @@
 #include "openvino/core/deprecated.hpp"
 #include "version_range.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 class OperatorsBridge {
 public:
@@ -89,6 +90,6 @@ private:
 
 extern const char* OPENVINO_ONNX_DOMAIN;
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
