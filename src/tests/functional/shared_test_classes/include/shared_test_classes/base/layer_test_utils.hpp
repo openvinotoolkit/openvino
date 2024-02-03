@@ -21,6 +21,8 @@
 
 namespace LayerTestsUtils {
 
+using TargetDevice = std::string;
+
 class LayerTestsCommon {
 protected:
     LayerTestsCommon();
