@@ -7,15 +7,16 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace detail {
-ov::OutputVector conv(const Node& node,
+ov::OutputVector conv(const ov::frontend::onnx::Node& node,
                       ov::Output<ov::Node> data,
                       ov::Output<ov::Node> filters,
                       ov::Output<ov::Node> bias);
@@ -26,13 +27,11 @@ ov::OutputVector conv(const Node& node,
 ///
 /// \return The vector containing OV nodes producing output of ONNX convolution
 ///         operation.
-ov::OutputVector conv(const Node& node);
+ov::OutputVector conv(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

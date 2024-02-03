@@ -7,10 +7,11 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Convert ONNX ArgMin operation to an OV node.
@@ -19,7 +20,7 @@ namespace set_1 {
 ///
 /// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMin operation.
-ov::OutputVector argmin(const Node& node);
+ov::OutputVector argmin(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
@@ -30,13 +31,11 @@ namespace set_12 {
 ///
 /// \return The vector containing an OV node which produces the output
 ///         of an ONNX ArgMax operation.
-ov::OutputVector argmin(const Node& node);
+ov::OutputVector argmin(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_12
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

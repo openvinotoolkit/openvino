@@ -7,29 +7,28 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/divide.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector div(const Node& node) {
+inline ov::OutputVector div(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Divide>(node);
 }
 
 }  // namespace set_1
 
 namespace set_7 {
-inline ov::OutputVector div(const Node& node) {
+inline ov::OutputVector div(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::Divide>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 
 }  // namespace set_7
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

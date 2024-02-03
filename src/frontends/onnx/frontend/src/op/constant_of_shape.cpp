@@ -4,8 +4,8 @@
 
 #include "op/constant_of_shape.hpp"
 
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "op/constant.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,11 +15,12 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector constant_of_shape(const onnx_import::Node& node) {
+ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> constant_value;
     if (node.has_attribute("value")) {
         auto value_tensor = node.get_attribute_value<Tensor>("value");
@@ -37,10 +38,8 @@ ov::OutputVector constant_of_shape(const onnx_import::Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

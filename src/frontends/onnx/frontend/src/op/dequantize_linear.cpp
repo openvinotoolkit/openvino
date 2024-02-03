@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -20,8 +20,9 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
@@ -38,7 +39,7 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
 }
 }  // namespace detail
 namespace set_1 {
-ov::OutputVector dequantize_linear(const Node& node) {
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
@@ -162,7 +163,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }
 }  // namespace detail
 
-ov::OutputVector dequantize_linear(const Node& node) {
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
@@ -191,6 +192,7 @@ ov::OutputVector dequantize_linear(const Node& node) {
 }
 }  // namespace set_13
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

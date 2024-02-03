@@ -1,9 +1,9 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "single_layer_tests/group_normalization.hpp"
+#include "single_op_tests/group_normalization.hpp"
 
-using namespace ov::test::subgraph;
+using namespace ov::test;
 
 namespace {
 

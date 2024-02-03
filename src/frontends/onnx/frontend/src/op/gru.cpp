@@ -4,21 +4,22 @@
 
 #include "op/gru.hpp"
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/recurrent.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
@@ -35,7 +36,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
                 auto bias = ng_inputs.at(3);
                 // gates_count * 2 since B is: [Wb, Rb]
                 const int split_parts = 2 * 3;
-                const auto split_bias = ov::op::util::split(bias, split_parts, 1);
+                const auto split_bias = ov::op::util::make_split(bias, split_parts, 1);
                 const auto wr_z_bias = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(3));
                 const auto wr_r_bias = std::make_shared<v1::Add>(split_bias.at(1), split_bias.at(4));
                 // The result has shape: [num_directions, 4 * hidden_size]
@@ -56,7 +57,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
 
                 m_map[recurrent::OpInput::B] =
                     std::make_shared<v0::Constant>(el_type,
-                                                   Shape{num_directions, (gates_count + 1) * hidden_size},
+                                                   ov::Shape{num_directions, (gates_count + 1) * hidden_size},
                                                    0.f);
             }
         }
@@ -78,7 +79,7 @@ struct GRUAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-ov::OutputVector gru(const Node& node) {
+ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 3;
     GRUInputMap input_map{node, gates_count};
     GRUAttributes attributes{node};
@@ -104,10 +105,8 @@ ov::OutputVector gru(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

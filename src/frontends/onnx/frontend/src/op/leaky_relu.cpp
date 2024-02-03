@@ -12,23 +12,22 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector leaky_relu(const Node& node) {
+ov::OutputVector leaky_relu(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
-    std::shared_ptr<ov::Node> alpha_node = v0::Constant::create(data.get_element_type(), Shape{1}, {alpha});
+    std::shared_ptr<ov::Node> alpha_node = v0::Constant::create(data.get_element_type(), ov::Shape{1}, {alpha});
     return {std::make_shared<v0::PRelu>(data, alpha_node)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END
