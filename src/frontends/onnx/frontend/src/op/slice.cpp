@@ -1,23 +1,24 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/slice.hpp"
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_10 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
 
     ov::OutputVector inputs{node.get_ng_inputs()};
@@ -46,26 +47,27 @@ ov::OutputVector slice(const Node& node) {
 }  // namespace set_10
 
 namespace set_1 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
 
-    const auto starts = std::make_shared<v0::Constant>(ov::element::i64, Shape{starts_atr.size()}, starts_atr);
+    const auto starts = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{starts_atr.size()}, starts_atr);
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
-    const auto steps =
-        v0::Constant::create(ov::element::i64, Shape{starts_atr.size()}, std::vector<int64_t>(starts_atr.size(), 1));
+    const auto steps = v0::Constant::create(ov::element::i64,
+                                            ov::Shape{starts_atr.size()},
+                                            std::vector<int64_t>(starts_atr.size(), 1));
 
     if (axes_atr.empty()) {
         return {std::make_shared<v8::Slice>(data, starts, ends, steps)};
     } else {
-        const auto& axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{axes_atr.size()}, axes_atr);
+        const auto& axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_atr.size()}, axes_atr);
         return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
     }
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

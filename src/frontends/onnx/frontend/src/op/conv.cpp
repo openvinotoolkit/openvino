@@ -4,21 +4,20 @@
 
 #include "op/conv.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace detail {
@@ -30,7 +29,7 @@ std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov
     return {std::make_shared<v1::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-ov::OutputVector conv(const Node& node,
+ov::OutputVector conv(const ov::frontend::onnx::Node& node,
                       ov::Output<ov::Node> data,
                       ov::Output<ov::Node> filters,
                       ov::Output<ov::Node> bias) {
@@ -73,15 +72,12 @@ ov::OutputVector conv(const Node& node,
 }
 }  // namespace detail
 
-ov::OutputVector conv(const Node& node) {
+ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

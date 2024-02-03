@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -17,12 +17,14 @@
 #include "openvino/op/slice.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector embed_layer_normalization(const Node& node) {
+ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
 
@@ -38,7 +40,7 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
     const auto& gamma = nodes[5];
     const auto& beta = nodes[6];
 
-    const auto zero = v0::Constant::create(ov::element::i32, Shape{1}, {0});
+    const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
     std::shared_ptr<ov::Node> input = std::make_shared<v8::Gather>(word_embeddings, input_ids, zero, 0);
     // add position embeddings
     if (num_nodes > 8 && !ov::op::util::is_null(nodes[8])) {
@@ -54,7 +56,7 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
         // therefore input and position_embeddings cannot be added together
         // so we need slice the position_embeddings to [sequence_length, hidden_size] first
         // then add it with input.
-        const auto one = v0::Constant::create(ov::element::i32, Shape{1}, {1});
+        const auto one = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         const auto input_ids_shape = std::make_shared<v3::ShapeOf>(input_ids, ov::element::i32);
         const auto seqlen = std::make_shared<v8::Gather>(input_ids_shape, one, zero, 0);
         const auto gathered_position_embeddings =
@@ -75,7 +77,7 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
     // hidden_size dimension is 2 here, because the shape after Gather(word_embedding, input_ids)
     // is (batch_size, seq_len, hidden_size)
     int hidden_size_dim = 2;
-    const auto reduction_axes = v0::Constant::create(ov::element::i32, Shape{1}, {hidden_size_dim});
+    const auto reduction_axes = v0::Constant::create(ov::element::i32, ov::Shape{1}, {hidden_size_dim});
     std::shared_ptr<ov::Node> result =
         std::make_shared<v6::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
 
@@ -87,7 +89,7 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
     std::shared_ptr<ov::Node> mask_index;
     if (num_nodes > 7 && !ov::op::util::is_null(nodes[7])) {
         FRONT_END_GENERAL_CHECK(nodes[7].get_element_type() == ov::element::i32, "mask must have int32 type");
-        auto axis = v0::Constant::create(ov::element::i32, Shape{}, {1});
+        auto axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
         mask_index = std::make_shared<v1::ReduceSum>(nodes[7], axis, false);
     } else {
         auto batch_size = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(nodes[0]),
@@ -99,5 +101,6 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

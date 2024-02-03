@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector max_roi_pool(const Node& node) {
+ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ng_inputs();
     const auto X = inputs.at(0);
     const auto rois = inputs.at(1);
@@ -26,10 +26,10 @@ ov::OutputVector max_roi_pool(const Node& node) {
     const auto pooled_shape = node.get_attribute_value<std::vector<size_t>>("pooled_shape");
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0);
 
-    return {std::make_shared<v0::ROIPooling>(X, rois, Shape(pooled_shape), spatial_scale, "max")};
+    return {std::make_shared<v0::ROIPooling>(X, rois, ov::Shape(pooled_shape), spatial_scale, "max")};
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

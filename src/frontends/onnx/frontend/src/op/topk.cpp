@@ -8,16 +8,15 @@
 #include "openvino/op/topk.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
-ov::Output<ov::Node> get_k(const ngraph::onnx_import::Node& node) {
+ov::Output<ov::Node> get_k(const ov::frontend::onnx::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
     FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
                             "ONNX TopK operator: 'K' parameter must contain a single positive value.",
                             node);
 
-    return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
+    return ov::frontend::onnx::reshape::interpret_as_scalar(k_node);
 }
 }  // namespace
 
@@ -25,11 +24,12 @@ using namespace ov::op;
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector topk(const Node& node) {
+ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
@@ -46,7 +46,7 @@ ov::OutputVector topk(const Node& node) {
 }  // namespace set_1
 
 namespace set_10 {
-ov::OutputVector topk(const Node& node) {
+ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
@@ -63,7 +63,7 @@ ov::OutputVector topk(const Node& node) {
 }  // namespace set_10
 
 namespace set_11 {
-ov::OutputVector topk(const Node& node) {
+ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     // Process inputs
     auto data = node.get_ng_inputs().at(0);
     auto k = get_k(node);
@@ -84,10 +84,7 @@ ov::OutputVector topk(const Node& node) {
     return {top_k->output(0), top_k->output(1)};
 }
 }  // namespace set_11
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

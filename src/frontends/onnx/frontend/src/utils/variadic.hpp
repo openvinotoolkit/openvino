@@ -6,12 +6,12 @@
 
 #include <numeric>
 
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
@@ -21,7 +21,7 @@ namespace variadic {
 /// \tparam T   Class of an OpenVINO binary operation (e.g. Add, Minimum, Maximum)
 ///
 /// \return OpenVINO node equivalent of the ONNX operation
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <class T>
 inline ov::OutputVector make_ng_variadic_op(
     const Node& node,
@@ -46,10 +46,8 @@ inline ov::OutputVector make_ng_variadic_op(
 
     return {result};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

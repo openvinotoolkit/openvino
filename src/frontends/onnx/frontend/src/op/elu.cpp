@@ -8,23 +8,20 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector elu(const Node& node) {
+ov::OutputVector elu(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1);
 
-    return ov::OutputVector{std::make_shared<v0::Elu>(data, alpha)};
+    return {std::make_shared<v0::Elu>(data, alpha)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -41,18 +41,39 @@ public:
                 const ov::Output<ov::Node>& shift,
                 std::string destination_type = "f8e4m3");
 
+    /// \brief    Constructs FakeConvert operation (default shift).
+    ///
+    /// \param data                 The input data tensor.
+    /// \param scale                Tensor with a scale factor for the data input.
+    /// \param destination_type     The low precision type to be emulated.
+    FakeConvert(const ov::Output<ov::Node>& data,
+                const ov::Output<ov::Node>& scale,
+                const ov::element::Type& destination_type);
+
+    /// \brief    Constructs FakeConvert operation.
+    ///
+    /// \param data                 The input data tensor.
+    /// \param scale                Tensor with a scale factor for the data input.
+    /// \param shift                Tensor with a shift factor for the data input.
+    /// \param destination_type     The low precision type to be emulated.
+    FakeConvert(const ov::Output<ov::Node>& data,
+                const ov::Output<ov::Node>& scale,
+                const ov::Output<ov::Node>& shift,
+                const ov::element::Type& destination_type);
+
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
-    const std::string& get_destination_type() const;
+    std::string get_destination_type() const;
+    const ov::element::Type& get_destination_element_type() const;
 
 private:
     void validate_destination_type() const;
 
-    std::string m_destination_type = "f8e4m3";
+    ov::element::Type m_destination_type = ov::element::f8e4m3;
 };
 }  // namespace v13
 }  // namespace op
