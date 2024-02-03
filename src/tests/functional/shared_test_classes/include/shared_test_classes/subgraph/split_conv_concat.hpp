@@ -30,16 +30,3 @@ protected:
 
 }  // namespace test
 }  // namespace ov
-
-namespace SubgraphTestsDefinitions {
-
-class SplitConvConcat : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                        virtual public ov::test::SplitConvConcatBase {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj);
-
-protected:
-    void SetUp() override;
-};
-
-}  // namespace SubgraphTestsDefinitions

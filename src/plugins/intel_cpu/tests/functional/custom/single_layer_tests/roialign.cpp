@@ -25,7 +25,7 @@ using ROIAlignSpecificParams =  std::tuple<
 using ROIAlignLayerTestParams = std::tuple<
         ROIAlignSpecificParams,
         ElementType,                    // Net precision
-        LayerTestsUtils::TargetDevice   // Device name
+        ov::test::TargetDevice   // Device name
 >;
 
 using ROIAlignLayerCPUTestParamsSet = std::tuple<

@@ -23,7 +23,7 @@ using roiPoolingParams = std::tuple<roiPoolingShapes,                // Input sh
                                     float,                           // Spatial scale
                                     utils::ROIPoolingTypes,          // ROIPooling method
                                     ov::element::Type,               // Net precision
-                                    LayerTestsUtils::TargetDevice>;  // Device name
+                                    ov::test::TargetDevice>;  // Device name
 
 using ROIPoolingCPUTestParamsSet = std::tuple<roiPoolingParams,
                                               CPUSpecificParams,
