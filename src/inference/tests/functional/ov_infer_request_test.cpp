@@ -12,8 +12,6 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 TEST(InferRequestOVTests, throwsOnUninitializedSetTensor) {
     ov::InferRequest req;
