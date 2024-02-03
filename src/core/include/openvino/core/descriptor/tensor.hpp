@@ -17,6 +17,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
+// #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 namespace ov {
 class Node;
@@ -27,7 +28,13 @@ using TensorLabelVector = std::vector<TensorLabel>;
 
 namespace pass {
 class ReverseShapeAndTypeInfer;
+class SymbolicPropagation;
 }
+
+namespace op {
+class TypeRelaxedBase;
+}
+
 namespace descriptor {
 
 class Tensor;
@@ -57,9 +64,6 @@ public:
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
-
-    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
-    void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);
@@ -104,6 +108,10 @@ public:
 
     void clone_from(const Tensor& old);
 
+private:
+    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
+    void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
+
 protected:
     element::Type m_element_type;
 
@@ -135,6 +143,9 @@ protected:
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend class pass::ReverseShapeAndTypeInfer;
+    friend class op::TypeRelaxedBase;
+    friend class pass::SymbolicPropagation;
+    friend class ov::Node;
 };
 
 OPENVINO_API
