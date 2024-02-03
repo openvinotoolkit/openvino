@@ -10,11 +10,12 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector selu(const Node& node) {
+ov::OutputVector selu(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto alpha = node.get_attribute_value<double>("alpha", 1.67326319217681884765625);
     auto gamma = node.get_attribute_value<double>("gamma", 1.05070102214813232421875);
@@ -27,10 +28,8 @@ ov::OutputVector selu(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

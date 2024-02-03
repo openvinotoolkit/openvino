@@ -8,11 +8,12 @@
 #include "utils/arg_min_max_factory.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector argmax(const Node& node) {
+ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
@@ -20,16 +21,14 @@ ov::OutputVector argmax(const Node& node) {
 }  // namespace set_1
 
 namespace set_12 {
-ov::OutputVector argmax(const Node& node) {
+ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
 
 }  // namespace set_12
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

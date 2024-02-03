@@ -14,12 +14,13 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
-ov::OutputVector batch_norm(const Node& node) {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
@@ -55,7 +56,7 @@ ov::OutputVector batch_norm(const Node& node) {
 
 namespace set_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
-ov::OutputVector batch_norm(const Node& node) {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
@@ -73,10 +74,8 @@ ov::OutputVector batch_norm(const Node& node) {
 }
 
 }  // namespace set_7
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

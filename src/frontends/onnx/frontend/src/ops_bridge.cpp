@@ -193,8 +193,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
@@ -606,6 +607,6 @@ OperatorsBridge::OperatorsBridge() {
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

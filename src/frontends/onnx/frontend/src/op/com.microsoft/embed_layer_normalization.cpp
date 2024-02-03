@@ -19,11 +19,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector embed_layer_normalization(const Node& node) {
+ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
 
@@ -100,5 +101,6 @@ ov::OutputVector embed_layer_normalization(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

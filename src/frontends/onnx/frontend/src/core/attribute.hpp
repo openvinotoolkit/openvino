@@ -10,39 +10,34 @@
 #include "core/tensor.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 // forward declarations
 class Graph;
 class Subgraph;
 class Model;
 
-// Detecting automatically the underlying type used to store the information
-// for data type of values an attribute is holding. A bug was discovered in
-// protobuf which forced ONNX team to switch from `enum AttributeProto_AttributeType`
-// to `int32` in order to workaround the bug. This line allows using both versions
-// of ONNX generated wrappers.
-using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.type());
+using ::ONNX_NAMESPACE::AttributeProto;
+using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
+using ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name;
 
 namespace detail {
 namespace attribute {
 template <typename T>
-inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline T get_value(const AttributeProto& attribute) {
     OPENVINO_THROW("Unsupported attribute type");
 }
 
-#define ONNX_INVALID_ATTR(attr, expected)                                   \
-    OPENVINO_THROW("Invalid attribute type ",                               \
-                   ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr), \
-                   " expected: ",                                           \
-                   expected)
+#define ONNX_INVALID_ATTR(attr, expected) \
+    OPENVINO_THROW("Invalid attribute type ", AttributeProto_AttributeType_Name(attr), " expected: ", expected)
 
 template <>
-inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline float get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return static_cast<float>(attribute.i());
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return attribute.f();
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, FLOAT");
@@ -50,15 +45,15 @@ inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
 }
 
 template <>
-inline std::vector<float> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline std::vector<float> get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<float>(attribute.i())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.floats()), std::end(attribute.floats())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return {attribute.f()};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
         return {std::begin(attribute.floats()), std::end(attribute.floats())};
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
@@ -66,11 +61,11 @@ inline std::vector<float> get_value(const ONNX_NAMESPACE::AttributeProto& attrib
 }
 
 template <>
-inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline double get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return static_cast<double>(attribute.f());
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return static_cast<double>(attribute.i());
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, FLOAT");
@@ -78,19 +73,19 @@ inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
 }
 
 template <>
-inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline std::vector<double> get_value(const AttributeProto& attribute) {
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4244)
 #endif
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<double>(attribute.i())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.ints()), std::end(attribute.ints())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return {static_cast<double>(attribute.f())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
         return {std::begin(attribute.floats()), std::end(attribute.floats())};
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
@@ -101,19 +96,19 @@ inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attri
 }
 
 template <>
-inline std::size_t get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_INT) {
+inline std::size_t get_value(const AttributeProto& attribute) {
+    if (attribute.type() != AttributeProto_AttributeType::AttributeProto_AttributeType_INT) {
         ONNX_INVALID_ATTR(attribute.type(), "INT");
     }
     return static_cast<std::size_t>(attribute.i());
 }
 
 template <>
-inline std::vector<std::size_t> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline std::vector<std::size_t> get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<std::size_t>(attribute.i())};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.ints()), std::end(attribute.ints())};
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS");
@@ -121,19 +116,19 @@ inline std::vector<std::size_t> get_value(const ONNX_NAMESPACE::AttributeProto& 
 }
 
 template <>
-inline int64_t get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_INT) {
+inline int64_t get_value(const AttributeProto& attribute) {
+    if (attribute.type() != AttributeProto_AttributeType::AttributeProto_AttributeType_INT) {
         ONNX_INVALID_ATTR(attribute.type(), "INT");
     }
     return attribute.i();
 }
 
 template <>
-inline std::vector<int64_t> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline std::vector<int64_t> get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {attribute.i()};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_INTS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
         return {std::begin(attribute.ints()), std::end(attribute.ints())};
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS");
@@ -141,19 +136,19 @@ inline std::vector<int64_t> get_value(const ONNX_NAMESPACE::AttributeProto& attr
 }
 
 template <>
-inline std::string get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_STRING) {
+inline std::string get_value(const AttributeProto& attribute) {
+    if (attribute.type() != AttributeProto_AttributeType::AttributeProto_AttributeType_STRING) {
         ONNX_INVALID_ATTR(attribute.type(), "STRING");
     }
     return attribute.s();
 }
 
 template <>
-inline std::vector<std::string> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+inline std::vector<std::string> get_value(const AttributeProto& attribute) {
     switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_STRING:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
         return {attribute.s()};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_STRINGS:
+    case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
         return {std::begin(attribute.strings()), std::end(attribute.strings())};
     default:
         ONNX_INVALID_ATTR(attribute.type(), "STRING, STRINGS");
@@ -161,29 +156,28 @@ inline std::vector<std::string> get_value(const ONNX_NAMESPACE::AttributeProto& 
 }
 
 }  // namespace attribute
-
 }  // namespace detail
 
 class Attribute {
 public:
     enum class Type {
-        undefined = ONNX_NAMESPACE::AttributeProto_AttributeType_UNDEFINED,
-        float_point = ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT,
-        integer = ONNX_NAMESPACE::AttributeProto_AttributeType_INT,
-        string = ONNX_NAMESPACE::AttributeProto_AttributeType_STRING,
-        tensor = ONNX_NAMESPACE::AttributeProto_AttributeType_TENSOR,
-        graph = ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH,
-        sparse_tensor = ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR,
-        float_point_array = ONNX_NAMESPACE::AttributeProto_AttributeType_FLOATS,
-        integer_array = ONNX_NAMESPACE::AttributeProto_AttributeType_INTS,
-        string_array = ONNX_NAMESPACE::AttributeProto_AttributeType_STRINGS,
-        tensor_array = ONNX_NAMESPACE::AttributeProto_AttributeType_TENSORS,
-        sparse_tensor_array = ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSORS,
-        graph_array = ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPHS
+        undefined = AttributeProto_AttributeType::AttributeProto_AttributeType_UNDEFINED,
+        float_point = AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT,
+        integer = AttributeProto_AttributeType::AttributeProto_AttributeType_INT,
+        string = AttributeProto_AttributeType::AttributeProto_AttributeType_STRING,
+        tensor = AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR,
+        graph = AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH,
+        sparse_tensor = AttributeProto_AttributeType::AttributeProto_AttributeType_SPARSE_TENSOR,
+        float_point_array = AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS,
+        integer_array = AttributeProto_AttributeType::AttributeProto_AttributeType_INTS,
+        string_array = AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS,
+        tensor_array = AttributeProto_AttributeType::AttributeProto_AttributeType_TENSORS,
+        sparse_tensor_array = AttributeProto_AttributeType::AttributeProto_AttributeType_SPARSE_TENSORS,
+        graph_array = AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPHS
     };
 
     Attribute() = delete;
-    Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto,
+    Attribute(const AttributeProto& attribute_proto,
               const std::string& model_dir,
               detail::MappedMemoryHandles mmap_cache)
         : m_attribute_proto{&attribute_proto},
@@ -285,7 +279,7 @@ public:
         return {std::begin(m_attribute_proto->strings()), std::end(m_attribute_proto->strings())};
     }
 
-    /* explicit */ operator ONNX_NAMESPACE::AttributeProto_AttributeType() const {
+    /* explicit */ operator AttributeProto_AttributeType() const {
         return m_attribute_proto->type();
     }
 
@@ -337,11 +331,11 @@ public:
     ov::Any get_any() const;
 
 private:
-    const ONNX_NAMESPACE::AttributeProto* m_attribute_proto;
+    const AttributeProto* m_attribute_proto;
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

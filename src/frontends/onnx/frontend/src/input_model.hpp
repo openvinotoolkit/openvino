@@ -78,13 +78,11 @@ public:
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
 
     // internal usage
-    std::vector<onnx_editor::InputEdge> convert_place_to_input_edge(
-        const std::vector<ov::frontend::Place::Ptr>& inputs);
-    std::vector<onnx_editor::OutputEdge> convert_place_to_output_edge(
-        const std::vector<ov::frontend::Place::Ptr>& outputs);
+    std::vector<InputEdge> convert_place_to_input_edge(const std::vector<ov::frontend::Place::Ptr>& inputs);
+    std::vector<OutputEdge> convert_place_to_output_edge(const std::vector<ov::frontend::Place::Ptr>& outputs);
 
 private:
-    std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<ONNXModelEditor> m_editor;
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;

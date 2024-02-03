@@ -9,11 +9,12 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector transpose(const Node& node) {
+ov::OutputVector transpose(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
 
     auto permute_axes = node.get_attribute_value<std::vector<std::size_t>>("perm", {});
@@ -22,10 +23,8 @@ ov::OutputVector transpose(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

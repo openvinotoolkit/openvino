@@ -11,8 +11,9 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace reshape {
 /// \brief      Infer `output_shape` dimension values.
 ///
@@ -61,10 +62,9 @@ ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::No
                                                          const ov::Output<ov::Node>& expected_rank);
 
 }  // namespace  reshape
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
 
-namespace ov {
 namespace op {
 namespace util {
 /// \brief      Change shape of a value

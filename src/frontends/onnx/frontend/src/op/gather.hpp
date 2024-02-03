@@ -11,11 +11,12 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector gather(const Node& node) {
+inline ov::OutputVector gather(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);
@@ -28,6 +29,7 @@ inline ov::OutputVector gather(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

@@ -176,7 +176,7 @@ namespace ngraph
 
                 } // namespace
 
-                ov::OutputVector quant_conv(const Node& node)
+                ov::OutputVector quant_conv(const ov::frontend::onnx::Node& node)
                 {
                     const ov::OutputVector& inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
@@ -268,8 +268,8 @@ namespace ngraph
 
         } // namespace op
 
-    } // namespace onnx_import
-
-} // namespace ngraph
+    }  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
 #endif

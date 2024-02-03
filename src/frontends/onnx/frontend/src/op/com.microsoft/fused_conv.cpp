@@ -22,11 +22,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector fused_conv(const Node& node) {
+ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
     auto conv_res = conv(node).at(0);
 
     if (node.get_ng_inputs().size() == 4) {  // Z input provided
@@ -71,9 +72,7 @@ ov::OutputVector fused_conv(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

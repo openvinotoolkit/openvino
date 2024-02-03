@@ -10,11 +10,12 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector identity(const Node& node) {
+inline ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     ov::OutputVector outputs = node.get_ng_inputs();
     for (auto& out : outputs) {
         common::mark_as_optimized_out(out);
@@ -22,10 +23,8 @@ inline ov::OutputVector identity(const Node& node) {
     return outputs;
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

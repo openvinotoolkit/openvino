@@ -41,8 +41,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 namespace {
@@ -70,7 +71,7 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector attention(const Node& node) {
+ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ng_inputs();
     const auto& input = nodes[0];
     const auto& weights = nodes[1];
@@ -560,5 +561,6 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }  // namespace
 }  // namespace detail
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -9,11 +9,12 @@
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector experimental_detectron_topk_rois(const Node& node) {
+ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node& node) {
     using TopKROIs = v6::ExperimentalDetectronTopKROIs;
 
     auto inputs = node.get_ng_inputs();
@@ -25,9 +26,7 @@ ov::OutputVector experimental_detectron_topk_rois(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
