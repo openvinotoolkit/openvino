@@ -7,10 +7,11 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Performs ONNX MatMulInteger operation.
@@ -19,9 +20,10 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX quantizied
 ///         matrix multiplication integer operation.
-ov::OutputVector matmul_integer(const Node& node);
+ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

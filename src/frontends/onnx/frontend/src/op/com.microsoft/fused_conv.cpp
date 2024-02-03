@@ -22,11 +22,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector fused_conv(const Node& node) {
+ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
     auto conv_res = conv(node).at(0);
 
     if (node.get_ng_inputs().size() == 4) {  // Z input provided
@@ -51,14 +52,14 @@ ov::OutputVector fused_conv(const Node& node) {
         CHECK_VALID_NODE(node,
                          activation_params.size() == 1,
                          "activation_alpha attribute of LeakyRelu activation function was not provided");
-        const auto activation_alpha_node = v0::Constant::create(ov::element::f32, Shape{}, activation_params);
+        const auto activation_alpha_node = v0::Constant::create(ov::element::f32, ov::Shape{}, activation_params);
         return {std::make_shared<v0::PRelu>(conv_res, activation_alpha_node)};
     } else if (activation_type == "HardSigmoid") {
         CHECK_VALID_NODE(node,
                          activation_params.size() == 2,
                          "alpha and beta attributes of HardSigmoid activation function were not provided");
-        const auto alpha = v0::Constant::create<float>(ov::element::f32, Shape{}, {activation_params[0]});
-        const auto beta = v0::Constant::create<float>(ov::element::f32, Shape{}, {activation_params[1]});
+        const auto alpha = v0::Constant::create<float>(ov::element::f32, ov::Shape{}, {activation_params[0]});
+        const auto beta = v0::Constant::create<float>(ov::element::f32, ov::Shape{}, {activation_params[1]});
         return {std::make_shared<v0::HardSigmoid>(conv_res, alpha, beta)};
     }
     CHECK_VALID_NODE(node,
@@ -71,9 +72,7 @@ ov::OutputVector fused_conv(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

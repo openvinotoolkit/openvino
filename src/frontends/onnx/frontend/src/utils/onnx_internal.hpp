@@ -9,16 +9,19 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
-#include "utils/legacy_conversion_extension.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;
 }
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
+
+using ::ONNX_NAMESPACE::ModelProto;
+
 /// \brief      Imports and converts an serialized ONNX model from a ModelProto
 ///             to an ov::Model representation.
 ///
@@ -34,7 +37,7 @@ namespace detail {
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 /// \return     An ov::Model that represents a single output from the created
 /// graph.
-std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ModelProto> model_proto,
                                              const std::string& model_path,
                                              detail::MappedMemoryHandles mmap_cache,
                                              ov::frontend::ExtensionHolder extensions = {});
@@ -47,7 +50,7 @@ std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mod
 /// \param      enable_mmap Enable mapping files with external weights instead of reading.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 /// \return     A ov::Model with ONNXFrameworkNodes
-std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto> model_proto,
                                                      const std::string& model_path,
                                                      detail::MappedMemoryHandles mmap_cache,
                                                      ov::frontend::ExtensionHolder extensions = {});
@@ -56,10 +59,7 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESP
 ///            to a complete function with actual compute operations
 void convert_decoded_model(std::shared_ptr<ov::Model> model);
 
-/// \brief Get the legacy conversion extension.
-///
-/// \return const LegacyConversionExtension::Ptr
-const LegacyConversionExtension::Ptr get_legacy_conversion_extension();
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

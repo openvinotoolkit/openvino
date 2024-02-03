@@ -8,9 +8,9 @@
 #include "op/qlinear_conv.hpp"
 
 #include "conv.hpp"
+#include "core/null_node.hpp"
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "quantize_linear.hpp"
@@ -18,11 +18,12 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector qlinear_conv(const Node& node) {
+ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     auto x = inputs.at(0);
@@ -60,10 +61,8 @@ ov::OutputVector qlinear_conv(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

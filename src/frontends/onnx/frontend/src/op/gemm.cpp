@@ -8,17 +8,18 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector gemm(const Node& node) {
+ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
@@ -50,7 +51,7 @@ ov::OutputVector gemm(const Node& node) {
     std::shared_ptr<ov::Node> matmul_node = std::make_shared<v0::MatMul>(input_a, input_b);
 
     if (alpha != 1) {
-        const auto alpha_node = v0::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
+        const auto alpha_node = v0::Constant::create(input_b.get_element_type(), ov::Shape{}, {alpha});
         matmul_node = std::make_shared<v1::Multiply>(matmul_node, alpha_node);
     }
 
@@ -62,7 +63,7 @@ ov::OutputVector gemm(const Node& node) {
 }  // namespace set_1
 
 namespace set_6 {
-ov::OutputVector gemm(const Node& node) {
+ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
@@ -90,9 +91,7 @@ ov::OutputVector gemm(const Node& node) {
 }
 
 }  // namespace set_6
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

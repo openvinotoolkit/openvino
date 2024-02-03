@@ -7,13 +7,14 @@
 #include <cstdint>
 #include <memory>
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/topk.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace utils {
 /// \brief  Factory class which generates sub-graphs for ONNX ArgMin, ArgMax ops.
 class ArgMinMaxFactory {
@@ -41,5 +42,6 @@ private:
 };
 
 }  // namespace utils
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

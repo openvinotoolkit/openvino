@@ -7,24 +7,23 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector batch_norm(const Node& node);
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
 namespace set_7 {
-ov::OutputVector batch_norm(const Node& node);
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_7
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

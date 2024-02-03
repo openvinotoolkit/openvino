@@ -17,6 +17,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
+from openvino.runtime import properties
 
 
 ###
@@ -31,6 +32,7 @@ def test_properties_ro_base():
 def test_properties_rw_base():
     assert ov.properties.cache_dir == "CACHE_DIR"
     assert props.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
+    assert properties.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
 
     with pytest.raises(TypeError) as e:
         props.cache_dir(6)
@@ -475,6 +477,7 @@ def test_properties_hint_model():
 
     model = generate_add_model()
 
+    assert properties.hint.model() == "MODEL_PTR"
     assert hints.model == "MODEL_PTR"
 
     property_tuple = hints.model(model)

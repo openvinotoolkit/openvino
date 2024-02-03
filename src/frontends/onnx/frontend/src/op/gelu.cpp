@@ -10,11 +10,12 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector gelu(const Node& node) {
+ov::OutputVector gelu(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ng_inputs();
     std::string approximate = node.get_attribute_value<std::string>("approximate", "");
 
@@ -34,6 +35,7 @@ ov::OutputVector gelu(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

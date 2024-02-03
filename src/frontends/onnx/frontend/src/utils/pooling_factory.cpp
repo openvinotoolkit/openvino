@@ -17,8 +17,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace pooling {
 
 namespace {
@@ -32,7 +33,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
     std::iota(axes.begin(), axes.end(), 0);
     std::reverse(axes.begin() + 2, axes.end());
 
-    return std::make_shared<v0::Constant>(ov::element::i32, Shape{rank}, axes);
+    return std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{rank}, axes);
 }
 }  // namespace
 
@@ -48,8 +49,8 @@ PoolingFactory::PoolingFactory(const Node& node)
     const auto paddings = convpool::get_pads(node, m_kernel_shape.size());
     const ov::CoordinateDiff& padding_above{paddings.second};
     const ov::CoordinateDiff& padding_below{paddings.first};
-    m_padding_below = Shape{std::begin(padding_below), std::end(padding_below)};
-    m_padding_above = Shape{std::begin(padding_above), std::end(padding_above)};
+    m_padding_below = ov::Shape{std::begin(padding_below), std::end(padding_below)};
+    m_padding_above = ov::Shape{std::begin(padding_above), std::end(padding_above)};
     m_storage_order = static_cast<StorageOrder>(node.get_attribute_value<int64_t>("storage_order", 0));
 }
 
@@ -95,5 +96,6 @@ ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
     }
 }
 }  // namespace pooling
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

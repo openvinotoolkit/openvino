@@ -7,30 +7,29 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/maximum.hpp"
 #include "utils/variadic.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector max(const Node& node) {
+inline ov::OutputVector max(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Maximum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
-inline ov::OutputVector max(const Node& node) {
+inline ov::OutputVector max(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Maximum>(node);
 }
 
 }  // namespace set_8
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

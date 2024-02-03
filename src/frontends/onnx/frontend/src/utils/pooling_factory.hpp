@@ -7,7 +7,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
@@ -15,8 +15,9 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace pooling {
 ///
 /// \brief      Factory class which generates sub-graphs for ONNX 'regular' pooling
@@ -68,5 +69,6 @@ protected:
     StorageOrder m_storage_order;
 };
 }  // namespace pooling
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

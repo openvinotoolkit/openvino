@@ -4,7 +4,7 @@
 
 #include "dft.hpp"
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -18,8 +18,9 @@
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace dft {
 
 namespace {
@@ -83,5 +84,6 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     return {result};
 }
 }  // namespace  dft
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
