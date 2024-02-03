@@ -22,8 +22,9 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,7 +210,7 @@ struct LSTMAttributes {
 }  // anonymous namespace
 
 namespace set_1 {
-ov::OutputVector lstm(const Node& node) {
+ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;
@@ -257,10 +258,8 @@ ov::OutputVector lstm(const Node& node) {
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

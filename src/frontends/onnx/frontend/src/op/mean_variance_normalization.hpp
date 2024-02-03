@@ -9,20 +9,19 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector mean_variance_normalization(const Node& node);
+ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
 
 namespace set_9 {
-ov::OutputVector mean_variance_normalization(const Node& node);
+ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node);
 }  // namespace set_9
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

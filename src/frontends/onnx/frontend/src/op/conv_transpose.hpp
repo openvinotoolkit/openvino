@@ -9,8 +9,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Performs ONNX Transposed Convolution operation.
@@ -19,13 +20,11 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX convolution
 ///         operation.
-ov::OutputVector conv_transpose(const Node& node);
+ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

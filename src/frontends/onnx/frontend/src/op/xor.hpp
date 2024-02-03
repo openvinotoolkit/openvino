@@ -10,21 +10,20 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "core/node.hpp"
 #include "openvino/op/logical_xor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector logical_xor(const Node& node) {
+inline ov::OutputVector logical_xor(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::LogicalXor>(node.get_ng_inputs().at(0),
                                                      node.get_ng_inputs().at(1),
                                                      ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END
