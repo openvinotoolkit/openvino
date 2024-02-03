@@ -491,7 +491,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);
