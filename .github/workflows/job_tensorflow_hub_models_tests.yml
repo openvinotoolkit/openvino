@@ -105,7 +105,7 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-          python3 -m pip install ${INSTALL_DIR}/openvino-tokenizers-*
+          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers*
 
       - name: Install TF Hub tests requirements
         run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
