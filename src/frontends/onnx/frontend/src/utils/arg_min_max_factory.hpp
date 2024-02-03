@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/topk.hpp"
 
@@ -19,9 +18,8 @@ namespace utils {
 /// \brief  Factory class which generates sub-graphs for ONNX ArgMin, ArgMax ops.
 class ArgMinMaxFactory {
 public:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit ArgMinMaxFactory(const Node& node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     virtual ~ArgMinMaxFactory() = default;
 
     /// \brief      Creates ArgMax ONNX operation.

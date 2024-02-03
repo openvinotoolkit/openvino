@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"

@@ -32,7 +32,6 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -105,4 +104,3 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

@@ -5,11 +5,9 @@
 #pragma once
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -112,4 +110,3 @@ ov::Output<ov::Node> get_reshaped_filters(const ov::Output<ov::Node>& filters, i
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

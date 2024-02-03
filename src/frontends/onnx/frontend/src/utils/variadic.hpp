@@ -7,7 +7,6 @@
 #include <numeric>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -22,7 +21,7 @@ namespace variadic {
 /// \tparam T   Class of an OpenVINO binary operation (e.g. Add, Minimum, Maximum)
 ///
 /// \return OpenVINO node equivalent of the ONNX operation
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <class T>
 inline ov::OutputVector make_ng_variadic_op(
     const Node& node,
@@ -47,7 +46,6 @@ inline ov::OutputVector make_ng_variadic_op(
 
     return {result};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
 }  // namespace onnx
