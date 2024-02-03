@@ -69,6 +69,7 @@ OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_erfc);
+OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
@@ -383,6 +384,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::erfc_", op::inplace_op<op::translate_erfc>},
         {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
+        {"aten::expm1", op::translate_expm1},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::eye", op::translate_eye},
