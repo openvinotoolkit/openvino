@@ -85,6 +85,7 @@
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
+#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -160,8 +161,13 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+        if (consumer != nullptr) {
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return true;
+            }
+            if (is_gather_with_compressed_weights(consumer)) {
+                return true;
+            }
         }
     }
     return false;
