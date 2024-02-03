@@ -7,7 +7,6 @@
 #include <onnx/onnx_pb.h>  // onnx types
 
 #include "onnx_framework_node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -24,7 +23,6 @@ using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -203,4 +201,3 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

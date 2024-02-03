@@ -8,7 +8,6 @@
 #include <type_traits>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
@@ -31,10 +30,8 @@ namespace pooling {
 ///             paddings, kernel shape and auto_pad type.
 class PoolingFactory {
 public:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit PoolingFactory(const Node& node);
     virtual ~PoolingFactory() = default;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ///
     /// \brief      Creates average pooling ONNX operation.
@@ -52,9 +49,8 @@ public:
     ov::OutputVector make_max_pool_with_indices() const;
 
 protected:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     Node m_onnx_node;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     const ov::OutputVector m_inputs;
     ov::Shape m_kernel_shape;
     ov::Strides m_strides;

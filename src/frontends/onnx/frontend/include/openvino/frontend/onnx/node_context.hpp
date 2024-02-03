@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -36,4 +34,3 @@ using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::onnx:
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

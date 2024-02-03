@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "core/node.hpp"
 
 namespace ov {
@@ -29,4 +26,3 @@ ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node);
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

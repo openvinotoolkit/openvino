@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "core/node.hpp"
 #include "openvino/op/logical_and.hpp"
 
@@ -29,4 +26,3 @@ inline ov::OutputVector logical_and(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

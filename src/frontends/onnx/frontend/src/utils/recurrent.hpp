@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
@@ -42,9 +41,8 @@ enum class OpInput {
 struct OpInputMap {
     using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
@@ -60,9 +58,8 @@ struct OpInputMap {
 /// \brief      This structure aggregates operator's attributes.
 ///
 struct OpAttributes {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpAttributes(const Node& node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     virtual ~OpAttributes() = default;
 
     ov::op::RecurrentSequenceDirection m_direction;

@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "core/node.hpp"
 #include "openvino/op/floor.hpp"
 
@@ -24,4 +21,3 @@ inline ov::OutputVector floor(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

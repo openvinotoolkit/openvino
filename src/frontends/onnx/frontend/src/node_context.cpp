@@ -6,7 +6,6 @@
 #include <openvino/frontend/onnx/node_context.hpp>
 #include <utils/common.hpp>
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 ov::frontend::onnx::NodeContext::NodeContext(const ov::frontend::onnx::Node& context)
     : ov::frontend::NodeContext(context.op_type()),
       m_context(context),
@@ -43,4 +42,3 @@ ov::Any ov::frontend::onnx::NodeContext::apply_additional_conversion_rules(const
     // no conversion rules found
     return data;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END

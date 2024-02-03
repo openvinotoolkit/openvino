@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "openvino/op/gather_elements.hpp"
 
 namespace ov {
@@ -27,4 +24,3 @@ inline ov::OutputVector gather_elements(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END
