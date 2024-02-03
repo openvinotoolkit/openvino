@@ -11,12 +11,13 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector random_uniform(const Node& node) {
+ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
 
     const auto dtype =
@@ -41,6 +42,7 @@ ov::OutputVector random_uniform(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

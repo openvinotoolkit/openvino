@@ -15,8 +15,9 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
 /// \brief      Imports and converts an serialized ONNX model from a ModelProto
 ///             to an ov::Model representation.
@@ -56,5 +57,6 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESP
 void convert_decoded_model(std::shared_ptr<ov::Model> model);
 
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

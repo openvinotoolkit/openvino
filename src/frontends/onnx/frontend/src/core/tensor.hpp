@@ -21,8 +21,9 @@
 
 using namespace ov::frontend::onnx::common;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 // Detecting automatically the underlying type used to store the information
 // for data type of values a tensor is holding. A bug was discovered in protobuf
 // which forced ONNX team to switch from `enum TensorProto_DataType` to `int32`
@@ -379,5 +380,6 @@ std::vector<uint64_t> Tensor::get_data() const;
 template <>
 std::vector<char> Tensor::get_data() const;
 
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

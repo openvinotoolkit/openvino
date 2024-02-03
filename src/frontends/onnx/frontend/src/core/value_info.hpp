@@ -17,8 +17,9 @@ using namespace ov::frontend::onnx::common;
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class ValueInfo {
 public:
     ValueInfo(ValueInfo&&) = default;
@@ -82,6 +83,6 @@ inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {
     return (outs << "<ValueInfo: " << info.get_name() << ">");
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

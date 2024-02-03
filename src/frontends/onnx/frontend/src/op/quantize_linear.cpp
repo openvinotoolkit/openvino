@@ -18,8 +18,9 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 namespace {
@@ -139,7 +140,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector quantize_linear(const Node& node) {
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
@@ -160,7 +161,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_zero_point,
                                  int64_t axis,
                                  Node node) {
-    namespace detail = ngraph::onnx_import::op::detail;
+    namespace detail = ov::frontend::onnx::op::detail;
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
@@ -207,7 +208,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 }
 }  // namespace
 
-ov::OutputVector quantize_linear(const Node& node) {
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ng_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
@@ -228,10 +229,8 @@ ov::OutputVector quantize_linear(const Node& node) {
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

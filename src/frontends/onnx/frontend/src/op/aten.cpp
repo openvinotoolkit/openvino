@@ -20,12 +20,13 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector aten(const Node& node) {
+ov::OutputVector aten(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ng_inputs()};
 
     const auto operator_name = node.get_attribute_value<std::string>("operator", "");
@@ -98,6 +99,7 @@ ov::OutputVector aten(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

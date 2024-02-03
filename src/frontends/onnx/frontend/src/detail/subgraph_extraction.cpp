@@ -15,7 +15,7 @@
 
 #include "openvino/frontend/exception.hpp"
 
-using namespace ov::onnx_editor;
+using namespace ov::frontend::onnx;
 
 enum class PortType { InputPort, OutputPort };
 

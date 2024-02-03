@@ -13,11 +13,12 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector non_max_suppression(const Node& node) {
+ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
     // TODO: this op will not be tested until at least
     //       a reference implementation is added
@@ -28,21 +29,21 @@ ov::OutputVector non_max_suppression(const Node& node) {
 
     ov::Output<ov::Node> max_output_boxes_per_class;
     if (ng_inputs.size() > 2 && !is_null(ng_inputs.at(2))) {
-        max_output_boxes_per_class = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(2));
+        max_output_boxes_per_class = ov::frontend::onnx::reshape::interpret_as_scalar(ng_inputs.at(2));
     } else {
         max_output_boxes_per_class = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     }
 
     ov::Output<ov::Node> iou_threshold;
     if (ng_inputs.size() > 3 && !is_null(ng_inputs.at(3))) {
-        iou_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(3));
+        iou_threshold = ov::frontend::onnx::reshape::interpret_as_scalar(ng_inputs.at(3));
     } else {
         iou_threshold = v0::Constant::create(ov::element::f32, ov::Shape{}, {.0f});
     }
 
     ov::Output<ov::Node> score_threshold;
     if (ng_inputs.size() > 4 && !is_null(ng_inputs.at(4))) {
-        score_threshold = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(4));
+        score_threshold = ov::frontend::onnx::reshape::interpret_as_scalar(ng_inputs.at(4));
     } else {
         score_threshold = v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::max()});
     }
@@ -66,10 +67,8 @@ ov::OutputVector non_max_suppression(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

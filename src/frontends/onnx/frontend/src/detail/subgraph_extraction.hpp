@@ -19,7 +19,8 @@ class ValueInfoProto;
 }  // namespace ONNX_NAMESPACE
 
 namespace ov {
-namespace onnx_editor {
+namespace frontend {
+namespace onnx {
 /// \brief Subgraph extraction helper structure
 struct SubgraphExtractor {
     SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph);
@@ -96,5 +97,6 @@ private:
     /// \param subgraph An object describing the subgraph to be extracted (elems to be kept)
     void extract_subgraph_from_onnx_model(const SubgraphComponents& subgraph);
 };
-}  // namespace onnx_editor
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ov

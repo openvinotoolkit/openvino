@@ -10,8 +10,9 @@
 #include "core/tensor.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 // forward declarations
 class Graph;
 class Subgraph;
@@ -161,7 +162,6 @@ inline std::vector<std::string> get_value(const ONNX_NAMESPACE::AttributeProto& 
 }
 
 }  // namespace attribute
-
 }  // namespace detail
 
 class Attribute {
@@ -342,6 +342,6 @@ private:
     detail::MappedMemoryHandles m_mmap_cache;
 };
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

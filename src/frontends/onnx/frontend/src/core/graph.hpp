@@ -19,8 +19,9 @@
 #include "ops_bridge.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::string& model_dir,
@@ -52,7 +53,7 @@ public:
     virtual bool is_ov_node_in_cache(const std::string& name) const;
     virtual ov::Output<ov::Node> get_ov_node_from_cache(const std::string& name);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::OutputVector make_ov_nodes(const Node& onnx_node);
+    ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
@@ -74,7 +75,7 @@ protected:
 
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::OutputVector make_framework_nodes(const Node& onnx_node);
+    ov::OutputVector make_framework_nodes(const ov::frontend::onnx::Node& onnx_node);
     OPENVINO_SUPPRESS_DEPRECATED_END
     void decode_to_framework_nodes();
     void convert_to_ov_nodes();
@@ -137,6 +138,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
 
 static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

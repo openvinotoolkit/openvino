@@ -118,7 +118,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     const auto partially_converted = convert_partially(model);
 
-    const auto error_message = ngraph::onnx_import::common::collect_translation_exceptions(partially_converted);
+    const auto error_message = ov::frontend::onnx::common::collect_translation_exceptions(partially_converted);
     FRONT_END_GENERAL_CHECK(error_message.empty(), error_message);
 
     normalize(partially_converted);
@@ -127,7 +127,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
-    ngraph::onnx_import::detail::convert_decoded_model(partially_converted);
+    ov::frontend::onnx::detail::convert_decoded_model(partially_converted);
     normalize(partially_converted);
 }
 

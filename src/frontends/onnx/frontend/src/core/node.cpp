@@ -11,8 +11,9 @@
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class Node::Impl {
 public:
     Impl() = delete;
@@ -638,6 +639,6 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
                                                                              std::move(type));
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

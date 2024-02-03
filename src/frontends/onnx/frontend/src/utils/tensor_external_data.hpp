@@ -10,8 +10,9 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
@@ -51,5 +52,6 @@ private:
     std::string m_sha1_digest{};
 };
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

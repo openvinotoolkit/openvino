@@ -11,8 +11,9 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
 TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
@@ -103,5 +104,6 @@ std::string TensorExternalData::to_string() const {
     return s.str();
 }
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

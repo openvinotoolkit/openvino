@@ -4,8 +4,9 @@
 
 #include "core/tensor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 template <>
 std::vector<double> Tensor::get_data() const {
@@ -201,5 +202,6 @@ std::vector<char> Tensor::get_data() const {
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "BOOL, raw data");
 }
 
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

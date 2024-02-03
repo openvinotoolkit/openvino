@@ -12,8 +12,9 @@
 #include "openvino/core/type/element_type.hpp"
 #include "tensor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class SparseTensor {
 public:
     SparseTensor() = delete;
@@ -66,5 +67,6 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const SparseTensor& tensor) {
     return (outs << "<Sparse Tensor>");
 }
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

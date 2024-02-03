@@ -20,8 +20,9 @@
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace transform {
 namespace {
 ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
@@ -73,10 +74,11 @@ void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& n
 
 }  // namespace
 }  // namespace transform
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
-void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
+void ov::frontend::onnx::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
 
     for (int i = 0; i < graph_proto->node().size(); ++i) {
@@ -127,7 +129,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     }
 }
 
-void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto) {
+void ov::frontend::onnx::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
     for (auto& node : *graph_proto->mutable_node()) {
         auto it = std::find(legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());

@@ -10,8 +10,9 @@
 #include "openvino/core/deprecated.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
@@ -49,7 +50,6 @@ inline ov::OutputVector make_ng_variadic_op(
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

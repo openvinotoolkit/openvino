@@ -24,8 +24,9 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
@@ -99,7 +100,7 @@ void validate_scalar_input(const char* input_name,
 }
 
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const Node& node) {
+ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
     ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
@@ -167,7 +168,7 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
     bool unsupported_found = false;
     bool additional_error_found = false;
     for (const auto& op : partially_converted->get_ops()) {
-        if (const auto unsupported = std::dynamic_pointer_cast<frontend::NotSupportedONNXNode>(op)) {
+        if (const auto unsupported = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(op)) {
             if (unsupported->additional_error_message().empty()) {
                 fully_unsupported_ops += (unsupported->get_attrs().get_opset_name().empty()
                                               ? ""
@@ -198,6 +199,7 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
 }
 
 }  // namespace  common
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

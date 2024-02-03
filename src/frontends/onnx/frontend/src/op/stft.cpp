@@ -22,12 +22,13 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_17 {
 
-ov::OutputVector stft(const Node& node) {
+ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto signal = ng_inputs.at(0);
     const auto dft_length_provided = ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs[3]);
@@ -124,10 +125,8 @@ ov::OutputVector stft(const Node& node) {
 }
 
 }  // namespace set_17
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

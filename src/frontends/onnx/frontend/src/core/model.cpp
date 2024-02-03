@@ -10,8 +10,9 @@
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
     return node_proto.has_domain() ? node_proto.domain() : "";
 }
@@ -76,6 +77,6 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     }
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

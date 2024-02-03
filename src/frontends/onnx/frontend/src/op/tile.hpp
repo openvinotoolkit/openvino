@@ -9,21 +9,20 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Performs ONNX Tile operation.
 ///
 /// \param node The ONNX node object representing this operation.
 /// \return The vector containing OV a node producing the output of the Tile op.
-ov::OutputVector tile(const Node& node);
+ov::OutputVector tile(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

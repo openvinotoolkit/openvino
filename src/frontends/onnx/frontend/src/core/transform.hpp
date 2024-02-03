@@ -6,8 +6,9 @@
 
 #include <onnx/onnx_pb.h>
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace transform {
 
 static const std::vector<std::string> onnx_functions_to_expand =
@@ -51,5 +52,6 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
 void fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto);
 
 }  // namespace transform
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

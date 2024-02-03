@@ -12,8 +12,9 @@
 
 #include "core/operator_set.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 /// \brief      Type of container which stores opset version and domain in ONNX format
 using OpsetImports = ::google::protobuf::RepeatedPtrField<ONNX_NAMESPACE::OperatorSetIdProto>;
 
@@ -100,6 +101,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Model& model) {
     return (outs << "<Model: " << model.get_producer_name() << ">");
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
