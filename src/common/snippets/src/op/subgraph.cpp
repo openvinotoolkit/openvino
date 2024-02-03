@@ -257,7 +257,6 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     auto& out_tensor = target_output_node.get_tensor();
-    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
