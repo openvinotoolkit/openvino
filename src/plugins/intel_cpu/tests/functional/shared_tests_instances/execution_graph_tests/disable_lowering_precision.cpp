@@ -9,7 +9,6 @@
 #include "openvino/runtime/system_conf.hpp"
 
 using namespace ExecutionGraphTests;
-using namespace InferenceEngine;
 
 namespace {
 
