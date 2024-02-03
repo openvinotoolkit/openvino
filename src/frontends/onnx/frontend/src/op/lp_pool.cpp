@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,12 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
-#include "ov_models/ov_builders/norm.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/common.hpp"
+#include "utils/norm.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -35,7 +36,7 @@ ov::OutputVector global_lp_pool(const Node& node) {
 
     CHECK_VALID_NODE(node, p_norm >= 0, "Only positive (including zero) values are supported for 'p' attribute.");
 
-    ov::OutputVector slices = ov::op::util::split(data, channels_count, channel_axis);
+    ov::OutputVector slices = ov::op::util::make_split(data, channels_count, channel_axis);
 
     for (auto& slice : slices) {
         // all dimensions except spatial/feature
@@ -44,10 +45,11 @@ ov::OutputVector global_lp_pool(const Node& node) {
         slice = ov::op::util::lp_norm(slice, reduction_axes, static_cast<std::size_t>(p_norm));
 
         // output shape is all ones except N channel
-        Shape output_shape(data_shape.rank().get_length(), 1);
+        ov::Shape output_shape(data_shape.rank().get_length(), 1);
         output_shape.at(0) = data_shape[0].get_length();
 
-        const auto reshape_pattern = v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape);
+        const auto reshape_pattern =
+            v0::Constant::create(ov::element::i64, ov::Shape{output_shape.size()}, output_shape);
 
         slice = std::make_shared<v1::Reshape>(slice, reshape_pattern, false);
     }

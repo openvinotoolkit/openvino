@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2022 Intel Corporation
+// Copyright (C) 2017-2024 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #pragma once
 
 #include "core/graph.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -56,7 +56,7 @@ public:
         return ov_nodes;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // TODO: implement reading as well, now it work for serialization only
@@ -90,7 +90,7 @@ public:
         return m_models;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
 private:
     std::vector<std::shared_ptr<ov::Model>> m_models;
@@ -123,7 +123,7 @@ public:
         return attrs[failed_conversion_key];
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 

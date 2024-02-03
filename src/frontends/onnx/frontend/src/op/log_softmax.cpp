@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/log_softmax.hpp"
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/log_softmax.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -39,7 +39,7 @@ ov::OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = v0::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     case 1: {

@@ -4,14 +4,14 @@
 
 #include "op/pad.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
@@ -87,7 +87,7 @@ ov::OutputVector pad(const Node& node) {
         padding_begin = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_begin_values);
         padding_end = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_end_values);
     } else {
-        ov::OutputVector padding = ov::op::util::split(pads, 2, 0);
+        ov::OutputVector padding = ov::op::util::make_split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);

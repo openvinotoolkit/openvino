@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 
 #include <string>
 

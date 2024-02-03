@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -49,7 +50,7 @@ ov::OutputVector gemm(const Node& node) {
     std::shared_ptr<ov::Node> matmul_node = std::make_shared<v0::MatMul>(input_a, input_b);
 
     if (alpha != 1) {
-        const auto alpha_node = v0::Constant::create(input_b.get_element_type(), Shape{}, {alpha});
+        const auto alpha_node = v0::Constant::create(input_b.get_element_type(), ov::Shape{}, {alpha});
         matmul_node = std::make_shared<v1::Multiply>(matmul_node, alpha_node);
     }
 

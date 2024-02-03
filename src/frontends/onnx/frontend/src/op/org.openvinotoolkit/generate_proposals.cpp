@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {
@@ -51,10 +52,10 @@ ov::OutputVector generate_proposals(const Node& node) {
     attrs.normalized = !node.get_attribute_value<int64_t>("legacy_plus_one", true);
 
     // Broadcast anchors from [A, 4] to [H, W, A, 4] where [H, W] is taken from scores shape.
-    const auto zero = v0::Constant::create(ov::element::i64, Shape{1}, {0});
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     const auto scores_shape = std::make_shared<v3::ShapeOf>(scores);
     const auto anchors_shape = std::make_shared<v3::ShapeOf>(anchors);
-    const auto scores_shape_tail = v0::Constant::create(ov::element::i64, Shape{2}, {2, 3});
+    const auto scores_shape_tail = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
     const auto new_anchors_shape_front = std::make_shared<v8::Gather>(scores_shape, scores_shape_tail, zero);
     const auto new_anchors_shape =
         std::make_shared<v0::Concat>(ov::OutputVector{new_anchors_shape_front, anchors_shape}, 0);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "utils/reshape.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {
@@ -22,7 +23,7 @@ ov::OutputVector swish(const Node& node) {
     if (ng_inputs.size() > 1) {
         beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
     } else {
-        beta = v0::Constant::create(ov::element::f32, Shape{}, {1.0});
+        beta = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0});
     }
 
     return {std::make_shared<v4::Swish>(ng_inputs.at(0), beta)};

@@ -4,7 +4,7 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 using namespace ov::op;

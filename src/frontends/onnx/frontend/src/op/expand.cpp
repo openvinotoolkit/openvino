@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "utils/common.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -23,7 +24,7 @@ ov::OutputVector expand(const Node& node) {
         // in case the "shape" input is connected to a failsafe node created in place of an invalid initializer
         // the target shape should be ignored and this Expand operation should not modify its input tensor
         // the Broadcast created below should be eliminated later on by an appropriate optimization pass
-        const auto identity_broadcast = v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        const auto identity_broadcast = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         return {std::make_shared<v3::Broadcast>(data, identity_broadcast, ov::op::BroadcastType::BIDIRECTIONAL)};
     } else {
         return {std::make_shared<v3::Broadcast>(data, shape, ov::op::BroadcastType::BIDIRECTIONAL)};

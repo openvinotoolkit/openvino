@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
+#include "core/node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"
@@ -15,6 +15,7 @@
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 namespace ngraph {
 namespace onnx_import {
@@ -24,8 +25,8 @@ namespace {
 std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end) {
     return std::make_shared<v1::StridedSlice>(
         node,
-        v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{start}),
-        v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{end}),
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{start}),
+        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{end}),
         std::vector<int64_t>{0},   // begin mask
         std::vector<int64_t>{0});  // end mask
 }
@@ -57,7 +58,7 @@ ov::OutputVector prior_box(const Node& node) {
     attrs.density = node.get_attribute_value<std::vector<float>>("density", {});
     attrs.min_max_aspect_ratios_order = node.get_attribute_value<int64_t>("min_max_aspect_ratios_order", 1);
 
-    auto axes = v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto axes = v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
 
     return {
         std::make_shared<v0::Unsqueeze>(std::make_shared<v8::PriorBox>(output_shape_slice, image_shape_slice, attrs),
@@ -96,7 +97,7 @@ ov::OutputVector prior_box_clustered(const Node& node) {
     attrs.step = node.get_attribute_value<float>("step", 0.0f);
     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
 
-    auto axes = v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto axes = v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
 
     return {std::make_shared<v0::Unsqueeze>(
         std::make_shared<v0::PriorBoxClustered>(output_shape_slice, image_shape_slice, attrs),

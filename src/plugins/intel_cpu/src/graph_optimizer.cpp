@@ -12,6 +12,7 @@
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gather.h"
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
@@ -69,6 +70,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
     FuseFCAndWeightsDecompression(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndWeightsDecompression");
+    FuseGatherAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
@@ -504,6 +509,103 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             reshapeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
         fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
+    }
+}
+
+void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8};
+    auto expectedNode = [](NodePtr node, Type expectedType) {
+        return node->getType() == expectedType && node->getChildEdges().size() == 1;
+    };
+
+    auto& graphNodes = graph.GetNodes();
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto gatherNode = dynamic_cast<node::Gather*>(graphNodes[i].get());
+        if (gatherNode == nullptr)
+            continue;
+
+        // Multiply
+        const auto multiplyNode = gatherNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
+            !multiplyNode->isConstant())
+            continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndWeightsDecompression);
+        const auto multiplyConstNode = multiplyNode->getParentEdgeAt(1)->getParent();
+        if (!expectedNode(multiplyConstNode, Type::Input))
+            continue;
+
+        const auto mulParent = multiplyNode->getParentEdgeAt(0)->getParent();
+        NodePtr subtractNode = mulParent;
+        if (!expectedNode(subtractNode, Type::Eltwise))
+            continue;
+        auto subtractConstNode = subtractNode->getParentEdgeAt(1)->getParent();
+        if (!expectedNode(subtractConstNode, Type::Input))
+            continue;
+
+        auto convertNode = subtractNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(convertNode, Type::Convert))
+            continue;
+        const auto weightsNode = convertNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(weightsNode, Type::Input))
+            continue;
+
+        // Precision limitations
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
+            continue;
+
+        // Shape limitations
+        const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
+        if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
+            continue;
+
+        // Get decompressionConstShape
+        VectorDims decompressionConstShape;
+        const auto gatherInputWeightsShape = gatherNode->getInputShapeAtPort(0);
+        if (gatherInputWeightsShape.getRank() != 2u || weightsShape.getRank() != 2u)
+            continue;
+        // Should be [vocab_size, 1]
+        decompressionConstShape = VectorDims{gatherInputWeightsShape.getDims()[0], 1};
+
+        auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
+            if (shape_to_check.size() != decompressionConstShape.size())
+                return false;
+            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin());
+        };
+        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+        if (!check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+
+        // Fusion processing
+        auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
+        if (!multiplyInputNode) {
+            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
+        }
+        gatherNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
+
+        auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
+        if (!subtractInputNode) {
+            OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
+        }
+        gatherNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
+
+        gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
+        gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
+
+        gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
+        auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
+        graph.RemoveEdge(subtractConstEdge);
+
+        auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
+        graph.RemoveEdge(multiplyConstEdge);
+
+        graph.DropNode(convertNode);
+        graph.DropNode(subtractNode);
+        graph.DropNode(multiplyNode);
+
+        const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
+        gatherNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
     }
 }
 
@@ -1312,7 +1414,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         auto outDims = childNode->outputShapes[0].getStaticDims();
         int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
 
-        int L3_cache_size = utils::get_cache_size(3, false);
+        int L3_cache_size = dnnl::utils::get_cache_size(3, false);
         int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
         int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
 
@@ -1376,6 +1478,13 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+            parent++;
+            continue;
+        }
+#endif
 
         auto fuseCandidate = childNode->getChildEdgeAt(0)->getChild();
         if (parentNode->getType() == Type::BinaryConvolution && !parentNode->canFuse(fuseCandidate)) {
@@ -1425,6 +1534,13 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
+            parent++;
+            continue;
+        }
+#endif
 
         childNode->fuseInto(parentNode);
 
@@ -1683,6 +1799,11 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
+//Disable ACL post-ops in fp16 to avoid performance degradation
+#if defined(OPENVINO_ARCH_ARM64)
+        if (mergedConv->getOriginalInputPrecisionAtPort(0) == ov::element::f16)
+            continue;
+#endif
         // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
         // non-optimal code path inside Convolution node, so better to avoid fusing at all.
         auto shape1 = sum->getInputShapeAtPort(0);

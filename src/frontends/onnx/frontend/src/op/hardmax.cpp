@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/topk.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -45,13 +45,13 @@ ov::OutputVector hardmax(const Node& node) {
 
     const auto indices_axis = 1;
     const auto topk = std::make_shared<v11::TopK>(coerced_tensor,
-                                                  ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1}),
+                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   indices_axis,
                                                   ov::op::v11::TopK::Mode::MAX,
                                                   ov::op::v11::TopK::SortType::NONE);
 
-    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
-    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
+    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     const auto results = std::make_shared<v1::OneHot>(topk->output(1), row_size, on_value, off_value, indices_axis);
     const auto converted_results = std::make_shared<v0::Convert>(results, input.get_element_type());
@@ -77,13 +77,13 @@ ov::OutputVector hardmax(const Node& node) {
     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
     const auto topk = std::make_shared<v11::TopK>(input,
-                                                  ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1}),
+                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   axis,
                                                   ov::op::v11::TopK::Mode::MAX,
                                                   ov::op::v11::TopK::SortType::NONE);
 
-    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
-    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
+    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     const auto results = std::make_shared<v1::OneHot>(topk->output(1), row_size, on_value, off_value, axis);
     const auto converted_results = std::make_shared<v0::Convert>(results, input.get_element_type());

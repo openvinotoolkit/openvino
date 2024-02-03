@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/op/subtract.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -114,7 +115,7 @@ ov::OutputVector handle_opset6_binary_op(const Node& node) {
                 axis += lhs_rank;
             if (lhs_rank > axis + rhs_rank) {
                 auto ones = v0::Constant::create(ov::element::i64,
-                                                 Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
+                                                 ov::Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
                                                  std::vector<int64_t>(lhs_rank - axis - rhs_rank, 1));
                 auto rhs_shape = std::make_shared<v0::ShapeOf>(rhs_node);
                 auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
@@ -136,7 +137,7 @@ template ov::OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const Node& no
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 
 std::shared_ptr<v0::Constant> make_failsafe_constant(const ov::element::Type& dtype) {
-    const auto failsafe_constant = v0::Constant::create(dtype, Shape{}, {0});
+    const auto failsafe_constant = v0::Constant::create(dtype, ov::Shape{}, {0});
     auto& rt_info = failsafe_constant->get_rt_info();
     rt_info[FAILSAFE_NODE] = true;
     return failsafe_constant;
