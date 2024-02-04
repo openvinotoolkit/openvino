@@ -17,13 +17,6 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
     set_names(names);
 }
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
-    : m_element_type(element_type),
-      m_partial_shape(pshape),
-      m_shape_changed(true) {
-    m_name_it = m_names.cend();
-}
-
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                ov::Node* node,
