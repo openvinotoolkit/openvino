@@ -4,7 +4,6 @@
 
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/file_utils.hpp"

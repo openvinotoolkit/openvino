@@ -10,7 +10,6 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -682,7 +681,7 @@ public:
     }
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }

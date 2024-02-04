@@ -20,7 +20,6 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
@@ -146,7 +145,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
