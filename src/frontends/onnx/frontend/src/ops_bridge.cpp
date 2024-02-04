@@ -168,6 +168,7 @@
 #include "op/size.hpp"
 #include "op/slice.hpp"
 #include "op/softmax.hpp"
+#include "op/softmax_cross_entropy_loss.hpp"
 #include "op/softplus.hpp"
 #include "op/softsign.hpp"
 #include "op/space_to_depth.hpp"
@@ -512,6 +513,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Softmax", 1, softmax);
     REGISTER_OPERATOR("Softmax", 11, softmax);
     REGISTER_OPERATOR("Softmax", 13, softmax);
+    REGISTER_OPERATOR("SoftmaxCrossEntropyLoss", 11, softmax_cross_entropy_loss);
+    REGISTER_OPERATOR("SoftmaxCrossEntropyLoss", 13, softmax_cross_entropy_loss);
     REGISTER_OPERATOR("Softplus", 1, softplus);
     REGISTER_OPERATOR("Softsign", 1, softsign);
     REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
