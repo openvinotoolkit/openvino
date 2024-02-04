@@ -63,6 +63,7 @@ public:
             ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
                          // (for large #streams)
         };
+
     private:
         std::string _name;            //!< Used by `ITT` to name executor threads
         int _streams = 1;             //!< Number of streams.
@@ -87,6 +88,17 @@ public:
          *        streams_info_table must be present in the configuration
          */
         void reserve_cpu_threads();
+
+         /**
+         * @brief Modify _streams_info_table and related configuration according to configuration
+         */
+        void update_executor_config();
+
+        /**
+         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
+         *        that is, only create one thread with TBB
+         */
+        void set_config_zero_stream();
 
     public:
         /**
@@ -184,7 +196,7 @@ public:
         int get_thread_binding_offset() {
             return _threadBindingOffset;
         }
-        bool compare(Config config) {
+        bool operator==(const Config& config){
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
                 _thread_preferred_core_type == config._thread_preferred_core_type) {
@@ -212,19 +224,6 @@ public:
          */
         // It will be removed when other plugins will no longer call it.
         static Config reserve_cpu_threads(const Config& initial);
-
-        /**
-         * @brief Modify _streams_info_table and related configuration according to configuration
-         */
-        void update_executor_config();
-
-        /**
-         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
-         *        that is, only create one thread with TBB
-         * @param streamsInfoTable streams info table
-         * @param cpu_reservation cpu reservation
-         */
-        static void set_config_zero_stream(std::vector<std::vector<int>>& streamsInfoTable, bool& cpu_reservation);
     };
 
     /**

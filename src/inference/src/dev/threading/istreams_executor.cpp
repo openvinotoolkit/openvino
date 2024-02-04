@@ -255,6 +255,7 @@ void IStreamsExecutor::Config::update_executor_config() {
 
         _streams = _streams > 0 ? std::min(_streams, num_cores) : _streams;
         if (_streams == 0) {
+            set_config_zero_stream();
             return;
         }
 
@@ -346,14 +347,12 @@ void IStreamsExecutor::Config::update_executor_config() {
     OPENVINO_DEBUG << "[ threading ] " << _name << ": " << _streams << "(" << _threads << ")";
 }
 
-void IStreamsExecutor::Config::set_config_zero_stream(std::vector<std::vector<int>>& streamsInfoTable,
-                                                      bool& cpu_reservation) {
+void IStreamsExecutor::Config::set_config_zero_stream() {
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
     int core_type = MAIN_CORE_PROC;
     int numa_id = 0;
     int socket_id = 0;
 
-    streamsInfoTable = {};
     if (proc_type_table.size() > 0) {
         core_type = proc_type_table[0][MAIN_CORE_PROC] > 0
                         ? MAIN_CORE_PROC
@@ -361,8 +360,8 @@ void IStreamsExecutor::Config::set_config_zero_stream(std::vector<std::vector<in
         numa_id = std::max(0, proc_type_table[0][PROC_NUMA_NODE_ID]);
         socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
     }
-    streamsInfoTable.push_back({1, core_type, 1, numa_id, socket_id});
-    cpu_reservation = false;
+    _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
+    _cpu_reservation = false;
 }
 
 }  // namespace threading

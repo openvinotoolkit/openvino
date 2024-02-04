@@ -134,7 +134,7 @@ std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_c
             continue;
 
         auto& executorConfig = it.first;
-        if (executorConfig.compare(config))
+        if (executorConfig == config)
             return executor;
     }
     auto newExec = std::make_shared<ov::threading::CPUStreamsExecutor>(config);
