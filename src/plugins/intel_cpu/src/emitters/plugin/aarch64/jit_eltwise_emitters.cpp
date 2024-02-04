@@ -294,8 +294,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         Xbyak_aarch64::SReg s1(1);
 
         // store/restore all registers except dst & src
-        const std::unordered_set<size_t> exclude = {dst.getIdx(), src().getIdx()};
-        store_context(exclude);
+        store_context();
         for (auto i = 0; i < 4; i++) {
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
@@ -314,7 +313,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
             h->fmov(w0, s0);
             h->mov(dst.s[i], w0);
         }
-        restore_context(exclude);
+        restore_context();
     }
 }
 
