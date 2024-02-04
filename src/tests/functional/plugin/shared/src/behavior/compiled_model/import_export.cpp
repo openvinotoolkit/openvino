@@ -301,13 +301,9 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core ie = createCoreWithTemplate();
-    std::stringstream xmlFile;
-    std::stringstream binFile;
-    // Import model with IR input throw exception
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(xmlFile, binFile);
-    manager.run_passes(actualNetwork);
-    OV_EXPECT_THROW((ie.import_model(xmlFile, target_device)),
+    std::stringstream wrongStm;
+    // Import model with wrong format throws exception
+    OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
                     ov::Exception,
                     testing::HasSubstr("device xml header"));
 }
