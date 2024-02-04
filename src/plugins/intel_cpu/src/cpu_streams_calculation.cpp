@@ -534,7 +534,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                             config.changedHyperThreading,
                                             ov::util::to_string(config.hintPerfMode),
                                             proc_type_table);
-    config.cpuReservation = get_cpu_pinning(config.enableCpuPinning,
+    auto cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
                                             config.changedCpuPinning,
                                             streams,
                                             config.latencyThreadingMode,
@@ -543,7 +543,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
     }
 
-    config.streamsInfoTable = get_streams_info_table(config.streams,
+    auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
                                                      config.threads,
                                                      config.hintNumRequests,
@@ -552,6 +552,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.latencyThreadingMode,
                                                      proc_type_table);
+
+    config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
+                                                           config.streams,
+                                                           config.threadsPerStream,
+                                                           config.threadBindingType,
+                                                           1,
+                                                           0,
+                                                           config.threads,
+                                                           IStreamsExecutor::Config::PreferredCoreType::ANY,
+                                                           streams_info_table,
+                                                           cpu_reservation};
 
     return proc_type_table;
 }
