@@ -18,8 +18,8 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> input_x = node.get_ng_inputs().at(0);
-    const ov::Output<ov::Node> input_y = node.get_ng_inputs().at(1);
+    const ov::Output<ov::Node> input_x = node.get_ov_inputs().at(0);
+    const ov::Output<ov::Node> input_y = node.get_ov_inputs().at(1);
 
     std::string direction = node.get_attribute_value<std::string>("direction", "");
 

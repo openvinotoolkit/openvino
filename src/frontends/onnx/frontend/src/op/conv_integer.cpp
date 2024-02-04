@@ -46,7 +46,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& input = inputs.at(0);
     const auto& filter = inputs.at(1);

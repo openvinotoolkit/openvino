@@ -21,7 +21,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto data = inputs[0];

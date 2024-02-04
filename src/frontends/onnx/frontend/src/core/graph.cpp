@@ -245,7 +245,7 @@ ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
     std::shared_ptr<ov::frontend::onnx::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
         const auto& subgraphs = onnx_node.get_subgraphs();
-        auto inputs = onnx_node.get_ng_inputs();
+        auto inputs = onnx_node.get_ov_inputs();
         std::vector<std::shared_ptr<ov::Model>> models;
         for (const auto& kv : subgraphs) {
             auto& subgraph = kv.second;
@@ -356,7 +356,7 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
     }
     if (ov_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
         const auto not_supported_node =
-            std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(onnx_node.get_ng_inputs(),
+            std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(onnx_node.get_ov_inputs(),
                                                                        onnx_node.get_outputs_size(),
                                                                        onnx_node.domain(),
                                                                        onnx_node.op_type(),

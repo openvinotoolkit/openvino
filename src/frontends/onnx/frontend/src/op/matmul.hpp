@@ -18,7 +18,7 @@ inline ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<o
 }  // namespace detail
 namespace set_1 {
 inline ov::OutputVector matmul(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v0::MatMul>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    return {std::make_shared<ov::op::v0::MatMul>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 }  // namespace set_1
 }  // namespace op

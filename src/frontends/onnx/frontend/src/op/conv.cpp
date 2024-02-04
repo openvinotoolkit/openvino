@@ -73,7 +73,7 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node,
 }  // namespace detail
 
 ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
 }  // namespace set_1

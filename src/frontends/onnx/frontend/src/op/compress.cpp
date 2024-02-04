@@ -19,8 +19,8 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector compress(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
-    auto condition = node.get_ng_inputs().at(1);
+    auto data = node.get_ov_inputs().at(0);
+    auto condition = node.get_ov_inputs().at(1);
 
     int64_t axis = 0;
     if (node.has_attribute("axis")) {

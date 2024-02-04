@@ -18,7 +18,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& a = inputs.at(0);
     const auto& a_scale = reshape::interpret_as_scalar(inputs.at(1));

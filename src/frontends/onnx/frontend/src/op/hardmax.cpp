@@ -25,7 +25,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
-    const auto input = node.get_ng_inputs().at(0);
+    const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
@@ -63,7 +63,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
 }  // namespace set_1
 namespace set_13 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
-    const auto input = node.get_ng_inputs().at(0);
+    const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);

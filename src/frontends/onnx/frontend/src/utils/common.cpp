@@ -100,8 +100,8 @@ void validate_scalar_input(const char* input_name,
 
 template <typename T>
 ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
-    ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
+    const ov::Output<ov::Node> lhs_node = node.get_ov_inputs().at(0);
+    ov::Output<ov::Node> rhs_node = node.get_ov_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {

@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
 
@@ -44,7 +44,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
 }  // namespace set_1
 namespace set_16 {
 ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
 

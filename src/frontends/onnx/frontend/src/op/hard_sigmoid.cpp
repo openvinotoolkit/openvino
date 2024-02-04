@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector hard_sigmoid(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
 
     const auto alpha =
         v0::Constant::create<double>(data.get_element_type(),

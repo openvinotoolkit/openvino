@@ -16,14 +16,14 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
-    const auto data = ng_inputs.at(0);
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    const auto data = ov_inputs.at(0);
 
     ov::Output<ov::Node> pattern;
     bool special_zero = true;
     // Since opset 5 the target shape is provided as input
-    if (ng_inputs.size() == 2) {
-        pattern = ng_inputs.at(1);
+    if (ov_inputs.size() == 2) {
+        pattern = ov_inputs.at(1);
     } else {
         // Added in onnx reshape version 14
         special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);

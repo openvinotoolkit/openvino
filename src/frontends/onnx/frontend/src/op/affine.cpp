@@ -20,7 +20,7 @@ ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // It takes one input tensor and produces one output tensor where
     // the affine function, y = alpha * x + beta, is applied to the input
     // elementwise.
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
 
     CHECK_VALID_NODE(node, inputs.size() == 1, "Affine expects 1 input tensor. Got: ", inputs.size());
     CHECK_VALID_NODE(node, node.has_attribute("alpha"), "\"alpha\" attribute is required.");

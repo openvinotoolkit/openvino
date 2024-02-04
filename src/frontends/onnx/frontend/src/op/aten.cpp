@@ -26,7 +26,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector aten(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
 
     const auto operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,

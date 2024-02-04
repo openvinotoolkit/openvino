@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector bitwise_or(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseOr>(inputs[0], inputs[1])};
 }

@@ -41,7 +41,7 @@ enum class LSTMInput {
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
-        const auto& ng_inputs = node.get_ng_inputs();
+        const auto& ng_inputs = node.get_ov_inputs();
         // We have input, output, forget and cell gates
         constexpr std::size_t gates_count{4};
         constexpr std::size_t P_gates_count{3};

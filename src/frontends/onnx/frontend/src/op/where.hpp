@@ -13,9 +13,9 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector where(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
 
-    return {std::make_shared<ov::op::v1::Select>(ng_inputs.at(0), ng_inputs.at(1), ng_inputs.at(2))};
+    return {std::make_shared<ov::op::v1::Select>(ov_inputs.at(0), ov_inputs.at(1), ov_inputs.at(2))};
 }
 }  // namespace set_1
 }  // namespace op
