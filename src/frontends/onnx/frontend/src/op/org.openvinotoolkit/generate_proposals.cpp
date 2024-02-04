@@ -37,7 +37,7 @@ void validate_generate_proposals_inputs(const ov::OutputVector& inputs) {
 }  // namespace
 
 ov::OutputVector generate_proposals(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     validate_generate_proposals_inputs(inputs);
 
     const auto& scores = inputs[0];   // shape [N, A, H, W]

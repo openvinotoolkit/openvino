@@ -13,7 +13,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector outputs = node.get_ng_inputs();
+    ov::OutputVector outputs = node.get_ov_inputs();
     for (auto& out : outputs) {
         common::mark_as_optimized_out(out);
     }

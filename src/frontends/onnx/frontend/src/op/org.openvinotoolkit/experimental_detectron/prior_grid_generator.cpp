@@ -17,7 +17,7 @@ namespace set_1 {
 ov::OutputVector experimental_detectron_prior_grid_generator(const ov::frontend::onnx::Node& node) {
     using PriorGridGenerator = v6::ExperimentalDetectronPriorGridGenerator;
 
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     auto priors = inputs[0];
     auto feature_map = inputs[1];
     auto im_data = inputs[2];

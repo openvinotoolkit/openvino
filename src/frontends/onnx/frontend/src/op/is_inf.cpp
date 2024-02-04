@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector is_inf(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
 
     ov::opset10::IsInf::Attributes attributes{};
     attributes.detect_negative = node.get_attribute_value<int64_t>("detect_negative", 1);

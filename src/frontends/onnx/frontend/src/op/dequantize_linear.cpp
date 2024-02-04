@@ -39,7 +39,7 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
 }  // namespace detail
 namespace set_1 {
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional input. Got: ",
@@ -163,7 +163,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }  // namespace detail
 
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional "

@@ -115,7 +115,7 @@ namespace set_11 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto& data = inputs.at(0);
 
     auto attrs = get_resize_attrs(node);
@@ -134,7 +134,7 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
 
 namespace set_1 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto& data = inputs.at(0);
     const auto& scales = inputs.at(1);
 

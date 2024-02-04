@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector softplus(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
     return {std::make_shared<v4::SoftPlus>(data)};
 }
 

@@ -17,7 +17,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
-    const auto& ng_inputs = node.get_ng_inputs();
+    const auto& ng_inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
     const auto& subgraphs = node.get_subgraphs();

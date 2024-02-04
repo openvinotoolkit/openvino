@@ -15,9 +15,9 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
-    const auto indices = node.get_ng_inputs().at(1);
-    const auto updates = node.get_ng_inputs().at(2);
+    const auto data = node.get_ov_inputs().at(0);
+    const auto indices = node.get_ov_inputs().at(1);
+    const auto updates = node.get_ov_inputs().at(2);
     const auto axis_node = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
     v12::ScatterElementsUpdate::Reduction reduction_ov;

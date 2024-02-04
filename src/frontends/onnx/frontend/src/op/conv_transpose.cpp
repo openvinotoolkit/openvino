@@ -129,7 +129,7 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
 }  // namespace
 
 ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     CHECK_VALID_NODE(node,
                      inputs.size() == 2 || inputs.size() == 3,

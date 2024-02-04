@@ -18,7 +18,7 @@ namespace set_1 {
 ov::OutputVector experimental_detectron_generate_proposals(const ov::frontend::onnx::Node& node) {
     using GenerateProposalsSingleImage = v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 4,
                             "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
                             "inputs, received: ",

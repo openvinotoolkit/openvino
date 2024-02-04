@@ -28,7 +28,7 @@ ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
     } else {
         constant_value = v0::Constant::create(ov::element::f32, {}, {0});
     }
-    const auto& inputs = node.get_ng_inputs();
+    const auto& inputs = node.get_ov_inputs();
     if (inputs.size() == 0 || common::is_failsafe_node(inputs[0].get_node_shared_ptr()) ||
         ov::op::util::is_null(inputs[0])) {
         return {constant_value};

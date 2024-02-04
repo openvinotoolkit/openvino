@@ -23,7 +23,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     auto x = inputs.at(0);
     auto x_scale = inputs.at(1);

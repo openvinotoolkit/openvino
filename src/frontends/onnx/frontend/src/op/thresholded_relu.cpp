@@ -17,7 +17,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector thresholded_relu(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
     const double alpha = node.get_attribute_value<double>("alpha", 1.0);
 
     const auto alpha_node = v0::Constant::create(data.get_element_type(), ov::Shape{}, {alpha});

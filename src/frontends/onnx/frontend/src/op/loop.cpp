@@ -40,7 +40,7 @@ bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Nod
 }  // namespace
 
 ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
-    const auto& ng_inputs = node.get_ng_inputs();
+    const auto& ng_inputs = node.get_ov_inputs();
 
     const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 

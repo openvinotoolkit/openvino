@@ -16,7 +16,7 @@ namespace set_1 {
 ov::OutputVector einsum(const ov::frontend::onnx::Node& node) {
     const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
-    return {std::make_shared<v7::Einsum>(node.get_ng_inputs(), equation)};
+    return {std::make_shared<v7::Einsum>(node.get_ov_inputs(), equation)};
 }
 
 }  // namespace set_1

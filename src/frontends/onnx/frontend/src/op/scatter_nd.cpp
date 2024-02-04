@@ -18,10 +18,10 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
-    auto data = ng_inputs.at(0);
-    auto indices = ng_inputs.at(1);
-    auto updates = ng_inputs.at(2);
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    auto data = ov_inputs.at(0);
+    auto indices = ov_inputs.at(1);
+    auto updates = ov_inputs.at(2);
     if (node.has_attribute("reduction")) {
         const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
         CHECK_VALID_NODE(node,

@@ -14,9 +14,9 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector prelu(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
-    const auto& data = ng_inputs.at(0);
-    const auto& slope = ng_inputs.at(1);
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    const auto& data = ov_inputs.at(0);
+    const auto& slope = ov_inputs.at(1);
     return {std::make_shared<v0::PRelu>(data, slope)};
 }
 

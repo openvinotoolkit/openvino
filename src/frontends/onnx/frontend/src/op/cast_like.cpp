@@ -15,7 +15,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector cast_like(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     return {std::make_shared<v1::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
