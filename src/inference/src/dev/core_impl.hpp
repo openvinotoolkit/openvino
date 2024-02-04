@@ -277,7 +277,7 @@ public:
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
-    std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
     // Common API
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,15 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-        InferenceEngine::SizeVector, // Input shapes
-        InferenceEngine::Precision,  // Input precision
-        ov::AxisSet,                 // Reduction axes
-        bool,                        // Across channels
-        bool,                        // Normalize variance
-        double,                      // Epsilon
-        std::string                  // Device name
-    > mvn1Params;
+typedef std::tuple<InferenceEngine::SizeVector,  // Input shapes
+                   InferenceEngine::Precision,   // Input precision
+                   ov::AxisSet,                  // Reduction axes
+                   bool,                         // Across channels
+                   bool,                         // Normalize variance
+                   double,                       // Epsilon
+                   std::string                   // Device name
+                   >
+    mvn1Params;
 
 class Mvn1LayerTest : public testing::WithParamInterface<mvn1Params>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
