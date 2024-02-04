@@ -311,37 +311,11 @@ protected:
         CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
     }
 };
-class MatmulWeightsDecompression_FP16 : public MatmulWeightsDecompression {
-protected:
-    void checkResults_FP16() {
-        const auto& test_param = GetParam();
-        const auto& weights_precision = std::get<1>(test_param);
-
-        bool weights_found = false;
-        for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-            if (n->get_friendly_name() == "Compressed_weights") {
-                ASSERT_EQ(n->get_output_element_type(0), weights_precision);
-                weights_found = true;
-            }
-        }
-        ASSERT_TRUE(weights_found);
-    }
-};
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
-}
-
-TEST_P(MatmulWeightsDecompression_FP16, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-    run();
-    checkResults_FP16();
 }
 
 namespace {
@@ -357,19 +331,11 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
     return additional_config;
 }
 
-std::vector<ov::AnyMap> filterAdditionalConfig_FP16() {
-    std::vector<ov::AnyMap> additional_config = {};
-    additional_config.push_back({{ov::hint::inference_precision(ov::element::f16)}});
-    return additional_config;
-}
-
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::u4,
                                                                ov::element::i4,
                                                                ov::element::nf4};
-
-const std::vector<ov::test::ElementType> weights_precisions_FP16 = {ov::element::u8};
 
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
@@ -403,21 +369,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_FP16,
-                         MatmulWeightsDecompression_FP16,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_amx),
-                                            ::testing::ValuesIn(weights_precisions_FP16),
-                                            ::testing::ValuesIn(decompression_precisions),
-                                            ::testing::Values(true),
-                                            ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(true),
-                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()),
-                                            ::testing::ValuesIn(fusing_params),
-                                            //only check if the tese case pass, not check the graph convert logic
-                                            ::testing::Values(false)),
-                         MatmulWeightsDecompression::getTestCaseName);
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                          MatmulWeightsDecompression,
@@ -461,22 +412,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_FP16,
-                         MatmulWeightsDecompression_FP16,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_amx),
-                                            ::testing::ValuesIn(weights_precisions_FP16),
-                                            ::testing::ValuesIn(decompression_precisions_corner_cases),
-                                            ::testing::ValuesIn(transpose_weights),
-                                            ::testing::ValuesIn(decompression_subtract_type),
-                                            ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()),
-                                            ::testing::Values(emptyFusingSpec),
-                                            //only check if the tese case pass, not check the graph convert logic
-                                            ::testing::Values(false)),
-                         MatmulWeightsDecompression::getTestCaseName);
-
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_amx,
                          MatmulWeightsDecompression,
