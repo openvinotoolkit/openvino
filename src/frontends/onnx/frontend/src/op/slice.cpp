@@ -11,15 +11,14 @@
 #include "openvino/op/slice.hpp"
 
 using namespace ov::op;
-
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_10 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
 
     ov::OutputVector inputs{node.get_ng_inputs()};
@@ -48,7 +47,7 @@ ov::OutputVector slice(const Node& node) {
 }  // namespace set_10
 
 namespace set_1 {
-ov::OutputVector slice(const Node& node) {
+ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends = node.get_attribute_as_constant<std::vector<int64_t>>("ends");
@@ -69,6 +68,6 @@ ov::OutputVector slice(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

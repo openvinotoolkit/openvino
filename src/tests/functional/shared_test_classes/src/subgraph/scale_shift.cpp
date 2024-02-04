@@ -46,4 +46,3 @@ void ScaleShiftLayerTest::SetUp() {
 }
 } // namespace test
 } // namespace ov
-

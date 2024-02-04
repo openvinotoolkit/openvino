@@ -16,12 +16,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector global_lp_pool(const Node& node) {
+ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
     const std::size_t channel_axis{1};
 
@@ -58,10 +58,7 @@ ov::OutputVector global_lp_pool(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

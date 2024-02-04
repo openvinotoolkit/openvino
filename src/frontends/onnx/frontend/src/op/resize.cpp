@@ -11,9 +11,9 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 static const std::unordered_set<std::string> supported_modes = {"nearest", "linear", "cubic"};
@@ -59,7 +59,7 @@ static int mode_as_int(const std::map<std::string, int>& converting_map, const s
 
 using InterpolateAttrs = v11::Interpolate::InterpolateAttrs;
 
-InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
+InterpolateAttrs get_resize_attrs(const ov::frontend::onnx::Node& node) {
     auto get_str_attr = [&node](const std::string& name, const std::string& default_value) {
         return node.get_attribute_value<std::string>(name, default_value);
     };
@@ -112,7 +112,7 @@ InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
 }  // namespace
 
 namespace set_11 {
-ov::OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
     const auto inputs = node.get_ng_inputs();
@@ -133,7 +133,7 @@ ov::OutputVector resize(const onnx_import::Node& node) {
 }  // namespace set_11
 
 namespace set_1 {
-ov::OutputVector resize(const onnx_import::Node& node) {
+ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs.at(0);
     const auto& scales = inputs.at(1);
@@ -152,6 +152,6 @@ ov::OutputVector resize(const onnx_import::Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

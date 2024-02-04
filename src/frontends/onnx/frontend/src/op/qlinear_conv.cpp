@@ -17,12 +17,12 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector qlinear_conv(const Node& node) {
+ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     auto x = inputs.at(0);
@@ -60,10 +60,7 @@ ov::OutputVector qlinear_conv(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

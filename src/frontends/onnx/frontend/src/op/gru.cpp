@@ -16,9 +16,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
@@ -78,7 +78,7 @@ struct GRUAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-ov::OutputVector gru(const Node& node) {
+ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 3;
     GRUInputMap input_map{node, gates_count};
     GRUAttributes attributes{node};
@@ -104,10 +104,7 @@ ov::OutputVector gru(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

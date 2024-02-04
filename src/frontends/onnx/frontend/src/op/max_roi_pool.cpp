@@ -9,12 +9,12 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector max_roi_pool(const Node& node) {
+ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ng_inputs();
     const auto X = inputs.at(0);
     const auto rois = inputs.at(1);
@@ -30,6 +30,6 @@ ov::OutputVector max_roi_pool(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

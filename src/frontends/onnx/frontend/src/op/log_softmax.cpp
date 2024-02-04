@@ -16,9 +16,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace {
 std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
@@ -27,7 +27,7 @@ std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const
     return std::make_shared<v1::Reshape>(result, data_shape, false);
 }
 
-ov::OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t DEFAULT_AXIS) {
     ov::OutputVector inputs{node.get_ng_inputs()};
     const auto data = inputs.at(0);
     const auto data_rank = data.get_partial_shape().rank();
@@ -62,21 +62,18 @@ ov::OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
 namespace op {
 namespace set_1 {
-ov::OutputVector log_softmax(const Node& node) {
-    return ngraph::onnx_import::log_softmax(node, 1);
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
+    return ov::frontend::onnx::log_softmax(node, 1);
 }
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector log_softmax(const Node& node) {
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ng_inputs()[0], axis)};
 }
 }  // namespace set_13
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

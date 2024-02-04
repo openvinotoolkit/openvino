@@ -17,8 +17,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace pooling {
 
 namespace {
@@ -36,7 +37,6 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
 }
 }  // namespace
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 PoolingFactory::PoolingFactory(const Node& node)
     : m_onnx_node{node},
       m_inputs{node.get_ng_inputs()},
@@ -64,7 +64,6 @@ ov::OutputVector PoolingFactory::make_avg_pool() const {
                                           m_rounding_type,
                                           m_auto_pad)};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::OutputVector PoolingFactory::make_max_pool() const {
     return {std::make_shared<v1::MaxPool>(m_inputs.at(0),
@@ -95,5 +94,6 @@ ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
     }
 }
 }  // namespace pooling
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

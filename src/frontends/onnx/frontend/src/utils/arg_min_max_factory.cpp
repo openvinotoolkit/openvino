@@ -17,16 +17,16 @@
 using namespace ov;
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace utils {
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
       m_input_node{node.get_ng_inputs().at(0)},
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(v11::TopK::Mode::MAX);
@@ -106,5 +106,6 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
     return result;
 }
 }  // namespace utils
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

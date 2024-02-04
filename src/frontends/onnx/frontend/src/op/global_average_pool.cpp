@@ -13,12 +13,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector global_average_pool(const Node& node) {
+ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     // Generate axes for reduce operation which contain all spatial dims indexes.
     // Examples:
     // Input shape: [N, C, H, W]
@@ -44,10 +44,7 @@ ov::OutputVector global_average_pool(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

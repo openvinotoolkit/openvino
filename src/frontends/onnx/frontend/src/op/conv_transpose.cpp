@@ -24,9 +24,9 @@ using ov::CoordinateDiff;
 using ov::Shape;
 using ov::Strides;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
@@ -128,7 +128,7 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
 }
 }  // namespace
 
-ov::OutputVector conv_transpose(const Node& node) {
+ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ng_inputs();
 
     CHECK_VALID_NODE(node,
@@ -215,10 +215,7 @@ ov::OutputVector conv_transpose(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

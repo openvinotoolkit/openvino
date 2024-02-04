@@ -75,4 +75,3 @@ void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
 
 }  // namespace test
 }  // namespace ov
-

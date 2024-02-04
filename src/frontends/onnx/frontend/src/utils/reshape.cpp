@@ -29,8 +29,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace reshape {
 std::vector<std::size_t> infer_dimensions(const std::string& node_name,
                                           const std::vector<std::size_t>& input_shape,
@@ -115,10 +116,9 @@ ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::No
 }
 
 }  // namespace  reshape
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
 
-namespace ov {
 namespace op {
 namespace util {
 std::shared_ptr<ov::Node> reshape(const Output<ov::Node>& value, const Shape& shape) {

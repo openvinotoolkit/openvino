@@ -5,17 +5,18 @@
 #include "op/if.hpp"
 
 #include "core/graph.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/if.hpp"
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector if_op(const Node& node) {
+ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
@@ -68,6 +69,6 @@ ov::OutputVector if_op(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

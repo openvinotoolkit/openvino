@@ -19,10 +19,9 @@ using namespace ov;
 using namespace ov::op;
 using ov::CoordinateDiff;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
 ov::Shape get_kernel_shape(const Node& node) {
     const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
@@ -181,7 +180,6 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
     return reshaped_filters;
 }
 }  // namespace convpool
-}  // namespace onnx_import
-}  // namespace ngraph
-
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
