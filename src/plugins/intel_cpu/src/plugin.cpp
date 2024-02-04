@@ -707,7 +707,6 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        OPENVINO_SUPPRESS_DEPRECATED_START
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -724,7 +723,6 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
