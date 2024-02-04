@@ -4,7 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/if.hpp"
 
 using namespace std;
 using namespace ov;
