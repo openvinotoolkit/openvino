@@ -13,7 +13,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector atanh(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v3::Atanh>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v3::Atanh>(node.get_ov_inputs().at(0))};
 }
 }  // namespace set_1
 }  // namespace op

@@ -27,7 +27,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
 
     CHECK_VALID_NODE(node, num_inputs > 0 && num_inputs <= 2, "Trilu expects <= 2 input tensors. Got: ", num_inputs);

@@ -29,7 +29,7 @@ namespace frontend {
 namespace onnx {
 namespace recurrent {
 OpInputMap::OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) {
-    const auto& ng_inputs = node.get_ng_inputs();
+    const auto& ng_inputs = node.get_ov_inputs();
 
     m_map[OpInput::X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
     m_map[OpInput::W] = ng_inputs.at(1);

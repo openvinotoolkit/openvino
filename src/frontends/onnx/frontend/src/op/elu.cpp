@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector elu(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1);
 
     return {std::make_shared<v0::Elu>(data, alpha)};
