@@ -395,7 +395,7 @@ std::vector<std::string> disabledTestPatterns() {
     }
 
     if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
-        // Issue 110112
+        // Issue 131632
        retVector.emplace_back(R"(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
        retVector.emplace_back(R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
        retVector.emplace_back(R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
