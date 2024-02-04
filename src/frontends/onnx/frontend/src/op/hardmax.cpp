@@ -12,7 +12,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/topk.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 #include "validation_util.hpp"
@@ -21,11 +20,12 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector hardmax(const Node& node) {
+ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
@@ -42,17 +42,17 @@ ov::OutputVector hardmax(const Node& node) {
         std::make_shared<v8::Gather>(coerced_tensor_shape,
                                      ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
                                      ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-    row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
+    row_size = ov::frontend::onnx::reshape::interpret_as_scalar(row_size);
 
     const auto indices_axis = 1;
     const auto topk = std::make_shared<v11::TopK>(coerced_tensor,
-                                                  ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1}),
+                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   indices_axis,
                                                   ov::op::v11::TopK::Mode::MAX,
                                                   ov::op::v11::TopK::SortType::NONE);
 
-    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
-    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
+    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     const auto results = std::make_shared<v1::OneHot>(topk->output(1), row_size, on_value, off_value, indices_axis);
     const auto converted_results = std::make_shared<v0::Convert>(results, input.get_element_type());
@@ -63,7 +63,7 @@ ov::OutputVector hardmax(const Node& node) {
 
 }  // namespace set_1
 namespace set_13 {
-ov::OutputVector hardmax(const Node& node) {
+ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
 
@@ -75,16 +75,16 @@ ov::OutputVector hardmax(const Node& node) {
         std::make_shared<v8::Gather>(input_runtime_shape,
                                      ov::op::v0::Constant::create(ov::element::i64, {1}, {axis}),
                                      ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-    row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
+    row_size = ov::frontend::onnx::reshape::interpret_as_scalar(row_size);
 
     const auto topk = std::make_shared<v11::TopK>(input,
-                                                  ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1}),
+                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
                                                   axis,
                                                   ov::op::v11::TopK::Mode::MAX,
                                                   ov::op::v11::TopK::SortType::NONE);
 
-    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {1});
-    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {0});
+    const auto on_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto off_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     const auto results = std::make_shared<v1::OneHot>(topk->output(1), row_size, on_value, off_value, axis);
     const auto converted_results = std::make_shared<v0::Convert>(results, input.get_element_type());
@@ -95,8 +95,7 @@ ov::OutputVector hardmax(const Node& node) {
 
 }  // namespace set_13
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

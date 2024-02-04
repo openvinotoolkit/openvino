@@ -4,16 +4,17 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector experimental_detectron_roi_feature_extractor(const Node& node) {
+ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend::onnx::Node& node) {
     using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
     auto inputs = node.get_ng_inputs();
@@ -28,9 +29,7 @@ ov::OutputVector experimental_detectron_roi_feature_extractor(const Node& node) 
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

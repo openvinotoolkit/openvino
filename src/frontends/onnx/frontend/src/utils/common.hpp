@@ -13,15 +13,16 @@
 #include <type_traits>  // std::enable_if
 #include <vector>
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
 
@@ -133,7 +134,7 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \return     ov::OutputVector with binary op
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const Node& node);
+ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node);
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
@@ -157,5 +158,6 @@ bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 /// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
 std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);
 }  // namespace  common
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

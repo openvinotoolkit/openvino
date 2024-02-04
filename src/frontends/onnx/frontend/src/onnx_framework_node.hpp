@@ -17,7 +17,7 @@
 #pragma once
 
 #include "core/graph.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -26,20 +26,19 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
-namespace onnx_import {
-class Model;
-}
-
+namespace ov {
 namespace frontend {
+namespace onnx {
+class Model;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ONNXFrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    ONNXFrameworkNode(const onnx_import::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
 
-    ONNXFrameworkNode(const onnx_import::Node& node, const ov::OutputVector& inputs)
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node) {
         ov::op::util::FrameworkNodeAttrs attrs;
@@ -48,7 +47,7 @@ public:
         set_attrs(attrs);
     }
 
-    ov::OutputVector get_ov_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
+    ov::OutputVector get_ov_nodes(const std::shared_ptr<ov::frontend::onnx::Graph>& graph) const {
         ov::OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
         if (ov_nodes.size() > get_output_size()) {
             ov_nodes.resize(get_output_size());
@@ -68,14 +67,14 @@ public:
     }
 
 protected:
-    onnx_import::Node m_node;
+    ov::frontend::onnx::Node m_node;
 };
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
     OPENVINO_OP("ONNXSubgraphFrameworkNode", "util", ONNXFrameworkNode);
 
-    ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
+    ONNXSubgraphFrameworkNode(const ov::frontend::onnx::Node& node,
                               const std::vector<std::shared_ptr<ov::Model>>& models,
                               const ov::OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
@@ -97,7 +96,7 @@ private:
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-// Be careful with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
+// Be careful with using protobuf references (also ov::frontend::onnx::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
     static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
@@ -127,5 +126,6 @@ public:
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 
+}  // namespace onnx
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -4,8 +4,8 @@
 
 #include "op/trilu.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -21,12 +21,13 @@
 using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector trilu(const Node& node) {
+ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto num_inputs = inputs.size();
 
@@ -104,6 +105,7 @@ ov::OutputVector trilu(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

@@ -7,10 +7,11 @@
 #include "openvino/core/deprecated.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Convert ONNX GlobalAveragePool operation to an OV node.
@@ -19,13 +20,11 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX
 ///         GlobalAveragePool operation.
-ov::OutputVector global_average_pool(const Node& node);
+ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

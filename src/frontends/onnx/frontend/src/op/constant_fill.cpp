@@ -6,6 +6,8 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+using namespace ::ONNX_NAMESPACE;
+
 #include "exceptions.hpp"
 #include "onnx_common/utils.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -15,11 +17,12 @@ using namespace ov::op;
 using namespace ov::frontend::onnx::common;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector constant_fill(const Node& node) {
+ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> target_shape;
     const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
     const auto ng_type = onnx_to_ov_data_type(static_cast<TensorProto_DataType>(dtype));
@@ -46,7 +49,7 @@ ov::OutputVector constant_fill(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

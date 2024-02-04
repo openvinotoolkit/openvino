@@ -21,41 +21,43 @@
 #include "openvino/op/subtract.hpp"
 
 using namespace ov::op;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
-    case ONNX_NAMESPACE::TensorProto_DataType_BOOL:
+    case TensorProto_DataType::TensorProto_DataType_BOOL:
         return ov::element::boolean;
-    case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+    case TensorProto_DataType::TensorProto_DataType_DOUBLE:
         return ov::element::f64;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT16:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT16:
         return ov::element::f16;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT8:
+    case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT16:
+    case TensorProto_DataType::TensorProto_DataType_INT16:
         return ov::element::i16;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+    case TensorProto_DataType::TensorProto_DataType_INT32:
         return ov::element::i32;
-    case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+    case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT8:
+    case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT16:
+    case TensorProto_DataType::TensorProto_DataType_UINT16:
         return ov::element::u16;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT32:
+    case TensorProto_DataType::TensorProto_DataType_UINT32:
         return ov::element::u32;
-    case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+    case TensorProto_DataType::TensorProto_DataType_UINT64:
         return ov::element::u64;
-    case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED:
+    case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
         return ov::element::dynamic;
-    case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
+    case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
     }
     OPENVINO_THROW("unsupported element type");
@@ -99,7 +101,7 @@ void validate_scalar_input(const char* input_name,
 }
 
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const Node& node) {
+ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
     ov::Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
@@ -115,7 +117,7 @@ ov::OutputVector handle_opset6_binary_op(const Node& node) {
                 axis += lhs_rank;
             if (lhs_rank > axis + rhs_rank) {
                 auto ones = v0::Constant::create(ov::element::i64,
-                                                 Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
+                                                 ov::Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
                                                  std::vector<int64_t>(lhs_rank - axis - rhs_rank, 1));
                 auto rhs_shape = std::make_shared<v0::ShapeOf>(rhs_node);
                 auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
@@ -137,7 +139,7 @@ template ov::OutputVector handle_opset6_binary_op<v1::LogicalAnd>(const Node& no
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 
 std::shared_ptr<v0::Constant> make_failsafe_constant(const ov::element::Type& dtype) {
-    const auto failsafe_constant = v0::Constant::create(dtype, Shape{}, {0});
+    const auto failsafe_constant = v0::Constant::create(dtype, ov::Shape{}, {0});
     auto& rt_info = failsafe_constant->get_rt_info();
     rt_info[FAILSAFE_NODE] = true;
     return failsafe_constant;
@@ -167,7 +169,7 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
     bool unsupported_found = false;
     bool additional_error_found = false;
     for (const auto& op : partially_converted->get_ops()) {
-        if (const auto unsupported = std::dynamic_pointer_cast<frontend::NotSupportedONNXNode>(op)) {
+        if (const auto unsupported = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(op)) {
             if (unsupported->additional_error_message().empty()) {
                 fully_unsupported_ops += (unsupported->get_attrs().get_opset_name().empty()
                                               ? ""
@@ -198,6 +200,7 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
 }
 
 }  // namespace  common
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

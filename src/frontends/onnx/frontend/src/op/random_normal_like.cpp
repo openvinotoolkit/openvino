@@ -12,12 +12,13 @@ using namespace ov::op;
 using ov::Shape;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector random_normal_like(const Node& node) {
+ov::OutputVector random_normal_like(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
     ov::element::Type target_type;
@@ -33,8 +34,8 @@ ov::OutputVector random_normal_like(const Node& node) {
 
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
-    auto scale_node = v0::Constant::create(target_type, Shape{1}, {scale});
-    auto mean_node = v0::Constant::create(target_type, Shape{1}, {mean});
+    auto scale_node = v0::Constant::create(target_type, ov::Shape{1}, {scale});
+    auto mean_node = v0::Constant::create(target_type, ov::Shape{1}, {mean});
 
     auto res = ov::frontend::make_random_normal(shape, target_type, mean_node, scale_node, seed);
     return res.first;
@@ -42,6 +43,7 @@ ov::OutputVector random_normal_like(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 OPENVINO_SUPPRESS_DEPRECATED_END

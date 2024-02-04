@@ -102,7 +102,7 @@ public:
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
     Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
 
-// 128760
+// 131123
 #ifndef _WIN32
     /** @brief  Checks incoming Napi::Value and asynchronously returns the result of inference. */
     Napi::Value infer_async(const Napi::CallbackInfo& info);
