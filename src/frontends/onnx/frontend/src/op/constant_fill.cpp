@@ -16,7 +16,6 @@ using namespace ::ONNX_NAMESPACE;
 using namespace ov::op;
 using namespace ov::frontend::onnx::common;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -52,4 +51,3 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

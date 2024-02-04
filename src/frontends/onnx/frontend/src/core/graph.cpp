@@ -39,7 +39,6 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     return ret;
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 OperatorsBridge register_extensions(OperatorsBridge& bridge,
                                     const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
@@ -61,7 +60,6 @@ OperatorsBridge register_extensions(OperatorsBridge& bridge,
     }
     return bridge;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
@@ -167,7 +165,6 @@ Graph::Graph(const std::string& model_dir,
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void Graph::convert_to_ov_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
@@ -199,7 +196,6 @@ void Graph::convert_to_ov_nodes() {
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Graph::remove_dangling_parameters() {
     const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output, const GraphProto& graph) {
@@ -245,7 +241,6 @@ std::shared_ptr<ov::Model> Graph::convert() {
     return function;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
     std::shared_ptr<ov::frontend::onnx::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
@@ -298,7 +293,6 @@ void Graph::decode_to_framework_nodes() {
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ov::Model> Graph::create_model() {
     auto model = std::make_shared<ov::Model>(get_ov_outputs(), m_parameters, get_name());
@@ -329,7 +323,6 @@ Output<ov::Node> Graph::get_ov_node_from_cache(const std::string& name) {
     return m_cache->get_node(name);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 ov::OutputVector Graph::get_ov_outputs() {
     ov::OutputVector results;
     for (const auto& output : m_model->get_graph().output()) {
@@ -436,7 +429,6 @@ void Graph::set_friendly_names(const Node& onnx_node, const ov::OutputVector& ov
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();

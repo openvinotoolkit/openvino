@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 #include "core/operator_set.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "version_range.hpp"
 
 namespace ov {
