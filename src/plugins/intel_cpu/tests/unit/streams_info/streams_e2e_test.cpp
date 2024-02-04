@@ -8,6 +8,7 @@
 #include "cpu_map_scheduling.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "os/cpu_map_info.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -46,7 +47,8 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.hintPerfMode = test_data.input_pm_hint;
     config.latencyThreadingMode = test_data.input_latency_threading_mode;
     config.hintNumRequests = test_data.input_request;
-    config.streams = test_data.input_stream;
+    config.streams = test_data.input_stream_changed ? test_data.input_stream
+                                                    : (test_data.input_stream == 0 ? 1 : test_data.input_stream);
     config.streamsChanged = test_data.input_stream_changed;
     config.threads = test_data.input_thread;
 }
@@ -58,6 +60,9 @@ public:
         auto test_data = std::get<0>(GetParam());
         ov::intel_cpu::Config config;
         make_config(test_data, config);
+
+        CPU& cpu = cpu_info();
+        cpu._proc_type_table = test_data.input_proc_type_table;
 
         auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
                                                                    test_data.input_socket_id,
