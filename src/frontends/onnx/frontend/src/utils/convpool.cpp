@@ -19,8 +19,6 @@ using namespace ov;
 using namespace ov::op;
 using ov::CoordinateDiff;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -185,5 +183,3 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-
-OPENVINO_SUPPRESS_DEPRECATED_END
