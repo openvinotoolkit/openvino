@@ -46,8 +46,6 @@ public:
     Tensor(const element::Type& element_type,
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use constructor with set of names")
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
