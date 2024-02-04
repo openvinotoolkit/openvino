@@ -11,7 +11,6 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-// #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"

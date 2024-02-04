@@ -187,7 +187,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::vector<ov::PropertyName>{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
@@ -208,7 +207,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (name == ov::model_name) {
