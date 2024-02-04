@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,14 @@
 #include "openvino/op/squeeze.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector global_max_pool(const Node& node) {
+ov::OutputVector global_max_pool(const ov::frontend::onnx::Node& node) {
     // Generate axes for reduce operation which contain all spatial dims indexes.
     // Examples:
     // Input shape: [N, C, H, W]
@@ -29,9 +30,9 @@ ov::OutputVector global_max_pool(const Node& node) {
     // Expected spatial dims indexes: [2, 3, 4]
     auto data = node.get_ng_inputs()[0];
 
-    const auto zero_node = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto one_node = v0::Constant::create(ov::element::i64, Shape{}, {1});
-    const auto two_node = v0::Constant::create(ov::element::i64, Shape{}, {2});
+    const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto two_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
 
     const auto data_shape = std::make_shared<v3::ShapeOf>(data);
     const auto data_rank = std::make_shared<v3::ShapeOf>(data_shape);
@@ -43,10 +44,7 @@ ov::OutputVector global_max_pool(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

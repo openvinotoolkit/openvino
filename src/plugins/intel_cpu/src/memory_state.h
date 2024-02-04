@@ -5,10 +5,8 @@
 #pragma once
 
 #include "cpu_memory.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/common/cpu_memcpy.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "openvino/runtime/ivariable_state.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils/plain_tensor.hpp"
 

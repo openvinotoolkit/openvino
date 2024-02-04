@@ -5,7 +5,6 @@
 #include "dft.h"
 
 #include <string>
-#include <thread>
 #include <vector>
 #include <cmath>
 #include "dnnl_extension_utils.h"
@@ -14,6 +13,7 @@
 #include "onednn/dnnl.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 #include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;
@@ -234,13 +234,13 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 } // namespace
 
 void DFT::execute(dnnl::stream strm) {
-    const auto& outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->getData());
-    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->getData());
+    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -525,7 +525,7 @@ void DFT::prepareParams() {
     bool hasFFT = false;
 
     axes = getAxes();
-    const auto outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     for (size_t axis : axes) {
         size_t nComplex = outputShape[axis];
@@ -542,7 +542,7 @@ void DFT::prepareParams() {
 
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->getData());
+    const auto* axesStartPtr = axesEdge->getMemoryPtr()->getDataAs<const int32_t>();
     auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {

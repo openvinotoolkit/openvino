@@ -4,14 +4,14 @@
 
 #include "op/pad.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
@@ -32,12 +32,12 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector pad(const Node& node) {
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ng_inputs().at(0);
 
     const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
@@ -62,7 +62,7 @@ ov::OutputVector pad(const Node& node) {
 
 }  // namespace set_1
 namespace set_11 {
-ov::OutputVector pad(const Node& node) {
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
@@ -87,7 +87,7 @@ ov::OutputVector pad(const Node& node) {
         padding_begin = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_begin_values);
         padding_end = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_end_values);
     } else {
-        ov::OutputVector padding = ov::op::util::split(pads, 2, 0);
+        ov::OutputVector padding = ov::op::util::make_split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);
@@ -100,10 +100,7 @@ ov::OutputVector pad(const Node& node) {
 }
 
 }  // namespace set_11
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

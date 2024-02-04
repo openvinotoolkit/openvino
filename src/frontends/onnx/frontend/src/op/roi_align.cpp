@@ -9,14 +9,12 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
-
 namespace set_1 {
-
-ov::OutputVector roi_align(const Node& node) {
+ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
@@ -45,7 +43,7 @@ ov::OutputVector roi_align(const Node& node) {
 }
 }  // namespace set_1
 namespace set_16 {
-ov::OutputVector roi_align(const Node& node) {
+ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
@@ -80,10 +78,7 @@ ov::OutputVector roi_align(const Node& node) {
                                            aligned_mode)};
 }
 }  // namespace set_16
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

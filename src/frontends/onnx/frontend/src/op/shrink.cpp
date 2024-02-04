@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,12 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector shrink(const Node& node) {
+ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const float bias = node.get_attribute_value<float>("bias", 0.0f);
     const float lambd = node.get_attribute_value<float>("lambd", 0.5f);
@@ -30,16 +30,16 @@ ov::OutputVector shrink(const Node& node) {
     std::shared_ptr<v0::Constant> negative_lambd;
     const auto input_element_type = input.get_element_type();
     if (input_element_type.is_signed()) {
-        negative_lambd = v0::Constant::create(input_element_type, Shape{}, {-lambd});
+        negative_lambd = v0::Constant::create(input_element_type, ov::Shape{}, {-lambd});
     } else {
         // Passing -lambd to unsigned type constant will cause an overflow.
         // For unsigned types the lowest possible value is 0.
-        negative_lambd = v0::Constant::create(input_element_type, Shape{}, {0});
+        negative_lambd = v0::Constant::create(input_element_type, ov::Shape{}, {0});
     }
 
-    const auto positive_lambd = v0::Constant::create(input_element_type, Shape{}, {lambd});
+    const auto positive_lambd = v0::Constant::create(input_element_type, ov::Shape{}, {lambd});
 
-    const auto bias_tensor = v0::Constant::create(input_element_type, Shape{}, {bias});
+    const auto bias_tensor = v0::Constant::create(input_element_type, ov::Shape{}, {bias});
 
     // Create a mask indicating locations of values that need to be adjusted
     // by adding and subtracting bias
@@ -65,10 +65,7 @@ ov::OutputVector shrink(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

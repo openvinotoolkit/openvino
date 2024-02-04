@@ -85,6 +85,7 @@
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
+#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -160,11 +161,44 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+        if (consumer != nullptr) {
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return true;
+            }
+            if (is_gather_with_compressed_weights(consumer)) {
+                return true;
+            }
         }
     }
     return false;
+}
+
+bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
+    if (!fq)
+        return false;
+    const auto& from = node->get_output_element_type(0);
+    auto it = precisions.find(from);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        auto convert_before = std::make_shared<opset4::Convert>(node->input_value(i), from);
+        node->input(i).replace_source_output(convert_before);
+    }
+
+    auto consumers = node->output(0).get_target_inputs();
+    for (auto& input : consumers) {
+        const auto consumer = input.get_node();
+        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+            continue;
+        }
+        auto convert_after = std::make_shared<opset4::Convert>(node, to);
+        input.replace_source_output(convert_after);
+    }
+
+    return true;
 }
 
 bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -210,28 +244,24 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
 }
 
 void Transformations::UpToLpt() {
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {
+        levels::int4,
+        levels::int4_narrow_range,
+        levels::int8,
+        levels::int8_narrow_range
+    };
+
     const bool useLpt = enableLpt &&
-        ov::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
+        LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    auto defaultPrecisions = useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
-    bool hasINT16orINT32Levels = false;
-
-    if (useLpt) {
-        CPU_LPT_SCOPE(LowPrecisionTransformations_Part1);
-        hasINT16orINT32Levels = ov::pass::low_precision::LowPrecision::isFQLevelsPresent(
-            model,
-            {ov::pass::low_precision::levels::int16, ov::pass::low_precision::levels::int16_narrow_range,
-             ov::pass::low_precision::levels::int32, ov::pass::low_precision::levels::int32_narrow_range});
-        if (hasINT16orINT32Levels) {
-            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
-        }
-    }
+    const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
     PreLpt(defaultPrecisions, isLegacyApi);
 
     if (useLpt)
-        Lpt(hasINT16orINT32Levels, defaultPrecisions);
+        Lpt(defaultPrecisions);
 }
 
 void Transformations::CpuSpecificOpSet(void) {
@@ -301,12 +331,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-        type_to_fuse_map empty_fuse_map = {};
+        type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
                                  fp_convert_precision_map,
-                                 empty_fuse_map,
+                                 f16_fuse_map,
                                  keep_precision_sensitive_in_fp32,
                                  false);
     }
@@ -514,7 +544,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.run_passes(model);
 }
 
-void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
+void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
     using namespace ov::pass::low_precision;
@@ -573,18 +603,11 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
             QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})
         });
 
-    // for GNA networks reference execution
-    bool updatePrecision = true;
-    if (hasINT16orINT32Levels) {
-        updatePrecision = false;
-        supportedPrecisions = std::vector<PrecisionsRestriction>({});
-    }
-
     ov::pass::Manager lptManager;
     CPU_REGISTER_PASS_COMMON(lptManager, LowPrecision,
         supportedPrecisions,
         quantizationRestrictions,
-        LayerTransformation::Params(updatePrecision, ov::element::f32, defaultPrecisions));
+        LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
     CPU_SET_CALLBACK_COMMON(lptManager, [](const_node_ptr& node) -> bool {
         return ov::is_type<ov::opset1::Multiply>(node) &&
