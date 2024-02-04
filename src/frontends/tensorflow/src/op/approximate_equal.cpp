@@ -1,11 +1,7 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-<<<<<<< HEAD
-=======
 #include "common_op_table.hpp"
->>>>>>> dad195883b2ab734ebdcb5e69d769d8dc29cd125
 #include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
