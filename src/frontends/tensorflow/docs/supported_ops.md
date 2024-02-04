@@ -191,7 +191,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | CTCLossV2                                               | NO                            |                               |
 | CacheDataset                                            | NO                            |                               |
 | CacheDatasetV2                                          | NO                            |                               |
-| Case                                                    | YES                            |                               |
+| Case                                                    | YES                           |                               |
 | Cast                                                    | YES                           |                               |
 | Ceil                                                    | YES                           |                               |
 | CheckNumerics                                           | YES                           |                               |
