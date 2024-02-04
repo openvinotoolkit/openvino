@@ -39,7 +39,7 @@ public:
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (ov::element::bf16 == (inType = outType = this->GetParam())) {
             configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
-        } else if (ov::element::bf16 == (inType = outType = this->GetParam())) {
+        } else if (ov::element::f16 == (inType = outType = this->GetParam())) {
             configuration.insert({ov::hint::inference_precision(ov::element::f16)});
         } else {
             configuration.insert({ov::hint::inference_precision(ov::element::f32)});

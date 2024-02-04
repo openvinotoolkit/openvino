@@ -15,12 +15,15 @@ namespace test {
 
 class InputNoReorderEltwiseBF16 : virtual public SubgraphBaseStaticTest, public CPUTestsBase {
 protected:
-    void SetUp() override {
-        auto netPrecision = inType = ov::element::f32;
+    virtual void set_output_type_and_config() {
         outType = ov::element::bf16;
-        targetDevice = ov::test::utils::DEVICE_CPU;
         ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::bf16)};
         configuration.insert(additional_config.begin(), additional_config.end());
+    }
+    void SetUp() override {
+        auto netPrecision = inType = ov::element::f32;
+        set_output_type_and_config();
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ov::Shape inputShape{2, 4, 4, 1};
         auto eltwiseType = ov::test::utils::EltwiseTypes::ADD;
@@ -58,29 +61,14 @@ TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
 }
 
-class InputNoReorderEltwiseFP16 : virtual public SubgraphBaseStaticTest, public CPUTestsBase {
+class InputNoReorderEltwiseFP16 : public InputNoReorderEltwiseBF16 {
 protected:
-    void SetUp() override {
-        auto netPrecision = inType = ov::element::f32;
+    void set_output_type_and_config() override {
         outType = ov::element::f16;
-        targetDevice = ov::test::utils::DEVICE_CPU;
         ov::AnyMap additional_config{ov::hint::inference_precision(ov::element::f16)};
         configuration.insert(additional_config.begin(), additional_config.end());
-
-        ov::Shape inputShape{2, 4, 4, 1};
-        auto eltwiseType = ov::test::utils::EltwiseTypes::ADD;
-
-        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputShape)};
-
-        auto tensor = ov::test::utils::create_and_fill_tensor(netPrecision, inputShape);
-        auto secondaryInput = std::make_shared<ov::op::v0::Constant>(tensor);
-
-        auto eltwise = ov::test::utils::make_eltwise(input[0], secondaryInput, eltwiseType);
-
-        function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
     }
 };
-
 
 TEST_F(InputNoReorderEltwiseFP16, smoke_CompareWithRefs) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {

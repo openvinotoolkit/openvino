@@ -33,9 +33,6 @@ public:
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
-        if (inType == ElementType::bf16) {
-            configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
-        }
         std::tie(inFmts, outFmts, priority, selectedType) =
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
         init_input_shapes({inputShape});
@@ -57,51 +54,6 @@ public:
         function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
     };
 };
-
-class RemoveUselessFP16ConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
-                             virtual public SubgraphBaseTest,
-                             public CPUTestsBase {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
-        std::ostringstream result;
-        result << "IS=" << inputShape << "_";
-        result << "Prc=" << inType;
-        return result.str();
-    }
-
-    void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
-        targetDevice = ov::test::utils::DEVICE_CPU;
-        if (inType == ElementType::f16) {
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
-        }
-        std::tie(inFmts, outFmts, priority, selectedType) =
-            CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
-        init_input_shapes({inputShape});
-        auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
-        auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
-        auto begin = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
-        auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
-                                                                begin,
-                                                                end,
-                                                                stride,
-                                                                std::vector<int64_t>{0, 0, 0, 0},
-                                                                std::vector<int64_t>{1, 1, 0, 1},
-                                                                std::vector<int64_t>{},
-                                                                std::vector<int64_t>{},
-                                                                std::vector<int64_t>{});
-        auto convert2 = std::make_shared<ov::op::v0::Convert>(slice, inType);
-        function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
-    };
-};
-
 
 class RemoveUselessConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
                                     virtual public SubgraphBaseTest,
@@ -146,6 +98,13 @@ public:
 };
 
 TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
+    ElementType inType;
+    InputShape inputShape;
+    std::tie(inType, inputShape) = this->GetParam();
+    if (inType == ElementType::bf16) {
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
+    }
+
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
@@ -156,11 +115,14 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
 }
 
+using RemoveUselessFP16ConvertCPUTest = RemoveUselessBF16ConvertCPUTest;
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
+
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
