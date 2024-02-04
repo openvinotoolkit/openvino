@@ -1,4 +1,7 @@
-#include "common_op_table.hpp"
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
@@ -14,18 +17,16 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_approximate_equal_op(const NodeContext& node) {
-    auto op_type = node.get_op_type();
-    TENSORFLOW_OP_VALIDATION(node, op_type == "ApproximateEqual", "Incorrect usage of translate_approximate_equal_op.");
+    // Perform default checks for the operation
+    default_op_checks(node, 2, {"ApproximateEqual"});
 
     // Extract necessary attributes and inputs
-    auto tolerance = node.get_attribute<float>("tolerance");
-    OutputVector inputs;
-    for (size_t input_ind = 0; input_ind < node.get_input_size(); ++input_ind) {
-        inputs.push_back(node.get_input(input_ind));
-    }
+    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f); // Set default value for tolerance
+    auto x = node.get_input(0); // Access inputs directly
+    auto y = node.get_input(1);
 
     // Implement the logic for ApproximateEqual
-    auto difference = make_shared<Subtract>(inputs[0], inputs[1]);
+    auto difference = make_shared<Subtract>(x, y);
     auto absolute = make_shared<Abs>(difference);
     auto less = make_shared<Less>(absolute, Constant::create(element::f32, Shape{}, {tolerance}));
 
