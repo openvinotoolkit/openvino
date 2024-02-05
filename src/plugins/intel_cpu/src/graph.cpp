@@ -1829,7 +1829,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     std::function<void(const NodePtr& node, int portIdx)> searchReferencingOutput;
                     searchReferencingOutput = [&](const NodePtr& node, int portIdx) -> void {
                         if (numConflicts > 1) return;  // early stop
-                        auto& childEdges = node->getChildEdgesAtPort(portIdx);
+                        auto childEdges = node->getChildEdgesAtPort(portIdx);
                         for (auto& edge : childEdges) {
                             auto pChild = edge->getChild();
                             if (Type::Output == pChild->getType()) {
