@@ -31,7 +31,7 @@ ov::OutputVector add(const ov::frontend::onnx::Node& node) {
 
 namespace set_7 {
 ov::OutputVector add(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<v1::Add>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    return {std::make_shared<v1::Add>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 }  // namespace set_7
 }  // namespace op

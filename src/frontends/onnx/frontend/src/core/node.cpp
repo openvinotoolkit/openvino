@@ -49,7 +49,7 @@ public:
     }
 
     const std::vector<Attribute>& attributes() const;
-    ov::OutputVector get_ng_inputs() const;
+    ov::OutputVector get_ov_inputs() const;
 
     const std::string& domain() const;
     const std::string& op_type() const;
@@ -200,7 +200,7 @@ ov::Any Node::get_attribute_value(const std::string& name) const {
     return get_attribute(name).get_any();
 }
 
-ov::OutputVector Node::Impl::get_ng_inputs() const {
+ov::OutputVector Node::Impl::get_ov_inputs() const {
     ov::OutputVector result;
     for (const auto& name : m_node_proto->input()) {
         if (!name.empty()) {
@@ -305,8 +305,8 @@ Node::Node(const Node& other)
                   delete impl;
               }} {}
 
-ov::OutputVector Node::get_ng_inputs() const {
-    return m_pimpl->get_ng_inputs();
+ov::OutputVector Node::get_ov_inputs() const {
+    return m_pimpl->get_ov_inputs();
 }
 const std::string& Node::domain() const {
     return m_pimpl->domain();

@@ -23,8 +23,8 @@ inline ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     auto iou_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {iou_threshold});
     auto score_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {score_threshold});
 
-    auto nms = std::make_shared<ov::op::v13::NMSRotated>(node.get_ng_inputs().at(0),
-                                                         node.get_ng_inputs().at(1),
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(node.get_ov_inputs().at(0),
+                                                         node.get_ov_inputs().at(1),
                                                          max_output_boxes_per_class,
                                                          iou_threshold_const,
                                                          score_threshold_const,

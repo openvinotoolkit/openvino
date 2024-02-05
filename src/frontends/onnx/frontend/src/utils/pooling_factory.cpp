@@ -39,7 +39,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
 
 PoolingFactory::PoolingFactory(const Node& node)
     : m_onnx_node{node},
-      m_inputs{node.get_ng_inputs()},
+      m_inputs{node.get_ov_inputs()},
       m_kernel_shape(node.get_attribute_value<std::vector<std::size_t>>("kernel_shape")),
       m_strides{convpool::get_strides(node, m_kernel_shape.size())},
       m_dilations{convpool::get_dilations(node, m_kernel_shape.size())},

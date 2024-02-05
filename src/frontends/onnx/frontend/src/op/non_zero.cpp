@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector non_zero(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     return {std::make_shared<v3::NonZero>(data, ov::element::i64)};
 }
 

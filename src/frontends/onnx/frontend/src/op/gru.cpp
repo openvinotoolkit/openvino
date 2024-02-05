@@ -28,7 +28,7 @@ struct GRUInputMap : public recurrent::OpInputMap {
 
         // Override bias, since we need separated W and R biases for `h` gate.
         if (linear_before_reset) {
-            const auto& ng_inputs = node.get_ng_inputs();
+            const auto& ng_inputs = node.get_ov_inputs();
             const auto el_type = ng_inputs.at(0).get_element_type();
 
             if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {

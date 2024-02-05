@@ -268,9 +268,14 @@ void SyncInferRequest::change_default_ptr() {
         // Cannot be in-place after concat because concat is using different ptrs without offsets
         auto parent = parentEdge->getParent();
         NodePtr previousParent;
+        auto parent_port = parentEdge->getInputNum();
         do {
             previousParent = parent;
-            if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
+            if (parent->getChildEdgesAtPort(parent_port).size() != 1 || parent->isConstant()) {
+                canBeInPlace = false;
+                break;
+            }
+            if (parent->getChildEdgeAt(parent_port)->inPlace(Edge::LOOK_UP)) {
                 canBeInPlace = false;
                 break;
             }
@@ -283,6 +288,7 @@ void SyncInferRequest::change_default_ptr() {
 
                 if (e->getMemory().getData() == defaultPtr) {
                     parent = e->getParent();
+                    parent_port = e->getInputNum();
                     break;
                 }
             }

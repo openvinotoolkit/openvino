@@ -28,7 +28,7 @@ ov::OutputVector global_max_pool(const ov::frontend::onnx::Node& node) {
     // Input shape: [N, C, H, W, D]
     // Input spatial dimensions are H, W and D
     // Expected spatial dims indexes: [2, 3, 4]
-    auto data = node.get_ng_inputs()[0];
+    auto data = node.get_ov_inputs()[0];
 
     const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     const auto one_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
