@@ -68,3 +68,9 @@ def _get_config(options) -> Optional[Any]:
     if options is not None and "config" in options:
         return options["config"]
     return {}
+
+def _get_decompositions(options) -> Optional[Any]:
+    decompositions = []
+    if options is not None and "decompositions" in options:
+        decompositions = options["decompositions"]
+    return decompositions
