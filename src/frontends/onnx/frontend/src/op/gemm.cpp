@@ -13,13 +13,13 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector gemm(const Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
     ov::Output<ov::Node> input_c;
@@ -62,8 +62,8 @@ ov::OutputVector gemm(const Node& node) {
 }  // namespace set_1
 
 namespace set_6 {
-ov::OutputVector gemm(const Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
     ov::Output<ov::Node> input_c;
@@ -90,9 +90,7 @@ ov::OutputVector gemm(const Node& node) {
 }
 
 }  // namespace set_6
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -15,9 +15,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 template <typename T>
@@ -107,7 +107,7 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const ov
 }  // namespace
 
 namespace set_1 {
-ov::OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
@@ -115,7 +115,7 @@ ov::OutputVector constant(const onnx_import::Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
                             "The Constant op expects exactly one attribute."
@@ -185,6 +185,6 @@ ov::OutputVector constant(const onnx_import::Node& node) {
 }
 }  // namespace set_13
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

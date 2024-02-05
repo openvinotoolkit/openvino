@@ -19,13 +19,12 @@ using namespace ov;
 using namespace ov::op;
 using ov::CoordinateDiff;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
 ov::Shape get_kernel_shape(const Node& node) {
-    const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
+    const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
@@ -39,7 +38,7 @@ namespace {
 /// \return     The attribute default value.
 ///
 std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
@@ -127,7 +126,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 }
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "The rank of node must be static in order to calculate pads");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
@@ -181,7 +180,6 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
     return reshaped_filters;
 }
 }  // namespace convpool
-}  // namespace onnx_import
-}  // namespace ngraph
-
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

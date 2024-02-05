@@ -18,12 +18,13 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector fusedgemm(const Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto num_inputs = inputs.size();
     FRONT_END_GENERAL_CHECK(num_inputs == 2 || num_inputs == 3,
                             "FusedGemm takes 2/3 inputs. Provided " + std::to_string(num_inputs));
@@ -63,9 +64,7 @@ ov::OutputVector fusedgemm(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

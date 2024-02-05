@@ -23,9 +23,11 @@
 #include "utils/common.hpp"
 
 using namespace ov;
+using namespace ::ONNX_NAMESPACE;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
 bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     const auto first_out_node = outputs.at(0).get_node();
@@ -37,7 +39,6 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     return ret;
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 OperatorsBridge register_extensions(OperatorsBridge& bridge,
                                     const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
@@ -45,35 +46,33 @@ OperatorsBridge register_extensions(OperatorsBridge& bridge,
             bridge.overwrite_operator(
                 common_conv_ext->get_op_type(),
                 "",
-                [common_conv_ext](const ngraph::onnx_import::Node& node) -> ov::OutputVector {
+                [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
                     return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                 });
         } else if (const auto onnx_conv_ext =
                        std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
             bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
                                       onnx_conv_ext->get_domain(),
-                                      [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> ov::OutputVector {
+                                      [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
                                           return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                                       });
         }
     }
     return bridge;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
     return register_extensions(bridge, conversions);
 }
 
-Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
+Model::ModelOpSet build_model_opset(const ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
     // copy the opset imports from the ONNX model and sort them by their version in ascending order
     // this will make sure that multiple opset imports for the same domain will cause the largest
     // version to be used for this model, for example:
     // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
     auto opset_imports = model_proto.opset_import();
-    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
-                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+    const auto sort_by_version_ascending = [](const OperatorSetIdProto& lhs, const OperatorSetIdProto& rhs) {
         return lhs.version() < rhs.version();
     };
     std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
@@ -81,7 +80,7 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     Model::ModelOpSet opset;
     std::for_each(opset_imports.rbegin(),
                   opset_imports.rend(),
-                  [&opset, &ops_bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                  [&opset, &ops_bridge](const OperatorSetIdProto& onnx_opset) {
                       const auto domain =
                           onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
                       if (opset.find(domain) == std::end(opset)) {
@@ -111,13 +110,13 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 }  // namespace detail
 
 Graph::Graph(const std::string& model_dir,
-             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const std::shared_ptr<ModelProto>& model_proto,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
     : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), mmap_cache, std::move(extensions)) {}
 
 Graph::Graph(const std::string& model_dir,
-             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const std::shared_ptr<ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              detail::MappedMemoryHandles mmap_cache,
              ov::frontend::ExtensionHolder extensions)
@@ -144,7 +143,7 @@ Graph::Graph(const std::string& model_dir,
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ov::Exception&) {
-                ov_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ov_type());
+                ov_constant = ov::frontend::onnx::common::make_failsafe_constant(tensor.get_ov_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
@@ -166,7 +165,6 @@ Graph::Graph(const std::string& model_dir,
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void Graph::convert_to_ov_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
@@ -198,16 +196,14 @@ void Graph::convert_to_ov_nodes() {
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Graph::remove_dangling_parameters() {
-    const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output,
-                                                        const ONNX_NAMESPACE::GraphProto& graph) {
+    const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output, const GraphProto& graph) {
         const auto found_in_outputs = [&graph](const std::string& tensor_name) {
             const auto& graph_outputs = graph.output();
             return std::any_of(std::begin(graph_outputs),
                                std::end(graph_outputs),
-                               [&tensor_name](const ONNX_NAMESPACE::ValueInfoProto& output) {
+                               [&tensor_name](const ValueInfoProto& output) {
                                    return tensor_name == output.name();
                                });
         };
@@ -245,12 +241,11 @@ std::shared_ptr<ov::Model> Graph::convert() {
     return function;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
-    std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
+    std::shared_ptr<ov::frontend::onnx::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
         const auto& subgraphs = onnx_node.get_subgraphs();
-        auto inputs = onnx_node.get_ng_inputs();
+        auto inputs = onnx_node.get_ov_inputs();
         std::vector<std::shared_ptr<ov::Model>> models;
         for (const auto& kv : subgraphs) {
             auto& subgraph = kv.second;
@@ -264,9 +259,9 @@ ov::OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
                 }
             }
         }
-        framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(onnx_node, models, inputs);
+        framework_node = std::make_shared<ov::frontend::onnx::ONNXSubgraphFrameworkNode>(onnx_node, models, inputs);
     } else {
-        framework_node = std::make_shared<frontend::ONNXFrameworkNode>(onnx_node);
+        framework_node = std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(onnx_node);
     }
     return framework_node->outputs();
 }
@@ -298,7 +293,6 @@ void Graph::decode_to_framework_nodes() {
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ov::Model> Graph::create_model() {
     auto model = std::make_shared<ov::Model>(get_ov_outputs(), m_parameters, get_name());
@@ -329,7 +323,6 @@ Output<ov::Node> Graph::get_ov_node_from_cache(const std::string& name) {
     return m_cache->get_node(name);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 ov::OutputVector Graph::get_ov_outputs() {
     ov::OutputVector results;
     for (const auto& output : m_model->get_graph().output()) {
@@ -349,7 +342,7 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
         const auto ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
         try {
             ov_subgraph_outputs = ng_node_factory(onnx_node);
-        } catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& e) {
+        } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
             error_message = e.what();
         } catch (const std::exception& exc) {
             error_message = error::detail::get_error_msg_prefix(onnx_node);
@@ -362,11 +355,12 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
         }
     }
     if (ov_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
-        const auto not_supported_node = std::make_shared<frontend::NotSupportedONNXNode>(onnx_node.get_ng_inputs(),
-                                                                                         onnx_node.get_outputs_size(),
-                                                                                         onnx_node.domain(),
-                                                                                         onnx_node.op_type(),
-                                                                                         error_message);
+        const auto not_supported_node =
+            std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(onnx_node.get_ov_inputs(),
+                                                                       onnx_node.get_outputs_size(),
+                                                                       onnx_node.domain(),
+                                                                       onnx_node.op_type(),
+                                                                       error_message);
         ov_subgraph_outputs = not_supported_node->outputs();
     }
 
@@ -432,18 +426,19 @@ void Graph::set_friendly_names(const Node& onnx_node, const ov::OutputVector& ov
         // null node does not have tensor
         if (!ov::op::util::is_null(ov_subgraph_outputs[i])) {
             ov_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::descriptor::set_ov_tensor_legacy_name(ov_subgraph_outputs[i].get_tensor(),
                                                       onnx_node.output(static_cast<int>(i)));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();
 }
 
-Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, Graph* parent_graph)
+Subgraph::Subgraph(const std::shared_ptr<ModelProto>& model_proto, Graph* parent_graph)
     : Graph(parent_graph->model_dir(),
             model_proto,
             common::make_unique<GraphCache>(),
@@ -496,6 +491,6 @@ void Subgraph::infer_inputs_from_parent() {
     }
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

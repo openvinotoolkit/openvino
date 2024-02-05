@@ -15,12 +15,13 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector normalize(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto data = inputs[0];
@@ -64,9 +65,7 @@ ov::OutputVector normalize(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

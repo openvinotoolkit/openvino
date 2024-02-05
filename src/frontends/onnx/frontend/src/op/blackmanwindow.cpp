@@ -19,13 +19,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector blackmanwindow(const Node& node) {
-    const auto size = node.get_ng_inputs().at(0);
+ov::OutputVector blackmanwindow(const ov::frontend::onnx::Node& node) {
+    const auto size = node.get_ov_inputs().at(0);
     const auto output_datatype = common::get_ov_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
     const bool periodic = node.get_attribute_value<int64_t>("periodic", 1) == 1;
 
@@ -78,6 +78,6 @@ ov::OutputVector blackmanwindow(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

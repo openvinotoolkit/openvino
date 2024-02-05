@@ -13,16 +13,16 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector crop(const Node& node) {
+ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // Crop is an obsolete experimental ONNX operation.
     // Crops an image's spatial dimensions.
 
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto& input_data = inputs.at(0);
 
     // Border values: leftBorder, topBorder, rightBorder, bottomBorder.
@@ -74,10 +74,7 @@ ov::OutputVector crop(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

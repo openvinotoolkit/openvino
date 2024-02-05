@@ -32,15 +32,15 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector pad(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
 
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "Data rank must be static for pad op");
     const auto data_rank_value = data_rank.get_length();
 
@@ -62,8 +62,8 @@ ov::OutputVector pad(const Node& node) {
 
 }  // namespace set_1
 namespace set_11 {
-ov::OutputVector pad(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
     ov::Output<ov::Node> values;
@@ -100,10 +100,7 @@ ov::OutputVector pad(const Node& node) {
 }
 
 }  // namespace set_11
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

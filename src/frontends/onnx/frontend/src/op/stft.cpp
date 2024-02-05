@@ -21,20 +21,20 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_17 {
 
-ov::OutputVector stft(const Node& node) {
-    const ov::OutputVector ng_inputs{node.get_ng_inputs()};
-    auto signal = ng_inputs.at(0);
-    const auto dft_length_provided = ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs[3]);
+ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    auto signal = ov_inputs.at(0);
+    const auto dft_length_provided = ov_inputs.size() > 3 && !ov::op::util::is_null(ov_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
 
-    const auto& frame_step_node = ng_inputs.at(1);
+    const auto& frame_step_node = ov_inputs.at(1);
     CHECK_VALID_NODE(node,
                      ov::op::util::is_constant(frame_step_node.get_node_shared_ptr()) &&
                          ov::shape_size(frame_step_node.get_shape()) <= 1,
@@ -48,7 +48,7 @@ ov::OutputVector stft(const Node& node) {
 
     int64_t frame_length = signal_param_shape[axis].get_length() / frame_step;  // default value
     if (dft_length_provided) {
-        const auto& frame_length_node = ng_inputs[3];
+        const auto& frame_length_node = ov_inputs[3];
         CHECK_VALID_NODE(node,
                          ov::op::util::is_constant(frame_length_node.get_node_shared_ptr()) &&
                              ov::shape_size(frame_length_node.get_shape()) <= 1,
@@ -57,15 +57,15 @@ ov::OutputVector stft(const Node& node) {
             ov::as_type_ptr<v0::Constant>(frame_length_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
     }
 
-    const auto window_node_provided = ng_inputs.size() > 2 && !ov::op::util::is_null(ng_inputs[2]);
+    const auto window_node_provided = ov_inputs.size() > 2 && !ov::op::util::is_null(ov_inputs[2]);
     if (window_node_provided) {  // window input provided
-        if (ng_inputs[2].get_partial_shape().rank().is_static()) {
+        if (ov_inputs[2].get_partial_shape().rank().is_static()) {
             CHECK_VALID_NODE(node,
-                             ng_inputs[2].get_partial_shape().rank().get_length() == 1,
+                             ov_inputs[2].get_partial_shape().rank().get_length() == 1,
                              "The rank of window input must be 1D.");
-            if (ng_inputs[2].get_partial_shape()[0].is_static()) {
+            if (ov_inputs[2].get_partial_shape()[0].is_static()) {
                 CHECK_VALID_NODE(node,
-                                 ng_inputs[2].get_partial_shape()[0].get_length() == frame_length,
+                                 ov_inputs[2].get_partial_shape()[0].get_length() == frame_length,
                                  "The length of window input must be equal to frame_length.");
             }
         }
@@ -106,12 +106,12 @@ ov::OutputVector stft(const Node& node) {
                           flatten_slice,
                           is_complex(flatten_slice)
                               ? std::make_shared<v3::Broadcast>(  // align window shape with signal shape
-                                    std::make_shared<v0::Unsqueeze>(ng_inputs[2],
+                                    std::make_shared<v0::Unsqueeze>(ov_inputs[2],
                                                                     v0::Constant::create(ov::element::i64, {1}, {1})),
                                     std::make_shared<v3::ShapeOf>(flatten_slice))
-                              : ng_inputs[2])
+                              : ov_inputs[2])
                     : flatten_slice,
-                dft_length_provided ? ng_inputs[3] : std::make_shared<NullNode>(),
+                dft_length_provided ? ov_inputs[3] : std::make_shared<NullNode>(),
                 0,
                 false,
                 onesided == 1);
@@ -124,10 +124,7 @@ ov::OutputVector stft(const Node& node) {
 }
 
 }  // namespace set_17
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

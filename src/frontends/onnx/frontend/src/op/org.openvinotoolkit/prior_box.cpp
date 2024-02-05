@@ -17,8 +17,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 namespace {
@@ -34,8 +35,8 @@ std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector prior_box(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector prior_box(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto output_shape = std::make_shared<v3::ShapeOf>(inputs[0]);
@@ -65,8 +66,8 @@ ov::OutputVector prior_box(const Node& node) {
                                         axes)};
 }
 
-ov::OutputVector prior_box_clustered(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector prior_box_clustered(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto output_shape_rank = inputs[0].get_partial_shape().rank().get_length();
@@ -105,9 +106,7 @@ ov::OutputVector prior_box_clustered(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

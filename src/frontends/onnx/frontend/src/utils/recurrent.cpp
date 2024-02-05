@@ -24,12 +24,12 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace recurrent {
-OpInputMap::OpInputMap(const onnx_import::Node& node, std::size_t gates_count) {
-    const auto& ng_inputs = node.get_ng_inputs();
+OpInputMap::OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) {
+    const auto& ng_inputs = node.get_ov_inputs();
 
     m_map[OpInput::X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
     m_map[OpInput::W] = ng_inputs.at(1);
@@ -115,6 +115,6 @@ OpAttributes::OpAttributes(const Node& node)
 }
 
 }  // namespace recurrent
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

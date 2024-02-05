@@ -22,15 +22,16 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector fused_conv(const Node& node) {
+ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
     auto conv_res = conv(node).at(0);
 
-    if (node.get_ng_inputs().size() == 4) {  // Z input provided
-        conv_res = std::make_shared<v1::Add>(conv_res, node.get_ng_inputs()[3]);
+    if (node.get_ov_inputs().size() == 4) {  // Z input provided
+        conv_res = std::make_shared<v1::Add>(conv_res, node.get_ov_inputs()[3]);
     }
 
     const auto activation_type = node.get_attribute_value<std::string>("activation");
@@ -71,9 +72,7 @@ ov::OutputVector fused_conv(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -21,9 +21,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,7 +41,7 @@ enum class LSTMInput {
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
-        const auto& ng_inputs = node.get_ng_inputs();
+        const auto& ng_inputs = node.get_ov_inputs();
         // We have input, output, forget and cell gates
         constexpr std::size_t gates_count{4};
         constexpr std::size_t P_gates_count{3};
@@ -190,9 +190,8 @@ struct LSTMAttributes {
           m_activation_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
           m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))} {
         m_clip_threshold = std::abs(m_clip_threshold);
-        OPENVINO_SUPPRESS_DEPRECATED_START
+
         std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
     }
@@ -209,7 +208,7 @@ struct LSTMAttributes {
 }  // anonymous namespace
 
 namespace set_1 {
-ov::OutputVector lstm(const Node& node) {
+ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;
@@ -257,10 +256,7 @@ ov::OutputVector lstm(const Node& node) {
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

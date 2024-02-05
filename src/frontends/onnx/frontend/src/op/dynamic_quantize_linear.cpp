@@ -25,9 +25,9 @@
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace {
 std::shared_ptr<ov::Node> find_min_value(const ov::Output<ov::Node>& input) {
     const auto& zero_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -79,8 +79,8 @@ std::shared_ptr<ov::Node> quantize_linear(ov::Output<ov::Node> x,
 }  // namespace
 namespace op {
 namespace set_1 {
-ov::OutputVector dynamic_quantize_linear(const Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto& x = inputs.at(0);
 
     // quantization range in case of uint8 is [0, 255]
@@ -108,6 +108,6 @@ ov::OutputVector dynamic_quantize_linear(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
