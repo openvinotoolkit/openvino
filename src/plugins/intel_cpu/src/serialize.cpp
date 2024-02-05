@@ -55,9 +55,24 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     std::string xmlString;
     ov::Tensor dataBlob;
 
+    // get file size before seek content
+    // blob from cache may have other header, skip it
+    const size_t _pos = _istream.tellg();
+    _istream.seekg(0, _istream.end);
+    const size_t file_size = _istream.tellg();
+    _istream.seekg(_pos, _istream.beg);
+
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
+    // check if model header contains valid data
+    bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
+                        (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                        (hdr.model_size = file_size - hdr.model_offset);
+    if (!isValidModel) {
+        OPENVINO_THROW("Failed to read CPU device xml header");
+    }
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 

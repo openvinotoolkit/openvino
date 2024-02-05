@@ -2,7 +2,7 @@
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
-
+#include <gmock/gmock-matchers.h>
 #include "behavior/compiled_model/import_export.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -296,6 +296,16 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
     OV_ASSERT_NO_THROW(executableNetwork.export_model(strm));
     OV_ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, target_device));
     OV_ASSERT_NO_THROW(executableNetwork.create_infer_request());
+}
+
+TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core ie = createCoreWithTemplate();
+    std::stringstream wrongStm;
+    // Import model with wrong format throws exception
+    OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
+                    ov::Exception,
+                    testing::HasSubstr("device xml header"));
 }
 
 //
