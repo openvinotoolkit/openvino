@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class Multinomial : public Node {
+class Inverse : public Node {
 public:
-    Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    Inverse(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -39,37 +39,33 @@ protected:
     bool needShapeInfer() const override;
 
 private:
-    /// Multinomial params
-    bool m_with_replacement = false;
-    bool m_log_probs = false;
-    uint64_t m_global_seed = 0;
-    uint64_t m_op_seed = 0;
+    /// Inverse params
+    bool m_adjoint = false;
 
     /// Shape inference
-    static constexpr size_t PROBS_PORT = 0lu;
-    static constexpr size_t NUM_SAMPLES_PORT = 1lu;
+    static constexpr size_t INPUT_PORT = 0lu;
     static constexpr size_t OUTPUT_PORT = 0lu;
-    bool m_const_inputs[2] = {false, false};
-    bool m_const_batch = false;
+    bool m_const_input = false;
 
     /// General algorithm variables
-    ov::element::Type m_probs_precision;
-    ov::element::Type m_num_samples_precision;
-    ov::element::Type m_output_precision;
+    ov::element::Type m_input_precision;
 
-    size_t m_probs_count = 0;
+    size_t m_side = 0;
+    size_t m_side_squared = 0;
     size_t m_batches_count = 0;
-    size_t m_samples_count = 0;
-    size_t m_samples_probs_count = 0;
-    size_t m_input_elements_count = 0;
-    size_t m_output_elements_count = 0;
-    size_t m_batches_samples_probs_count = 0;
 
-    template <typename P>
-    void execute_probs_type();
+    // Helper functions
+    template <typename T>
+    void execute_internal();
 
-    template <typename P, typename O>
-    void execute_convert_type();
+    template <typename T>
+    void lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
+
+    template <typename T>
+    void to_adjoint(const T* output, std::vector<T>& U, size_t b);
+
+    template <typename T>
+    void lu_solve(const T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
 };
 
 }  // namespace node

@@ -157,5 +157,7 @@ _OPENVINO_OP_REG(BitwiseXor, ov::op::v13)
 _OPENVINO_OP_REG(NMSRotated, ov::op::v13)
 _OPENVINO_OP_REG(Multinomial, ov::op::v13)
 
+_OPENVINO_OP_REG(Inverse, ov::op::v14)
+
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

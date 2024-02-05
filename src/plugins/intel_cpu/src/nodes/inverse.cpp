@@ -1,0 +1,241 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "inverse.hpp"
+
+#include <openvino/core/type.hpp>
+#include <openvino/op/constant.hpp>
+
+#include "openvino/op/inverse.hpp"
+#include "utils/bfloat16.hpp"
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+Inverse::Inverse(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        THROW_CPU_NODE_ERR(errorMessage);
+    }
+
+    auto inverse_op = as_type_ptr<op::v14::Inverse>(op);
+    m_adjoint = inverse_op->get_adjoint();
+
+    constant = ConstantType::StrictNoConst;
+
+    m_const_input = is_type<op::v0::Constant>(op->get_input_node_ptr(INPUT_PORT));
+}
+
+bool Inverse::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (op->get_type_info() != op::v14::Inverse::get_type_info_static()) {
+            errorMessage = "Only Inverse operation from the opset14 is supported by the CPU plugin.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+void Inverse::getSupportedDescriptors() {
+    if (getParentEdges().size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+    }
+    if (getChildEdges().size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+    }
+}
+
+void Inverse::initSupportedPrimitiveDescriptors() {
+    m_input_precision = getOriginalInputPrecisionAtPort(INPUT_PORT);
+    if (!one_of(m_input_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        m_input_precision = ov::element::f32;
+    }
+
+    addSupportedPrimDesc({{LayoutType::ncsp, m_input_precision, m_const_input}},
+                         {{LayoutType::ncsp, m_input_precision}},
+                         ref_any);
+}
+
+bool Inverse::needShapeInfer() const {
+    return !m_const_input;
+}
+
+bool Inverse::needPrepareParams() const {
+    return true;
+}
+
+void Inverse::prepareParams() {
+    const auto& input_shape = getParentEdgeAt(INPUT_PORT)->getMemory().getStaticDims();
+
+    if (input_shape.size() < 2) {
+        THROW_CPU_NODE_ERR("has incompatible 'input' shape ",
+                           PartialShape(input_shape),
+                           ". Only tensors of rank at least 2 are allowed.");
+    }
+
+    m_side = input_shape.back();
+    m_batches_count = 1;
+
+    for (size_t i = 0; i < input_shape.size() - 2; ++i) {
+        m_batches_count *= input_shape[i];
+    }
+}
+
+bool Inverse::isExecutable() const {
+    return !isInputTensorAtPortEmpty(INPUT_PORT);
+}
+
+bool Inverse::created() const {
+    return getType() == Type::Inverse;
+}
+
+void Inverse::execute(dnnl::stream strm) {
+    switch (m_input_precision) {
+    case ov::element::f32:
+        return execute_internal<float>();
+    case ov::element::f16:
+        return execute_internal<float16>();
+    case ov::element::bf16:
+        return execute_internal<bfloat16_t>();
+    default:
+        THROW_CPU_NODE_ERR("Inverse CPU implementation does not support input element type: ", m_input_precision);
+    }
+}
+
+void Inverse::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
+template <typename T>
+void Inverse::execute_internal() {
+    const auto* input = getSrcDataAtPortAs<const P>(INPUT_PORT);
+    auto* output = getDstDataAtPortAs<O>(OUTPUT_PORT);
+
+    std::vector<T> L(m_side_squared);
+    std::vector<T> U(m_side_squared);
+    std::vector<T> P(m_side);
+
+    for (size_t b = 0; b < m_batches_count; ++b) {
+        lu_decomposition(input, L, U, P, b);
+
+        for (size_t column = 0; column < n; ++column) {
+            lu_solve(output, L, U, P, b, column);
+        }
+
+        if (m_adjoint) {
+            // Multiply by det(A) = det(U)
+            to_adjoint(output, U, b, n);
+        }
+    }
+}
+
+template <typename T>
+void Inverse::lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
+    // Make L identity, U a copy of input and P a range(0, n)
+    size_t batch_idx = b * m_side_squared;
+
+    parallel_for(m_side_squared, [&](size_t i) {
+        L[i] = static_cast<T>(0);
+        U[i] = input[batch_idx + i];
+    });
+
+    parallel_for(m_side, [&](size_t i) {
+        L[i * m_side + i] = static_cast<T>(1);
+        P[i] = static_cast<T>(i);
+    });
+
+    for (size_t k = 0; k < n - 1; ++k) {
+        // Find maximum value pivot
+        size_t pivot_row = k;
+        size_t k_idx = k * m_side;
+        for (size_t i = k + 1; i < n; ++i) {
+            if (abs(U[k_idx + i]) > abs(U[k_idx + pivot_row])) {
+                pivot_row = i;
+            }
+        }
+
+        // Swap rows in U and P
+        std::swap(P[k], P[pivot_row]);
+        size_t pivot_idx = pivot_row * m_side;
+        parallel_for(m_side, [&](size_t i) {
+            T val = U[pivot_idx + i];
+            U[pivot_idx + i] = U[k_idx + i];
+            U[k_idx + i] = val;
+        });
+
+        size_t remaining_columns = m_side - k;
+        size_t remaining_rows = remaining_columns - 1;
+
+        parallel_for(remaining_rows, [&](size_t i) {
+            size_t i_idx = (i + k) * m_side;
+            L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
+        });
+
+        parallel_for(remaining_rows * remaining_columns, [&](size_t i)) {
+            size_t i_idx = (i / remaining_columns) * m_side;
+            size_t j_idx = i % remaining_columns;
+
+            U[i_idx + j_idx] -= L[i_idx + k] * U[k_idx + j_idx];
+        });
+    }
+}
+
+template <typename T>
+void Inverse::lu_solve(const T* output,
+                       std::vector<T>& L,
+                       std::vector<T>& U,
+                       std::vector<T>& P,
+                       size_t b,
+                       size_t column) {
+    std::vector<T> B(n, static_cast<T>(0));
+    std::vector<T> X(n, static_cast<T>(0));
+    std::vector<T> Y(n, static_cast<T>(0));
+    B[column] = static_cast<T>(1);
+
+    // Forward substitution: Ly = Pb
+    parallel_for(m_side, [&](size_t i) {
+        Y[i] = B[P[i]];
+        for (size_t j = 0; j < i; ++j) {
+            Y[i] -= L[i * m_side + j] * Y[j];
+        }
+    });
+
+    // Backward substitution: Ux = y
+    parallel_for(m_side, [&](size_t i) {
+        i = m_side - i - 1;
+        size_t i_idx = i * m_side;
+        X[i] = Y[i];
+        for (size_t j = i + 1; j < n; ++j) {
+            X[i] -= U[i_idx + j] * X[j];
+        }
+        X[i] /= U[i_idx + i];
+    });
+
+    // Substitute back to get result
+    size_t batch_idx = b * m_side_squared;
+    parallel_for(m_side, [&](size_t i) {
+        output[batch_idx + i * m_side + column] = X[i];
+    });
+}
+
+template <typename T>
+void Inverse::to_adjoint(const T* output, std::vector<T>& U, size_t b) {
+    T determinant = 1;
+    for (size_t i = 0; i < m_side; ++i) {
+        determinant *= U[i * m_side + i];
+    }
+
+    size_t batch_idx = b * m_side_squared;
+    parallel_for(m_side_squared, [&](size_t i) {
+        output[batch_idx + i] *= determinant;
+    });
+}
+
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

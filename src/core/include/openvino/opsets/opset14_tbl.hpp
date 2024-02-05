@@ -48,6 +48,7 @@ _OPENVINO_OP_REG(GroupConvolution, ov::op::v1)
 _OPENVINO_OP_REG(GroupConvolutionBackpropData, ov::op::v1)
 _OPENVINO_OP_REG(GRN, ov::op::v0)
 _OPENVINO_OP_REG(HardSigmoid, ov::op::v0)
+_OPENVINO_OP_REG(Inverse, ov::op::v14)
 _OPENVINO_OP_REG(Less, ov::op::v1)
 _OPENVINO_OP_REG(LessEqual, ov::op::v1)
 _OPENVINO_OP_REG(Log, ov::op::v0)
@@ -219,3 +220,4 @@ _OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)
 _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
+_OPENVINO_OP_REG(Inverse, ov::op::v14)

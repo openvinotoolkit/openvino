@@ -1,0 +1,175 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/op/inverse.hpp"
+
+#include "base_reference_test.hpp"
+#include "gtest/gtest.h"
+#include "openvino/op/parameter.hpp"
+
+namespace {
+struct InverseParams {
+    InverseParams(const reference_tests::Tensor& matrices,
+                  const reference_tests::Tensor& expected_tensor,
+                  bool adjoint,
+                  std::string name)
+        : matrices{matrices},
+          expected_tensor(expected_tensor),
+          adjoint(adjoint),
+          test_case_name{std::move(name)} {}
+
+    reference_tests::Tensor matrices;
+    reference_tests::Tensor expected_tensor;
+    bool adjoint;
+    std::string test_case_name;
+};
+
+class ReferenceInverse : public testing::TestWithParam<InverseParams>, public reference_tests::CommonReferenceTest {
+public:
+    void SetUp() override {
+        const auto& params = GetParam();
+        function = CreateFunction(params);
+        inputData = {params.matrices.data};
+        refOutData = {params.expected_tensor.data};
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<InverseParams>& obj) {
+        std::ostringstream name;
+        name << obj.param.test_case_name;
+        name << "_input_type_";
+        name << obj.param.matrices.type;
+        name << "_shape_";
+        name << obj.param.matrices.shape;
+        name << "_adjoint_";
+        name << obj.param.adjoint;
+        return name.str();
+    }
+
+private:
+    static std::shared_ptr<ov::Model> CreateFunction(const InverseParams& params) {
+        const auto in_matrices = std::make_shared<ov::op::v0::Parameter>(params.matrices.type, params.matrices.shape);
+        const auto inverse = std::make_shared<ov::op::v14::Inverse>(in_matrices, params.adjoint);
+        return std::make_shared<ov::Model>(inverse->outputs(), ov::ParameterVector{in_matrices});
+    }
+};
+
+template <ov::element::Type_t ET>
+std::vector<InverseParams> generateInverseParams() {
+    using VT = typename ov::element_type_traits<ET>::value_type;
+
+    const ov::Shape matrices_4_4_shape{4, 4};
+    const ov::Shape matrices_2_3_3_shape{2, 3, 3};
+
+    reference_tests::Tensor matrices_4_4(matrices_4_4_shape,
+                                         ET,
+                                         std::vector<VT>{7, -2, 5, 8, -6, 3, -2, 27, 10, -12, 23, 21, 1, -21, 16, 15});
+    reference_tests::Tensor matrices_2_3_3(matrices_2_3_3_shape,
+                                           ET,
+                                           std::vector<VT>{2, -1, 0, -1, 2, -1, 0, -1, 2 3, 1, 2, 0, 4, 1, 2, -2, 0});
+
+    reference_tests::Tensor output_4_4_no_adjoint(matrices_4_4_shape,
+                                                  ET,
+                                                  std::vector<VT>{0.190005f,
+                                                                  -0.0227165f,
+                                                                  0.0319494f,
+                                                                  -0.108253f,
+                                                                  -0.0882213f,
+                                                                  0.0116182f,
+                                                                  -0.0161322f,
+                                                                  -0.0280361f,
+                                                                  -0.164983f,
+                                                                  -0.0113243f,
+                                                                  0.0432269f,
+                                                                  0.0313359f,
+                                                                  0.0398047f,
+                                                                  0.0298592f,
+                                                                  -0.0241571f,
+                                                                  0.00120803f});
+    reference_tests::Tensor output_4_4_adjoint(matrices_4_4_shape,
+                                               ET,
+                                               std::vector<VT>{-8406.0f,
+                                                               1005.0f,
+                                                               -1413.47f,
+                                                               4789.21f,
+                                                               3903.0f,
+                                                               -514.0f,
+                                                               713.706f,
+                                                               1240.34f,
+                                                               7299.0f,
+                                                               501.0f,
+                                                               -1912.4f,
+                                                               -1386.33f,
+                                                               -1761.0f,
+                                                               -1321.0f,
+                                                               1068.73f,
+                                                               -53.4445f});
+
+    reference_tests::Tensor output_2_3_3_no_adjoint(matrices_2_3_3_shape,
+                                                    ET,
+                                                    std::vector<VT>{0.75f,
+                                                                    0.5f,
+                                                                    0.25f,
+                                                                    0.5f,
+                                                                    1.0f,
+                                                                    0.5f,
+                                                                    0.25f,
+                                                                    0.5f,
+                                                                    0.75f,
+                                                                    -0.25f,
+                                                                    0.5f,
+                                                                    0.875f,
+                                                                    -0.25f,
+                                                                    0.5f,
+                                                                    0.375f,
+                                                                    1.0f,
+                                                                    -1.0f,
+                                                                    -1.5f});
+    reference_tests::Tensor output_2_3_3_adjoint(matrices_2_3_3_shape,
+                                                 ET,
+                                                 std::vector<VT>{3.0f,
+                                                                 2.0f,
+                                                                 1.0f,
+                                                                 2.0f,
+                                                                 4.0f,
+                                                                 2.0f,
+                                                                 1.0f,
+                                                                 2.0f,
+                                                                 3.0f,
+                                                                 2.0f,
+                                                                 -4.0f,
+                                                                 -7.0f,
+                                                                 2.0f,
+                                                                 -4.0f,
+                                                                 -3.0f,
+                                                                 -8.0f,
+                                                                 8.0f,
+                                                                 12.0f});
+    std::vector<InverseParams> params;
+    params.emplace_back(matrices_4_4, output_4_4_no_adjoint, false, "single_complex");
+    params.emplace_back(matrices_4_4, output_4_4_adjoint, true, "single_complex");
+    params.emplace_back(matrices_2_3_3, output_2_3_3_no_adjoint, false, "many_simple");
+    params.emplace_back(matrices_2_3_3, output_2_3_3_adjoint, true, "many_simple");
+    return params;
+}
+
+std::vector<InverseParams> generateInverseParams() {
+    std::vector<std::vector<InverseParams>> combo_params{generateInverseParams<ov::element::f64>(),
+                                                         generateInverseParams<ov::element::f32>(),
+                                                         generateInverseParams<ov::element::f16>(),
+                                                         generateInverseParams<ov::element::bf16>()};
+    std::vector<InverseParams> test_params;
+    for (auto& params : combo_params)
+        std::move(params.begin(), params.end(), std::back_inserter(test_params));
+    return test_params;
+}
+}  // namespace
+
+TEST_P(ReferenceInverse, CompareWithRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         ReferenceInverse,
+                         ::testing::ValuesIn(generateInverseParams()),
+                         ReferenceInverse::getTestCaseName);
