@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,20 +7,14 @@
 #include <cmath>
 #include <cstring>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
-
-#include "ngraph/runtime/shared_buffer.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 
@@ -35,27 +29,6 @@ public:
     OPENVINO_OP("Constant", "opset1");
 
     Constant() = default;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /// \brief Initialize a constant from tensor
-    /// \param tensor The tensor with data
-    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
-    Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
-
-    /// \brief Constructs a tensor constant with the supplied data
-    ///
-    /// \param type The element type of the tensor constant.
-    /// \param shape The shape of the tensor constant.
-    /// \param data A pointer to pre-allocated shared data.
-    template <typename T>
-    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
-    Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
-        : m_element_type(type),
-          m_shape(shape) {
-        m_data = legacy_to_ov_aligned_buffer(data);
-        constructor_validate_and_infer_types();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// \brief Initialize a constant from ov::Tensor
     /// \param tensor The ov::Tensor with data
@@ -376,6 +349,12 @@ public:
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
+        case Type_t::f8e4m3:
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e5m2:
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
+            break;
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
@@ -420,11 +399,6 @@ public:
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ov::AlignedBuffer> legacy_to_ov_aligned_buffer(
-        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
@@ -780,7 +754,8 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::nf4 &&
                                           (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
-                                           std::is_same<T, float16>::value),
+                                           std::is_same<T, float16>::value || std::is_same<T, float8_e4m3>::value ||
+                                           std::is_same<T, float8_e5m2>::value),
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();

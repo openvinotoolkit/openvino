@@ -1,33 +1,31 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/leaky_relu.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prelu.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+using ov::Shape;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector leaky_relu(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector leaky_relu(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
-    std::shared_ptr<ngraph::Node> alpha_node =
-        default_opset::Constant::create(data.get_element_type(), Shape{1}, {alpha});
-    return {std::make_shared<default_opset::PRelu>(data, alpha_node)};
+    std::shared_ptr<ov::Node> alpha_node = v0::Constant::create(data.get_element_type(), ov::Shape{1}, {alpha});
+    return {std::make_shared<v0::PRelu>(data, alpha_node)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

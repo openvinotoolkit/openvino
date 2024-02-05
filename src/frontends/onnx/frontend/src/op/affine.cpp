@@ -10,17 +10,17 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector affine(const Node& node) {
+ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // Affine is an obsolete experimental ONNX operation.
     // It takes one input tensor and produces one output tensor where
     // the affine function, y = alpha * x + beta, is applied to the input
     // elementwise.
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
 
     CHECK_VALID_NODE(node, inputs.size() == 1, "Affine expects 1 input tensor. Got: ", inputs.size());
     CHECK_VALID_NODE(node, node.has_attribute("alpha"), "\"alpha\" attribute is required.");
@@ -34,10 +34,7 @@ OutputVector affine(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

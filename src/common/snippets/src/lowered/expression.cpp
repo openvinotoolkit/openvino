@@ -82,7 +82,7 @@ RegInfo Expression::get_reg_info() const {
     return reg_info;
 }
 
-void Expression::set_reg_info(RegInfo rinfo) {
+void Expression::set_reg_info(const RegInfo& rinfo) {
     const auto& in = rinfo.first;
     const auto& out = rinfo.second;
     OPENVINO_ASSERT(m_input_port_descriptors.size() == in.size(), "Incorrect count of input physical registers");

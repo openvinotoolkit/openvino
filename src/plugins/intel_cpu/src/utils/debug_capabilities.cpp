@@ -2,12 +2,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "common/primitive_desc_iface.hpp"
-#include "memory_desc/blocked_memory_desc.h"
-#include "oneapi/dnnl/dnnl.hpp"
-#include "onednn/iml_type_mapper.h"
-
-#include <memory>
 #ifdef CPU_DEBUG_CAPS
 
 #include "cpu_memory.h"
@@ -17,7 +11,14 @@
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
-#include "snippets/op/subgraph.hpp"
+
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include <memory>
 
 namespace dnnl {
 namespace impl {
@@ -124,28 +125,28 @@ std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg) {
     return dnnl::impl::operator<<(os, convert_to_c(alg));
 }
 
+std::ostream & operator<<(std::ostream & os, const PortConfig& config) {
+    const char* sep = ",";
+    os << sep << *config.getMemDesc();
+    os << " inPlace:" << config.inPlace();
+    config.constant() ? os << " constant" : os << " non-constant";
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const NodeConfig& config) {
+    os << "(";
+    for (auto & conf : config.inConfs)
+        os << conf;
+    os << ") -> (";
+    for (auto & conf : config.outConfs)
+        os << conf;
+    os << ")" << '\n';
+    return os;
+}
+
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
-    std::stringstream ss;
-    ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
-    const char * sep = "";
-    for (auto & conf : desc.getConfig().inConfs) {
-        ss << sep << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
-        if (conf.constant()) ss << " constant";
-        sep = ",";
-    }
-    ss << ") -> (";
-    sep = "";
-    for (auto & conf : desc.getConfig().outConfs) {
-        ss << sep << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
-        if (conf.constant()) ss << " constant";
-        sep = ",";
-    }
-    ss << ")" << std::endl;
-    auto str = ss.str();
-    replace_all(str, "0 - ?", "?");
-    os << str;
+    os << "  " << impl_type_to_string(desc.getImplementationType());
+    os << desc.getConfig();
     return os;
 }
 
@@ -161,7 +162,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     const char * comma = "";
     auto node_id = [](Node & node) {
         auto id = node.getName();
-        if (id.size() > 20)
+        if (id.size() > 50)
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
         return id;
     };
@@ -314,7 +315,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 
             if (shape_size(shape) <= 8) {
                 auto type = pmem->getDesc().getPrecision();
-                auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
+                auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
                 for (auto & v : constop->get_value_strings()) {
@@ -378,6 +379,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         os << "}";
     }*/
 
+    return os;
+}
+std::ostream & operator<<(std::ostream & os, const Shape& shape) {
+    os << shape.toString();
     return os;
 }
 
@@ -533,7 +538,11 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         }
     }
     os << prefix << "}\n";
-
+    os << prefix << "fp16_compress disabled Ngraph nodes:\n";
+    for (const auto& op : f.get_ordered_ops()) {
+        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+            os << "\t" << tag << op->get_friendly_name() << "\n";
+    }
     return os;
 }
 
@@ -590,6 +599,7 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
     }
 
     os << " " << dnnl_dt2str(desc.get()->data_type);
+    os << " " << dnnl_fmt_kind2str(desc.get()->format_kind);
     return os;
 }
 
@@ -644,6 +654,17 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
         os << "]";
     }
     return os;
+}
+// @todo remove
+void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
+    const size_t s = memory.get_desc().get_size() / sizeof(float);
+    std::cout << message << " " << id << " size: " << s << ", values: ";
+    auto m = reinterpret_cast<float*>(memory.get_data_handle());
+    for (size_t i = 0; i < std::min(s, size); i++) {
+        std::cout << *m << " ";
+        m++;
+    }
+    std::cout << "\n";
 }
 
 }   // namespace intel_cpu

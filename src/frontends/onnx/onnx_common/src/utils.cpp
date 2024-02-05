@@ -4,11 +4,9 @@
 
 #include "onnx_common/utils.hpp"
 
-#include <onnx/onnx_pb.h>
-
-#include <algorithm>
-
 #include "openvino/core/except.hpp"
+
+using namespace ::ONNX_NAMESPACE;
 
 namespace ov {
 namespace frontend {
@@ -49,28 +47,25 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     }
     OPENVINO_THROW("unsupported element type");
 }
-namespace {
-using namespace ONNX_NAMESPACE;
-const std::map<element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
-    {element::Type_t::bf16, TensorProto_DataType::TensorProto_DataType_BFLOAT16},
-    {element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
-    {element::Type_t::f32, TensorProto_DataType::TensorProto_DataType_FLOAT},
-    {element::Type_t::f64, TensorProto_DataType::TensorProto_DataType_DOUBLE},
-    {element::Type_t::i8, TensorProto_DataType::TensorProto_DataType_INT8},
-    {element::Type_t::i16, TensorProto_DataType::TensorProto_DataType_INT16},
-    {element::Type_t::i32, TensorProto_DataType::TensorProto_DataType_INT32},
-    {element::Type_t::i64, TensorProto_DataType::TensorProto_DataType_INT64},
-    {element::Type_t::u8, TensorProto_DataType::TensorProto_DataType_UINT8},
-    {element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
-    {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
-    {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
-    {element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
-}  // namespace
+const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
+    {ov::element::Type_t::bf16, TensorProto_DataType::TensorProto_DataType_BFLOAT16},
+    {ov::element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
+    {ov::element::Type_t::f32, TensorProto_DataType::TensorProto_DataType_FLOAT},
+    {ov::element::Type_t::f64, TensorProto_DataType::TensorProto_DataType_DOUBLE},
+    {ov::element::Type_t::i8, TensorProto_DataType::TensorProto_DataType_INT8},
+    {ov::element::Type_t::i16, TensorProto_DataType::TensorProto_DataType_INT16},
+    {ov::element::Type_t::i32, TensorProto_DataType::TensorProto_DataType_INT32},
+    {ov::element::Type_t::i64, TensorProto_DataType::TensorProto_DataType_INT64},
+    {ov::element::Type_t::u8, TensorProto_DataType::TensorProto_DataType_UINT8},
+    {ov::element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
+    {ov::element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
+    {ov::element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
+    {ov::element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
 
-element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
+ov::element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
     const auto result = std::find_if(OV_2_ONNX_TYPES.begin(),
                                      OV_2_ONNX_TYPES.end(),
-                                     [&onnx_type](const std::pair<element::Type_t, TensorProto_DataType>& pair) {
+                                     [&onnx_type](const std::pair<ov::element::Type_t, TensorProto_DataType>& pair) {
                                          return pair.second == onnx_type;
                                      });
     if (result == std::end(OV_2_ONNX_TYPES)) {
@@ -80,11 +75,11 @@ element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
     return result->first;
 }
 
-TensorProto_DataType ov_to_onnx_data_type(const element::Type_t& ov_type) {
+TensorProto_DataType ov_to_onnx_data_type(const ov::element::Type_t& ov_type) {
     return OV_2_ONNX_TYPES.at(ov_type);
 }
 
-bool is_supported_ov_type(const element::Type_t& ov_type) {
+bool is_supported_ov_type(const ov::element::Type_t& ov_type) {
     return OV_2_ONNX_TYPES.count(ov_type) > 0;
 }
 

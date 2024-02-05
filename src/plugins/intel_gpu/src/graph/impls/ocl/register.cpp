@@ -42,7 +42,6 @@ void register_implementations() {
     REGISTER_OCL(group_normalization);
     REGISTER_OCL(kv_cache);
     REGISTER_OCL(lrn);
-    REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
@@ -55,7 +54,6 @@ void register_implementations() {
     REGISTER_OCL(permute);
     REGISTER_OCL(pooling);
     REGISTER_OCL(prior_box);
-    REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
     REGISTER_OCL(range);
@@ -81,9 +79,8 @@ void register_implementations() {
     REGISTER_OCL(space_to_depth);
     REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
+    REGISTER_OCL(swiglu);
     REGISTER_OCL(tile);
-    REGISTER_OCL(lstm_dynamic_input);
-    REGISTER_OCL(lstm_dynamic_timeloop);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);

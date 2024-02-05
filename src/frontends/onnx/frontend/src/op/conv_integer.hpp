@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Performs ONNX ConvInteger operation.
@@ -19,13 +17,10 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of quantized ONNX
 ///         convolution operation.
-OutputVector conv_integer(const Node& node);
+ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

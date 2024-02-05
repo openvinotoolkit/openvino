@@ -58,10 +58,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 124060
             R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
-            // Issue: 128924
-            R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
-            // Issue: 129802
-            R"(.*smoke_OVClassBasicTestP/OVClassBasicTestP.registerExistingPluginThrows.*)",
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
@@ -86,5 +84,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Nms9LayerTest.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
     };
 }

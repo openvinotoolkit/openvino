@@ -5,6 +5,8 @@
 #pragma once
 
 #include "../interpolate.hpp"
+#include "arm_compute/runtime/NEON/functions/NEScale.h"
+#include "arm_compute/runtime/Tensor.h"
 
 namespace ov {
 namespace intel_cpu {

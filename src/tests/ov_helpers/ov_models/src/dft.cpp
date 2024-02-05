@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ std::shared_ptr<ov::Node> CallDftCtorWithArgs(const ov::test::utils::DFTOpType o
 }
 }  // namespace
 
-std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
+std::shared_ptr<ov::Node> makeDFT(const ov::Output<ov::Node>& dataNode,
                                   const std::vector<int64_t>& axes,
                                   const std::vector<int64_t>& signalSize,
                                   const ov::test::utils::DFTOpType opType) {

@@ -16,9 +16,7 @@
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -111,7 +109,7 @@ GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
 INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
 GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
                   std::function<void(std::shared_ptr<ov::Model>&)> transform,
-                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+                  std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
 /**
  * @interface IInferencePlugin
@@ -120,7 +118,7 @@ GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
  */
 class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public std::enable_shared_from_this<IInferencePlugin> {
-    class VersionStore : public Version {
+    class VersionStore : public ov::Version {
         void copyFrom(const Version& v);
 
     public:
@@ -141,13 +139,13 @@ public:
      * @brief Sets a plugin version
      * @param version A version to set
      */
-    void SetVersion(const Version& version);
+    void SetVersion(const ov::Version& version);
 
     /**
      * @brief Gets a plugin version
-     * @return A const InferenceEngine::Version object
+     * @return A const ov::Version object
      */
-    const Version& GetVersion() const;
+    const ov::Version& GetVersion() const;
 
     /**
      * @brief      Provides a name of a plugin
@@ -187,7 +185,7 @@ public:
     virtual void AddExtension(const std::shared_ptr<IExtension>& extension);
 
     /**
-     * @brief Sets configuration for plugin, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief Sets configuration for plugin, acceptable keys can be found in properties.hpp
      * @param config string-string map of config parameters
      */
     virtual void SetConfig(const std::map<std::string, std::string>& config);
@@ -204,7 +202,7 @@ public:
      * @param options - configuration details for config
      * @return Value of config corresponding to config key
      */
-    virtual Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const;
+    virtual ov::Any GetConfig(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
@@ -212,7 +210,7 @@ public:
      * @param options - configuration details for metric
      * @return Metric value corresponding to metric key
      */
-    virtual Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const;
+    virtual ov::Any GetMetric(const std::string& name, const ov::AnyMap& options) const;
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)

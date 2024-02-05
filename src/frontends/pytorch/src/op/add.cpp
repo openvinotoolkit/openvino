@@ -34,8 +34,14 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     } else {
         align_eltwise_input_types(context, lhs, rhs, true);
     }
+    Output<Node> alpha;
     if (!context.input_is_none(2)) {
-        auto converted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(2), rhs));
+        alpha = context.get_input(2);
+    } else if (context.has_attribute("alpha")) {
+        alpha = context.get_attribute<Output<Node>>("alpha");
+    }
+    if (alpha.get_node_shared_ptr()) {
+        auto converted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, rhs));
         rhs = context.mark_node(std::make_shared<v1::Multiply>(converted_alpha, rhs));
     }
     auto add = context.mark_node(std::make_shared<v1::Add>(lhs, rhs));

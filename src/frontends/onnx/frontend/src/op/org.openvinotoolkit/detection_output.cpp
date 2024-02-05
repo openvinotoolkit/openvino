@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/detection_output.hpp"
-
-#include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
+
+#include "core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/detection_output.hpp"
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector detection_output(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector detection_output(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
 
     auto box_logits = inputs[0];
     auto class_preds = inputs[1];
@@ -68,9 +68,7 @@ OutputVector detection_output(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

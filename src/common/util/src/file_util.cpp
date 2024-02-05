@@ -148,7 +148,11 @@ std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
         } else if (s1.size() > 0) {
             rc = s1;
             if (rc[rc.size() - 1] != '/') {
+#    ifndef _WIN32
                 rc += '/';
+#    else
+                rc += '\\';
+#    endif
             }
             rc += s2;
         } else {

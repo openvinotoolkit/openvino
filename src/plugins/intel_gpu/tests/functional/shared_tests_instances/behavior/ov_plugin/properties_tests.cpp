@@ -7,7 +7,6 @@
 #include <openvino/runtime/auto/properties.hpp>
 #include <thread>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
@@ -632,7 +631,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     std::vector<std::thread> threads(2);
     // key: thread id, value: executable network
     std::map<uint32_t, ov::CompiledModel> exec_net_map;
-    std::vector<std::shared_ptr<ngraph::Function>> networks;
+    std::vector<std::shared_ptr<ov::Model>> networks;
     networks.emplace_back(simpleNetwork);
     networks.emplace_back(simpleNetwork);
 
