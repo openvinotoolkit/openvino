@@ -228,7 +228,6 @@ public:
             std::string* src_strings = static_cast<std::string*>(src_string_aligned_buffer->get_ptr());
             auto dst_string_aligned = a->get();
             auto num_elements = dst_string_aligned->get_num_elements();
-            auto src_num_elements = src_string_aligned_buffer->get_num_elements();
             auto dst_strings = static_cast<std::string*>(dst_string_aligned->get_ptr());
             for (size_t ind = 0; ind < num_elements; ++ind) {
                 dst_strings[ind] = src_strings[ind];
