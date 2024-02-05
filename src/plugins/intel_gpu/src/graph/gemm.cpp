@@ -51,8 +51,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto transpose_shape = [](const ov::Shape& shape, const std::vector<int64_t>& order) {
         auto shape_transposed = ov::Shape(shape);
+        auto rank_diff = shape.size() - order.size();
         for (size_t i = 0; i < order.size(); i++) {
-            shape_transposed[i] = shape[order[i]];
+            size_t idx = static_cast<size_t>(order[i]);
+            shape_transposed[i + rank_diff] = shape[idx + rank_diff];
         }
 
         return shape_transposed;
@@ -228,6 +230,17 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
 
         output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = std::move(N);
         output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
+
+        if (primitive->output_order.size() > 0) {
+            ov::PartialShape transposed_output_pshape = output_pshape;
+            auto rank_diff = output_pshape.size() - primitive->output_order.size();
+            for (size_t i = 0; i < primitive->output_order.size(); ++i) {
+                size_t idx = static_cast<size_t>(primitive->output_order[i]);
+                transposed_output_pshape[i + rank_diff] = std::move(output_pshape[idx + rank_diff]);
+            }
+            output_pshape = transposed_output_pshape;
+        }
+
         updated_output_layout.set_partial_shape(output_pshape);
     }
     return updated_output_layout;
