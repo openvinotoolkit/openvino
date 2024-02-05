@@ -310,13 +310,11 @@ void fill_data_sin_value(T* data, size_t size) {
     }
 }
 
-ov::Tensor create_and_fill_tensor_sin_values(const ov::element::Type element_type,
-                                             const ov::Shape& shape) {
+ov::Tensor create_and_fill_tensor_sin_values(const ov::element::Type element_type, const ov::Shape& shape) {
     auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X)                                                     \
-    case X:                                                         \
-        fill_data_sin_value(tensor.data<fundamental_type_for<X>>(), \
-                            tensor.get_size());                     \
+#define CASE(X)                                                                         \
+    case X:                                                                             \
+        fill_data_sin_value(tensor.data<fundamental_type_for<X>>(), tensor.get_size()); \
         break;
     switch (element_type) {
         CASE(ov::element::Type_t::i8)
