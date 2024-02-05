@@ -29,9 +29,9 @@ Each element of the output is defined as the result of the following expression:
 .. code-block:: py
    :force:
 
-    data = (data + shift) / scale
-    ConvertLike(Convert(data, destination_type), data)
     data = data * scale - shift
+    ConvertLike(Convert(data, destination_type), data)
+    data = (data + shift) / scale
 
 
 **Attributes**
