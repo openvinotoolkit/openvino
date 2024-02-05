@@ -16,39 +16,61 @@ using namespace ::tests;
 
 namespace {
 
+namespace helpers {
+
+// data_types type traits:
+template<typename T>
+data_types ToDataType();
+
+template<>
+data_types ToDataType<float>() {return data_types::f32;}
+
+template<>
+data_types ToDataType<int32_t>() { return data_types::i32; }
+
+template<>
+data_types ToDataType<int64_t>()  { return data_types::i64; }
+
+// Generates buffer of the length of shape_size(shape).
+template<typename T>
+std::vector<T> GenInput(const ov::PartialShape& shape) {
+    const size_t size = ov::shape_size<ov::Shape>(shape.get_shape());
+    std::vector<T> result;
+    for (size_t i = 0; i < size; i++)
+        result.push_back(i);
+    return result;
+}
+} // namespace helpers
+
+struct SliceTestParams {
+    memory::ptr input;
+    memory::ptr start;
+    memory::ptr stop;
+    memory::ptr step;
+    memory::ptr wanted_output;
+    bool is_caching_test = false;
+};
+
 template<typename T>
 class SliceTest : public ::testing::Test {
 public:
-    static std::vector<T> GenInput(int size) {
-        std::vector<T> result;
-        for (int i = 0; i < size; i++)
-            result.push_back(i);
-        return result;
-    }
-
-    void execute(bool is_caching_test) {
-        assert(input_shape_.size() == 4 || input_shape_.size() == 5);
-        format input_format = input_shape_.size() == 4 ? format::bfyx : format::bfzyx;
-        layout data_layout ( input_type_, input_format, tensor{input_shape_} );
-        std::vector<T> input_vals = GenInput(static_cast<int>(data_layout.get_linear_size()));
-        memory::ptr input = engine_.allocate_memory(data_layout);
-        set_values(input, input_vals);
+    void RunTest(const SliceTestParams& params) {
         topology topology;
-        topology.add(input_layout("input", input->get_layout()));
-        topology.add(data("start", start_));
-        topology.add(data("stop", stop_));
-        topology.add(data("step", step_));
-        std::vector<input_info> inputs { input_info("input"), input_info("start"), input_info("stop"), input_info("step") };
-        if (axes_) {
-            topology.add(data("axes", axes_));
-            inputs.push_back(input_info("axes"));
-        }
+        topology.add(input_layout("input", params.input->get_layout()));
+        topology.add(data("start", params.start));
+        topology.add(data("stop", params.stop));
+        topology.add(data("step", params.step));
+        std::vector<input_info> inputs{input_info("input"),
+                                       input_info("start"),
+                                       input_info("stop"),
+                                       input_info("step")};
         topology.add(slice("slice", inputs));
 
-        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
+        ExecutionConfig config = get_test_default_config(engine_);
+        cldnn::network::ptr network =
+            get_network(engine_, topology, config, get_test_stream_ptr(), params.is_caching_test);
 
-        network->set_input_data("input", input);
-
+        network->set_input_data("input", params.input);
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -57,146 +79,98 @@ public:
         auto output = outputs.at("slice").get_memory();
 
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> wanted_output_ptr(params.wanted_output, get_test_stream());
 
-        ASSERT_EQ(output_ptr.size(), expected_output_.size());
+        ASSERT_EQ(output->get_layout(), params.wanted_output->get_layout());
+        ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            ASSERT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], 2e-3));
     }
 
-    data_types DataType() const;
+
+    // Allocates tensoer with given shape and data.
+    template<typename TDataType>
+    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, 
+                                const std::vector<TDataType>& data) {
+        const layout lo = {shape, helpers::ToDataType<TDataType>(), fmt};
+        EXPECT_EQ(lo.get_linear_size(), data.size());
+        memory::ptr tensor = this->engine_.allocate_memory(lo);
+        set_values<TDataType>(tensor, data);
+        return tensor;
+    }
 
 protected:
     engine& engine_ = get_test_engine();
-    std::vector<std::int32_t> input_shape_;
-    data_types input_type_ {DataType()};
-    memory::ptr start_;
-    memory::ptr stop_;
-    memory::ptr step_;
-    memory::ptr axes_;
-    std::vector<std::int32_t> output_shape_;
-    std::vector<T> expected_output_;
 };
 
-template<>
-data_types SliceTest<float>::DataType() const {return data_types::f32;}
-
-template<>
-data_types SliceTest<int>::DataType() const { return data_types::i32; }
-
-template<>
-data_types SliceTest<long long>::DataType() const { return data_types::i64; }
-
 using testing::Types;
-typedef Types<float, int, long long> DataTypes;
+typedef Types<float, int32_t, int64_t> DataTypes;
 TYPED_TEST_SUITE(SliceTest, DataTypes);
 
 TYPED_TEST(SliceTest, bfyx_positive_step) {
-    this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, {0, 1, 0, 1});
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, { 1, 2, 5, 100 });
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, 1, 1, 10 });
-    this->output_shape_ = { 1, 1, 5, 10 };
-    this->expected_output_ = {
-            1201, 1211, 1221, 1231, 1241, 1301, 1311, 1321, 1331, 1341,
-            1401, 1411, 1421, 1431, 1441, 1501, 1511, 1521, 1531, 1541,
-            1601, 1611, 1621, 1631, 1641, 1701, 1711, 1721, 1731, 1741,
-            1801, 1811, 1821, 1831, 1841, 1901, 1911, 1921, 1931, 1941,
-            2001, 2011, 2021, 2031, 2041, 2101, 2111, 2121, 2131, 2141
-    };
-    this->execute(false);
+    SliceTestParams params;
+    const ov::PartialShape input_shape{ 1, 2, 12, 100 };
+    params.input = this->template AllocateTensor<TypeParam>(
+        input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
+    params.start = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 0, 1, 0, 1 });
+    params.stop = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 2, 5, 100 });
+    params.step = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 1, 1, 10 });
+    params.wanted_output = this->template AllocateTensor<TypeParam>(
+        ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
+            1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
+            1301, 1311, 1321, 1331, 1341, 1351, 1361, 1371, 1381, 1391,
+            1401, 1411, 1421, 1431, 1441, 1451, 1461, 1471, 1481, 1491,
+            1501, 1511, 1521, 1531, 1541, 1551, 1561, 1571, 1581, 1591,
+            1601, 1611, 1621, 1631, 1641, 1651, 1661, 1671, 1681, 1691,
+        });
+
+    this->RunTest(params);
 }
 
 TYPED_TEST(SliceTest, bfyx_negative_step) {
-    this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 0, 1, 5, 100 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {1, 0, 0, 1});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, -1, -1, -10 });
-    this->output_shape_ = { 1, 1, 5, 10 };
-    this->expected_output_ = {
-            1799, 1789, 1779, 1769, 1759, 1699, 1689, 1679, 1669, 1659,
-            1599, 1589, 1579, 1569, 1559, 1499, 1489, 1479, 1469, 1459,
-            1399, 1389, 1379, 1369, 1359, 1299, 1289, 1279, 1269, 1259,
-            1199, 1189, 1179, 1169, 1159, 1099, 1089, 1079, 1069, 1059,
-             999,   989,  979, 969,  959,  899,  889,  879,  869,  859
-    };
-    this->execute(false);
+    SliceTestParams params;
+    const ov::PartialShape input_shape{ 1, 2, 12, 100 };
+    params.input = this->template AllocateTensor<TypeParam>(
+        input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
+    params.start = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 0, 1, 5, 90 });
+    params.stop = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 0, 0, 10 });
+    params.step = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, -1, -1, -10 });
+    params.wanted_output = this->template AllocateTensor<TypeParam>(
+        ov::PartialShape{ 1, 1, 5, 8 }, format::bfyx, { 
+            1789, 1779, 1769, 1759, 1749, 1739, 1729, 1719,
+            1689, 1679, 1669, 1659, 1649, 1639, 1629, 1619,
+            1589, 1579, 1569, 1559, 1549, 1539, 1529, 1519,
+            1489, 1479, 1469, 1459, 1449, 1439, 1429, 1419,
+            1389, 1379, 1369, 1359, 1349, 1339, 1329, 1319
+        });
+
+    this->RunTest(params);
 }
 
 TYPED_TEST(SliceTest, bfzyx) {
-    this->input_shape_ = { 2, 3, 10, 12, 5 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 0, 0, 0, 0, 0 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {1, 2, 2, 2, 2});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, 1, 1, 1, 1 });
-    this->output_shape_ = { 1, 2, 2, 2, 2 };
-    this->expected_output_ = {
-              0,   1,  10,  11, 120, 121, 130, 131,
-            600, 601, 610, 611, 720, 721, 730, 731
-    };
-    this->execute(false);
-}
+    SliceTestParams params;
+    const ov::PartialShape input_shape{ 2, 3, 10, 12, 5 };
+    params.input = this->template AllocateTensor<TypeParam>(
+        input_shape, format::bfzyx, helpers::GenInput<TypeParam>(input_shape));
+    params.start = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 0, 0, 0, 0, 0 });
+    params.stop = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 1, 2, 2, 2, 2 });
+    params.step = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 1, 1, 1, 1, 1 });
+    params.wanted_output = this->template AllocateTensor<TypeParam>(
+        ov::PartialShape{ 1, 2, 2, 2, 2 }, format::bfzyx, { 
+            0,   1,   5,   6,   60,  61,  65,  66,
+            600, 601, 605, 606, 660, 661, 665, 666
+        });
 
-#ifdef RUN_ALL_MODEL_CACHING_TESTS
-TYPED_TEST(SliceTest, bfyx_positive_step_cached) {
-    this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, {0, 1, 0, 1});
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, { 1, 2, 5, 100 });
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, 1, 1, 10 });
-    this->output_shape_ = { 1, 1, 5, 10 };
-    this->expected_output_ = {
-            1201, 1211, 1221, 1231, 1241, 1301, 1311, 1321, 1331, 1341,
-            1401, 1411, 1421, 1431, 1441, 1501, 1511, 1521, 1531, 1541,
-            1601, 1611, 1621, 1631, 1641, 1701, 1711, 1721, 1731, 1741,
-            1801, 1811, 1821, 1831, 1841, 1901, 1911, 1921, 1931, 1941,
-            2001, 2011, 2021, 2031, 2041, 2101, 2111, 2121, 2131, 2141
-    };
-    this->execute(true);
-}
-
-TYPED_TEST(SliceTest, bfyx_negative_step_cached) {
-    this->input_shape_ = { 1, 2, 100, 12 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 0, 1, 5, 100 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {1, 0, 0, 1});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, -1, -1, -10 });
-    this->output_shape_ = { 1, 1, 5, 10 };
-    this->expected_output_ = {
-            1799, 1789, 1779, 1769, 1759, 1699, 1689, 1679, 1669, 1659,
-            1599, 1589, 1579, 1569, 1559, 1499, 1489, 1479, 1469, 1459,
-            1399, 1389, 1379, 1369, 1359, 1299, 1289, 1279, 1269, 1259,
-            1199, 1189, 1179, 1169, 1159, 1099, 1089, 1079, 1069, 1059,
-             999,   989,  979, 969,  959,  899,  889,  879,  869,  859
-    };
-    this->execute(true);
-}
-#endif
-TYPED_TEST(SliceTest, bfzyx_cached) {
-    this->input_shape_ = { 2, 3, 10, 12, 5 };
-    this->start_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->start_, { 0, 0, 0, 0, 0 });
-    this->stop_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->stop_, {1, 2, 2, 2, 2});
-    this->step_ = this->engine_.allocate_memory({ data_types::i64, format::bfzyx, { 5, 1, 1, 1 } });
-    set_values<int64_t>(this->step_, { 1, 1, 1, 1, 1 });
-    this->output_shape_ = { 1, 2, 2, 2, 2 };
-    this->expected_output_ = {
-              0,   1,  10,  11, 120, 121, 130, 131,
-            600, 601, 610, 611, 720, 721, 730, 731
-    };
-    this->execute(true);
+    this->RunTest(params);
 }
 
 } // anonymous namespace
