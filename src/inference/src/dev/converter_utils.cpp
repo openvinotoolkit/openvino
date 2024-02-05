@@ -20,9 +20,7 @@
 #include "ie_input_info.hpp"
 #include "ie_layouts.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
-#include "legacy_op_extension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -212,7 +210,7 @@ class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
     IInferencePluginWrapper(const ov::SoPtr<ov::IPlugin>& plugin) : m_plugin(plugin) {
         auto& ver = plugin->get_version();
-        InferenceEngine::Version version;
+        ov::Version version;
         version.buildNumber = ver.buildNumber;
         version.description = ver.description;
         SetVersion(version);

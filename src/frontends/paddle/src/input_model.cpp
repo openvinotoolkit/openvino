@@ -48,8 +48,8 @@ public:
     void set_partial_shape(Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape get_partial_shape(Place::Ptr place) const;
     void set_element_type(Place::Ptr place, const ov::element::Type&);
+    ov::element::Type get_element_type(const Place::Ptr& place) const;
     void set_tensor_value(Place::Ptr place, const void* value);
-
     std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t blck_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const {
         return m_var_places;
@@ -558,6 +558,10 @@ void InputModel::InputModelImpl::set_element_type(Place::Ptr place, const ov::el
     castToTensorPlace(place)->set_element_type(type);
 }
 
+ov::element::Type InputModel::InputModelImpl::get_element_type(const Place::Ptr& place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
 void InputModel::InputModelImpl::set_tensor_value(Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
@@ -630,6 +634,10 @@ ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
 
 void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Type& type) {
     _impl->set_element_type(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
+    return castToTensorPlace(place)->get_element_type();
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {

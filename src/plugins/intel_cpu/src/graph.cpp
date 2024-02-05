@@ -306,7 +306,7 @@ void Graph::InitDescriptors() {
 }
 
 void Graph::ResolveInplaceDirections() {
-     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
 
     for (auto& node : graphNodes) {
         resolveInPlaceDirection(node);
@@ -1576,7 +1576,6 @@ void Graph::EnforceInferencePrecision() {
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
-
             if (inferPrec == ov::element::bf16) {
                 /* list of node types that must be forced to be executed in BF16 precision
                 * because of performance gains */
@@ -1587,7 +1586,7 @@ void Graph::EnforceInferencePrecision() {
                         Type::RNNSeq,         // recurent nets
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
-                        Type::Interpolate))    // super resolution nets
+                        Type::Interpolate))   // super resolution nets
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
@@ -1603,6 +1602,7 @@ void Graph::EnforceInferencePrecision() {
             }
 
             const auto res = skipNodes.insert(parent);
+
             if (res.second) // node not visited yet
                 searchForNodesToSkip(parent, skipNodes);
         }
@@ -1628,7 +1628,8 @@ void Graph::EnforceInferencePrecision() {
 
         if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
-
+        if (node->keepOrigPrecision())
+            continue;
 #ifdef CPU_DEBUG_CAPS
         if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers()))
             continue;
