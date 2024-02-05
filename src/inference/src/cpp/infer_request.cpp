@@ -252,6 +252,8 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
     try {
         return _impl->wait_for(timeout);
+    } catch (const Cancelled& e) {
+        throw e;
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

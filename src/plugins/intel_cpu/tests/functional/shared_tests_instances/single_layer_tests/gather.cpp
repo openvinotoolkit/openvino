@@ -156,7 +156,7 @@ const std::vector<std::tuple<int, int>> axes_batches_4d_gather8 = {
         {0, 0}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_static_4D, Gather8LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_static_4D, Gather8LayerTest,
         testing::Combine(
                 testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_4d_gather8)),
                 testing::ValuesIn(idx_shapes_4d_gather8),
@@ -186,7 +186,7 @@ const auto gatherParamsVec2 = testing::Combine(
         testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Vec2, Gather8LayerTest, gatherParamsVec2, Gather8LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Vec2, Gather8LayerTest, gatherParamsVec2, Gather8LayerTest::getTestCaseName);
 
 
 const std::vector<ov::Shape> data_shapes_vec3_gather8 = {{4, 4}};
@@ -202,7 +202,7 @@ const auto gatherParamsVec3 = testing::Combine(
         testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Vec3, Gather8LayerTest, gatherParamsVec3, Gather8LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Vec3, Gather8LayerTest, gatherParamsVec3, Gather8LayerTest::getTestCaseName);
 
 
 const ov::test::gather7ParamsTuple dummyParams = {
@@ -227,6 +227,6 @@ const auto gatherWithIndicesParams = testing::Combine(
         testing::ValuesIn(indicesData)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
 
 }  // namespace
