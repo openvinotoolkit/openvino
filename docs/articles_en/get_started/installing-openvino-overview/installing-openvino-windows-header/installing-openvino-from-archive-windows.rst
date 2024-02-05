@@ -173,7 +173,7 @@ You must update several environment variables before you can compile and run Ope
 
       .. important::
 
-         The above command must be re-run every time a new Command Prompt window is opened.
+         You need to run the command for each new Command Prompt window.
 
 
 .. note::
