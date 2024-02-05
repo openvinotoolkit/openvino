@@ -9,6 +9,7 @@
 #include "input_model.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -273,6 +274,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         OPENVINO_DEBUG << "No translator found for: " << context.get_op_type() << "\n";
     } catch (std::exception& e) {
         exception = e.what();
+        m_telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(exception, "[PyTorch Frontend]"));
     } catch (...) {
         exception = "Unknown exception type.";
     }

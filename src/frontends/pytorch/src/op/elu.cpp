@@ -18,10 +18,10 @@ OutputVector translate_elu(const NodeContext& context) {
     auto x = context.get_input(0);
     auto alpha = context.const_input<float>(1);
     // TODO: Figure out what scale and input_scale do
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<int64_t>(2) == 1,
-                                  "Unexpected value of scale input for elu operation");
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(3) || context.const_input<int64_t>(3) == 1,
-                                  "Unexpected value of input_scale input for elu operation");
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<int64_t>(2) == 1,
+                                "Unexpected value of scale input for elu operation");
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3) || context.const_input<int64_t>(3) == 1,
+                                "Unexpected value of input_scale input for elu operation");
     return {context.mark_node(std::make_shared<ov::op::v0::Elu>(x, alpha))};
 };
 

@@ -20,6 +20,17 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
+/// \brief Macro to check whether a boolean condition holds.
+/// \param COND Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
+#ifndef PYTORCH_OP_CONVERSION_CHECK
+#    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
+        OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), "[PyTorch Frontend] " __VA_ARGS__)
+#endif
+
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
