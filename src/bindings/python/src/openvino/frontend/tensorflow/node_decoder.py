@@ -15,7 +15,7 @@ def tf_type_to_ov_type(tf_type_int):
     if tf_type.name == "variant":
         return Type.dynamic
     if tf_type.name == "string":
-        return Type.string
+        return "DT_STRING"
     numpy_type = tf_type.as_numpy_dtype
     try:
         ret_type = Type(numpy_type)
