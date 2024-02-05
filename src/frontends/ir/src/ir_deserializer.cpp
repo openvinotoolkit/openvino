@@ -355,9 +355,9 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             char* data = m_weights->get_ptr<char>() + offset;
 
             if (el_type == element::string) {
-                std::shared_ptr<ov::StringAlignedBuffer> string_buffer = nullptr;
-                unpack_string_tensor(data, size, string_buffer);
-                a->set(string_buffer);
+                auto buffer =
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+                a->set(buffer);
             } else {
                 if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
                     OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
