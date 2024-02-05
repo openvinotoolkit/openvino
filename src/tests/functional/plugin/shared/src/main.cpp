@@ -7,8 +7,11 @@
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include "set_device_name.hpp"
+
+bool ov::test::behavior::APIBaseTest::is_print_k = false;
 
 int main(int argc, char *argv[]) {
     ov::test::utils::disable_tests_skipping = false;
