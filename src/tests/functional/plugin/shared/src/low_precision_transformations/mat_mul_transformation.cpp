@@ -38,8 +38,6 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
 
 
 void MatMulTransformation::SetUp() {
-    abs_threshold = 2.7;
-    rel_threshold = 3.2;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
