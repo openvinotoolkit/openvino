@@ -93,7 +93,7 @@ cd <INSTALLDIR>/samples/cpp
 ./build_samples.sh
 ```
 
-Windows with Command Prompt:
+Windows Command Prompt:
 ```sh
 cd <INSTALLDIR>\samples\cpp
 build_samples_msvc.bat
