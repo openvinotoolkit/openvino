@@ -102,6 +102,12 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
     case element::Type_t::nf4:
         unsupported_data_type = "nf4";
         break;
+    case element::Type_t::f8e4m3:
+        unsupported_data_type = "f8e4m3";
+        break;
+    case element::Type_t::f8e5m2:
+        unsupported_data_type = "f8e5m2";
+        break;
     case element::Type_t::string:
         unsupported_data_type = "string";
         break;
