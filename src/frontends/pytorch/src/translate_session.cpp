@@ -274,7 +274,9 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         OPENVINO_DEBUG << "No translator found for: " << context.get_op_type() << "\n";
     } catch (std::exception& e) {
         exception = e.what();
-        m_telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(exception, "[PyTorch Frontend]"));
+        if (m_telemetry) {
+            m_telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(exception, "[PyTorch Frontend]"));
+        }
     } catch (...) {
         exception = "Unknown exception type.";
     }
