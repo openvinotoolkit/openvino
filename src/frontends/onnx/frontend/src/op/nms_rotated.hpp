@@ -6,18 +6,16 @@
 
 #include <numeric>
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 #include "core/node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/nms_rotated.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline ov::OutputVector nms_rotated(const Node& node) {
+inline ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     auto iou_threshold = node.get_attribute_value<float>("iou_threshold");
     auto score_threshold = node.get_attribute_value<float>("score_threshold");
     auto max_output_boxes_per_class =
@@ -25,8 +23,8 @@ inline ov::OutputVector nms_rotated(const Node& node) {
     auto iou_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {iou_threshold});
     auto score_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {score_threshold});
 
-    auto nms = std::make_shared<ov::op::v13::NMSRotated>(node.get_ng_inputs().at(0),
-                                                         node.get_ng_inputs().at(1),
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(node.get_ov_inputs().at(0),
+                                                         node.get_ov_inputs().at(1),
                                                          max_output_boxes_per_class,
                                                          iou_threshold_const,
                                                          score_threshold_const,
@@ -36,6 +34,6 @@ inline ov::OutputVector nms_rotated(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -79,7 +79,7 @@ describe('InferRequest', () => {
     });
   });
 
-  // 128760
+  // 131123
   if (os.platform() !== 'win32') {
     it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
       inferRequestAsync.inferAsync({ data: tensor }).then(result => {
