@@ -13,6 +13,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "precomp.hpp"
 
@@ -917,6 +918,9 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
         insert(name, shape_ptr->get());
     } else if (auto dim_ptr = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
         insert(name, dim_ptr->get());
+    } else if (auto string_aligned_buffer =
+                   ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        insert(name, string_aligned_buffer->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
                          adapter.get_type_info().name + "']";
@@ -959,6 +963,32 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
     }
 }
 
+void ReadAndCompareAttributes::verify_string_aligned_buffer(const std::string& name,
+                                                            const std::shared_ptr<ov::StringAlignedBuffer>& buffer) {
+    if (should_return()) {
+        return;
+    }
+    m_visited_attributes.insert(name);
+    const auto ref_value = *(m_attr_ref.get<std::shared_ptr<ov::StringAlignedBuffer>>(name));
+    if (!ref_value) {
+        m_cmp_result += "missing attribute name: '" + name + "'";
+        return;
+    }
+    auto num_elements = buffer->get_num_elements();
+    if (num_elements != buffer->get_num_elements()) {
+        m_cmp_result += "number of string elements mismatch";
+        return;
+    }
+    std::string* ref_strings = static_cast<std::string*>(ref_value->get_ptr());
+    std::string* cmp_strings = static_cast<std::string*>(buffer->get_ptr());
+    for (size_t ind = 0; ind < num_elements; ++ind) {
+        if (ref_strings[ind].compare(cmp_strings[ind])) {
+            m_cmp_result += "string elements mismatch";
+            return;
+        }
+    }
+}
+
 void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
         return;
@@ -995,6 +1025,9 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
         verify(name, shape_ptr->get());
     } else if (auto dim_ptr = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
         verify(name, dim_ptr->get());
+    } else if (auto string_aligned_buffer_ptr =
+                   ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        verify_string_aligned_buffer(name, string_aligned_buffer_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
                         adapter.get_type_info().name + "']";

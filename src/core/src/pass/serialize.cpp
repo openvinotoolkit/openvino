@@ -419,38 +419,6 @@ class XmlSerializer : public ov::AttributeVisitor {
         }
     }
 
-    void pack_string_tensor(ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>* adapter,
-                            std::shared_ptr<uint8_t>& data,
-                            size_t& total_size) {
-        // packed format is the following:
-        // <num_string>, <1st string offset>,..., <nth string offset>, <1st string raw format>,..., <nth rawformat>
-        auto num_elements = adapter->get()->get_num_elements();
-        auto strings = reinterpret_cast<std::string*>(adapter->get()->get_ptr());
-
-        // first run over all elements: calculate total memory required to hold all strings
-        size_t symbols_size =
-            std::accumulate(strings, strings + num_elements, size_t(0), [](size_t accum, const std::string str_ptr) {
-                return accum + str_ptr.size();
-            });
-        total_size = 4 * (1 + 1 + num_elements) + symbols_size;
-        data = std::shared_ptr<uint8_t>(new uint8_t[total_size], std::default_delete<uint8_t[]>());
-
-        int32_t* pindices = reinterpret_cast<int32_t*>(data.get());
-        pindices[0] = int32_t(num_elements);
-        pindices[1] = 0;
-        pindices += 2;
-        char* psymbols = reinterpret_cast<char*>(pindices + num_elements);
-        size_t current_symbols_pos = 0;
-
-        for (size_t ind = 0; ind < num_elements; ++ind) {
-            auto str = strings[ind];
-            psymbols = std::copy(str.begin(), str.end(), psymbols);
-            current_symbols_pos += str.size();
-            *pindices = int32_t(current_symbols_pos);
-            ++pindices;
-        }
-    }
-
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
@@ -545,19 +513,52 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-        } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        } else if (ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                std::shared_ptr<uint8_t> data;
-                size_t total_size;
-                pack_string_tensor(a, data, total_size);
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(data.get()),
-                                                                total_size,
-                                                                &new_size,
+                auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+                auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+                size_t new_size = 0;
+                size_t inter_size = 0;
+                // write a header of packed string tensor
+                std::shared_ptr<uint8_t> header_ptr = nullptr;
+                size_t header_size = 0;
+                if (a1) {
+                    a1->get_header(header_ptr, header_size);
+                } else {
+                    a2->get_header(header_ptr, header_size);
+                }
+
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                header_size,
+                                                                &inter_size,
                                                                 m_compress_to_fp16,
                                                                 m_output_element_type);
+                new_size += inter_size;
 
+                // write raw strings part
+                size_t num_elements = 0;
+                if (a1) {
+                    num_elements = a1->get()->get_num_elements();
+                } else {
+                    num_elements = a2->get()->get_num_elements();
+                }
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    const char* raw_string_ptr;
+                    size_t raw_string_size;
+                    if (a1) {
+                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    } else {
+                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    }
+
+                    m_constant_write_handler.write(raw_string_ptr,
+                                                   raw_string_size,
+                                                   &inter_size,
+                                                   m_compress_to_fp16,
+                                                   m_output_element_type);
+                    new_size += inter_size;
+                }
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }

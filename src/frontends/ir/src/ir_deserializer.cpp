@@ -29,36 +29,6 @@
 
 using namespace ov::util;
 
-namespace {
-void unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov::StringAlignedBuffer>& string_buffer) {
-    // unpack string tensor
-    // packed format is the following:
-    // <num_string>, <1st string offset>,..., <nth string offset>, <1st string raw format>,..., <nth string raw format>
-    // check the format of the input bitstream representing the string tensor
-    OPENVINO_ASSERT(size >= 4, "Incorrect packed string tensor format: no batch size in the packed string tensor");
-    const int32_t* pindices = reinterpret_cast<const int32_t*>(data);
-    int32_t num_strings = pindices[0];
-    OPENVINO_ASSERT(int32_t(size) >= 4 + 4 + 4 * num_strings,
-                    "Incorrect packed string tensor format: the packed string tensor must contain first "
-                    "string offset and end indices");
-    const int32_t* begin_ids = pindices + 1;
-    const int32_t* end_ids = pindices + 2;
-    const char* symbols = reinterpret_cast<const char*>(pindices + 2 + num_strings);
-
-    // allocate StringAlignedBuffer to store unpacked strings in std::string objects
-    // SharedBuffer to read byte stream is not applicable because we need unpacked format for strings
-    string_buffer = std::make_shared<ov::StringAlignedBuffer>(
-        num_strings,
-        ov::element::string.size() * num_strings,
-        64,  // host alignment used the same as in creation of buffer for Constant
-        true);
-    std::string* src_strings = static_cast<std::string*>(string_buffer->get_ptr());
-    for (int32_t idx = 0; idx < num_strings; ++idx) {
-        src_strings[idx] = std::string(symbols + begin_ids[idx], symbols + end_ids[idx]);
-    }
-}
-}  // namespace
-
 ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_node& node,
                                                                const pugi::xml_node& body_node) {
     if (body_node.empty()) {
@@ -396,6 +366,31 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
                 a->set(buffer);
             }
+        }
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        pugi::xml_node dn = m_node.child("data");
+        auto type = pugixml::utils::get_str_attr(m_node, "type");
+        if (name == "value" && type == "Const") {
+            std::vector<int64_t> shape;
+            std::string el_type_str;
+
+            size_t offset = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "size"));
+            if (!getStrAttribute(dn, "element_type", el_type_str))
+                return;
+            if (!getParameters<int64_t>(dn, "shape", shape))
+                return;
+
+            ov::element::Type el_type = ov::element::Type(el_type_str);
+
+            if (!m_weights)
+                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+            if (m_weights->size() < offset + size)
+                OPENVINO_THROW("Incorrect weights in bin file!");
+            char* data = m_weights->get_ptr<char>() + offset;
+            auto buffer =
+                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+            a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& type = pugixml::get_str_attr(m_node, "type");
