@@ -8,7 +8,8 @@
 import typing
 
 class ModuleExtension:
-    def __init__(self, module, extension=None, replacer=None):
+    def __init__(self, module, extension=None, replacer=None, wrapper=None):
         self.module = module
         self.extension = extension
         self.replacer = replacer
+        self.wrapper = wrapper

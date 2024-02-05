@@ -106,16 +106,19 @@ class TorchScriptPythonDecoder (Decoder):
                     original_module = module
                     @staticmethod
                     def forward(*args, **kwargs):
-                        if extension.replacer:
-                            # if replacer code cannot be traced, it is a responsibility of the replacer to apply no_jit_trace
-                            results = extension.replacer(module, *args[1:], **kwargs)
-                        else:
-                            with no_jit_trace():
+                        with no_jit_trace():
+                            if extension.replacer:
+                                # if replacer code cannot be traced, it is a responsibility of the replacer to apply no_jit_trace
+                                results = extension.replacer(module, *args[1:], **kwargs)
+                            else:
                                 # this code is know to be incompatible with tracer, so unconditionally disable tracing
                                 results = module._openvino_patch_orig_forward_v2(*args[1:], **kwargs)
-                        return results
+                            return results
                 def new_forward(*args, **kwargs):
-                    return Trampoline.apply(*args, **kwargs)
+                    if extension.wrapper is not None:
+                        return extension.wrapper(module, Trampoline.apply, *args, **kwargs)
+                    else:
+                        return Trampoline.apply(*args, **kwargs)
                 module._openvino_patch_orig_forward_v2 = module.forward
                 module.forward = new_forward
 
