@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
@@ -18,7 +17,8 @@
 #include "utils/tensor_external_data.hpp"
 
 namespace ov {
-namespace onnx_editor {
+namespace frontend {
+namespace onnx {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
 /// \note This class can be used to modify an ONNX model before it gets translated to
@@ -305,11 +305,12 @@ private:
     void update_mapper_if_needed() const;
 
     const std::string m_model_path;
-    ngraph::onnx_import::detail::MappedMemoryHandles m_mmap_cache;
+    ov::frontend::onnx::detail::MappedMemoryHandles m_mmap_cache;
     frontend::ExtensionHolder m_extensions;
 
     struct Impl;
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
 };
-}  // namespace onnx_editor
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ov

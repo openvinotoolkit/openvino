@@ -201,13 +201,13 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
               "%, use sparse weights = ",
               sparseRate >= minSparseRate);
 
-    return sparseRate < minSparseRate;
+    return sparseRate >= minSparseRate;
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.withBias = getOriginalInputsNumber() == 3;
     attrs.dequantizationScales = getDQScales();
-    attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(DATA_ID)->getParent(),
+    attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
     postOps = getPostOps(fusedWith);
