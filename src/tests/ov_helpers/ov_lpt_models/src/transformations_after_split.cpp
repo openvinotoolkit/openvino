@@ -52,15 +52,14 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
         return std::make_shared<ov::opset1::Add>(dequantization, addConstant);
     }
     if (transformationName == "AvgPoolTransformation") {
-        const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});
-        return std::make_shared<ov::opset1::AvgPool>(
-            dequantization,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            true,
-            op::RoundingType::FLOOR);
+        const auto dequantization = makeDequantization(parent, { {ov::element::f32}, {}, { 0.1f } });
+        return std::make_shared<ov::opset1::AvgPool>(dequantization,
+                                                     Strides{1, 1},
+                                                     Shape{1, 1},
+                                                     Shape{0, 0},
+                                                     Shape{2, 2},
+                                                     true,
+                                                     ov::op::RoundingType::FLOOR);
     }
     if (transformationName == "ClampTransformation") {
         const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});
@@ -103,7 +102,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
         const auto outShape = ov::opset1::Constant::create(ov::element::i64, Shape{4}, {1, 4, 32, 32});
 
         ov::op::v0::Interpolate::Attributes attributes;
-        attributes.axes = AxisSet{ 2, 3 };
+        attributes.axes = ov::AxisSet{ 2, 3 };
         attributes.mode = "nearest";
         attributes.align_corners = false;
         attributes.antialias = false;
@@ -133,7 +132,7 @@ std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformatio
     }
     if (transformationName == "MVNTransformation") {
         const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});
-        return std::make_shared<ov::op::v0::MVN>(dequantization, AxisSet{ 2, 3 });
+        return std::make_shared<ov::op::v0::MVN>(dequantization, ov::AxisSet{ 2, 3 });
     }
     if (transformationName == "NormalizeL2Transformation") {
         const auto dequantization = makeDequantization(parent, {{ov::element::f32}, {}, {0.1f}});

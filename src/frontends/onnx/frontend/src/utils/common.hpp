@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@
 #include <type_traits>  // std::enable_if
 #include <vector>
 
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/node.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
 
@@ -75,7 +75,7 @@ std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<o
 ///
 /// \return A Constant node representing shifted identity matrix.
 template <typename T = double>
-std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const Shape output_shape,
+std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const ov::Shape output_shape,
                                                               const ov::element::Type& output_type,
                                                               const std::int64_t shift) {
     std::vector<T> identity_matrix(shape_size(output_shape), T{0});
@@ -101,7 +101,7 @@ std::shared_ptr<ov::op::v0::Constant> shifted_square_identity(const Shape output
 /// \return A Constant node representing identity matrix with shape (n, n).
 template <typename T = double>
 std::shared_ptr<ov::op::v0::Constant> square_identity(const size_t n, const ov::element::Type& type) {
-    return shifted_square_identity(Shape{n, n}, type, 0);
+    return shifted_square_identity(ov::Shape{n, n}, type, 0);
 }
 
 /// \brief Performs validation of an input that is expected to be a scalar.
@@ -131,10 +131,9 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \param node ONNX node
 ///
 /// \return     ov::OutputVector with binary op
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <typename T>
-ov::OutputVector handle_opset6_binary_op(const Node& node);
-OPENVINO_SUPPRESS_DEPRECATED_END
+ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node);
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
 ///         encountered in the original model.
@@ -157,5 +156,6 @@ bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 /// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
 std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);
 }  // namespace  common
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

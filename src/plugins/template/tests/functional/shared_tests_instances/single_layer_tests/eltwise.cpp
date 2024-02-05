@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/eltwise.hpp"
+#include "single_op_tests/eltwise.hpp"
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
+using namespace ov::test;
 
 namespace {
 std::vector<std::vector<ov::Shape>> inShapesStatic = {
@@ -113,7 +113,7 @@ std::vector<ov::test::utils::EltwiseTypes> eltwiseOpTypesSingleThread = {
     ov::test::utils::EltwiseTypes::POWER,
 };
 
-ov::AnyMap additional_config_single_thread = {{"CPU_THREADS_NUM", "1"}};
+ov::AnyMap additional_config_single_thread = {ov::inference_num_threads(1)};
 
 const auto single_thread_params =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),

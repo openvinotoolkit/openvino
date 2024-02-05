@@ -26,9 +26,7 @@
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_input_info.hpp"
-#include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -71,7 +69,6 @@ IInferencePlugin::IInferencePlugin() : _executorManager(ov::threading::executor_
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     description = v.description;
     buildNumber = v.buildNumber;
-    apiVersion = v.apiVersion;
 }
 
 IInferencePlugin::VersionStore::VersionStore(const Version& v) {
@@ -85,11 +82,11 @@ IInferencePlugin::VersionStore& IInferencePlugin::VersionStore::operator=(const 
     return *this;
 }
 
-void IInferencePlugin::SetVersion(const Version& version) {
+void IInferencePlugin::SetVersion(const ov::Version& version) {
     _version = VersionStore(version);
 }
 
-const Version& IInferencePlugin::GetVersion() const {
+const ov::Version& IInferencePlugin::GetVersion() const {
     return _version;
 }
 
@@ -183,11 +180,11 @@ void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
     SetConfig(any_copy(config));
 }
 
-Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
+ov::Any IInferencePlugin::GetConfig(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 
-Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::string, Parameter>&) const {
+ov::Any IInferencePlugin::GetMetric(const std::string&, const ov::AnyMap&) const {
     IE_THROW(NotImplemented);
 }
 

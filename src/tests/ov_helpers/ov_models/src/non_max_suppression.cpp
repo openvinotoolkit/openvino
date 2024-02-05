@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,8 @@ namespace ngraph {
 namespace builder {
 
 template <typename NmsOperation>
-std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
-                                  const ov::Output<Node>& scores,
+std::shared_ptr<ov::Node> makeNms(const ov::Output<ov::Node>& boxes,
+                                  const ov::Output<ov::Node>& scores,
                                   const ov::element::Type& maxBoxesPrec,
                                   const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,
@@ -46,8 +46,8 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                           outType);
 }
 
-std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
-                                  const ov::Output<Node>& scores,
+std::shared_ptr<ov::Node> makeNms(const ov::Output<ov::Node>& boxes,
+                                  const ov::Output<ov::Node>& scores,
                                   const ov::element::Type& maxBoxesPrec,
                                   const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,

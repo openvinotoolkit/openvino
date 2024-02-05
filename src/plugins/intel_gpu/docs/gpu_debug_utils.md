@@ -227,7 +227,7 @@ For troubleshooting the accuracy, you may want to compare the results of GPU plu
 
 As Gen9 HW does not have hardware acceleration, low-precision transformations are disabled by default. Therefore, quantized networks are executed in full precision (FP16 or FP32), with explicit execution of quantize operations.
 If you do not have Gen12 HW, but want to debug the network's accuracy or performance of simple operations (which does not require dp4a support), then you can enable low precision pipeline on Gen9, with one of the following approaches:
-1. Add `{PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE, PluginConfigParams::YES}` option to the plugin config.
+1. Add `ov::intel_gpu::enable_lp_transformations(true)` option to the plugin config.
 2. Enforce `supports_imad = true` [here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/device_info.cpp#L226)
 3. Enforce `conf.enableInt8 = true` [here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/src/cldnn_engine/cldnn_engine.cpp#L366)
 
