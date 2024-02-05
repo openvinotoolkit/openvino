@@ -6,7 +6,6 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
-#include "ie_common.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
