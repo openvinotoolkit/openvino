@@ -99,7 +99,7 @@ cd <INSTALLDIR>\samples\cpp
 build_samples_msvc.bat
 ```
 
-With PowerShell:
+Windows PowerShell:
 ```sh
 & <path-to-build-samples-folder>/build_samples.ps1
 ```
