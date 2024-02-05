@@ -155,11 +155,11 @@ Instructions below show how to build sample applications with CMake. If you are 
                .. tab-item:: Command Prompt
                   :sync: cmd
 
-                   To build Samples with CMD, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+                  To build Samples with CMD, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
 
-                   .. code-block:: sh
+                  .. code-block:: sh
 
-                      build_samples_msvc.bat
+                     build_samples_msvc.bat
 
             By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
 
