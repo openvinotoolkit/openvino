@@ -7,7 +7,6 @@
 #include <thread>
 #include <vector>
 
-#include "ie_common.h"
 #include "openvino/op/matmul.hpp"
 #include "ov_ops/type_relaxed.hpp"
 

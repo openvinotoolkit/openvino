@@ -14,7 +14,6 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "description_buffer.hpp"
-#include "ie_icore.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icore.hpp"

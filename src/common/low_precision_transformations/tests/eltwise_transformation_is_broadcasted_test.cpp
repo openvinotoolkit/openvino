@@ -5,8 +5,6 @@
 #include <gtest/gtest.h>
 #include "low_precision/eltwise_base_transformation.hpp"
 
-#include <ie_data.h>
-
 using namespace ::testing;
 using namespace std;
 

@@ -5,7 +5,6 @@
 #include <cpu_types.h>
 #include <edge.h>
 #include <gtest/gtest.h>
-#include <ie_common.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <memory_desc/dnnl_memory_desc.h>
 #include <node.h>

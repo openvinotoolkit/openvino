@@ -8,7 +8,6 @@
 #include <limits>
 
 #include "base_reference_test.hpp"
-#include "ie_core.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;

@@ -7,7 +7,6 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
