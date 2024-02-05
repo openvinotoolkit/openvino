@@ -9,6 +9,7 @@
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
 
+
 namespace {
 template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
 std::vector<T>& pad_vector_to_size(std::vector<T>& data, size_t size, DT value) {
@@ -141,6 +142,7 @@ public:
         std::vector<int32_t> out_shape;
         for (const auto& dim : logical_dims)
             out_shape.push_back(static_cast<int32_t>(dim));
+
         if (params.striding_params.size() == 3) {
             // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
             vector_assign_if_not_mask(params.striding_params[0], 0, params.begin_mask);
@@ -148,44 +150,45 @@ public:
             // instead.
             vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
             for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
-                auto begin_org = params.striding_params[0][dim];
-                auto end_org = params.striding_params[1][dim];
-                if (params.striding_params[0][dim] < 0)
-                    params.striding_params[0][dim] = std::max(out_shape[dim] + params.striding_params[0][dim], (int32_t)0);
-                if (params.striding_params[1][dim] < 0)
-                    params.striding_params[1][dim] = std::max(out_shape[dim] + params.striding_params[1][dim], (int32_t)0);
+                auto begin = params.striding_params[0][dim];
+                auto end = params.striding_params[1][dim];
+                auto stride = params.striding_params[2][dim];
 
-                params.striding_params[0][dim] = std::min(params.striding_params[0][dim], out_shape[dim]);
-                params.striding_params[1][dim] = std::min(params.striding_params[1][dim], out_shape[dim]);
+                // Check out of bounds values for Clamping
+                auto check_out_of_bounds = [&](int32_t value) -> bool {
+                    auto size = out_shape[dim];
+                    if (value >= size || value < (size * -1))
+                        return true;
+                    else
+                        return false;
+                };
+                bool should_clamp_begin = check_out_of_bounds(begin);
+                bool should_clamp_end = check_out_of_bounds(end);
 
-                auto& begin = params.striding_params[0][dim];
-                auto& end = params.striding_params[1][dim];
-                auto& stride = params.striding_params[2][dim];
-                bool is_clamp_begin = begin_org != begin;
-                bool is_clamp_end = end_org != end;
-                bool is_reverse = stride < 0;
-                // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
-                // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
-                // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
-                // clamp: begin=100; end=0;
-                // sub: begin=99; end=-1;
-                // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
-                // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
-                // swap: begin=100; end=0;
-                // sub: begin=99; end=-1;
-                // So the kernel will put the slices [99, 0] in reversed order as expected.
-                if (is_reverse) {
-                    if (begin <= end) {
+                // Convert a negative value which means reverse indexing from the end
+                if (begin < 0)
+                    begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
+                if (end < 0)
+                    end += out_shape[dim];
+                bool is_stride_reverse = (stride < 0) ? true : false;
+
+                // Clamping
+                if (should_clamp_begin)
+                    begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]-1);
+                if (should_clamp_end)
+                    end = std::min(std::max(end, (int32_t)0), out_shape[dim]-1);
+
+                if (is_stride_reverse) {
+                    // If begin <= end and is_stride_reverse, then we swap begin/end values
+                    // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
+                    // swap: begin=99; end=0;
+                    // So the kernel will put the slices [99, 0] in reversed order as expected.
+                    if (begin <= end)
                         std::swap(begin, end);
-                        begin--;
-                        end--;
-                    } else if (begin_org != -1) {  // If begin is -1 with negative stride, clamping begin is already expected value
-                        if (is_clamp_begin && begin_org >= 0)
-                            begin--;
-                        if (is_clamp_end && end_org >= 0)
-                            end--;
-                    }
                 }
+
+                params.striding_params[0][dim] = begin;
+                params.striding_params[1][dim] = end;
             }
         }
         return {params, op_params};
