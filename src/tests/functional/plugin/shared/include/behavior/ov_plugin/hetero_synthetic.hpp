@@ -55,6 +55,11 @@ public:
     static std::vector<FunctionParameter> randomMajorNodeFunctions(
         const std::vector<std::function<std::shared_ptr<ov::Model>()>>& builders, bool dynamic_batch = false, uint32_t seed = 0);
 
+    static std::vector<FunctionParameter> withMajorNodesFunctions(
+        const std::function<std::shared_ptr<ov::Model>()>& builder,
+        const std::unordered_set<std::string>& majorNodes,
+        bool dynamic_batch = false);
+
     static std::vector<FunctionParameter> _singleMajorNodeFunctions;
     static std::vector<FunctionParameter> _randomMajorNodeFunctions;
 };

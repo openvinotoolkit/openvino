@@ -184,6 +184,14 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::randomMajorNodeFunctions(
     return results;
 }
 
+std::vector<FunctionParameter> OVHeteroSyntheticTest::withMajorNodesFunctions(const std::function<std::shared_ptr<ov::Model>()>& builder,
+                                                                              const std::unordered_set<std::string>& majorNodes,
+                                                                              bool dynamic_batch) {
+    auto function = builder();
+    std::vector<FunctionParameter> result;
+    result.push_back(FunctionParameter{majorNodes, function, dynamic_batch, 0});
+    return result;
+}
 
 std::vector<FunctionParameter> OVHeteroSyntheticTest::_singleMajorNodeFunctions
     = OVHeteroSyntheticTest::singleMajorNodeFunctions(builders);
