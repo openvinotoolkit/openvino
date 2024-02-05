@@ -506,7 +506,11 @@ bool layout::compatible(const layout& other) const {
 bool layout::identical(const layout& other) const {
     if (is_dynamic() || other.is_dynamic())
         return false;
-    return *this == other;
+    bool ret = (*this == other);
+    if (ret && this->format == cldnn::format::custom) {
+        ret &= (this->format.traits().block_sizes == other.format.traits().block_sizes);
+    }
+    return ret;
 }
 
 ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
