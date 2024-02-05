@@ -48,22 +48,6 @@ elseif(NOT EMSCRIPTEN)
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 endif()
 
-if(ENABLE_SSE42)
-    file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.cpp)
-    file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.hpp)
-
-    list(APPEND LIBRARY_HEADERS ${SSE_HEADERS})
-    list(APPEND LIBRARY_SRC ${SSE_SRC})
-
-    ov_sse42_optimization_flags(sse4_2_flags)
-    set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
-    add_definitions(-DHAVE_SSE=1)
-
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.16")
-        set_source_files_properties(${SSE_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-    endif()
-endif()
-
 set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file (GLOB_RECURSE PUBLIC_HEADERS

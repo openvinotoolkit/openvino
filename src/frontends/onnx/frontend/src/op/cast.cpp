@@ -9,14 +9,14 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector cast(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
     ov::element::Type elem_type = common::get_ov_element_type(target_type);
 
@@ -25,6 +25,6 @@ ov::OutputVector cast(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
