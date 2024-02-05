@@ -10,12 +10,13 @@
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector fake_quantize(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto X = inputs.at(0);
     const auto input_low = inputs.at(1);
     const auto input_high = inputs.at(2);
@@ -28,9 +29,7 @@ OutputVector fake_quantize(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

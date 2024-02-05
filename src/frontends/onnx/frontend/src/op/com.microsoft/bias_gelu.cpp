@@ -10,16 +10,18 @@
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector bias_gelu(const Node& node) {
-    auto nodes = node.get_ng_inputs();
+ov::OutputVector bias_gelu(const ov::frontend::onnx::Node& node) {
+    auto nodes = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(nodes.size() == 2, "BiasGelu takes 2 inputs. Provided " + std::to_string(nodes.size()));
     return {std::make_shared<v7::Gelu>(std::make_shared<v1::Add>(nodes.at(0), nodes.at(1)))};
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

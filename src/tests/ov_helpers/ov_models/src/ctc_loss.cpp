@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,16 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
-                                  std::vector<int>& logitsLength,
-                                  std::vector<std::vector<int>>& labels,
-                                  std::vector<int>& labelsLength,
-                                  int blankIndex,
-                                  const element::Type& fType,
-                                  const element::Type& iType,
-                                  const bool preprocessCollapseRepeated,
-                                  const bool ctcMergeRepeated,
-                                  const bool unique) {
+std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<ov::Node>& logitsNode,
+                                      std::vector<int>& logitsLength,
+                                      std::vector<std::vector<int>>& labels,
+                                      std::vector<int>& labelsLength,
+                                      int blankIndex,
+                                      const ov::element::Type& fType,
+                                      const ov::element::Type& iType,
+                                      const bool preprocessCollapseRepeated,
+                                      const bool ctcMergeRepeated,
+                                      const bool unique) {
     auto logitsShape = logitsNode.get_shape();
     size_t N = logitsShape[0];
     size_t T = logitsShape[1];

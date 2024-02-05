@@ -5,7 +5,6 @@
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/multiply.hpp"

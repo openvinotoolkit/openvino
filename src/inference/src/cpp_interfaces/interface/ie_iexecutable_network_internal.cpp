@@ -15,7 +15,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "ie_parameter.hpp"
 #include "openvino/core/node.hpp"
 
 namespace InferenceEngine {
@@ -84,7 +83,7 @@ void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
+std::shared_ptr<ov::Model> IExecutableNetworkInternal::GetExecGraphInfo() {
     IE_THROW(NotImplemented);
 }
 
@@ -96,15 +95,15 @@ std::shared_ptr<void> IExecutableNetworkInternal::GetPointerToSo() {
     return _so;
 }
 
-void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
+void IExecutableNetworkInternal::SetConfig(const ov::AnyMap&) {
     IE_THROW(NotImplemented);
 }
 
-Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
+ov::Any IExecutableNetworkInternal::GetConfig(const std::string&) const {
     IE_THROW(NotImplemented);
 }
 
-Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
+ov::Any IExecutableNetworkInternal::GetMetric(const std::string&) const {
     IE_THROW(NotImplemented);
 }
 

@@ -10,7 +10,6 @@
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/convert_transpose.hpp"

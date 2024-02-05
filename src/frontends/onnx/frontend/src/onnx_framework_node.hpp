@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2022 Intel Corporation
+// Copyright (C) 2017-2024 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #pragma once
 
 #include "core/graph.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -26,20 +26,18 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
-namespace onnx_import {
-class Model;
-}
-
+namespace ov {
 namespace frontend {
-OPENVINO_SUPPRESS_DEPRECATED_START
+namespace onnx {
+class Model;
+
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ONNXFrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    ONNXFrameworkNode(const onnx_import::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node) : ONNXFrameworkNode(node, node.get_ov_inputs()) {}
 
-    ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
+    ONNXFrameworkNode(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node) {
         ov::op::util::FrameworkNodeAttrs attrs;
@@ -48,17 +46,17 @@ public:
         set_attrs(attrs);
     }
 
-    OutputVector get_ov_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
-        OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
+    ov::OutputVector get_ov_nodes(const std::shared_ptr<ov::frontend::onnx::Graph>& graph) const {
+        ov::OutputVector ov_nodes{graph->make_ov_nodes(m_node)};
         if (ov_nodes.size() > get_output_size()) {
             ov_nodes.resize(get_output_size());
         }
         return ov_nodes;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
-    virtual bool visit_attributes(AttributeVisitor& visitor) override {
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // TODO: implement reading as well, now it work for serialization only
         std::string domain = m_node.domain();
         std::string op_type = m_node.op_type();
@@ -68,16 +66,16 @@ public:
     }
 
 protected:
-    onnx_import::Node m_node;
+    ov::frontend::onnx::Node m_node;
 };
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
     OPENVINO_OP("ONNXSubgraphFrameworkNode", "util", ONNXFrameworkNode);
 
-    ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
+    ONNXSubgraphFrameworkNode(const ov::frontend::onnx::Node& node,
                               const std::vector<std::shared_ptr<ov::Model>>& models,
-                              const OutputVector& inputs)
+                              const ov::OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
           m_models(models) {}
 
@@ -90,14 +88,13 @@ public:
         return m_models;
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
 private:
     std::vector<std::shared_ptr<ov::Model>> m_models;
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 
-// Be careful with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
+// Be careful with using protobuf references (also ov::frontend::onnx::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
     static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
@@ -105,7 +102,7 @@ class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("NotSupportedONNXNode", "util", ov::op::util::FrameworkNode);
 
-    NotSupportedONNXNode(const OutputVector& inputs,
+    NotSupportedONNXNode(const ov::OutputVector& inputs,
                          const size_t output_size,
                          const std::string& domain,
                          const std::string& op_type,
@@ -123,9 +120,10 @@ public:
         return attrs[failed_conversion_key];
     }
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
-    virtual bool visit_attributes(AttributeVisitor& visitor) override;
+    virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
+    virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 
+}  // namespace onnx
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

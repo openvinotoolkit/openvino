@@ -3,9 +3,13 @@
 //
 
 #include "if.h"
+
+#include "openvino/op/if.hpp"
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "transformations/utils/utils.hpp"
 
 #include <string>
 #include <vector>
@@ -113,7 +117,7 @@ void If::getSupportedDescriptors() {
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
             OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
@@ -126,7 +130,7 @@ void If::getSupportedDescriptors() {
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
             OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
@@ -199,7 +203,7 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto fromMem = getSrcMemoryAtPort(map_rule.from);
         auto& toMems = inputMems[map_rule.to];
         // Check precision between If node input/output and it's subgrapsh input/output.
         for (const auto& toMem : toMems) {
@@ -244,7 +248,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(dnnl::stream strm) {
-    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData()))[0]);
+    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

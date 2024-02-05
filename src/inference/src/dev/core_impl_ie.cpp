@@ -5,17 +5,17 @@
 #include <memory>
 
 #include "any_copy.hpp"
+#include "blob_factory.hpp"
 #include "compilation_context.hpp"
 #include "core_impl.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
 #include "ie_network_reader.hpp"
 #include "iplugin_wrapper.hpp"
 #include "itt.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -175,15 +175,6 @@ std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
     return get_available_devices();
 }
 
-/**
- * @brief Registers the extension in a Core object
- *        Such extensions can be used for both CNNNetwork readers and device plugins
- */
-void ov::CoreImpl::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-    AddExtensionUnsafe(extension);
-}
-
 bool ov::CoreImpl::DeviceSupportsModelCaching(const std::string& deviceName) const {
     return device_supports_model_caching(deviceName);
 }
@@ -193,8 +184,8 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
     return ov::any_copy(get_supported_property(deviceName, any_copy(configs)));
 }
 
-std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
-    std::map<std::string, InferenceEngine::Version> versions;
+std::map<std::string, ov::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
+    std::map<std::string, ov::Version> versions;
     std::vector<std::string> deviceNames;
 
     {

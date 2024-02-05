@@ -197,6 +197,7 @@ Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_dem
 Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
 
 * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd>`
+* :doc:`Object classification sample <openvino_sample_hello_classification>`
 
 Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++

@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 /// \brief Convert ONNX AveragePool operation to an OV node.
@@ -19,13 +17,10 @@ namespace set_1 {
 ///
 /// \return The vector containing OV nodes producing output of ONNX AveragePool
 ///        operation.
-OutputVector average_pool(const Node& node);
+ov::OutputVector average_pool(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
