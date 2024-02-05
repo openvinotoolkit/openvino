@@ -22,7 +22,7 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
 
     // Extract necessary attributes and inputs
     // Set default value for tolerance
-    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f);
+    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f); 
     // Access inputs directly
     auto x = node.get_input(0); 
     auto y = node.get_input(1);
@@ -31,8 +31,7 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     auto difference = make_shared<Subtract>(x, y);
     auto absolute = make_shared<Abs>(difference);
     auto tolerance_constant = create_same_type_const_scalar(x, tolerance);
-     auto less = make_shared<Less>(absolute, tolerance_constant);
-
+    auto less = make_shared<Less>(absolute, tolerance_constant);
     // Create and return the corresponding OpenVINO operation
     set_node_name(node.get_name(), less);
     return {less};
