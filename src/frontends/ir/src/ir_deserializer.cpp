@@ -374,8 +374,8 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             std::vector<int64_t> shape;
             std::string el_type_str;
 
-            size_t offset = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "offset"));
-            size_t size = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "size"));
+            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
             if (!getStrAttribute(dn, "element_type", el_type_str))
                 return;
             if (!getParameters<int64_t>(dn, "shape", shape))
