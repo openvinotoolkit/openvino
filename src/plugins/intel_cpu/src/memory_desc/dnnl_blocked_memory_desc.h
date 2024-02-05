@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "dnnl_memory_desc.h"
 #include "blocked_memory_desc.h"
 #include "openvino/util/util.hpp"
 #include "cpu_memory.h"

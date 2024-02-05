@@ -17,6 +17,7 @@
 #include "fake_quantize.h"
 #include "input.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/executors/eltwise_list.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -33,6 +34,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -2273,8 +2275,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
     if ((getAlgorithm() == Algorithm::EltwiseMulAdd || getAlgorithm() == Algorithm::EltwisePowerStatic) &&
             (inputPrecisions[0] == ov::element::u8 || inputPrecisions[0] == ov::element::i8)) {
-        auto parentNode = getParentEdgesAtPort(0)[0]->getParent();
-        if (getParentEdgesAtPort(0)[0]->getParent()->getAlgorithm() == Algorithm::PoolingAvg) {
+        auto parentNode = getParentEdgeAt(0)->getParent();
+        if (getParentEdgeAt(0)->getParent()->getAlgorithm() == Algorithm::PoolingAvg) {
             inputPrecisions[0] = ov::element::f32;
         }
     }
@@ -2450,8 +2452,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 void Eltwise::createPrimitive() {
     if (memPtrs.empty()) {
         for (size_t i = 0; i < inputNum; i++)
-            memPtrs.push_back(getParentEdgeAt(i)->getMemoryPtr());
-        memPtrs.push_back(getChildEdgeAt(0)->getMemoryPtr());
+            memPtrs.push_back(getSrcMemoryAtPort(i));
+        memPtrs.push_back(getDstMemoryAtPort(0));
     }
 
     start_offset_in.resize(inputNum);
@@ -2474,10 +2476,10 @@ void Eltwise::prepareParams() {
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
@@ -2620,7 +2622,7 @@ void Eltwise::prepareParams() {
 
 bool Eltwise::needPrepareParams() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
+        if (getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
             return true;
     }
     return false;
@@ -2635,8 +2637,8 @@ void Eltwise::execute(dnnl::stream strm) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out = implType == EltwiseImplType::optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
         for (size_t i = 0; i < memPtrs.size() - 1; i++)
-            args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->getData()) + start_offset_in[i];
-        args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->getData()) + start_offset_out;
+            args_ptrs.src_ptr[i] = memPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        args_ptrs.dst_ptr = memPtrs.back()->getDataAs<uint8_t>() + start_offset_out;
 
         args_ptrs.post_op_data = fqDataPtrs.data();
 
@@ -2653,10 +2655,10 @@ void Eltwise::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
         std::vector<MemoryPtr> dstMemory;
-        dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+        dstMemory.push_back(getDstMemoryAtPort(0));
 
         aclExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
     } else {
@@ -2673,7 +2675,7 @@ bool Eltwise::created() const {
 }
 
 bool Eltwise::canBeInPlace() const {
-    if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
+    if (getParentEdgeAt(0)->getParent()->getType() == Type::Input) {
         return false;
     }
 
@@ -2839,7 +2841,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
 
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
@@ -2960,7 +2962,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        if (node->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
+        if (node->getParentEdgeAt(0)->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (one_of(node->getAlgorithm(), Algorithm::EltwiseSubtract,
                                              Algorithm::EltwiseDivide,
