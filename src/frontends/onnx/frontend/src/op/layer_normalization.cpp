@@ -20,23 +20,24 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
 using namespace ov::op::v8;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector layer_normalization(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node,
                      num_inputs == 2 || num_inputs == 3,
@@ -50,7 +51,7 @@ ov::OutputVector layer_normalization(const Node& node) {
     double epsilon = node.get_attribute_value<double>("epsilon", 1e-5);
     int64_t stash_type_i =
         node.get_attribute_value<int64_t>("stash_type",
-                                          static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
+                                          static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT));
     element::Type stash_type = common::get_ov_element_type(stash_type_i);
 
     // following calculations are kept as close to the onnx\defs.cc description as possible
@@ -67,7 +68,7 @@ ov::OutputVector layer_normalization(const Node& node) {
     auto SuffixShape = std::make_shared<v3::Broadcast>(One1D, NumReducedAxes);
     auto ReducedShape = std::make_shared<Concat>(ov::OutputVector{PrefixShape, SuffixShape}, 0);
 
-    auto X2D = util::flatten(X, static_cast<int>(axis));
+    auto X2D = ov::op::util::flatten(X, static_cast<int>(axis));
     auto XU = std::make_shared<Convert>(X2D, stash_type);
 
     auto Mean2D = std::make_shared<ReduceMean>(XU, One1D, true);
@@ -82,10 +83,10 @@ ov::OutputVector layer_normalization(const Node& node) {
     auto Normalized = std::make_shared<Divide>(Deviation, StdDev);
     auto NormalizedT = std::make_shared<ConvertLike>(Normalized, X);
 
-    auto Scale2D = util::flatten(Scale, 0);
+    auto Scale2D = ov::op::util::flatten(Scale, 0);
     auto Scaled = std::make_shared<Multiply>(NormalizedT, Scale2D);
     ov::Output<ov::Node> Biased =
-        (num_inputs == 3 ? std::make_shared<Add>(Scaled, util::flatten(inputs.at(2), 0))->output(0)
+        (num_inputs == 3 ? std::make_shared<Add>(Scaled, ov::op::util::flatten(inputs.at(2), 0))->output(0)
                          : Scaled->output(0));
 
     auto Y = std::make_shared<Reshape>(Biased, XShape, false);
@@ -98,6 +99,6 @@ ov::OutputVector layer_normalization(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
