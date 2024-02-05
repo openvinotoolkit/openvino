@@ -67,8 +67,9 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
         } else {
-            if (data_rank.is_static() && axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
-                output_shapes.push_back(ov::PartialShape::dynamic(data_rank.get_length() - 1));
+            if (axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
+                // since there is the only axis, it is unique/not duplicated by definition. we can safely propagate rank
+                output_shapes.push_back(ov::PartialShape::dynamic(data_rank - 1));
             } else {
                 output_shapes.push_back(ov::PartialShape::dynamic());
             }
