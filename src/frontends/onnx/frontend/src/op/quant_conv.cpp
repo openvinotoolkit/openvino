@@ -48,11 +48,11 @@ namespace ngraph
                     std::shared_ptr<ov::Node>
                         make_ng_quant_conv(const Output<ov::Node>& data,
                                            const Output<ov::Node>& filters,
-                                           const Strides& strides,
-                                           const Strides& filter_dilations,
+                                           const ov::Strides& strides,
+                                           const ov::Strides& filter_dilations,
                                            const CoordinateDiff& padding_below,
                                            const CoordinateDiff& padding_above,
-                                           const Strides& data_dilations,
+                                           const ov::Strides& data_dilations,
                                            int groups,
                                            const OpScale& op_scale,
                                            const OpZeroPoint& op_zero_point,
@@ -176,7 +176,7 @@ namespace ngraph
 
                 } // namespace
 
-                ov::OutputVector quant_conv(const Node& node)
+                ov::OutputVector quant_conv(const ov::frontend::onnx::Node& node)
                 {
                     const ov::OutputVector& inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
@@ -212,9 +212,9 @@ namespace ngraph
                         "provided group attribute value must be a multiple of filter channels "
                         "count.");
 
-                    Strides strides = convpool::get_strides(node);
-                    Strides filter_dilations = convpool::get_dilations(node);
-                    Strides data_dilations = Strides(convpool::get_kernel_shape(node).size(), 1UL);
+                    ov::Strides strides = convpool::get_strides(node);
+                    ov::Strides filter_dilations = convpool::get_dilations(node);
+                    ov::Strides data_dilations = Strides(convpool::get_kernel_shape(node).size(), 1UL);
                     auto paddings = convpool::get_pads(node);
                     ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     CoordinateDiff& padding_below = paddings.first;
@@ -268,8 +268,8 @@ namespace ngraph
 
         } // namespace op
 
-    } // namespace onnx_import
-
-} // namespace ngraph
+    }  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
 #endif

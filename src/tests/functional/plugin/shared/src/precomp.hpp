@@ -30,3 +30,4 @@
 #include <vector>
 
 #include "openvino/core/type/float16.hpp"
+#include "openvino/openvino.hpp"

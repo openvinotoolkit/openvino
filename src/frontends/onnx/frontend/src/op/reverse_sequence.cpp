@@ -13,17 +13,17 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector reverse_sequence(const Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+ov::OutputVector reverse_sequence(const ov::frontend::onnx::Node& node) {
+    const auto data = node.get_ov_inputs().at(0);
 
-    const auto sequence_lengths = node.get_ng_inputs().at(1);
+    const auto sequence_lengths = node.get_ov_inputs().at(1);
     // OpenVINO supports only int32 type of sequence_lengths
-    const auto sequence_lengths_i32 = std::make_shared<v0::Convert>(node.get_ng_inputs().at(1), ov::element::i32);
+    const auto sequence_lengths_i32 = std::make_shared<v0::Convert>(node.get_ov_inputs().at(1), ov::element::i32);
     const auto data_rank = data.get_partial_shape().rank();
 
     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);
@@ -48,10 +48,7 @@ ov::OutputVector reverse_sequence(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

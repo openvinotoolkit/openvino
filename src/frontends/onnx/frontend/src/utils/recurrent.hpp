@@ -9,12 +9,12 @@
 #include <memory>
 
 #include "core/node.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace recurrent {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -41,9 +41,8 @@ enum class OpInput {
 struct OpInputMap {
     using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    explicit OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
+
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
 
@@ -59,9 +58,8 @@ struct OpInputMap {
 /// \brief      This structure aggregates operator's attributes.
 ///
 struct OpAttributes {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit OpAttributes(const Node& node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     virtual ~OpAttributes() = default;
 
     ov::op::RecurrentSequenceDirection m_direction;
@@ -73,5 +71,6 @@ struct OpAttributes {
 };
 
 }  // namespace recurrent
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

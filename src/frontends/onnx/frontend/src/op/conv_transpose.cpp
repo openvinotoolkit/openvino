@@ -16,24 +16,24 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/convpool.hpp"
+#include "utils/reshape.hpp"
 
 using namespace ov::op;
 using ov::CoordinateDiff;
 using ov::Shape;
 using ov::Strides;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
 ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
                                               const ov::Output<ov::Node>& filters,
-                                              const Strides& strides,
-                                              const Strides& dilations,
+                                              const ov::Strides& strides,
+                                              const ov::Strides& dilations,
                                               const ov::CoordinateDiff& pads_begin,
                                               const ov::CoordinateDiff& pads_end,
                                               const ov::op::PadType& auto_pad_type,
@@ -53,7 +53,7 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
         return std::make_shared<v1::GroupConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(ov::element::i64, ov::Shape{output_shape.size()}, output_shape),
             strides,
             dilations,
             auto_pad_type,
@@ -63,8 +63,8 @@ ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
 
 ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
                                         const ov::Output<ov::Node>& filters,
-                                        const Strides& strides,
-                                        const Strides& dilations,
+                                        const ov::Strides& strides,
+                                        const ov::Strides& dilations,
                                         const ov::CoordinateDiff& pads_begin,
                                         const ov::CoordinateDiff& pads_end,
                                         const ov::op::PadType& auto_pad_type,
@@ -84,7 +84,7 @@ ov::Output<ov::Node> make_conv_backprop(const ov::Output<ov::Node>& data,
         return std::make_shared<v1::ConvolutionBackpropData>(
             data,
             filters,
-            v0::Constant::create(ov::element::i64, Shape{output_shape.size()}, output_shape),
+            v0::Constant::create(ov::element::i64, ov::Shape{output_shape.size()}, output_shape),
             strides,
             pads_begin,
             pads_end,
@@ -100,17 +100,17 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
     std::shared_ptr<ov::Node> bias_shape_node;
 
     if (conv_pshape.rank().is_static() && conv_pshape[1].is_static()) {
-        Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
+        ov::Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
         new_bias_shape[1] = conv_pshape[1].get_length();
 
-        bias_shape_node = v0::Constant::create(ov::element::i64, Shape{new_bias_shape.size()}, new_bias_shape);
+        bias_shape_node = v0::Constant::create(ov::element::i64, ov::Shape{new_bias_shape.size()}, new_bias_shape);
     } else {
         const auto conv_shape = std::make_shared<v3::ShapeOf>(conv);
         const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
         // Prepare new bias shape base: [1, 1, 1, 1, ... ]
-        const auto one_node = v0::Constant::create(ov::element::i64, Shape{1}, {1});
-        const auto two_node = v0::Constant::create(ov::element::i64, Shape{1}, {2});
+        const auto one_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto two_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
         const auto remaining_shape_length = std::make_shared<v1::Subtract>(conv_rank, two_node);
         const auto remaining_bias_shape_ones = std::make_shared<v3::Broadcast>(one_node, remaining_shape_length);
 
@@ -128,8 +128,8 @@ ov::Output<ov::Node> get_prepared_bias(const ov::Output<ov::Node>& bias, const o
 }
 }  // namespace
 
-ov::OutputVector conv_transpose(const Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     CHECK_VALID_NODE(node,
                      inputs.size() == 2 || inputs.size() == 3,
@@ -143,7 +143,7 @@ ov::OutputVector conv_transpose(const Node& node) {
     const auto& filters_pshape = filters.get_partial_shape();
 
     std::size_t num_spatial_dims = 0;
-    Strides strides, dilations;
+    ov::Strides strides, dilations;
     std::pair<ov::CoordinateDiff, ov::CoordinateDiff> paddings;
     ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 
@@ -215,10 +215,7 @@ ov::OutputVector conv_transpose(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
