@@ -142,14 +142,14 @@ ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& lhs,
 }
 
 void ConvertAlignTypes::validate_and_infer_types() {
-    OV_OP_SCOPE(ConvertAlignTypes_validate_and_infer_types);
+    OV_OP_SCOPE(v14_ConvertAlignTypes_validate_and_infer_types);
     const auto aligned_type = infer_types(this);
     set_output_type(0, aligned_type, get_input_partial_shape(0));
     set_output_type(1, aligned_type, get_input_partial_shape(1));
 }
 
 bool ConvertAlignTypes::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(ConvertAlignTypes_visit_attributes);
+    OV_OP_SCOPE(v14_ConvertAlignTypes_visit_attributes);
     visitor.on_attribute("promote_unsafe", m_promote_unsafe);
     visitor.on_attribute("pytorch_scalar_align", m_pytorch_scalar_align);
     visitor.on_attribute("u64_integer_promotion_target", m_u64_integer_promotion_target);
@@ -157,7 +157,7 @@ bool ConvertAlignTypes::visit_attributes(AttributeVisitor& visitor) {
 }
 
 std::shared_ptr<Node> ConvertAlignTypes::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(ConvertAlignTypes_clone_with_new_inputs);
+    OV_OP_SCOPE(v14_ConvertAlignTypes_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ConvertAlignTypes>(new_args.at(0),
                                                new_args.at(1),
