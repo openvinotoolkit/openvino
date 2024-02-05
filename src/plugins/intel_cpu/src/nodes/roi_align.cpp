@@ -6,18 +6,17 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
 #include <utils/bfloat16.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include <openvino/opsets/opset9.hpp>
 
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
@@ -815,8 +814,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIAlign::createPrimitive() {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -877,10 +876,10 @@ void ROIAlign::executeSpecified() {
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const inputType>(0);
+    const auto *srcRoi = getSrcDataAtPortAs<const float>(1);
+    const auto *srcRoiIdx = getSrcDataAtPortAs<const int>(2);
+    auto *dst = getDstDataAtPortAs<outputType>(0);
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;

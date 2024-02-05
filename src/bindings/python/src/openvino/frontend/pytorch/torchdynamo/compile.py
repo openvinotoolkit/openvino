@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -43,7 +43,7 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
 
     return file_name
 
-def openvino_compile_cached_model(cached_model_path, *example_inputs, options):
+def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
@@ -118,12 +118,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    config = {}
+    config = _get_config(options)
 
     if model_hash_str is not None:
-        if _is_cache_dir_in_config(options):
-            config = _get_config(options)
-        else:
+        if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)

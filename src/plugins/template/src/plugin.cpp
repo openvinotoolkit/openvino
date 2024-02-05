@@ -128,7 +128,16 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
-    auto fullConfig = Configuration{properties, m_cfg};
+    // check ov::loaded_from_cache property and erase it due to not needed any more.
+    auto _properties = properties;
+    const auto& it = _properties.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _properties.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _properties.erase(it);
+    }
+
+    auto fullConfig = Configuration{_properties, m_cfg};
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -154,7 +163,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
                                         context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig,
-                                        true);
+                                        loaded_from_cache);
     return compiled_model;
 }
 // ! [plugin:import_model_with_remote]
@@ -195,6 +204,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
+#include "openvino/opsets/opset14_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());

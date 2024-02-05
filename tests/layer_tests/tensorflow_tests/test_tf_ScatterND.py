@@ -74,8 +74,8 @@ class TestTFScatterND(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_tf_scatter_nd(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend, use_old_api):
+                           use_new_frontend):
         self._test(*self.create_tf_scatternd_placeholder_const_net(**params, ir_version=ir_version,
                                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, **params)
+                   use_new_frontend=use_new_frontend, **params)

@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "behavior/ov_infer_request/infer_consistency.hpp"
 
 using namespace ov::test::behavior;
@@ -16,14 +13,12 @@ namespace {
 // device.
 using Configs = std::vector<std::pair<std::string, ov::AnyMap>>;
 
-std::vector<Configs> configs = {
-    {{ov::test::utils::DEVICE_CPU, {}}, {ov::test::utils::DEVICE_CPU, {}}}
-};
+std::vector<Configs> configs = {{{ov::test::utils::DEVICE_CPU, {}}, {ov::test::utils::DEVICE_CPU, {}}}};
 
-INSTANTIATE_TEST_SUITE_P(BehaviorTests, OVInferConsistencyTest,
-    ::testing::Combine(
-        ::testing::Values(10),// inferRequest num
-        ::testing::Values(10),// infer counts
-        ::testing::ValuesIn(configs)),
-    OVInferConsistencyTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(BehaviorTests,
+                         OVInferConsistencyTest,
+                         ::testing::Combine(::testing::Values(10),  // inferRequest num
+                                            ::testing::Values(10),  // infer counts
+                                            ::testing::ValuesIn(configs)),
+                         OVInferConsistencyTest::getTestCaseName);
 }  // namespace

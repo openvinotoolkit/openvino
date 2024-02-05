@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,24 +19,16 @@ namespace type_helpers {
 
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
-        {ov::element::f16, py::dtype("float16")},
-        {ov::element::bf16, py::dtype("float16")},
-        {ov::element::f32, py::dtype("float32")},
-        {ov::element::f64, py::dtype("float64")},
-        {ov::element::i8, py::dtype("int8")},
-        {ov::element::i16, py::dtype("int16")},
-        {ov::element::i32, py::dtype("int32")},
-        {ov::element::i64, py::dtype("int64")},
-        {ov::element::u8, py::dtype("uint8")},
-        {ov::element::u16, py::dtype("uint16")},
-        {ov::element::u32, py::dtype("uint32")},
-        {ov::element::u64, py::dtype("uint64")},
-        {ov::element::boolean, py::dtype("bool")},
-        {ov::element::u1, py::dtype("uint8")},
-        {ov::element::u4, py::dtype("uint8")},
-        {ov::element::nf4, py::dtype("uint8")},
-        {ov::element::i4, py::dtype("int8")},
-        {ov::element::string, py::dtype("bytes_")},
+        {ov::element::f16, py::dtype("float16")},  {ov::element::bf16, py::dtype("float16")},
+        {ov::element::f32, py::dtype("float32")},  {ov::element::f64, py::dtype("float64")},
+        {ov::element::i8, py::dtype("int8")},      {ov::element::i16, py::dtype("int16")},
+        {ov::element::i32, py::dtype("int32")},    {ov::element::i64, py::dtype("int64")},
+        {ov::element::u8, py::dtype("uint8")},     {ov::element::u16, py::dtype("uint16")},
+        {ov::element::u32, py::dtype("uint32")},   {ov::element::u64, py::dtype("uint64")},
+        {ov::element::boolean, py::dtype("bool")}, {ov::element::u1, py::dtype("uint8")},
+        {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
+        {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
+        {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -153,7 +145,7 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     auto data = t.data<std::string>();
     py::list _list;
     for (size_t i = 0; i < t.get_size(); ++i) {
-        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "strict");
+        PyObject* _unicode_obj = PyUnicode_DecodeUTF8(&data[i][0], data[i].length(), "replace");
         _list.append(_unicode_obj);
         Py_XDECREF(_unicode_obj);
     }
@@ -499,7 +491,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     }
 }
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
         auto t = request.m_request.get_tensor(out);
@@ -507,7 +499,11 @@ py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
             }
-            res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
+            if (decode_strings) {
+                res[py::cast(out)] = string_helpers::string_array_from_tensor(std::move(t));
+            } else {
+                res[py::cast(out)] = string_helpers::bytes_array_from_tensor(std::move(t));
+            }
         } else {
             res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
         }

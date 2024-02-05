@@ -11,8 +11,8 @@ GPU Device
    openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
 
 .. meta::
-   :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
-                 is an OpenCL based plugin for inference of deep neural 
+   :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit
+                 is an OpenCL based plugin for inference of deep neural
                  networks on Intel® GPus.
 
 
@@ -35,10 +35,10 @@ Device Naming Convention
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
-For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 .. code-block:: sh
-   
+
    ./hello_query_device
    Available devices:
        Device: CPU
@@ -46,14 +46,12 @@ For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvin
        Device: GPU.0
    ...
        Device: GPU.1
-   ...
-       Device: GNA
 
 
 Then, the device name can be passed to the ``ov::Core::compile_model()`` method, running on:
 
 .. tab-set::
-   
+
    .. tab-item:: default device
 
       .. tab-set::
@@ -132,10 +130,10 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 .. note::
 
-   The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
+   The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR.
    Hardware support of ``u8``/``i8`` acceleration can be queried via the ``ov::device::capabilities`` property.
 
-:doc:`Hello Query Device C++ Sample<openvino_inference_engine_samples_hello_query_device_README>` can be used to print out the supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out the supported data types for all detected devices.
 
 
 Supported Features
@@ -177,7 +175,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
 
 
 .. tab-set::
-   
+
    .. tab-item:: Batching via BATCH plugin
 
       .. tab-set::
@@ -224,9 +222,9 @@ If either the ``ov::num_streams(n_streams)`` with ``n_streams > 1`` or the ``ov:
 multiple streams are created for the model. In the case of GPU plugin each stream has its own host thread and an associated OpenCL queue
 which means that the incoming infer requests can be processed simultaneously.
 
-.. note:: 
+.. note::
 
-   Simultaneous scheduling of kernels to different queues does not mean that the kernels are actually executed in parallel on the GPU device. 
+   Simultaneous scheduling of kernels to different queues does not mean that the kernels are actually executed in parallel on the GPU device.
    The actual behavior depends on the hardware architecture and in some cases the execution may be serialized inside the GPU driver.
 
 When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
@@ -241,30 +239,30 @@ Dynamic Shapes
 .. note::
 
    Currently, dynamic shape support for GPU is a preview feature and has the following limitations:
-   
+
    - It mainly supports NLP models (Natural Language Processing). Not all operations and optimization passes support dynamic shapes.
-     As a result, a given model may crash or experience significant performance drops.   
+     As a result, a given model may crash or experience significant performance drops.
    - Due to the dominant runtime overhead on the host device, dynamic shapes may perform worse than static shapes on a discrete GPU.
    - Dynamic rank is not supported.
 
 The general description of what dynamic shapes are and how they are used can be found in
-:doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`. 
+:doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`.
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
-- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available, 
+- Shape agnostic kernels: new kernels that can run arbitrary shapes. If a shape-agnostic kernel is not available,
   the required kernel is compiled at runtime for each shape.
-- Asynchronous kernel compilation: even when a shape-agnostic kernel is available, 
+- Asynchronous kernel compilation: even when a shape-agnostic kernel is available,
   the GPU plugin compiles an optimal kernel for the given shape and preserves it in the in-memory cache for future use.
 - In-memory cache: preserves kernels compiled at runtime and weights reordered for the specific kernels.
 
 Bounded dynamic batch
 -----------------------------------------------------------
 
-It is worth noting that the internal behavior differs in the case of bounded-batch dynamic shapes, 
+It is worth noting that the internal behavior differs in the case of bounded-batch dynamic shapes,
 which means that only the batch dimension is dynamic and it has a fixed upper bound.
 
-While general dynamic shapes can run on one compiled model, for the bounded dynamic batch the GPU plugin creates ``log2(N)`` 
+While general dynamic shapes can run on one compiled model, for the bounded dynamic batch the GPU plugin creates ``log2(N)``
 low-level execution graphs in batch sizes equal to the powers of 2, to emulate the dynamic behavior (``N`` - is the upper bound for the batch dimension here).
 As a result, the incoming infer request with a specific batch size is executed via the minimal combination of internal networks.
 For example, a batch size of 33 may be executed via two internal networks with batch sizes of 32 and 1.
@@ -315,15 +313,15 @@ Recommendations for performance improvement
 - Use bounded dynamic shapes whenever possible
 
   - The GPU plugin needs to reallocate memory if the current shape is larger than the maximum of the previous shapes, which causes additional overhead.
-  - Using a bounded dynamic shape will help to reduce such overhead. For example, use ``{ov::Dimension(1, 10), ov::Dimension(1, 384)}`` 
+  - Using a bounded dynamic shape will help to reduce such overhead. For example, use ``{ov::Dimension(1, 10), ov::Dimension(1, 384)}``
     instead of ``{ov::Dimension(-1), ov::Dimension(-1)}``.
   - Note that a bounded dynamic *batch* is handled differently as mentioned above.
 
 - Use permanent cache, e.g., OpenVino model_cache, to reduce the runtime re-compilation overhead
 
   - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes,
-    but the size of such an in-memory cache is limited. Therefore, it is recommended to use 
-    a permanent cache such as OpenVino model_cache. For more details, See 
+    but the size of such an in-memory cache is limited. Therefore, it is recommended to use
+    a permanent cache such as OpenVino model_cache. For more details, See
     :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
 
 - The longer the inference sequence, the better throughput can be obtained, because it can
@@ -336,8 +334,8 @@ Recommendations for performance improvement
     and the GPU plugin is unusable, any not-yet-started compilation tasks for optimal kernels
     will be canceled. However, if the application process allows enough time for the enqueued
     asynchronous compilation tasks, the more optimal kernels become available, enabling better
-    throughput. For example, running 200 inputs of 
-    ``{[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]}`` 
+    throughput. For example, running 200 inputs of
+    ``{[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]}``
     may achieve better throughput than running 100 inputs of ``{[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}``.
 
 
@@ -374,15 +372,15 @@ For more details, see the :doc:`preprocessing API<openvino_docs_OV_UG_Preprocess
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
 
-Model Caching helps reduce application startup delays by exporting and reusing 
-the compiled model automatically. The cache for the GPU plugin may be enabled 
-via the common OpenVINO ``ov::cache_dir`` property. 
+Model Caching helps reduce application startup delays by exporting and reusing
+the compiled model automatically. The cache for the GPU plugin may be enabled
+via the common OpenVINO ``ov::cache_dir`` property.
 
-This means that all plugin-specific model transformations are executed on each ``ov::Core::compile_model()`` 
-call, regardless of the ``ov::cache_dir`` option. Still, since kernel compilation is a bottleneck in the model 
+This means that all plugin-specific model transformations are executed on each ``ov::Core::compile_model()``
+call, regardless of the ``ov::cache_dir`` option. Still, since kernel compilation is a bottleneck in the model
 loading process, a significant load time reduction can be achieved.
 Currently, GPU plugin implementation fully supports static models only. For dynamic models,
-kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file. 
+kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file.
 
 For more details, see the :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
 

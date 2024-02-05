@@ -8,7 +8,7 @@
 #include <utility>
 #include <algorithm>
 
-#include "matmul_shape_inference.hpp"
+#include "intel_gpu/op/gemm.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
@@ -22,35 +22,40 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     auto input0_shape = input0_layout.get_shape();
     auto input1_shape = input1_layout.get_shape();
 
-    bool transpose_input0 = prim->transpose_input0;
-    bool transpose_input1 = prim->transpose_input1;
+    auto input0_order = prim->input0_order;
+    auto input1_order = prim->input1_order;
 
     bool reordered = prim->input_rank > 4 || prim->weight_rank > 4;
     size_t output_rank = std::max(prim->input_rank, prim->weight_rank);
     size_t input_rank = reordered ? output_rank : prim->input_rank;
     size_t weight_rank = reordered ? output_rank : prim->weight_rank;
 
-    auto update_input_shape = [&output_rank](const ov::Shape& input_shape, size_t rank, bool transpose, bool first_input) {
-        auto input_shape_update = ov::Shape(input_shape.begin(), input_shape.begin() + std::min(rank, input_shape.size()));
+    auto update_input_shape = [&output_rank](const ov::Shape& input_shape, size_t rank, std::vector<int64_t> input_order, bool first_input) {
+        auto input_shape_update = ov::Shape();
+        auto _input_shape_update = ov::Shape(input_shape.begin(), input_shape.begin() + std::min(rank, input_shape.size()));
+        if (_input_shape_update.size() == input_order.size() && input_order.size() > 1) {
+            for (auto idx : input_order) {
+                input_shape_update.push_back(_input_shape_update[idx]);
+            }
+        } else {
+            input_shape_update = _input_shape_update;
+        }
         if (input_shape_update.size() == 1) {
             first_input ? input_shape_update.insert(input_shape_update.begin(), 1)
                         : input_shape_update.insert(input_shape_update.end(), 1);
-            if (transpose) {
-                std::swap(input_shape_update[0], input_shape_update[1]);
-            }
             output_rank = std::max(output_rank, rank + 1);
         }
         input_shape_update.insert(input_shape_update.begin(), output_rank - input_shape_update.size(), 1);
         return input_shape_update;
     };
 
-    auto input0_shape_update = update_input_shape(input0_shape, input_rank, transpose_input0, true);
-    auto input1_shape_update = update_input_shape(input1_shape, weight_rank, transpose_input1, false);
+    auto input0_shape_update = update_input_shape(input0_shape, input_rank, input0_order, true);
+    auto input1_shape_update = update_input_shape(input1_shape, weight_rank, input1_order, false);
 
     ov::Shape bias_shape(output_rank);
     if (prim->input_size() == 3) {
         bias_shape = impl_param.get_input_layout(2).get_shape();
-        bias_shape = update_input_shape(bias_shape, weight_rank, transpose_input1, false);
+        bias_shape = update_input_shape(bias_shape, weight_rank, input1_order, false);
     }
 
     auto output_shape = input0_shape_update;
@@ -58,8 +63,8 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
         output_shape[i] = std::max(std::max(input0_shape_update[i], input1_shape_update[i]), bias_shape[i]);
     }
 
-    size_t M = !transpose_input0 ? *(input0_shape_update.end() - 2) : input0_shape_update.back();
-    size_t N = !transpose_input1 ? input1_shape_update.back() : *(input1_shape_update.end() - 2);
+    size_t M = *(input0_shape_update.end() - 2);
+    size_t N = input1_shape_update.back();
 
     output_shape[output_rank - 2] = M;
     output_shape[output_rank - 1] = N;
@@ -97,16 +102,17 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_a(prim->transpose_input0);
-    op.set_transpose_b(prim->transpose_input1);
+    ov::intel_gpu::op::Gemm op;
+    op.set_transpose_a(false);
+    op.set_transpose_b(false);
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op, input_shapes,
+                                    prim->input0_order, prim->input1_order, prim->output_order);
 
     cldnn::format output_format = input0_layout.format;
     if (node.get_preferred_output_fmt() != format::any)
@@ -186,11 +192,17 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         auto input0_pshape = input_layouts[0].get_partial_shape();
         auto input1_pshape = input_layouts[1].get_partial_shape();
 
-        auto M = !primitive->transpose_input0 ? input0_pshape[input0_pshape.size() - 2] : input0_pshape[input0_pshape.size() - 1];
-        auto N = !primitive->transpose_input1 ? input1_pshape[input1_pshape.size() - 1] : input1_pshape[input1_pshape.size() - 2];
+        auto input0_order = primitive->input0_order;
+        auto input1_order = primitive->input1_order;
+
+        auto m_idx = ((input0_order.size() > 1) ? input0_order[input0_order.size() - 2] : input0_order[0])
+                    + input0_pshape.size() - input0_order.size();
+        auto n_idx = input1_order[input1_order.size() - 1] + input1_pshape.size() - input1_order.size();
+        auto M = input0_pshape[m_idx];
+        auto N = input1_pshape[n_idx];
 
         auto output_pshape = input_layouts[0].get_partial_shape();
-        for (size_t i = 0; i != input_layouts.size(); ++i) {
+        for (size_t i = 0; i != primitive->input_size(); ++i) {
             auto input_pshape = input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
                 ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);

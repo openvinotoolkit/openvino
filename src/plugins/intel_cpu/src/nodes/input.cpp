@@ -218,22 +218,21 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
-            op::v0::Parameter::get_type_info_static(),
-            op::v0::Constant::get_type_info_static(),
-            op::v0::Result::get_type_info_static(),
-            op::v3::ReadValue::get_type_info_static(),
-            op::v6::ReadValue::get_type_info_static()))
+                op::v0::Parameter::get_type_info_static(),
+                op::v0::Constant::get_type_info_static(),
+                op::v0::Result::get_type_info_static(),
+                op::v3::ReadValue::get_type_info_static(),
+                op::v6::ReadValue::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
-
-    constant = ConstantType::NoConst;
-
     constOp = ov::as_type_ptr<op::v0::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();
+    } else {
+        constant = ConstantType::StrictNoConst;
     }
 }
 
@@ -268,7 +267,7 @@ void Input::cloneBlobIfRequired() {
             if (constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
                 auto src = constOp->get_data_ptr<StringMemory::OvString>();
-                auto dst = reinterpret_cast<StringMemory::OvString *>(memory->getData());
+                auto dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
@@ -388,23 +387,50 @@ void Input::cloneBlobIfRequired() {
     }
 }
 
+static std::vector<Shape> createInputShapes(const Shape& shape,
+                                            const Type type) {
+    if (type == Type::Output)
+        return {shape};
+    return {};
+}
+
+static std::vector<Shape> createOutputShapes(const Shape& shape,
+                                             const Type type) {
+    if (type == Type::Input)
+        return {shape};
+    return {};
+}
+
+static std::vector<ov::element::Type> createInputPrecisions(const ov::element::Type& prc,
+                                                         const Type type) {
+    if (type == Type::Output)
+        return {prc};
+    return {};
+}
+
+static std::vector<ov::element::Type> createOutputPrecisions(const ov::element::Type& prc,
+                                                          const Type type) {
+    if (type == Type::Input)
+        return {prc};
+    return {};
+}
+
 Input::Input(const Shape& shape,
              const ov::element::Type& prc,
              const std::string& name,
              const std::string& type,
              const GraphContext::CPtr context)
-    : Node(type, name, context) {
+    : Node(type,
+           createInputShapes(shape, TypeFromName(type)),
+           createOutputShapes(shape, TypeFromName(type)),
+           createInputPrecisions(prc, TypeFromName(type)),
+           createOutputPrecisions(prc, TypeFromName(type)),
+           name,
+           context) {
     constant = ConstantType::NoConst;
     isDynamic = shape.isDynamic();
     if (isDynamic) {
         shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
-    }
-    if (getType() == Type::Input) {
-        outputShapes.emplace_back(shape);
-        addOriginalOutputPrecision(prc);
-    }  else if (getType() == Type::Output) {
-        inputShapes.emplace_back(shape);
-        addOriginalInputPrecision(prc);
     }
 }
 
@@ -444,13 +470,13 @@ void Input::initSupportedPrimitiveDescriptors() {
 
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(i);
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
                               " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        auto srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isAllocated())
             THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
                               " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
@@ -499,10 +525,6 @@ void Input::initSupportedPdFromMemDesc() {
         config.inConfs.push_back(portConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
-}
-
-void Input::resetMemoryPtr(const MemoryCPtr& mem) {
-    memoryPtr = mem;
 }
 
 }   // namespace node

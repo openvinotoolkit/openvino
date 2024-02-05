@@ -4,22 +4,20 @@
 
 #pragma once
 
-#include "cache/multi_cache.h"
 #include "config.h"
 #include "cpu_memory.h"
-#include "dnnl_scratch_pad.h"
+#include "openvino/runtime/profiling_info.hpp"
+#include "node.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "node.h"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
-#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_mgr.h"
 
 namespace ov {
@@ -41,6 +39,7 @@ public:
     };
 
     Graph() = default;
+
     ~Graph();
 
     bool IsReady() {
@@ -68,16 +67,8 @@ public:
         return graphNodes;
     }
 
-    std::vector<NodePtr>& GetNodes() {
-        return graphNodes;
-    }
-
     std::string GetName() const {
         return _name;
-    }
-
-    std::vector<EdgePtr>& GetEdges() {
-        return graphEdges;
     }
 
     std::map<std::string, NodePtr>& GetInputNodesMap() {
@@ -116,9 +107,14 @@ public:
 
     void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
 
+    void CreateEdge(const NodePtr& parent,
+                 const NodePtr& child,
+                 int parentPort = 0,
+                 int childPort = 0);
+    void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void RemoveEdge(const EdgePtr& edge);
+    void AddNode(NodePtr node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
@@ -196,10 +192,9 @@ public:
     getInternalStateNodes() const {
         return internalStateNodes;
     }
+    void InitGraph(bool optimize = true);
 
 protected:
-    void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
-
     void ForgetGraphData() {
         status = Status::NotReady;
 
@@ -227,7 +222,6 @@ protected:
     bool graphHasDynamicInput = false;
 
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
-    void InitGraph();
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -267,6 +261,8 @@ private:
     void EnforceBF16();
     void resolveInPlaceDirection(const NodePtr& node) const;
 };
+
+using GraphPtr = std::shared_ptr<Graph>;
 
 }  // namespace intel_cpu
 }  // namespace ov

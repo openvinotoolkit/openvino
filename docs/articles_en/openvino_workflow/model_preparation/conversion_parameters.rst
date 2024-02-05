@@ -7,7 +7,7 @@ Conversion Parameters
 .. meta::
    :description: Model Conversion API provides several parameters to adjust model conversion.
 
-This document describes all available parameters for ``openvino.convert_model``, ``ovc``, and ``openvino.save_model`` without focusing on a particular framework model format. Use this information for your reference as a common description of the conversion API capabilities in general. Part of the options can be not relevant to some specific frameworks. Use :doc:`Supported Model Formats <Supported_Model_Formats>` page for more dedicated framework-dependent tutorials.
+This document describes all available parameters for ``openvino.convert_model``, ``ovc``, and ``openvino.save_model`` without focusing on a particular framework model format. Use this information for your reference as a common description of the conversion API capabilities in general. Part of the options can be not relevant to some specific frameworks. Use :doc:`Supported Model Formats <openvino_docs_model_processing_introduction>` page for more dedicated framework-dependent tutorials.
 
 In most cases when it is required to convert a model the following simple syntax can be used:
 

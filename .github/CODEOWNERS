@@ -28,6 +28,7 @@
 
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
 /src/bindings/c/ @openvinotoolkit/openvino-c-api-maintainers
+/src/bindings/js/ @openvinotoolkit/openvino-js-api-maintainers
 /src/common/*transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
 
@@ -35,6 +36,7 @@
 /samples/c/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-c-api-maintainers
 /samples/cpp/  @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-maintainers
 /samples/python/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
+/samples/js/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-js-api-maintainers
 /thirdparty/zlib/ @openvinotoolkit/openvino-samples-maintainers
 /thirdparty/json/ @openvinotoolkit/openvino-samples-maintainers
 /thirdparty/gflags/ @openvinotoolkit/openvino-samples-maintainers
@@ -57,9 +59,6 @@
 /src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/tests/**/gpu/ @openvinotoolkit/openvino-ie-gpu-maintainers
 /thirdparty/ocl/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-
-# OpenVINO GNA:
-/src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
 # OpenVINO Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
@@ -103,8 +102,7 @@
 /tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
 /tools/mo/  @openvinotoolkit/openvino-mo-maintainers
 /tools/ovc/  @openvinotoolkit/openvino-mo-maintainers
-/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
-/thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers @openvinotoolkit/openvino-pot-maintainers
+/thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers
 
 # Documentation
 /docs/  @openvinotoolkit/openvino-docs-maintainers
@@ -118,7 +116,6 @@
 /docs/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
 /docs/OV_Runtime_UG/supported_plugins/CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
-/docs/OV_Runtime_UG/supported_plugins/GNA.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gna-maintainers
 /docs/OV_Runtime_UG/supported_plugins/GPU*.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
 
 # Configuration management

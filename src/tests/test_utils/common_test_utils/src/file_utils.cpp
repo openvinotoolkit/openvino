@@ -27,6 +27,84 @@ namespace ov {
 namespace test {
 namespace utils {
 
+namespace {
+
+template <typename C,
+          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
+std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
+    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
+    if (i != std::string::npos) {
+        return (s.substr(0, i));
+    }
+
+    return {};
+}
+
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+std::string getOpenvinoLibDirectoryA() {
+#ifdef _WIN32
+    CHAR ov_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPSTR>(ov::get_openvino_version),
+                            &hm)) {
+        std::stringstream ss;
+        ss << "GetModuleHandle returned " << GetLastError();
+        throw std::runtime_error(ss.str());
+    }
+    GetModuleFileNameA(hm, (LPSTR)ov_library_path, sizeof(ov_library_path));
+    return get_path_name(std::string(ov_library_path));
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(ov::get_openvino_version), &info);
+    return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
+#else
+#    error "Unsupported OS"
+#endif  // _WIN32
+}
+
+#if defined __GNUC__ || defined __clang__
+#    pragma GCC diagnostic pop
+#endif
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+std::wstring getOpenvinoLibDirectoryW() {
+#    ifdef _WIN32
+    WCHAR ov_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(ov::get_openvino_version),
+                            &hm)) {
+        std::stringstream ss;
+        ss << "GetModuleHandle returned " << GetLastError();
+        throw std::runtime_error(ss.str());
+    }
+    GetModuleFileNameW(hm, (LPWSTR)ov_library_path, sizeof(ov_library_path) / sizeof(ov_library_path[0]));
+    return get_path_name(std::wstring(ov_library_path));
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
+    return ov::util::string_to_wstring(getOpenvinoLibDirectoryA());
+#    else
+#        error "Unsupported OS"
+#    endif
+}
+
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+}  // namespace
+
+std::string getOpenvinoLibDirectory() {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(getOpenvinoLibDirectoryW());
+#else
+    return getOpenvinoLibDirectoryA();
+#endif
+}
+
 std::string getExecutableDirectory() {
     std::string path;
 #ifdef _WIN32

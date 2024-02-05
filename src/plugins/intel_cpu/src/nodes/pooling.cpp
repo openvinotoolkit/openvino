@@ -4,20 +4,20 @@
 
 #include "pooling.h"
 
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "fake_quantize.h"
-#include "conv.h"
-#include "concat.h"
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include <utils/general_utils.h>
+#include "onednn/dnnl.h"
+#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/node_config.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 
 // to access and change C pooling primitive desc internal padding field
 #include <common/primitive_desc_iface.hpp>
@@ -29,7 +29,6 @@
 #endif
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -401,8 +400,8 @@ void Pooling::prepareParams() {
         }
     }
     if (useACL) {
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(0);
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             OPENVINO_THROW("Destination memory didn't allocate.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -410,11 +409,11 @@ void Pooling::prepareParams() {
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            dstMemoryDescs.push_back(getDstMemoryAtPort(i)->getDescPtr());
         }
 
         execPtr = selected_pd->getExecutorFactoryAs<PoolingExecutorFactory>()->makeExecutor(poolingAttrs,
@@ -423,8 +422,8 @@ void Pooling::prepareParams() {
                                                                                             *attr);
         selected_pd->setImplementationType(execPtr->getImplType());
     } else {
-        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
-        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto inDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto outDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
@@ -478,8 +477,8 @@ void Pooling::prepareParams() {
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
+        primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
 
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
@@ -498,11 +497,11 @@ void Pooling::execute(dnnl::stream strm) {
     } else if (execPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
         std::vector<MemoryPtr> dstMemory;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+            dstMemory.push_back(getDstMemoryAtPort(i));
         }
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);

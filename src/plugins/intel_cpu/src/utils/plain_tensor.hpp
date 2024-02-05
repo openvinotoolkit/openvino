@@ -118,6 +118,15 @@ struct PlainTensor {
         assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
+
+    template<typename T>
+    std::vector<T> get_strides() const {
+        std::vector<T> strides(m_rank);
+        for (size_t i = 0; i < m_rank; i++)
+            strides[i] = static_cast<T>(m_strides[i]);
+        return strides;
+    }
+
     PlainTensor(MemoryPtr mem) {
         reset(mem);
     }
@@ -380,7 +389,7 @@ struct PlainTensor {
             }
             off += m_strides[i] * coordinate;
         }
-        return reinterpret_cast<DT*>(m_ptr)[off];
+        return (reinterpret_cast<DT*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size))[0];
     }
 
     template <typename DT>

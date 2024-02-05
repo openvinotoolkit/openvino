@@ -5,8 +5,6 @@
 #pragma once
 
 #include "graph.h"
-#include "nodes/eltwise.h"
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -22,6 +20,7 @@ public:
 private:
     void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
     void FuseFCAndWeightsDecompression(Graph &graph);
+    void FuseGatherAndWeightsDecompression(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);

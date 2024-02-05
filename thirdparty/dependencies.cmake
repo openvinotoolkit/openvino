@@ -261,46 +261,6 @@ if(NOT TARGET openvino::pugixml)
 endif()
 
 #
-# Fluid, G-API, OpenCV HAL
-#
-
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(ocv_hal INTERFACE)
-    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocv")
-
-    # ade
-    find_package(ade 0.1.0 QUIET)
-    if(ade_FOUND)
-        # conan and vcpkg create 'ade' target
-        # we just need to remove non-numerical symbols from version,
-        # because conan defines it as 0.1.2a, which is invalid in cmake
-        string(REGEX REPLACE "[a-z]" "" ade_VERSION "${ade_VERSION}")
-    else()
-        add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
-
-        set_target_properties(ade PROPERTIES FOLDER thirdparty)
-        ov_developer_package_export_targets(TARGET ade)
-
-        ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
-    endif()
-
-    # fluid
-    add_subdirectory(thirdparty/fluid/modules/gapi EXCLUDE_FROM_ALL)
-
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
-    endif()
-    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-        target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
-    endif()
-
-    set_target_properties(fluid PROPERTIES FOLDER thirdparty)
-    ov_developer_package_export_targets(TARGET fluid)
-
-    ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
-endif()
-
-#
 # Gflags
 #
 
@@ -363,7 +323,15 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             # otherwise, fallback to existing default
             find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
         endif()
-        set(PROTOC_EXECUTABLE protobuf::protoc)
+
+        # with newer protobuf versions (4.22 and newer), we use CONFIG first
+        # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
+        # because it's not used in this case (oppositely to MODULE case)
+        if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
+            set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
+        else()
+            set(PROTOC_EXECUTABLE protobuf::protoc)
+        endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
     endif()
@@ -506,7 +474,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.14.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.15.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'

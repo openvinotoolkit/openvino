@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -225,11 +225,11 @@ def test_string_array_dispatcher(device, input_data, data_type, input_shape, is_
 @pytest.mark.parametrize(
     ("input_data", "input_shape"),
     [
-        ([["śćżóąę", "data_dispatcher_test"]], [2]),
-        ([[b"abcdef", b"data_dispatcher_test"]], [2]),
-        ([[bytes("abc", encoding="utf-8"), bytes("zzzz", encoding="utf-8")]], [2]),
-        ([[["śćżóąę", "data_dispatcher_test"]]], [1, 2]),
-        ([[["śćżóąę"], ["data_dispatcher_test"]]], [2, 1]),
+        (["śćżóąę", "data_dispatcher_test"], [2]),
+        ([b"abcdef", b"data_dispatcher_test"], [2]),
+        ([bytes("abc", encoding="utf-8"), bytes("zzzz", encoding="utf-8")], [2]),
+        ([["śćżóąę", "data_dispatcher_test"]], [1, 2]),
+        ([["śćżóąę"], ["data_dispatcher_test"]], [2, 1]),
     ],
 )
 @pytest.mark.parametrize("data_type", [Type.string, str, bytes, np.str_, np.bytes_])

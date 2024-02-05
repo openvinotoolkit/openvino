@@ -5,7 +5,7 @@
 #include "blob_dump.h"
 #include "blob_factory.hpp"
 #include <cpu_memory.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include <nodes/common/cpu_memcpy.h>
 
 #include "common/memory_desc_wrapper.hpp"
@@ -13,8 +13,6 @@
 
 #include <fstream>
 #include <memory_desc/cpu_memory_desc_utils.h>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -79,7 +77,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
         OPENVINO_THROW("Dumper cannot parse file. Unsupported IEB format version.");
 
     const auto prc = static_cast<ov::element::Type_t>(header.precision);
-    SizeVector dims(header.ndims);
+    VectorDims dims(header.ndims);
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
 
@@ -94,7 +92,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
 
     // check if it already plain
     if (desc.hasLayoutType(LayoutType::ncsp)) {
-        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->getData()), size);
+        cpu_memcpy(data.data(), memory->getDataAs<const uint8_t>(), size);
         return;
     }
 
@@ -168,7 +166,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
     stream << "(" << data_size << ")" <<
-    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->getData()) << std::dec <<std::endl;
+    " by address 0x" << std::hex << memory->getDataAs<const long long>() << std::dec <<std::endl;
 
     const void *ptr = memory->getData();
 

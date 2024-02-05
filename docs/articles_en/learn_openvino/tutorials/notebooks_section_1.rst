@@ -54,10 +54,16 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    Quantize Speech Recognition Models with accuracy control using NNCF PTQ API.
 
 .. showcase::
+   :title: 121-legacy-mo-convert-to-openvino
+   :img: _static/images/notebook_eye.png
+
+   Learn about OpenVINO™ model conversion API.
+
+.. showcase::
    :title: 121-convert-to-openvino
    :img: _static/images/notebook_eye.png
 
-   Learn OpenVINO model conversion API.
+   Learn about model conversion in OpenVINO™.
 
 .. showcase::
    :title: 120-tensorflow-object-detection-to-openvino
@@ -175,13 +181,13 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 .. showcase::
    :title: 103-paddle-onnx-to-openvino
-   :img: https://user-images.githubusercontent.com/15709723/127779326-dc14653f-a960-4877-b529-86908a6f2a61.png
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/103-paddle-to-openvino/103-paddle-to-openvino-classification.png
 
    Convert PaddlePaddle models to OpenVINO IR.
 
 .. showcase::
    :title: 102-pytorch-to-openvino
-   :img: https://user-images.githubusercontent.com/15709723/127779326-dc14653f-a960-4877-b529-86908a6f2a61.png
+   :img: _static/images/notebook_eye.png
 
    Convert PyTorch models to OpenVINO IR.
 
@@ -193,7 +199,7 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 .. showcase::
    :title: 101-tensorflow-classification-to-openvino
-   :img: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/101-tensorflow-classification-to-openvino/101-tensorflow-classification-to-openvino.png
 
    Convert TensorFlow models to OpenVINO IR.
 

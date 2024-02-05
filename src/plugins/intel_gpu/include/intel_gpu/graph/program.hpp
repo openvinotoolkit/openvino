@@ -162,6 +162,7 @@ public:
     bool is_internal_program() const { return is_internal; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
+    const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
@@ -285,6 +286,7 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib);
+    bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
 private:
     uint32_t prog_id = 0;
@@ -297,14 +299,16 @@ private:
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
+    std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
     bool is_internal;
     bool _is_body_program;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
-    const size_t _impls_cache_capacity = 10000;
+    const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
+    bool _loaded_from_cache = false;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

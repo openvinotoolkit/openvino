@@ -4,17 +4,15 @@
 
 #include "lrn.h"
 
-#include <dnnl_extension_utils.h>
-#include <openvino/opsets/opset1.hpp>
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <memory>
 #include <string>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -163,8 +161,8 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_
 }
 
 void Lrn::prepareParams() {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " input memory did not allocate");
     if (!dstMemPtr || !dstMemPtr->isAllocated())

@@ -6,7 +6,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
 #include <snippets/op/subgraph.hpp>
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

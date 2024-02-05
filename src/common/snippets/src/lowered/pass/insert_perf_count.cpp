@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
 
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -12,47 +12,44 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+InsertPerfCount::InsertPerfCount(std::map<std::string, std::string> boundary_op_names)
+    : Pass(), m_boundary_op_names(std::move(boundary_op_names)) {
+}
+
 bool InsertPerfCount::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertPerfCount")
     if (linear_ir.empty())
         return false;
-
-    auto is_parameter = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Parameter>(node);
-    };
-    auto is_result = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Result>(node);
-    };
-
-    // mark perf_count_begin and perf_count_end position
-    auto perf_count_begin_pos = linear_ir.cbegin();
-    auto perf_count_end_pos = perf_count_begin_pos;
-    bool first_result_marked = false;
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
-        const auto expr = *expr_it;
-        const auto& node = expr->get_node();
-        if (is_parameter(node))
-            perf_count_begin_pos = expr_it;
-
-        if (is_result(node) && !first_result_marked) {
-            perf_count_end_pos = expr_it;
-            first_result_marked = true;
-        }
+    if (m_boundary_op_names.empty()) {
+        const auto& first_op_name = linear_ir.begin()->get()->get_node()->get_friendly_name();
+        const auto& last_op_name = linear_ir.rbegin()->get()->get_node()->get_friendly_name();
+        m_boundary_op_names.insert({first_op_name, last_op_name});
     }
 
-    // insert perf_count_begin after last parameter
-    // linear_ir.insert has insert before behavior, need move to next.
-    perf_count_begin_pos = std::next(perf_count_begin_pos);
-    const auto& perf_count_begin = std::make_shared<op::PerfCountBegin>();
-    const auto& perf_count_begin_expr = linear_ir.create_expression(perf_count_begin, std::vector<PortConnectorPtr>{});
-    linear_ir.insert(perf_count_begin_pos, perf_count_begin_expr);
+    size_t seq_number = 0;
+    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+        const auto& op_name = expr_it->get()->get_node()->get_friendly_name();
+        const auto& found = m_boundary_op_names.find(op_name);
+        if (found != m_boundary_op_names.end()) {
+            const auto perf_count_begin_pos = expr_it;
+            auto perf_count_end_pos = expr_it;
+            while (perf_count_end_pos->get()->get_node()->get_friendly_name() != found->second &&
+                   perf_count_end_pos != linear_ir.cend()) {
+                perf_count_end_pos++;
+            }
+            OPENVINO_ASSERT(perf_count_end_pos != linear_ir.cend(), "Failed to find requested op name to insert PerfCountEnd");
+            const auto& perf_count_begin = std::make_shared<snippets::op::PerfCountBegin>();
+            perf_count_begin->set_friendly_name(std::string("PerfCount_Begin_") + std::to_string(seq_number));
+            const auto empty_inputs = std::vector<PortConnectorPtr>{};
+            linear_ir.insert_node(perf_count_begin, empty_inputs, perf_count_begin_pos->get()->get_loop_ids(), false, perf_count_begin_pos);
 
-    // insert perf_count_end before first result
-    const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(perf_count_begin->output(0));
-    perf_count_end->set_friendly_name("last_parameter_to_first_result");
-    const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, std::vector<PortConnectorPtr>{});
-    linear_ir.insert(perf_count_end_pos, perf_count_end_expr);
-
+            const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0));
+            perf_count_end->set_friendly_name(std::string("PerfCount_End_") + std::to_string(seq_number));
+            // linear_ir.insert has insert before behavior, need to increment perf_count_end_pos
+            linear_ir.insert_node(perf_count_end, empty_inputs, perf_count_end_pos->get()->get_loop_ids(), false, next(perf_count_end_pos));
+            seq_number++;
+        }
+    }
     return true;
 }
 
@@ -60,3 +57,4 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
 } // namespace lowered
 } // namespace snippets
 } // namespace ov
+#endif  // SNIPPETS_DEBUG_CAPS

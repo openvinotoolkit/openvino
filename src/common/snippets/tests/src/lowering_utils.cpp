@@ -41,8 +41,10 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+#ifdef SNIPPETS_DEBUG_CAPS
     jitters[ov::snippets::op::PerfCountBegin::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;
+#endif
     jitters[ov::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::IntermediateMemoryBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::NewMemoryBuffer::get_type_info_static()] = dummy_functor;
@@ -106,16 +108,17 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
 std::shared_ptr<ov::snippets::op::Subgraph>
         LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
                                           const ov::PartialShape& master_shape,
-                                          const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes,
-                                          const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common,
-                                          const ov::snippets::lowered::pass::PassPipeline& lowered_post_common,
+                                          const std::vector<ov::snippets::pass::Manager::PositionedPassBase>& backend_passes,
+                                          const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config,
+                                          const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
                                           const std::shared_ptr<ov::snippets::Generator>& generator,
+                                          size_t min_parallel_work_amount, size_t min_kernel_work_amount,
                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_tile_rank(2);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
-    subgraph->generate({}, {}, {}, backend_passes, lowered_pre_common, lowered_post_common, factory);
+    subgraph->generate({}, {}, {}, backend_passes, lowered_pass_config, lowered_backend_passes, min_parallel_work_amount, min_kernel_work_amount, factory);
     return subgraph;
 }
 

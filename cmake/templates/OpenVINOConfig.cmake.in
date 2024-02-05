@@ -333,17 +333,6 @@ macro(_ov_find_itt)
     unset(_ENABLE_SYSTEM_ITTAPI)
 endmacro()
 
-macro(_ov_find_ade)
-    set(_OV_ENABLE_GAPI_PREPROCESSING "@ENABLE_GAPI_PREPROCESSING@")
-    # whether 'ade' is found via find_package
-    set(_ENABLE_SYSTEM_ADE "@ade_FOUND@")
-    if(_OV_ENABLE_GAPI_PREPROCESSING AND _ENABLE_SYSTEM_ADE)
-        _ov_find_dependency(ade @ade_VERSION@)
-    endif()
-    unset(_OV_ENABLE_GAPI_PREPROCESSING)
-    unset(_ENABLE_SYSTEM_ADE)
-endmacro()
-
 macro(_ov_find_intel_cpu_dependencies)
     set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
@@ -415,20 +404,6 @@ macro(_ov_find_intel_gpu_dependencies)
         unset(_OV_DNNL_GPU_LIBRARY_NAME)
     endif()
     unset(_OV_ENABLE_ONEDNN_FOR_GPU)
-endmacro()
-
-macro(_ov_find_intel_gna_dependencies)
-    set(_OV_ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
-    if(_OV_ENABLE_INTEL_GNA)
-        set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
-        _ov_find_dependency(libGNA
-                            COMPONENTS KERNEL
-                            CONFIG
-                            PATHS "${CMAKE_CURRENT_LIST_DIR}"
-                            NO_DEFAULT_PATH)
-        unset(GNA_PATH)
-    endif()
-    unset(_OV_ENABLE_INTEL_GNA)
 endmacro()
 
 macro(_ov_find_protobuf_frontend_dependency)
@@ -507,9 +482,6 @@ if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     _ov_find_itt()
     _ov_find_pugixml()
 
-    # preprocessing dependencies
-    _ov_find_ade()
-
     # frontend dependencies
     _ov_find_protobuf_frontend_dependency()
     _ov_find_tensorflow_frontend_dependencies()
@@ -518,7 +490,6 @@ if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     # plugin dependencies
     _ov_find_intel_cpu_dependencies()
     _ov_find_intel_gpu_dependencies()
-    _ov_find_intel_gna_dependencies()
 endif()
 
 _ov_find_dependency(Threads)

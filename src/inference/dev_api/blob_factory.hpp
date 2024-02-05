@@ -4,7 +4,7 @@
 
 /**
  * @brief A file with helper functions to uniformly create Blob objects
- * @file blob_transform.hpp
+ * @file blob_factory.hpp
  */
 
 #pragma once
@@ -15,8 +15,8 @@
 
 #include "ie_blob.h"
 #include "ie_data.h"
-#include "ie_memcpy.h"
-#include "ie_preprocess.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 /**
@@ -84,17 +84,6 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
 
 /**
- * @brief      Creates a plain Blob::Ptr
- * @ingroup    ie_dev_api_memory
- *
- * @param[in]  prec  The Precision value
- * @param[in]  dims  The dims
- * @return     A Blob::Ptr pointer
- */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
-make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
-
-/**
  * @brief      Creates Blob::Ptr with precision
  * @ingroup    ie_dev_api_memory
  *
@@ -134,19 +123,14 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
 #undef USE_FACTORY
 }
 
-/**
- * @brief Copy data from std::vector to Blob
- * @ingroup ie_dev_api_memory
- * @tparam T type of data in std::vector
- * @param outputBlob An output blob to copy to
- * @param inputVector An input std::vector to copy from
- */
-template <typename T>
-void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
-    if (outputBlob->size() != inputVector.size())
-        IE_THROW() << "Size mismatch between dims and vector";
-    if (outputBlob->element_size() != sizeof(T))
-        IE_THROW() << "Element size mismatch between blob and vector";
-    ie_memcpy(outputBlob->buffer().as<T*>(), outputBlob->byteSize(), &inputVector[0], inputVector.size() * sizeof(T));
-}
+namespace ov {
+
+ov::SoPtr<ov::ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor, bool unwrap = false);
+
+OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const ov::SoPtr<ov::ITensor>& tensor,
+                                                                           bool unwrap = true,
+                                                                           InferenceEngine::TensorDesc desc = {});
+
+}  // namespace ov
+
 IE_SUPPRESS_DEPRECATED_END

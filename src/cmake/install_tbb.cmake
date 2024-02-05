@@ -200,8 +200,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             set(OV_TBB_DIR_INSTALL ${OV_CPACK_RUNTIMEDIR})
             # install content instead of whole directory
             set(_ov_tbb_libs_path "${_ov_tbb_libs_path}/")
+            set(_lib_subfolder "")
         else()
             set(OV_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
+            set(_lib_subfolder "lib")
         endif()
 
         install(DIRECTORY "${_ov_tbb_libs_path}"
@@ -252,7 +254,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     PATTERN "cmake" EXCLUDE)
         endif()
 
-        set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/lib" CACHE PATH "TBB library install directory" FORCE)
+        set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${lib_subfolder}" CACHE PATH "TBB library install directory" FORCE)
+        unset(_lib_folder)
     else()
         unset(TBB_LIB_INSTALL_DIR CACHE)
         message(WARNING "TBB of unknown origin. TBB files are not installed")

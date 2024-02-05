@@ -10,7 +10,6 @@
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/convert_transpose.hpp"
@@ -667,12 +666,16 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
 
         {
             // Keep same output, but use larger input
-            // In that case user tensor is not enough to store the result and the plugin throws exception
+            // In that case user tensor is not enough to store the result and set shape will be called on the user
+            // tensor
             ov::Shape input_shape{1, 4, 32, 32};
+            ov::Shape output_shape_actual{1, 4, 32, 32};
             auto input_tensor = gpu_context.create_tensor(input->get_element_type(), input_shape);
 
             infer_request.set_tensor(input, input_tensor);
-            OV_EXPECT_THROW(infer_request.infer(), ov::Exception, HasSubstr("Output tensor set by user has smaller size"));
+            ASSERT_NO_THROW(infer_request.infer());
+
+            ASSERT_EQ(infer_request.get_output_tensor().get_shape(), output_shape_actual);
         }
 
         {

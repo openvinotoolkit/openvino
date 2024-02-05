@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,8 +50,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
-                                         const element::Type& type,
+std::shared_ptr<ov::Node> makeActivation(const ov::Output<ov::Node>& in,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
                                          std::vector<size_t> inShape,
                                          std::vector<float> constantsValue) {
@@ -154,7 +154,7 @@ std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
 }
 
 std::shared_ptr<ov::Node> makeActivation(const ov::ParameterVector& parameters,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType) {
     switch (activationType) {
     case ov::test::utils::ActivationTypes::LeakyRelu:

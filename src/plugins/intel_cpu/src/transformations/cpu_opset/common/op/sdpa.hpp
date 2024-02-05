@@ -21,11 +21,13 @@ public:
     ScaledDotProductAttentionWithKVCache() = default;
 
     struct Config {
-        bool output_BLHxS = false;      // true implies that output is [B,L,H*S]
+        bool output_BLHxS = false;       // true implies that output is [B,L,H*S]
 
-        bool fuse_causal_attn = false;  // fuse causal mask and attn mask into attn_mask
-        bool is_causal = false;         // apply causal mask internally
-        bool fuse_concat = false;       // fuse (concat->sdp) ==> sdp
+        bool fuse_causal_attn = false;   // fuse causal mask and attn mask into attn_mask
+        bool is_causal = false;          // apply causal mask internally
+        bool fuse_concat = false;        // fuse (concat->sdp) ==> sdp
+        std::vector<size_t> permute_axes; // not empty means input has transpose. output of permutation is [B,H,L,S]
+                                         // e.g. [L,B,H,S] -> permute[1, 2, 0, 3] ->[B, H, L, S]
     };
 
     ScaledDotProductAttentionWithKVCache(const OutputVector& args, const Config& cfg);

@@ -6,16 +6,12 @@
 
 #include <cpp/ie_cnn_network.h>
 
-#include <ie_remote_context.hpp>
-
 #include "any_copy.hpp"
 #include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
 #include "ie_cache_manager.hpp"
-#include "ie_extension.h"
 #include "ie_icore.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -25,6 +21,9 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace ov {
+
+using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
@@ -123,8 +122,8 @@ private:
         ov::util::FilePath libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
-        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
-        InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
+        CreatePluginEngineFunc* pluginCreateFunc = nullptr;
+        CreateExtensionFunc* extensionCreateFunc = nullptr;
 
         PluginDescriptor() = default;
 
@@ -136,9 +135,9 @@ private:
             this->listOfExtentions = listOfExtentions;
         }
 
-        PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
+        PluginDescriptor(CreatePluginEngineFunc* pluginCreateFunc,
                          const ov::AnyMap& defaultConfig = {},
-                         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr) {
+                         CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;
             this->defaultConfig = defaultConfig;
             this->extensionCreateFunc = extensionCreateFunc;
@@ -153,8 +152,8 @@ private:
 
     const bool m_new_api;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
-                                                          ov::Plugin& plugin,
+    ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(ov::Plugin& plugin,
+                                                          const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& parsedConfig,
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const CacheContent& cacheContent) const;
@@ -174,17 +173,12 @@ private:
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
-                                                                const std::shared_ptr<const ov::Model>& model,
-                                                                const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                const ov::AnyMap& config) const;
-
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
+    template <typename C, typename = ov::util::enableIfSupportedChar<C>>
     void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
         try {
             auto plugin_extensions = ov::detail::load_extensions(path);
@@ -196,21 +190,10 @@ private:
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     // Legacy API
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
-    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
-    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
-        try {
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
-            AddExtensionUnsafe(extension_ptr);
-        } catch (const InferenceEngine::GeneralError&) {
-            // in case of shared library is not opened
-        }
-    }
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
         const InferenceEngine::CNNNetwork& model,
         ov::Plugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig,
-        const InferenceEngine::RemoteContext::Ptr& context);
+        const std::map<std::string, std::string>& parsedConfig);
 
 public:
     CoreImpl(bool _newAPI);
@@ -246,13 +229,6 @@ public:
 
     bool isNewAPI() const override;
 
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override;
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
-        const InferenceEngine::CNNNetwork& network,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override;
-
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const std::string& deviceNameOrig,
                                                              const std::map<std::string, std::string>& config) override;
@@ -286,33 +262,17 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const override;
 
-    /**
-     * @brief Create a new shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
-     * @param deviceName Name of a device to create new shared context on.
-     * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
-     */
-    InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
-                                                      const InferenceEngine::ParamMap& params) override;
-
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
 
-    /**
-     * @brief Registers the extension in a Core object
-     *        Such extensions can be used for both CNNNetwork readers and device plugins
-     */
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension);
-
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
-    std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
     // Common API
 
@@ -397,7 +357,7 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
+    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config, const bool keep_core_property = true) const override;
 
     bool is_new_api() const override;
 

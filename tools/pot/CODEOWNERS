@@ -1,5 +1,0 @@
-# See help here: https://docs.gitlab.com/ee/user/project/code_owners.html
-
-# Control 3d party dependencies
-**/*requirements*.*  openvino.configuration.mgmt@intel.com
-**/setup.py  openvino.configuration.mgmt@intel.com

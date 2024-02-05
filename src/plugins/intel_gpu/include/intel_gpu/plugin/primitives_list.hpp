@@ -272,3 +272,8 @@ REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
 REGISTER_FACTORY(internal, FullyConnectedCompressed);
 REGISTER_FACTORY(internal, RMS);
+REGISTER_FACTORY(internal, GatherCompressed);
+REGISTER_FACTORY(internal, KVCache);
+REGISTER_FACTORY(internal, ReadValue);
+REGISTER_FACTORY(internal, Gemm);
+REGISTER_FACTORY(internal, SwiGLU);

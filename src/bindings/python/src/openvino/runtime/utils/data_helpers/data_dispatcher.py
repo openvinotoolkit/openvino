@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
@@ -13,6 +13,18 @@ from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, O
 ContainerTypes = Union[dict, list, tuple, OVDict]
 ScalarTypes = Union[np.number, int, float]
 ValidKeys = Union[str, int, ConstOutput]
+
+
+def is_list_simple_type(input_list: list) -> bool:
+    for sublist in input_list:
+        if isinstance(sublist, list):
+            for element in sublist:
+                if not isinstance(element, (str, float, int, bytes)):
+                    return False
+        else:
+            if not isinstance(sublist, (str, float, int, bytes)):
+                return False
+    return True
 
 
 def get_request_tensor(
@@ -198,14 +210,25 @@ def create_shared(
 
 
 @create_shared.register(dict)
-@create_shared.register(list)
 @create_shared.register(tuple)
 @create_shared.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[dict, tuple, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
+    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
+
+
+# Special override to perform list-related dispatch
+@create_shared.register(list)
+def _(
+    inputs: list,
+    request: _InferRequestWrapper,
+) -> dict:
+    # If list is passed to single input model and consists only of simple types
+    # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
+    request._inputs_data = normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=True)
     return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
 
 
@@ -348,14 +371,24 @@ def create_copied(
 
 
 @create_copied.register(dict)
-@create_copied.register(list)
 @create_copied.register(tuple)
 @create_copied.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[dict, tuple, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
+
+
+# Special override to perform list-related dispatch
+@create_copied.register(list)
+def _(
+    inputs: list,
+    request: _InferRequestWrapper,
+) -> dict:
+    # If list is passed to single input model and consists only of simple types
+    # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
+    return update_inputs(normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=False), request)
 
 
 @create_copied.register(np.ndarray)

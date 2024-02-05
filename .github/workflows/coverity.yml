@@ -1,6 +1,10 @@
 name: Coverity (Ubuntu 20.04, Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      openvinoRef:
+        description: 'Branch, tag or commit hash to clone openvino from. Taken from event context if not set'
+        type: string
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
@@ -32,6 +36,8 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
@@ -50,6 +56,7 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+          ref: ${{ inputs.openvinoRef }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
@@ -70,9 +77,9 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python

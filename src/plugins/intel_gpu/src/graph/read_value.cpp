@@ -12,7 +12,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
-    memory_state::variable{node.get_primitive()->variable_id} {
+    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
@@ -40,6 +40,10 @@ void read_value_inst::update_output_memory() {
         return;
 
     const auto& variable = get_network().get_variable(variable_id());
+    GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << variable_id() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - ptr : " << variable.get_memory()->buffer_ptr() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - layout " << variable.get_layout().to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 }
 } // namespace cldnn

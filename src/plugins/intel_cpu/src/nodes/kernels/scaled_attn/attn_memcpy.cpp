@@ -18,7 +18,7 @@
 #include "common.hpp"
 #include "attn_memcpy.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -61,19 +61,18 @@ void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
     });
 }
 
-template <typename T>
-void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
-                        const ov::intel_cpu::PlainTensor& v_input,
-                        const ov::intel_cpu::PlainTensor& past_k_output,
-                        const ov::intel_cpu::PlainTensor& past_v_output) {
+static void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
+                               const ov::intel_cpu::PlainTensor& v_input,
+                               const ov::intel_cpu::PlainTensor& past_k_output,
+                               const ov::intel_cpu::PlainTensor& past_v_output) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
     parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
-        memcpy(&past_k_output.at<T>({b, h, m, 0}),
-               &k_input.at<T>({b, h, m, 0}),
-               S * sizeof(T));
-        memcpy(&past_v_output.at<T>({b, h, m, 0}),
-               &v_input.at<T>({b, h, m, 0}),
-               S * sizeof(T));
+        std::memcpy(&past_k_output.at<char>({b, h, m, 0}),
+                    &k_input.at<char>({b, h, m, 0}),
+                    S * k_input.m_element_size);
+        std::memcpy(&past_v_output.at<char>({b, h, m, 0}),
+                    &v_input.at<char>({b, h, m, 0}),
+                    S * v_input.m_element_size);
     });
 }
 
@@ -82,19 +81,16 @@ void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                  const ov::intel_cpu::PlainTensor& past_k_output,
                  const ov::intel_cpu::PlainTensor& past_v_output) {
     if (past_k_output.get_precision() == k_input.get_precision()) {
-        if (past_k_output.get_precision() == ov::element::bf16) {
-            attn_memcpy_kernel<ov::bfloat16>(k_input, v_input, past_k_output, past_v_output);
-        } else {
-            assert(past_k_output.get_precision() == ov::element::f16);
-            attn_memcpy_kernel<ov::float16>(k_input, v_input, past_k_output, past_v_output);
-        }
-    } else if (past_k_output.get_precision() == ov::element::f16) {
+        attn_memcpy_kernel(k_input, v_input, past_k_output, past_v_output);
+    } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::f16) {
         attn_memcpy_kernel<float, ov::float16>(k_input, v_input, past_k_output, past_v_output);
+    } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::bf16) {
+        attn_memcpy_kernel<float, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output);
     } else {
-        attn_memcpy_kernel<float, float>(k_input, v_input, past_k_output, past_v_output);
+        OPENVINO_THROW("unsupport src type: ", k_input.get_precision(), ", dst type: ", past_k_output.get_precision(), " in attn_memcpy");
     }
 }
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

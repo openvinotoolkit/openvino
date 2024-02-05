@@ -10,7 +10,8 @@
 
 namespace ov {
 namespace frontend {
-namespace onnx_common {
+namespace onnx {
+namespace common {
 using namespace ::ONNX_NAMESPACE;
 /// \brief   Parses an ONNX model from a file located on a storage device.
 ///
@@ -28,12 +29,7 @@ ModelProto parse_from_file(const std::wstring& file_path);
 ///
 /// \return  The parsed in-memory representation of the ONNX model
 ModelProto parse_from_istream(std::istream& model_stream);
-}  // namespace onnx_common
+}  // namespace common
+}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-
-namespace ngraph {
-namespace onnx_common {
-using namespace ov::frontend::onnx_common;
-}
-}  // namespace ngraph

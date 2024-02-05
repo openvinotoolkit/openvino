@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Enums
 from openvino._pyopenvino.properties.hint import Priority
 from openvino._pyopenvino.properties.hint import SchedulingCoreType
 from openvino._pyopenvino.properties.hint import ExecutionMode
-from openvino.runtime.properties.hint.overloads import PerformanceMode
+from openvino._pyopenvino.properties.hint import PerformanceMode
 
 # Properties
 from openvino._pyopenvino.properties.hint import inference_precision

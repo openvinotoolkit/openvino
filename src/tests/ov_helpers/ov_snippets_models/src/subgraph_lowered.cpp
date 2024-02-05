@@ -5,7 +5,6 @@
 #include "subgraph_lowered.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

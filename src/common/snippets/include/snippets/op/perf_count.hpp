@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef SNIPPETS_DEBUG_CAPS
+
 #pragma once
 
 #include "openvino/op/op.hpp"
@@ -91,3 +93,4 @@ private:
 } // namespace op
 } // namespace snippets
 } // namespace ov
+#endif  // SNIPPETS_DEBUG_CAPS

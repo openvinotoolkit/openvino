@@ -5,6 +5,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "itt.hpp"
+#include "scaled_dot_product_attention_shape_inference.hpp"
 
 using namespace std;
 namespace ov {
@@ -38,25 +39,33 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 3 && get_input_size() <= 5);
-    // TODO: More checks and accurate deduction of dimensions in case when various
-    // dynamic combinations appear.
-    auto query = get_input_partial_shape(0);
-    auto key = get_input_partial_shape(1);
-    auto value = get_input_partial_shape(2);
-
-    // using particular dimensions from query and value, to do that need to have them statically ranked
-    if (query.rank().is_dynamic() || value.rank().is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-        return;
+    auto out_type = get_input_element_type(0);
+    const auto& input_size = get_input_size();
+    const auto& causal = get_causal();
+    if (input_size >= 4 && !causal) {
+        const auto& attention_type = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(
+            this,
+            attention_type.is_real() || attention_type == element::boolean || attention_type.is_dynamic(),
+            "The element type of attention_mask must be either floating-point or boolean.");
     }
+    for (size_t i = 1; i < input_size; i++) {
+        const auto& element_type = get_input_element_type(i);
+        if (i == 3 && (element_type == element::boolean || causal)) {
+            // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
+            continue;
+        }
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(out_type, out_type, element_type),
+                              "Mixed input types are not supported.");
+    }
+    NODE_VALIDATION_CHECK(this,
+                          out_type.is_real() || out_type.is_dynamic(),
+                          "The element type of the input tensor must be a floating-point.");
 
-    OPENVINO_ASSERT(query.rank().get_length() >= 3);
-    OPENVINO_ASSERT(value.rank().get_length() >= 3);
-
-    auto dimensions = std::vector<Dimension>(query.begin(), query.end() - 1);
-    dimensions.push_back(*(value.end() - 1));
-    set_output_type(0, get_input_element_type(0), PartialShape(dimensions));
+    const auto& input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto& output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, out_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,13 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated) {
+std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<ov::Node>& inputData, const bool mergeRepeated) {
     auto inputDataShape = inputData.get_shape();
     size_t T = inputDataShape[0];
     size_t B = inputDataShape[1];
@@ -28,7 +29,8 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData
         }
     }
 
-    auto sequenceMaskNode = makeConstant(inputData.get_element_type(), {T, B}, sequenceMaskData);
+    auto sequenceMaskNode =
+        ov::test::utils::deprecated::make_constant(inputData.get_element_type(), {T, B}, sequenceMaskData);
 
     auto CTCGreedyDecoderNode =
         std::make_shared<ov::op::v0::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);

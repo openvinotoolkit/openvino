@@ -52,10 +52,10 @@ class TestTensorArraySizeV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_size_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_tensor_array_size_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayReadV3(CommonTFLayerTest):
@@ -96,10 +96,10 @@ class TestTensorArrayReadV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_read_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_new_frontend):
         self._test(*self.create_tensor_array_read_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
@@ -117,7 +117,8 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
         inputs_data['indices'] = np.delete(indices_data, np.where(indices_data == self.index_to_write))
         return inputs_data
 
-    def create_tensor_array_write_v3(self, size, data_shape, data_type, index_to_write, indices_to_gather):
+    def create_tensor_array_write_v3(self, size, data_shape, data_type, index_to_write, indices_to_gather,
+                                     dynamic_size):
         self.data_type = data_type
         self.size = size
         self.index_to_write = index_to_write
@@ -128,9 +129,13 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
             index_to_write_const = tf.constant(index_to_write, dtype=tf.int32, shape=[])
             indices_to_gather_const = tf.constant(indices_to_gather, dtype=tf.int32, shape=[len(indices_to_gather)])
             data = tf.compat.v1.placeholder(data_type, data_shape, 'data')
-            indices = tf.compat.v1.placeholder(tf.int32, [size - 1], 'indices')
+            if dynamic_size:
+                indices = tf.compat.v1.placeholder(tf.int32, [size], 'indices')
+            else:
+                indices = tf.compat.v1.placeholder(tf.int32, [size - 1], 'indices')
             size_const = tf.constant(size, dtype=tf.int32, shape=[])
-            handle, flow = tf.raw_ops.TensorArrayV3(size=size_const, dtype=tf.as_dtype(data_type))
+            handle, flow = tf.raw_ops.TensorArrayV3(size=size_const, dtype=tf.as_dtype(data_type),
+                                                    dynamic_size=dynamic_size)
             flow = tf.raw_ops.TensorArrayScatterV3(handle=handle, indices=indices, value=data, flow_in=flow)
             flow = tf.raw_ops.TensorArrayWriteV3(handle=handle, index=index_to_write_const,
                                                  value=value_to_write, flow_in=flow)
@@ -143,18 +148,24 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(size=7, data_shape=[6], data_type=np.float32, index_to_write=3, indices_to_gather=[0, 3, 1]),
-        dict(size=10, data_shape=[9, 2, 4], data_type=np.int32, index_to_write=2, indices_to_gather=[2, 1, 4, 3]),
+        dict(size=7, data_shape=[6], data_type=np.float32, index_to_write=3,
+             indices_to_gather=[0, 3, 1], dynamic_size=False),
+        dict(size=10, data_shape=[9, 2, 4], data_type=np.int32, index_to_write=2,
+             indices_to_gather=[2, 1, 4, 3], dynamic_size=False),
+        dict(size=7, data_shape=[7], data_type=np.float32, index_to_write=7,
+             indices_to_gather=[0, 3, 1, 7], dynamic_size=True),
+        dict(size=10, data_shape=[10, 2, 4], data_type=np.int32, index_to_write=10,
+             indices_to_gather=[2, 1, 4, 3, 10], dynamic_size=True),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_write_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_new_frontend, use_old_api):
+                                   use_new_frontend):
         self._test(*self.create_tensor_array_write_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)
 
 
 class TestTensorArrayConcatV3(CommonTFLayerTest):
@@ -194,7 +205,7 @@ class TestTensorArrayConcatV3(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tensor_array_concat_v3(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend, use_old_api):
+                                    use_new_frontend):
         self._test(*self.create_tensor_array_concat_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_new_frontend=use_new_frontend)

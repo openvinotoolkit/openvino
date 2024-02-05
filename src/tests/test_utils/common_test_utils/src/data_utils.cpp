@@ -5,7 +5,6 @@
 #include "common_test_utils/data_utils.hpp"
 
 #include "blob_factory.hpp"
-#include "debug.h"  // to allow putting vector into exception string stream
 #include "ie_blob.h"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -250,8 +249,96 @@ size_t byte_size(const InferenceEngine::TensorDesc& tdesc) {
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+namespace {
+static int randInt(int low, int high) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis(low, high);
+    return dis(gen);
+}
+}  // namespace
+
 template <ov::element::Type_t type>
-inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
+void fill_psroi_impl(ov::Tensor& tensor,
+                     int batchSize,
+                     int height,
+                     int width,
+                     int groupSize,
+                     float spatialScale,
+                     int spatialBinsX,
+                     int spatialBinsY,
+                     const std::string& mode) {
+    using T = typename ov::fundamental_type_for<type>;
+    auto* data = static_cast<T*>(tensor.data());
+    auto numROIs = tensor.get_size() / 5;
+    int minRoiWidth = groupSize;
+    int maxRoiWidth = width / groupSize * groupSize;
+    int minRoiHeight = groupSize;
+    int maxRoiHeight = height / groupSize * groupSize;
+    float scaleX = spatialScale;
+    float scaleY = spatialScale;
+    if (mode == "bilinear") {
+        minRoiWidth = spatialBinsX;
+        maxRoiWidth = width / spatialBinsX * spatialBinsX;
+        minRoiHeight = spatialBinsY;
+        maxRoiHeight = height / spatialBinsY * spatialBinsY;
+        scaleX *= width;
+        scaleY *= height;
+    }
+    int batchId = 0;
+    for (int i = 0; i < numROIs; i++) {
+        int sizeX = std::min(width, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
+        int sizeY = std::min(height, randInt(std::min(minRoiWidth, maxRoiWidth), std::max(minRoiWidth, maxRoiWidth)));
+        int startX = randInt(0, std::max(1, width - sizeX - 1));
+        int startY = randInt(0, std::max(1, height - sizeY - 1));
+
+        T* roi = data + i * 5;
+        roi[0] = batchId;
+        roi[1] = startX / scaleX;
+        roi[2] = startY / scaleY;
+        roi[3] = (startX + sizeX - 1) / scaleX;
+        roi[4] = (startY + sizeY - 1) / scaleY;
+
+        batchId = (batchId + 1) % batchSize;
+    }
+}
+
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode) {
+#define CASE(X)                          \
+    case X:                              \
+        fill_psroi_impl<X>(tensor,       \
+                           batchSize,    \
+                           height,       \
+                           width,        \
+                           groupSize,    \
+                           spatialScale, \
+                           spatialBinsX, \
+                           spatialBinsY, \
+                           mode);        \
+        break;
+
+    auto element_type = tensor.get_element_type();
+    switch (element_type) {
+        CASE(ov::element::f64)
+        CASE(ov::element::f32)
+        CASE(ov::element::f16)
+        CASE(ov::element::bf16)
+    default:
+        OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+}
+
+template <ov::element::Type_t type>
+inline void fill_data_roi_impl(ov::Tensor& tensor,
                                const uint32_t range,
                                const int height,
                                const int width,
@@ -297,7 +384,7 @@ inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
     }
 }
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,

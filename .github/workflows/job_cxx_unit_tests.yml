@@ -1,4 +1,4 @@
-name: Samples
+name: C++ Unit Tests
 
 on:
   workflow_call:
@@ -32,14 +32,17 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -157,22 +160,6 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        if: fromJSON(inputs.affected-components).GNA.test && 
-            (runner.os != 'macOS' && runner.arch != 'ARM64')
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: fromJSON(inputs.affected-components).GNA.test && 
-            (runner.os != 'macOS' && runner.arch != 'ARM64')
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/InferenceEngineUnitTests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineUnitTests.xml
-
       - name: Common test utils tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -227,13 +214,6 @@ jobs:
                 --gtest_filter=*smoke* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
-      - name: Inference Engine C API tests
-        if: fromJSON(inputs.affected-components).C_API.test
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
-
       - name: OpenVINO C API tests
         if: fromJSON(inputs.affected-components).C_API.test
         run: |
@@ -272,7 +252,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp

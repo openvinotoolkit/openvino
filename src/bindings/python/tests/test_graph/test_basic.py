@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -318,30 +318,22 @@ def test_clone_model():
     assert isinstance(model_original, Model)
 
     # Make copies of it
-    with pytest.deprecated_call():
-        model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone()
     model_copy3 = deepcopy(model_original)
 
-    assert isinstance(model_copy1, Model)
     assert isinstance(model_copy2, Model)
     assert isinstance(model_copy3, Model)
 
     # Make changes to the copied models' inputs
-    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy3.reshape({"A": [3, 3], "B": [3, 3]})
 
     original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
-    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
     model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
     model_copy3_shapes = [single_input.get_shape() for single_input in model_copy3.inputs]
 
-    assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
     assert original_model_shapes != model_copy3_shapes
-    assert model_copy1_shapes == model_copy2_shapes
-    assert model_copy1_shapes == model_copy3_shapes
     assert model_copy2_shapes == model_copy3_shapes
 
 
@@ -564,8 +556,8 @@ def test_sink_model_ctor():
     sinks = model.get_sinks()
     assert ["Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()

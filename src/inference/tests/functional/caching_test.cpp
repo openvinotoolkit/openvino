@@ -15,7 +15,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -1703,6 +1702,99 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
     }
 }
 
+TEST_P(CachingTest, TestCacheFileWithCompiledModelRuntimeProperties) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                 ov::internal::compiled_model_runtime_properties.name(),
+                                                 ov::internal::compiled_model_runtime_properties_supported.name()};
+        }));
+    const std::string compiled_model_runtime_properties("Mock compiled model format segment.");
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_runtime_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(compiled_model_runtime_properties));
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::compiled_model_runtime_properties_supported.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Invoke([&](const std::string&, const ov::AnyMap& options) {
+            auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
+            ov::Any ret = true;
+            if (it == options.end() || it->second.as<std::string>() != compiled_model_runtime_properties)
+                ret = false;
+            return ret;
+        }));
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+        });
+        testLoad([&](ov::Core& core) {
+            EXPECT_NO_THROW(core.set_property(ov::cache_dir(m_cacheDir)));
+            EXPECT_NO_THROW(m_testFunction(core));
+        });
+    }
+    {
+        auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
+        for (const auto& fileName : blobs) {
+            std::string content;
+            {
+                std::ifstream inp(fileName, std::ios_base::binary);
+                std::ostringstream ostr;
+                ostr << inp.rdbuf();
+                content = ostr.str();
+            }
+            auto index = content.find(compiled_model_runtime_properties.c_str());
+            std::string new_compiled_model_runtime_properties(compiled_model_runtime_properties.size(), '0');
+            if (index != std::string::npos) {
+                content.replace(index, compiled_model_runtime_properties.size(), new_compiled_model_runtime_properties);
+            } else {
+                return;  // skip test
+            }
+            std::ofstream out(fileName, std::ios_base::binary);
+            out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+        }
+    }
+    m_post_mock_net_callbacks.pop_back();
+    {  // Step 2. compiled_model_runtime_properties mismatch, cache will be silently removed
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+        });
+        testLoad([&](ov::Core& core) {
+            EXPECT_NO_THROW(core.set_property(ov::cache_dir(m_cacheDir)));
+            EXPECT_NO_THROW(m_testFunction(core));
+        });
+    }
+    m_post_mock_net_callbacks.pop_back();
+    {  // Step 3: same load, should be ok now due to re-creation of cache
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(!m_remoteContext ? 1 : 0);
+        for (auto& net : comp_models) {
+            EXPECT_CALL(*net, export_model(_)).Times(0);
+        }
+        testLoad([&](ov::Core& core) {
+            EXPECT_NO_THROW(core.set_property(ov::cache_dir(m_cacheDir)));
+            EXPECT_NO_THROW(m_testFunction(core));
+        });
+    }
+}
+
 TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
@@ -1790,7 +1882,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
         });
         // Ensure that only 1 blob (for Hetero) is created
@@ -1807,7 +1899,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         }
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
             comp_models.clear();
         });
@@ -1927,7 +2019,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             m_testFunction(core);
         });
     }
@@ -1941,7 +2033,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(*net, export_model(_)).Times(0);
         }
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         });
@@ -1955,7 +2047,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(net, export_model(_)).Times(1);
         });
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.51"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.51"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
             comp_models.clear();

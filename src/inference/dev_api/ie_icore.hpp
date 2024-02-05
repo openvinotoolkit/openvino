@@ -15,8 +15,6 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -52,28 +50,12 @@ public:
      *
      * @param network CNNNetwork object acquired from Core::ReadNetwork
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
                                                     const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config = {}) = 0;
-
-    /**
-     * @brief Creates an executable network from a network object.
-     *
-     * Users can create as many networks as they need and use
-     *        them simultaneously (up to the limitation of the hardware resources)
-     *
-     * @param network CNNNetwork object acquired from Core::ReadNetwork
-     * @param remoteCtx  "Remote" (non-CPU) accelerator device-specific execution context to use
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return An executable network reference
-     */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
-                                                    const RemoteContext::Ptr& remoteCtx,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -85,7 +67,7 @@ public:
      * @param modelStr String data of model
      * @param weights Model's weights
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
@@ -105,7 +87,7 @@ public:
      *
      * @param modelPath Path to model
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation
      * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
      * @return An executable network reference
@@ -119,7 +101,7 @@ public:
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * @param config Optional map of pairs: (config name, config value) relevant only for this load
      * operation*
      * @return An executable network reference
      */
@@ -132,7 +114,7 @@ public:
      *
      * @param deviceName A name of a device to query
      * @param network Network object to query
-     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @param config Optional map of pairs: (config name, config value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
@@ -167,7 +149,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1 }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
@@ -176,19 +158,10 @@ public:
      * @brief Checks whether device supports model caching feature
      *
      * @param deviceName - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT and CACHING_PROPERTIES metric in SUPPORTED_METRICS and
+     * @return True if device has IMPORT_EXPORT_SUPPORT and CACHING_PROPERTIES metric in SUPPORTED_PROPERTIES and
      * this metric returns 'true', False otherwise.
      */
     virtual bool DeviceSupportsModelCaching(const std::string& deviceName) const = 0;
-
-    /**
-     * @brief Create a new shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
-     * @param deviceName Name of a device to create new shared context on.
-     * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
-     */
-    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName, const ov::AnyMap&) = 0;
 
     /**
      * @brief Get only configs that are supported by device
@@ -200,13 +173,6 @@ public:
                                                                   const std::map<std::string, std::string>& config) = 0;
 
     virtual bool isNewAPI() const = 0;
-
-    /**
-     * @brief Get a pointer to default shared context object for the specified device.
-     * @param deviceName  - A name of a device to get create shared context from.
-     * @return A shared pointer to a default remote context.
-     */
-    virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 };
 
 }  // namespace InferenceEngine

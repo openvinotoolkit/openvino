@@ -11,7 +11,7 @@
 namespace LayerTestsDefinitions {
 class ReduceMaxTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> constantValues;
     bool keepDims;
     std::string layerName;
@@ -19,8 +19,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ReduceMaxTransformationParam
@@ -34,6 +34,6 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 }  // namespace LayerTestsDefinitions
