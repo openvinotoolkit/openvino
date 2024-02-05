@@ -18,7 +18,7 @@ from openvino import PartialShape, Type
         ([10, -1, -1], True),
     ],
 )
-def test_multinomial_param_inputs(input_shape, adjoint):
+def test_inverse_param_inputs(input_shape, adjoint):
     input = ops.parameter(input_shape, dtype=np.float32)
 
     op = ops.inverse(input, adjoint=adjoint)
@@ -35,7 +35,7 @@ def test_multinomial_param_inputs(input_shape, adjoint):
         (np.array([[0.7, 0.3, 0.6], [1, 2, 3], [0.7, 0.1, 0.4]]), False),
     ],
 )
-def test_multinomial_const_inputs(input_array, adjoint):
+def test_inverse_const_inputs(input_array, adjoint):
     input = ops.constant(input_array, dtype=np.float64)
 
     op = ops.inverse(input, adjoint=adjoint)
@@ -52,10 +52,10 @@ def test_multinomial_const_inputs(input_array, adjoint):
         ([4, 4]),
     ],
 )
-def test_multinomial_default_attrs(input_shape):
+def test_inverse_default_attrs(input_shape):
     input = ops.parameter(input_shape, dtype=np.float16)
 
-    op = ops.multinomial(input)
+    op = ops.inverse(input)
 
     assert op.get_output_size() == 1
     assert op.get_type_name() == "Inverse"
