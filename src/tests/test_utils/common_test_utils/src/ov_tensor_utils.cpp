@@ -303,39 +303,6 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
     return tensor;
 }
 
-template <typename T>
-void fill_data_sin_value(T* data, size_t size) {
-    for (size_t i = 0; i < size; i++) {
-        data[i] = static_cast<T>(sin(i));
-    }
-}
-
-ov::Tensor create_and_fill_tensor_sin_values(const ov::element::Type element_type, const ov::Shape& shape) {
-    auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X)                                                                         \
-    case X:                                                                             \
-        fill_data_sin_value(tensor.data<fundamental_type_for<X>>(), tensor.get_size()); \
-        break;
-    switch (element_type) {
-        CASE(ov::element::Type_t::i8)
-        CASE(ov::element::Type_t::i16)
-        CASE(ov::element::Type_t::i32)
-        CASE(ov::element::Type_t::i64)
-        CASE(ov::element::Type_t::u8)
-        CASE(ov::element::Type_t::u16)
-        CASE(ov::element::Type_t::u32)
-        CASE(ov::element::Type_t::u64)
-        CASE(ov::element::Type_t::bf16)
-        CASE(ov::element::Type_t::f16)
-        CASE(ov::element::Type_t::f32)
-        CASE(ov::element::Type_t::f64)
-    default:
-        OPENVINO_THROW("Unsupported element type: ", element_type);
-    }
-#undef CASE
-    return tensor;
-}
-
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
 inline double less(double a, double b) {
