@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector gelu(const ov::frontend::onnx::Node& node) {
-    const auto& inputs = node.get_ng_inputs();
+    const auto& inputs = node.get_ov_inputs();
     std::string approximate = node.get_attribute_value<std::string>("approximate", "");
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 1, "Wrong number of inputs, expected 1, found ", inputs.size());

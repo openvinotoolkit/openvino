@@ -11,7 +11,7 @@
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ov::Output<ov::Node> get_k(const ov::frontend::onnx::Node& node) {
-    auto k_node = node.get_ng_inputs().at(1);
+    auto k_node = node.get_ov_inputs().at(1);
     FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
                             "ONNX TopK operator: 'K' parameter must contain a single positive value.",
                             node);
@@ -30,7 +30,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
@@ -47,7 +47,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
 namespace set_10 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
@@ -65,7 +65,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 namespace set_11 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     // Process inputs
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     auto k = get_k(node);
 
     // Process attributes

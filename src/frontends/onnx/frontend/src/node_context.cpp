@@ -9,7 +9,7 @@
 ov::frontend::onnx::NodeContext::NodeContext(const ov::frontend::onnx::Node& context)
     : ov::frontend::NodeContext(context.op_type()),
       m_context(context),
-      m_inputs(context.get_ng_inputs()) {}
+      m_inputs(context.get_ov_inputs()) {}
 
 ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) const {
     return m_inputs.at(port_idx);

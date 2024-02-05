@@ -140,7 +140,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 
 namespace set_1 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
     auto y_zero_point = detail::get_zero_point(inputs);
@@ -208,7 +208,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 }  // namespace
 
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The QuantizeLinear op expects 2 required and one optional "

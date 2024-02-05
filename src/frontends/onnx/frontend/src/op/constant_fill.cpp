@@ -30,9 +30,9 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     if (input_as_shape == 1)  // use the first input as target shape
     {
         CHECK_VALID_NODE(node,
-                         node.get_ng_inputs().size() > 0,
+                         node.get_ov_inputs().size() > 0,
                          "The input which determines output shape was not provided");
-        target_shape = node.get_ng_inputs().at(0);
+        target_shape = node.get_ov_inputs().at(0);
         if (node.has_attribute("extra_shape")) {
             const auto extra_shape_const =
                 node.get_attribute_as_constant<std::vector<int64_t>>("extra_shape", target_shape.get_element_type());
