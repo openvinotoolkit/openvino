@@ -65,7 +65,7 @@ protected:
     }
 };
 INSTANTIATE_TEST_SUITE_P(
-    smoke_NGraph,
+    ConvertAlignTypesDecomposition,
     ConvertConvertAlignTypesTest,
     testing::Values(
         ConvertAlignTypesTestParams{PartialShape::dynamic(),
