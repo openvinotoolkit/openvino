@@ -139,19 +139,27 @@ Instructions below show how to build sample applications with CMake. If you are 
 
                If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
 
-            To build the C or C++ sample applications on Windows, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+            You can build the C or C++ sample applications on Windows with either PowerShell or Command Prompt.
 
-            .. code-block:: sh
+            .. tab-set::
 
-               build_samples_msvc.bat
+               .. tab-item:: PowerShell
+                  :sync: powershell
 
-            .. note::
+                  To build Samples with PowerShell, run the following command:
 
-               Sample can also be built with using PowerShell. To do this, run the below command in PowerShell:
+                  .. code-block:: sh
 
-               .. code-block:: sh
+                     & <path-to-build-samples-folder>/build_samples.ps1
 
-                  & <path-to-build-samples-folder>/build_samples.ps1
+               .. tab-item:: Command Prompt
+                  :sync: cmd
+
+                   To build Samples with CMD, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+
+                   .. code-block:: sh
+
+                      build_samples_msvc.bat
 
             By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
 
