@@ -146,10 +146,6 @@ private:
 
     friend ov::CoreImpl;
 
-    // FIXME: Remove after removing IE API
-    std::vector<std::shared_ptr<const ov::Node>> _parameters;
-    std::vector<std::shared_ptr<const ov::Node>> _results;
-
 protected:
     /**
      * @brief Method creates infer request implementation
