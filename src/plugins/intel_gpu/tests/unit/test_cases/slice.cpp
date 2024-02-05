@@ -48,13 +48,31 @@ struct SliceTestParams {
     memory::ptr stop;
     memory::ptr step;
     memory::ptr wanted_output;
-    bool is_caching_test = false;
 };
 
 template<typename T>
 class SliceTest : public ::testing::Test {
 public:
-    void RunTest(const SliceTestParams& params) {
+    // Runs all test cases for given params.
+    void RunAllTestCasesForParams(const SliceTestParams& params) {
+        RunTestCase(params, false);
+        RunTestCase(params, true);
+    }
+
+    // Allocates tensoer with given shape and data.
+    template<typename TDataType>
+    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, 
+                                const std::vector<TDataType>& data) {
+        const layout lo = {shape, helpers::ToDataType<TDataType>(), fmt};
+        EXPECT_EQ(lo.get_linear_size(), data.size());
+        memory::ptr tensor = this->engine_.allocate_memory(lo);
+        set_values<TDataType>(tensor, data);
+        return tensor;
+    }
+
+private:
+    // Runs single tests case for given params.
+    void RunTestCase(const SliceTestParams& params, bool is_caching_test) {
         topology topology;
         topology.add(input_layout("input", params.input->get_layout()));
         topology.add(data("start", params.start));
@@ -68,7 +86,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine_);
         cldnn::network::ptr network =
-            get_network(engine_, topology, config, get_test_stream_ptr(), params.is_caching_test);
+            get_network(engine_, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", params.input);
         auto outputs = network->execute();
@@ -87,19 +105,6 @@ public:
             ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], 2e-3));
     }
 
-
-    // Allocates tensoer with given shape and data.
-    template<typename TDataType>
-    memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, 
-                                const std::vector<TDataType>& data) {
-        const layout lo = {shape, helpers::ToDataType<TDataType>(), fmt};
-        EXPECT_EQ(lo.get_linear_size(), data.size());
-        memory::ptr tensor = this->engine_.allocate_memory(lo);
-        set_values<TDataType>(tensor, data);
-        return tensor;
-    }
-
-protected:
     engine& engine_ = get_test_engine();
 };
 
@@ -127,7 +132,7 @@ TYPED_TEST(SliceTest, bfyx_positive_step) {
             1601, 1611, 1621, 1631, 1641, 1651, 1661, 1671, 1681, 1691,
         });
 
-    this->RunTest(params);
+    this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, bfyx_negative_step) {
@@ -150,7 +155,7 @@ TYPED_TEST(SliceTest, bfyx_negative_step) {
             1389, 1379, 1369, 1359, 1349, 1339, 1329, 1319
         });
 
-    this->RunTest(params);
+    this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, bfzyx) {
@@ -170,7 +175,7 @@ TYPED_TEST(SliceTest, bfzyx) {
             600, 601, 605, 606, 660, 661, 665, 666
         });
 
-    this->RunTest(params);
+    this->RunAllTestCasesForParams(params);
 }
 
 } // anonymous namespace
