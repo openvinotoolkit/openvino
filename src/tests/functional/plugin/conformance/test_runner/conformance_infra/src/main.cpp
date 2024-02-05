@@ -12,11 +12,13 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"
+
 
 void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
@@ -45,6 +47,8 @@ void RegisterTestCustomQueries(void) {
 #include "functional_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
+
+bool ov::test::behavior::APIBaseTest::is_print_k = true;
 
 int main(int argc, char* argv[]) {
 #ifdef ENABLE_CONFORMANCE_PGQL
