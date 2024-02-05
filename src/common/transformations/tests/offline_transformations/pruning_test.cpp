@@ -11,7 +11,6 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "inference_engine.hpp"
 #include "mask_attribute.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/attr_types.hpp"

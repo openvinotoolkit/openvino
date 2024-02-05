@@ -5,7 +5,6 @@
 #include "openvino/runtime/core.hpp"
 
 #include "any_copy.hpp"
-#include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "itt.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -227,7 +226,7 @@ Any Core::get_property(const std::string& device_name, const std::string& name, 
 }
 
 std::vector<std::string> Core::get_available_devices() const {
-    OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
+    OV_CORE_CALL_STATEMENT(return _impl->get_available_devices(););
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
