@@ -170,7 +170,7 @@ Linux and macOS:
 source <INSTALLDIR>/setupvars.sh
 ```
 
-Windows via Command Prompt:
+Windows Command Prompt:
 ```bat
 <INSTALLDIR>\setupvars.bat
 ```
