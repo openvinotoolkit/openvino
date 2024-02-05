@@ -381,8 +381,6 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             if (!getParameters<int64_t>(dn, "shape", shape))
                 return;
 
-            ov::element::Type el_type = ov::element::Type(el_type_str);
-
             if (!m_weights)
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
             if (m_weights->size() < offset + size)
