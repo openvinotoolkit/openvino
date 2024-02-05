@@ -175,7 +175,7 @@ Windows Command Prompt:
 <INSTALLDIR>\setupvars.bat
 ```
 
-Using PowerShell:
+Windows PowerShell:
 ```bat
 . <path-to-setupvars-folder>/setupvars.ps1
 ```
