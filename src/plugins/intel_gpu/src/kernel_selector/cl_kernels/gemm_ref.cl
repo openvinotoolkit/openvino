@@ -54,7 +54,7 @@ inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w
 #if BEAM_TABLE_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
 #else
-#   error gemm_ref.cl : Unsupported bt for input 1 format
+#   error gemm_ref.cl : Unsupported beam table format
 #endif
 }
 
@@ -84,7 +84,7 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 #endif
 }
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #define INPUT0_SIZE_F INPUT0_FEATURE_NUM
 #define INPUT0_SIZE_B INPUT0_BATCH_NUM
@@ -93,7 +93,7 @@ KERNEL(gemm_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input0,
     const __global INPUT1_TYPE* input1,
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     const __global INPUT2_TYPE* input2,
 #endif
 #if BEAM_TABLE_TERM
@@ -142,7 +142,7 @@ KERNEL(gemm_ref)(
 
     acc = TO_ACCUMULATOR_TYPE(ALPHA) * acc;
 
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     {
         uint in2_idx = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
         ACCUMULATOR_TYPE val2 = TO_ACCUMULATOR_TYPE(input2[in2_idx]);

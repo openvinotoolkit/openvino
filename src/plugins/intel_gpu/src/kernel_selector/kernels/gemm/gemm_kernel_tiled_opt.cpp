@@ -12,6 +12,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
@@ -315,7 +316,8 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
     if (gmm_params.outputs[0].PitchesDifferFromLogicalDims())
         return false;
 
-    for (size_t input_idx = 0; input_idx < gmm_params.inputs.size(); ++input_idx) {
+    size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
+    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
             return false;
@@ -338,7 +340,7 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
     if (gmm_params.has_dynamic_inputs() && !gmm_params.is_shape_agnostic)
         return false;
 
-    for (size_t i = 1; i < gmm_params.inputs.size(); i++)
+    for (size_t i = 1; i < num_inputs; i++)
         if (gmm_params.inputs[0].GetDType() != gmm_params.inputs[i].GetDType())
             return false;
 

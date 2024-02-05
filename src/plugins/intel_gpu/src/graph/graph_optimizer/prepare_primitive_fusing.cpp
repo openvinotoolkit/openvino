@@ -498,9 +498,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto in0_fmt = node.get_input_layout(0).format;
             auto in1_fmt = node.get_input_layout(1).format;
 
-            if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
-                return false;
-
             if (data_type_traits::is_floating_point(in0_dt) &&
                 data_type_traits::is_floating_point(in1_dt))
                 does_support_fusings = true;

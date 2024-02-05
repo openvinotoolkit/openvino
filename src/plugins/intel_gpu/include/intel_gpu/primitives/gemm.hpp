@@ -246,7 +246,7 @@ private:
             // other
             return TransposeType::OTHER;
         }
-    };
+    }
 };
 
 }  // namespace cldnn

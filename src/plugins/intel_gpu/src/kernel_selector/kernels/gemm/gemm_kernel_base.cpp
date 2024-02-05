@@ -204,7 +204,11 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         }
     };
     if (params.indirect_input0 || params.indirect_input1) {
-        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.beam_table));
+        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.inputs[params.inputs.size() - 1]));
+    }
+
+    if (params.inputs.size() == 4 || (!params.indirect_input0 && !params.indirect_input1 && params.inputs.size() == 3)) {
+        jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
     }
 
     jit.AddConstants({
@@ -262,11 +266,6 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    auto num_inputs = (uint32_t)prim_params.inputs.size();
-
-    if (prim_params.indirect_input0 || prim_params.indirect_input1)
-        num_inputs++;
-
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
                      dispatchData,
@@ -277,7 +276,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     num_inputs,
+                     (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.has_dynamic_tensors());

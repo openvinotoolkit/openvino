@@ -74,7 +74,6 @@ protected:
     cldnn::layout m_layout;
     ov::element::Type m_user_specified_type;
     std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor;
-
     cldnn::memory::ptr m_memory = nullptr;
     size_t actual_size = 0;
 

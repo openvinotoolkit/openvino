@@ -57,7 +57,7 @@ inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w
 #if BEAM_TABLE_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
 #else
-#   error gemm_ref.cl : Unsupported bt for input 1 format
+#   error gemm_tiled_ops.cl : Unsupported beam table format
 #endif
 }
 

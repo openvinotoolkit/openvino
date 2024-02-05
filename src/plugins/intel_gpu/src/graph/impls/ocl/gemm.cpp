@@ -33,12 +33,17 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     }
 
 protected:
+    static size_t get_beam_table_id(std::shared_ptr<const gemm> primitive) {
+        return primitive->input_size() == 3 ? 3 : 2;
+    }
+
     kernel_arguments_data get_arguments(const typed_primitive_inst<gemm>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         const auto& desc = instance.get_typed_desc<gemm>();
 
-        if (desc->indirect_a || desc->indirect_b)
-            args.inputs.push_back(instance.dep_memory_ptr(2));
+        if (desc->indirect_a || desc->indirect_b) {
+            args.inputs.push_back(instance.dep_memory_ptr(get_beam_table_id(desc)));
+        }
 
         return args;
     }
@@ -66,7 +71,7 @@ public:
         params.indirect_input1 = primitive->indirect_b;
         if (primitive->indirect_a || primitive->indirect_b) {
             OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
-            params.beam_table = convert_data_tensor(impl_param.input_layouts[2]);
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));
         }
 
         bool is_quantized = true;
@@ -78,33 +83,7 @@ public:
         } else {
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
-
-        if (primitive->beam_table.is_valid()) {
-            const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
-            const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
-            std::map<size_t, size_t> in_tensor_to_offset_map = {
-                {0, in_offsets_map.at(0)},
-                {1, in_offsets_map.at(1)},
-            };
-            std::map<size_t, size_t> out_tensor_to_offset_map = {
-                {0, out_offsets_map.at(0)},
-            };
-            params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
-            params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(2));
-        } else {
-            params.set_dynamic_shape_offsets();
-        }
-
         return {params, optional_params};
-    }
-
-    static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(static_canonicalize_shapes(impl_param));
-        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gemm_impl>(best_kernel);
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -160,7 +139,7 @@ attach_gemm_impl::attach_gemm_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, gemm_impl::create, types, formats);
+    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
 
     const std::vector<format::type> dyn_formats {
         format::bfyx,
@@ -170,7 +149,7 @@ attach_gemm_impl::attach_gemm_impl() {
 
     implementation_map<gemm>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,
-                                  gemm_impl::create, types, dyn_formats);
+                                  typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dyn_formats);
 }
 
 }  // namespace detail

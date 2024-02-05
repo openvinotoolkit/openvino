@@ -6,8 +6,8 @@
 
 KERNEL(beam_table_update)(
     OPTIONAL_SHAPE_INFO_ARG
-    __global INPUT0_TYPE* state_prev,
-    __global INPUT1_TYPE* beam_idx,
+    __global const INPUT0_TYPE* state_prev,
+    __global const INPUT1_TYPE* beam_idx,
     __global OUTPUT_TYPE* state_new,
     uchar is_state_set)
 {
