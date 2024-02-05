@@ -1,0 +1,333 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\any_copy.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\blob_factory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cache_guard.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\check_network_batchable.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cnn_network_ngraph_impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\compilation_context.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\compiled_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\core.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp\ie_cnn_network.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp\ie_executable_network.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp\ie_infer_request.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp\ie_variable_state.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp_interfaces\interface\ie_iexecutable_network_internal.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp_interfaces\interface\ie_iinfer_request_internal.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp_interfaces\interface\ie_iplugin_internal.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\cpp_interfaces\interface\ie_ivariable_state_internal.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\converter_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\core_impl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\core_impl_ie.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\device_id_parser.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\exec_model_info.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\iasync_infer_request.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\icompiled_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\icompiled_model_wrapper.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\iplugin.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\iplugin_wrapper.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\iremote_context.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\iremote_tensor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\isync_infer_request.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\ivariable_state.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\make_tensor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\plugin.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\cpu_streams_executor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\cpu_streams_executor_internal.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\executor_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\istreams_executor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\itask_executor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\parallel_custom_arena.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\dev\threading\thread_affinity.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\exception.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_blob_common.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_common.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_core.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_data.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_layouts.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_network_reader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\ie_ngraph_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\infer_request.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\model_reader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\openvino_shutdown.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\os\win\win_system_conf.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\remote_context.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\remote_tensor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\system_allocator.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\inference\src\system_conf.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\any_copy.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\cache_guard.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\check_network_batchable.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\cnn_network_ngraph_impl.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\compilation_context.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\ie_cache_manager.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\ie_network_reader.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\itt.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\model_reader.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\precomp.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\src\system_allocator.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\cpp\ie_cnn_network.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\cpp\ie_executable_network.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\cpp\ie_infer_request.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\cpp\ie_memory_state.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\details\ie_pre_allocator.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_allocator.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_api.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_blob.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_common.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_core.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_data.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_icnn_network.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_iexecutable_network.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_iinfer_request.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_input_info.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_layouts.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_locked_memory.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\ie_precision.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\ie\inference_engine.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\openvino.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\auto\properties.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\common.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\compiled_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\core.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\exception.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\infer_request.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_cpu\properties.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\ocl\dx.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\ocl\ocl.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\ocl\ocl_wrapper.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\ocl\va.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\properties.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\intel_gpu\remote_properties.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\profiling_info.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\properties.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\remote_context.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\remote_tensor.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\runtime.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\inference\include\openvino\runtime\variable_state.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\inference\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

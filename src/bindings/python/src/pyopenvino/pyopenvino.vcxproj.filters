@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\async_infer_queue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\compiled_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\infer_request.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\offline_transformations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\profiling_info.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\properties\properties.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\tensor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\variable_state.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\version.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\decoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\frontend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\input_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\node_context.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\place.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\any.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\axis_set.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\axis_vector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\coordinate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\coordinate_diff.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\descriptors\tensor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\dict_attribute_visitor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\dimension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\discrete_type_info.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\layout_helpers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_factory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\assign.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\constant.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\if.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\loop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\parameter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\result.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\tensor_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\arithmetic_reduction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_arithmetic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_comparison.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_logical.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\index_reduction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\multisubgraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\regmodule_graph_op_util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\unary_elementwise_arithmetic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\variable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\partial_shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\graph_rewrite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\matcher_pass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\model_pass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\pass_base.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\pattern_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\regmodule_graph_passes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\transformations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\preprocess\pre_post_process.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\rt_map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\strides.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\types\element_type.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\types\regmodule_graph_types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\utils\utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\pyopenvino_version.dir\$(Configuration)\pyopenvino.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Object Libraries">
+      <UniqueIdentifier>{C44514EB-4311-3886-8C41-402145186015}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

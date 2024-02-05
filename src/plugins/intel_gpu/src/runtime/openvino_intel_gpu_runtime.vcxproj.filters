@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\debug_configuration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\device_query.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\event.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\execution_config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\file_util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\format.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\kernels_cache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\kernels_factory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\memory_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\shape_predictor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\stream.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_command_queues_builder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_device_detector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_event.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_kernels_factory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_stream.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_user_event.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\kernels_cache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\kernels_factory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_base_event.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_command_queues_builder.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_common.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_device.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_device_detector.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_engine.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_engine_factory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_event.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_ext.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_kernels_factory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_memory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_stream.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_user_event.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\ocl\ocl_wrapper.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

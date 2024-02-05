@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/onednn_gpu_build"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/bc4217748596a180b6306f7ba68e6a0f/onednn_gpu_build.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/f46f9bcf2944e655847cee9d796c855b/onednn_gpu_build-complete.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-build.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-configure.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-download.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-install.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-mkdir.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-patch.rule"
+		},
+		{
+			"file" : "D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"onednn_gpu_build"
+		],
+		"name" : "onednn_gpu_build"
+	}
+}

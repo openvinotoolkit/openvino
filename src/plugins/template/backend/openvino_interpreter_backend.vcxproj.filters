@@ -1,0 +1,321 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\abs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\adaptive_avg_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\adaptive_max_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\assign.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\avg_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\batch_norm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\binary_convolution.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\bitwise_and.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\bitwise_not.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\bitwise_or.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\bitwise_xor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\bucketize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\ceiling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\convert_color_nv12.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\convolution.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\convolution_backprop_data.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\ctc_greedy_decoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\ctc_greedy_decoder_seq_len.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\ctc_loss.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\cum_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\deformable_convolution.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\deformable_psroi_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\detection_output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\einsum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\elu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\embedding_bag_offsets_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\embedding_bag_packed_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\embedding_segments_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\equal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\exp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\experimental_detectron_detection_output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\experimental_detectron_prior_grid_generator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\experimental_detectron_proposal_single_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\experimental_detectron_roi_feature_extractor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\experimental_detectron_topk_rois.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\extract_image_patches.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\fft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gather.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gather_elements.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gather_nd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gather_tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gelu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\generate_proposal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\greater.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\grid_sample.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\grn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\group_convolution.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\group_convolution_backprop_data.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\group_normalization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\gru_cell.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\hard_sigmoid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\if.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\interpolate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\irdft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\is_finite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\is_inf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\is_nan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\log.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\log_softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\lrn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\lstm_cell.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\matrix_nms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\mod.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\multiclass_nms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\multinomial.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\mvn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\nms_rotated.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\non_max_suppression.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\normalize_l2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\pad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\prelu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\proposal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\psroi_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\rdft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\read_value.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\region_yolo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\relu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\reorg_yolo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\reverse_sequence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\rnn_cell.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\roi_align.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\roi_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\roll.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\scatter_nd_update.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\selu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\sequences.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\sigmoid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\sign.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\softsign.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\squared_difference.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\tanh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\tensor_iterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\ops\unique.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\executable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\int_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\int_executable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\template\backend\evaluates_map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\template\backend\backend.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\template\backend\executable.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\template\backend\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

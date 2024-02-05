@@ -1,0 +1,447 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{D18B7EF1-6721-377F-AEA9-C45B1EE6240A}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino_shape_inference</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_shape_inference.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_shape_inferenced</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_shape_inference.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_shape_inference</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_shape_inference.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_shape_inference</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_shape_inference.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_shape_inference</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;IN_OV_CORE_LIBRARY;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\core\shape_inference\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/core/shape_inference/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/core/shape_inference/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\core\shape_inference\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/core/shape_inference/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/core/shape_inference/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\core\shape_inference\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/core/shape_inference/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/core/shape_inference/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\core\shape_inference\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/core/shape_inference/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/core/shape_inference/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\core\shape_inference\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\core\shape_inference\src\convolution_shape_inference.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\core\shape_inference\src\experimental_detectron_shape_infer_utils.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\core\shape_inference\src\tensor_data_accessor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\core\shape_inference\src\utils.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\adaptive_avg_pool_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\adaptive_max_pool_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\assign_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\augru_cell_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\augru_sequence_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\avg_pool_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\batch_norm_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\batch_to_space_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\binary_convolution_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\broadcast_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\bucketize_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\compare.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\concat_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\convolution_backprop_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\convolution_backprop_shape_inference_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\convolution_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\convolution_shape_inference_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\copy_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\ctc_greedy_decoder_seq_len_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\ctc_greedy_decoder_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\ctc_loss_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\deformable_convolution_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\deformable_psroi_pooling_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\depth_to_space_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\detection_output_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\dimension_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\einsum_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\element_visitor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\eltwise_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\embedding_segments_sum_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\embedding_shape_infer_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\embeddingbag_offsets_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\embeddingbag_packed_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_detection_output_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_generate_proposals_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_prior_grid_generator_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_roi_feature_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_shape_infer_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\experimental_detectron_topkrois_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\extract_image_patches_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\eye_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\fake_convert_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\fake_quantize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\fft_base_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\fft_common_validation.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gather_elements_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gather_nd_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gather_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gather_tree_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\generate_proposals_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\grid_sample_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\group_convolution_backprop_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\group_convolution_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\group_normalization_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gru_cell_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\gru_sequence_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\i420_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\interpolate_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\irdft_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\lstm_cell_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\lstm_sequence_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\matmul_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\matrix_nms_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\max_pool_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\multiclass_nms_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\multinomial_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\nms_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\nv12_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\one_hot_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\ov_optional.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\pad_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\pooling_shape_inference_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\prior_box_clustered_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\prior_box_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\prior_box_shape_inference_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\proposal_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\psroi_pooling_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\random_uniform_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\range_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\rdft_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\reduce_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\region_yolo_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\reorg_yolo_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\reshape_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\reverse_sequence_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\reverse_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\rnn_base_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\rnn_cell_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\rnn_sequence_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\roi_align_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\roi_pooling_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\roll_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\scaled_dot_product_attention_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\scatter_elements_update_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\scatter_nd_base_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\select_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\sequnce_generator.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\shape_infer_type_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\shape_nodes.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\shape_validation.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\shuffle_channels_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\slice_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\slice_shape_inference_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\space_to_batch_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\space_to_depth_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\split_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\squeeze_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\strided_slice_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\tensor_data_accessor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\tile_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\topk_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\transpose_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\unsqueeze_shape_inference.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\core\shape_inference\include\variadic_split_shape_inference.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

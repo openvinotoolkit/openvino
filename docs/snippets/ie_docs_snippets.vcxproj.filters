@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO0.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO4.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO5.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO6.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\AUTO7.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\MULTI0.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\MULTI2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\MULTI3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\MULTI4.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\MULTI5.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\dldt_optimization_guide8.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\dldt_optimization_guide9.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\example_itask_executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\export_compiled_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\lpt_intel_cpu_plugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ngraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_auto_batching.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_caching.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_denormals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_dynamic_shapes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_extensions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_hetero.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_infer_request.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_model_snippets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_model_with_state_infer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_preprocessing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\ov_properties_api.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\protecting_model_guide.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\template_model_transformation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\template_pattern_transformation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\compile_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\context_sharing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\context_sharing_va.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\context_sharing_va_c.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\custom_kernels_api.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\dynamic_batch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\preprocessing_nv12_single_plane.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\preprocessing_nv12_to_gray.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\preprocessing_nv12_two_planes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\preprocessing_nv12_two_planes_c.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\queue_sharing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\remote_objects_creation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\docs\snippets\gpu\remote_objects_creation_c.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\docs\snippets\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

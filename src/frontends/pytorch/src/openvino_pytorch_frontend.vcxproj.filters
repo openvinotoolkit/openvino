@@ -1,0 +1,695 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\extensions.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\frontend.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\input_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\node_context.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\adaptive_poolnd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\add.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\addcmul.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\addmm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\all.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\arange.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\argmax_argmin.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\as_strided.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\as_tensor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\avg_poolnd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\batch_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\bitwise.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\bool.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cat.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\clamp.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\constant.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\conv_transposend.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convnd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convolution.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convolution_mode.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\copy.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cross.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cumsum.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\deform_conv.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\derive_index.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\dim.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\distance.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\div.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\elu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\embedding.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\embedding_bag.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\erf.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\erfc.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\expand.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\eye.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\fake_quantize.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\flatten.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\flip.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\floor_divide.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\fmod.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\full.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gather.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gcd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gelu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\get_attr.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\getitem.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\glu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\grid_sampler.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\group_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\hardtanh.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\if.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\im2col.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_add.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_put_.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_select.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\instance_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\int.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\is_nonzero.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\layer_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\leaky_relu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\len.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\linear.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\linspace.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\list_construct.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\list_unpack.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\log.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\log_softmax.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\logical.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\loop.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\lstm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\masked_fill.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\masked_scatter.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\max_poolnd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\mean.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\meshgrid.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\min_max.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\multinomial.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\narrow.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\native_multi_head_attention.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\neg.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\nms.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\nonzero.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\numel.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\one_hot.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\outer.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pack_sequence.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pad.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pixel_shuffle.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pow.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\prod.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pythonop.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantize.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_add.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_convnd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_hardswish.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_linear.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_mul.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rand.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\range_length.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reciprocal.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\relu6.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\remainder.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\repeat_interleave.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reshape.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reshape_as.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\roi_align.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\roll.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\round.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rsqrt.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rsub.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scalar_tensor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scaled_dot_product_attention.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scatter.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\select.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\selu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\set_item.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\shape_as_tensor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sign.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\size.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\slice.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\slice_scatter.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\softmax.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sort.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\split.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\square.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\squeeze.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sub.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sum.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\take_along_dim.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\to.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\topk.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\transpose.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\trilu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\tuple_index.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\unflatten.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\unfold.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\upsample.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\var_mean.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\where.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op_table.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\place.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\pytorch.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\align_types_removal.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\append_list_unpack_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_cat_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_getitem_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_put_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_stack_list_construct_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\dict_resolver.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\einsum_list_construct.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\index_loop_getitem_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\irfftn_complex_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\listconstruct_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\min_max_prim_list_construct_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_construct_pad.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_tuple_construct_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_unpack_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_unpack_parameter_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\quantized_node_remover.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\remove_packing_ops.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\reverseprop_resolver.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\rfftn_complex_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\softmax_reshape_elimination.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\string_equality_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\tuple_unpack_replacer.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\u4_block_repack.cpp">
+      <Filter>src\transforms</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\translate_session.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils_quantize.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\align_types.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\gather_assign.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\internal_op.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\packed_sequence.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\slice_assign.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\input_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op_table.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\place.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\pt_framework_node.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\align_types_removal.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\append_list_unpack_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_cat_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_getitem_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_put_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_stack_list_construct_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\dict_resolver.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\einsum_list_construct.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\index_loop_getitem_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\irfftn_complex_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\listconstruct_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\min_max_prim_list_construct_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_construct_pad.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_tuple_construct_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_unpack_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_unpack_parameter_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\quantized_node_remover.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\remove_packing_ops.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\reverseprop_resolver.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\rfftn_complex_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\softmax_reshape_elimination.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\string_equality_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\tuple_unpack_replacer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\u4_block_repack.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\translate_session.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils_quantize.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\decoder.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\extension\conversion.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\extension\op.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\frontend.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\node_context.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\visibility.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\vs_version.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="public include">
+      <UniqueIdentifier>{D1D62569-1AC0-300E-ADBA-D7C68054090D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\op">
+      <UniqueIdentifier>{2F1EE874-49F9-363E-93AC-051DF655B2EA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\transforms">
+      <UniqueIdentifier>{F61F5A9C-A38D-3144-A3F3-A4F29DF1EB24}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

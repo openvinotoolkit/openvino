@@ -1,0 +1,801 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4ABB875A-3722-38A0-81E7-64A92DC6EFEB}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>onednn_gpu_build</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-mkdir.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Creating directories for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -Dcfgdir=/Debug -P D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-mkdirs.cmake
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-mkdir
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-mkdir</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Creating directories for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -Dcfgdir=/Release -P D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-mkdirs.cmake
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-mkdir
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-mkdir</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Creating directories for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -Dcfgdir=/MinSizeRel -P D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-mkdirs.cmake
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-mkdir
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-mkdir</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Creating directories for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -Dcfgdir=/RelWithDebInfo -P D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-mkdirs.cmake
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-mkdir
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-mkdir</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-download.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No download step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-download
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-source_dirinfo.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-mkdir;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-download</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">No download step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-download
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-source_dirinfo.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-mkdir;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-download</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">No download step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-download
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-source_dirinfo.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-mkdir;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-download</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">No download step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-download
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-source_dirinfo.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-mkdir;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-download</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-update.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No update step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-update
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-update-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-download;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-update</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">No update step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-update
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-update-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-download;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-update</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">No update step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-update
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-update-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-download;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-update</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">No update step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-update
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-update-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-download;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-update</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-patch.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">No patch step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-patch
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-patch-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-update;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-patch</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">No patch step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-patch
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-patch-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-update;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-patch</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">No patch step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-patch
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-patch-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-update;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-patch</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">No patch step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E echo_append
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-patch
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\onednn_gpu_build-patch-info.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-update;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-patch</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-configure.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Performing configure step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION=10.0.22000 -DCMAKE_SYSTEM_PROCESSOR=AMD64 -DCMAKE_TOOLCHAIN_FILE= -DOpenCL_LIBRARY=D:/OPENVINO/openvino/bin/intel64/Debug/OpenCLd.lib -DOpenCL_INCLUDE_DIR=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers "-DCMAKE_CXX_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" "-DCMAKE_C_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" -DCMAKE_CXX_COMPILER_LAUNCHER= -DCMAKE_C_COMPILER_LAUNCHER= "-DCMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /GR /EHsc /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" "-DCMAKE_C_FLAGS=/DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF -DCMAKE_POLICY_DEFAULT_CMP0069=NEW -DDNNL_TARGET_ARCH=X64 -DDNNL_CPU_RUNTIME=NONE -DDNNL_GPU_RUNTIME=OCL -DDNNL_LIBRARY_NAME=openvino_onednn_gpu -DCMAKE_INSTALL_PREFIX=D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_install -DDNNL_ENABLE_CONCURRENT_EXEC=ON -DDNNL_ENABLE_PRIMITIVE_CACHE=OFF -DDNNL_ENABLE_WORKLOAD=INFERENCE -DDNNL_ENABLE_JIT_PROFILING=ON -DDNNL_ENABLE_ITT_TASKS=ON -DDNNL_BUILD_TESTS=OFF -DDNNL_BUILD_EXAMPLES=OFF -DDNNL_BLAS_VENDOR=NONE -DDNNL_LIBRARY_TYPE=STATIC -DDNNL_EXPERIMENTAL_PROFILING=ON -DONEDNN_BUILD_GRAPH=OFF -DOpenCL_INCLUDE_DIRS=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/clhpp_headers/include -DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-GVisual Studio 17 2022" "-DCMAKE_GENERATOR_INSTANCE:INTERNAL=C:/Program Files/Microsoft Visual Studio/2022/Community" -CD:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-cache-Debug.cmake -S D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu -B D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-configure
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cfgcmd.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cache-Debug.cmake;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-patch;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-configure</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Performing configure step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION=10.0.22000 -DCMAKE_SYSTEM_PROCESSOR=AMD64 -DCMAKE_TOOLCHAIN_FILE= -DOpenCL_LIBRARY=D:/OPENVINO/openvino/bin/intel64/Release/OpenCL.lib -DOpenCL_INCLUDE_DIR=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers "-DCMAKE_CXX_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" "-DCMAKE_C_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" -DCMAKE_CXX_COMPILER_LAUNCHER= -DCMAKE_C_COMPILER_LAUNCHER= "-DCMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /GR /EHsc /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" "-DCMAKE_C_FLAGS=/DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF -DCMAKE_POLICY_DEFAULT_CMP0069=NEW -DDNNL_TARGET_ARCH=X64 -DDNNL_CPU_RUNTIME=NONE -DDNNL_GPU_RUNTIME=OCL -DDNNL_LIBRARY_NAME=openvino_onednn_gpu -DCMAKE_INSTALL_PREFIX=D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_install -DDNNL_ENABLE_CONCURRENT_EXEC=ON -DDNNL_ENABLE_PRIMITIVE_CACHE=OFF -DDNNL_ENABLE_WORKLOAD=INFERENCE -DDNNL_ENABLE_JIT_PROFILING=ON -DDNNL_ENABLE_ITT_TASKS=ON -DDNNL_BUILD_TESTS=OFF -DDNNL_BUILD_EXAMPLES=OFF -DDNNL_BLAS_VENDOR=NONE -DDNNL_LIBRARY_TYPE=STATIC -DDNNL_EXPERIMENTAL_PROFILING=ON -DONEDNN_BUILD_GRAPH=OFF -DOpenCL_INCLUDE_DIRS=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/clhpp_headers/include -DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-GVisual Studio 17 2022" "-DCMAKE_GENERATOR_INSTANCE:INTERNAL=C:/Program Files/Microsoft Visual Studio/2022/Community" -CD:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-cache-Release.cmake -S D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu -B D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-configure
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cfgcmd.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cache-Release.cmake;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-patch;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-configure</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Performing configure step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION=10.0.22000 -DCMAKE_SYSTEM_PROCESSOR=AMD64 -DCMAKE_TOOLCHAIN_FILE= -DOpenCL_LIBRARY=D:/OPENVINO/openvino/bin/intel64/MinSizeRel/OpenCL.lib -DOpenCL_INCLUDE_DIR=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers "-DCMAKE_CXX_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" "-DCMAKE_C_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" -DCMAKE_CXX_COMPILER_LAUNCHER= -DCMAKE_C_COMPILER_LAUNCHER= "-DCMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /GR /EHsc /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" "-DCMAKE_C_FLAGS=/DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF -DCMAKE_POLICY_DEFAULT_CMP0069=NEW -DDNNL_TARGET_ARCH=X64 -DDNNL_CPU_RUNTIME=NONE -DDNNL_GPU_RUNTIME=OCL -DDNNL_LIBRARY_NAME=openvino_onednn_gpu -DCMAKE_INSTALL_PREFIX=D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_install -DDNNL_ENABLE_CONCURRENT_EXEC=ON -DDNNL_ENABLE_PRIMITIVE_CACHE=OFF -DDNNL_ENABLE_WORKLOAD=INFERENCE -DDNNL_ENABLE_JIT_PROFILING=ON -DDNNL_ENABLE_ITT_TASKS=ON -DDNNL_BUILD_TESTS=OFF -DDNNL_BUILD_EXAMPLES=OFF -DDNNL_BLAS_VENDOR=NONE -DDNNL_LIBRARY_TYPE=STATIC -DDNNL_EXPERIMENTAL_PROFILING=ON -DONEDNN_BUILD_GRAPH=OFF -DOpenCL_INCLUDE_DIRS=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/clhpp_headers/include -DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-GVisual Studio 17 2022" "-DCMAKE_GENERATOR_INSTANCE:INTERNAL=C:/Program Files/Microsoft Visual Studio/2022/Community" -CD:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-cache-MinSizeRel.cmake -S D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu -B D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-configure
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cfgcmd.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cache-MinSizeRel.cmake;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-patch;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-configure</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Performing configure step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION=10.0.22000 -DCMAKE_SYSTEM_PROCESSOR=AMD64 -DCMAKE_TOOLCHAIN_FILE= -DOpenCL_LIBRARY=D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/OpenCL.lib -DOpenCL_INCLUDE_DIR=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers "-DCMAKE_CXX_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" "-DCMAKE_C_COMPILER=C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.38.33130/bin/Hostx64/x64/cl.exe" -DCMAKE_CXX_COMPILER_LAUNCHER= -DCMAKE_C_COMPILER_LAUNCHER= "-DCMAKE_CXX_FLAGS=/DWIN32 /D_WINDOWS /GR /EHsc /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" "-DCMAKE_C_FLAGS=/DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /EHsc /Gy /W3 /bigobj /MP /wd4251 /wd4275 /wd4996 /wd4244 /wd4018" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF -DCMAKE_POLICY_DEFAULT_CMP0069=NEW -DDNNL_TARGET_ARCH=X64 -DDNNL_CPU_RUNTIME=NONE -DDNNL_GPU_RUNTIME=OCL -DDNNL_LIBRARY_NAME=openvino_onednn_gpu -DCMAKE_INSTALL_PREFIX=D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_install -DDNNL_ENABLE_CONCURRENT_EXEC=ON -DDNNL_ENABLE_PRIMITIVE_CACHE=OFF -DDNNL_ENABLE_WORKLOAD=INFERENCE -DDNNL_ENABLE_JIT_PROFILING=ON -DDNNL_ENABLE_ITT_TASKS=ON -DDNNL_BUILD_TESTS=OFF -DDNNL_BUILD_EXAMPLES=OFF -DDNNL_BLAS_VENDOR=NONE -DDNNL_LIBRARY_TYPE=STATIC -DDNNL_EXPERIMENTAL_PROFILING=ON -DONEDNN_BUILD_GRAPH=OFF -DOpenCL_INCLUDE_DIRS=D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/cl_headers";"D:/OPENVINO/openvino/thirdparty/ocl/clhpp_headers/include -DCMAKE_POLICY_DEFAULT_CMP0091=NEW "-GVisual Studio 17 2022" "-DCMAKE_GENERATOR_INSTANCE:INTERNAL=C:/Program Files/Microsoft Visual Studio/2022/Community" -CD:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-cache-RelWithDebInfo.cmake -S D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu -B D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-configure
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cfgcmd.txt;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-cache-RelWithDebInfo.cmake;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-patch;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-configure</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-build.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Performing build step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config Debug
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-build
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-configure;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Performing build step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config Release
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-build
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-configure;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Performing build step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config MinSizeRel
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-build
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-configure;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Performing build step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config RelWithDebInfo
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-build
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-configure;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-install.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Performing install step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config Debug --target install
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-install
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-install</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Performing install step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config Release --target install
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-install
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-install</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Performing install step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config MinSizeRel --target install
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-install
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-install</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Performing install step for 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+cd D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build
+if %errorlevel% neq 0 goto :cmEnd
+D:
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe --build . --config RelWithDebInfo --target install
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-install
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-install</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\f46f9bcf2944e655847cee9d796c855b\onednn_gpu_build-complete.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Completed 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E make_directory D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/Debug
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/Debug/onednn_gpu_build-complete
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Debug/onednn_gpu_build-done
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-install;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-mkdir;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-download;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-update;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-patch;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-configure;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Debug\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\Debug\onednn_gpu_build-complete</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Completed 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E make_directory D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/Release
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/Release/onednn_gpu_build-complete
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/Release/onednn_gpu_build-done
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-install;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-mkdir;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-download;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-update;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-patch;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-configure;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\Release\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\Release\onednn_gpu_build-complete</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Completed 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E make_directory D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/MinSizeRel
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/MinSizeRel/onednn_gpu_build-complete
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/MinSizeRel/onednn_gpu_build-done
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-install;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-mkdir;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-download;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-update;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-patch;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-configure;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\MinSizeRel\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\MinSizeRel\onednn_gpu_build-complete</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Completed 'onednn_gpu_build'</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E make_directory D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/RelWithDebInfo
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/RelWithDebInfo/onednn_gpu_build-complete
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E touch D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/src/onednn_gpu_build-stamp/RelWithDebInfo/onednn_gpu_build-done
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-install;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-mkdir;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-download;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-update;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-patch;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-configure;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\src\onednn_gpu_build-stamp\RelWithDebInfo\onednn_gpu_build-build;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\RelWithDebInfo\onednn_gpu_build-complete</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\bc4217748596a180b6306f7ba68e6a0f\onednn_gpu_build.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\Debug\onednn_gpu_build-complete;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</VerifyInputsAndOutputsExist>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\Release\onednn_gpu_build-complete;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</VerifyInputsAndOutputsExist>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\MinSizeRel\onednn_gpu_build-complete;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</VerifyInputsAndOutputsExist>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'"></Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\RelWithDebInfo\onednn_gpu_build-complete;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+      <VerifyInputsAndOutputsExist Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</VerifyInputsAndOutputsExist>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\PatchInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\RepositoryInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\UpdateInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\cfgcmd.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\mkdirs.cmake.in;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-mkdirs.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\PatchInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\RepositoryInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\UpdateInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\cfgcmd.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\mkdirs.cmake.in;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-mkdirs.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\PatchInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\RepositoryInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\UpdateInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\cfgcmd.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\mkdirs.cmake.in;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-mkdirs.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\PatchInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\RepositoryInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\UpdateInfo.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\cfgcmd.txt.in;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\mkdirs.cmake.in;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_root\tmp\onednn_gpu_build-mkdirs.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build">
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

@@ -1,0 +1,6 @@
+# CMake generation dependency list for this directory.
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/shared_internal_commands.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/FetchContent.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/FetchContent/CMakeLists.cmake.in
+D:/OPENVINO/openvino/CMakeFiles/cmake.verify_globs
+D:/OPENVINO/openvino/src/bindings/js/node/CMakeLists.txt

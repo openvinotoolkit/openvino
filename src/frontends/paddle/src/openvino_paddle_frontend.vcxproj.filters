@@ -1,0 +1,526 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder_proto.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\exception.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\extensions.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\frontend.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\input_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\conditional_block.cpp">
+      <Filter>src\internal\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\tensorarray_write.cpp">
+      <Filter>src\internal\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\while.cpp">
+      <Filter>src\internal\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_fakequantize.cpp">
+      <Filter>src\internal\pass</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_if.cpp">
+      <Filter>src\internal\pass</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_tensorarray.cpp">
+      <Filter>src\internal\pass</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_while.cpp">
+      <Filter>src\internal\pass</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\argmax.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\assign.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\assign_value.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\batch_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\box_coder.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cast.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\ceil.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\clip.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\concat.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conditional_block.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_transpose.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_utils.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cos.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cumsum.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\deformable_conv.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\dequantize_linear.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\dropout.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\elementwise_ops.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\embedding.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\exp.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\expand_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_any_like.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_constant.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_constant_batch_size_like.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\flatten_contiguous_range.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\flip.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\floor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gather.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gather_nd.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gelu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\generate_proposals_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\greater_than.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\grid_sampler.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\group_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\hard_sigmoid.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\hard_swish.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\index_select.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\interp.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\layer_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\leakyrelu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\less_than.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\linspace.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\lod_array_length.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\log.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_and.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_not.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_or.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_xor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\lstm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matmul.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matmul_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matrix_nms.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\meshgrid.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\multiclass_nms.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\one_hot_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\p_norm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pad3d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\partial_ops.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pool2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pool3d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pow.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\prior_box.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\quantize_linear.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\range.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_all.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_max.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_mean.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_min.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_prod.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_sum.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\relu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\relu6.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reshape2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reverse.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\rnn.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\roi_align.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\scale.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\select_input.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\set_value.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\shape.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\share_data.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sigmoid.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\silu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sin.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\slice.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softmax.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softplus.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softshrink.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\split.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sqrt.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\squeeze.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\stack.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\strided_slice.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sum.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\swish.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tanh.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tanh_shrink.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tensor_array_to_tensor.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tile.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\top_k_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\transpose2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unique.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unsqueeze.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unstack.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\where.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\where_index.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\while.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\write_to_array.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\yolo_box.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op_table.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_fw_node.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\place.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder_proto.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\default_opset.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\input_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\conditional_block.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\tensorarray_write.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\while.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_fakequantize.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_if.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_tensorarray.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_while.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\elementwise_ops.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\partial_ops.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_ops.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reverse_op.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\slice_ops.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op_table.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_fw_node.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\place.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\decoder.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\exception.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\extension\conversion.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\extension\op.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\frontend.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\node_context.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\visibility.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b32fed44d5ed4cfd4119e69a6353b7dd\framework.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto">
+      <Filter>src\proto</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\vs_version.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4AB65DCD-AF60-3373-9FA5-1021DF5123DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="public include">
+      <UniqueIdentifier>{D1D62569-1AC0-300E-ADBA-D7C68054090D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\internal">
+      <UniqueIdentifier>{073B9CEC-1049-3976-8BE7-12F428B39B9C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\internal\op">
+      <UniqueIdentifier>{7DCBFB03-F8D8-3FA6-B8E1-F2958B63C027}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\internal\pass">
+      <UniqueIdentifier>{BDE9F8E3-4920-3B50-AC88-E981A57DF791}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\op">
+      <UniqueIdentifier>{2F1EE874-49F9-363E-93AC-051DF655B2EA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\proto">
+      <UniqueIdentifier>{B1D4B42A-7EEC-3078-8AEC-534CA6409371}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

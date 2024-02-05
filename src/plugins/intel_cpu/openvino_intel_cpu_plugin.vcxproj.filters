@@ -1,0 +1,1945 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\async_infer_request.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cache\multi_cache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\compiled_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_map_scheduling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_streams_calculation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_tensor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_extension_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_postops_composer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_postops_composer_legacy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\edge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_conversion_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_dnnl_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_eltwise_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_load_store_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\utils\debug_caps_config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\cpu_generator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_brgemm_copy_b_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_brgemm_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_container_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_debug_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_fill_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_horizon_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_kernel_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_loop_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_memory_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_perf_count_chrono_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_perf_count_rdtsc_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_segfault_detector_emitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_snippets_emitters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\verbose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_context.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_dumper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_optimizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\infer_request.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\blocked_memory_desc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\cpu_blocked_memory_desc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\cpu_memory_desc_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\dnnl_blocked_memory_desc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\dnnl_memory_desc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_state.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\mlas\sgemm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\mlas\thread_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\node.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\adaptive_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\batch_to_space.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\bin_conv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\broadcast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\bucketize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\color_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\arbitrary_order_desc_creator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\blocked_desc_creator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\cpu_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\dnnl_executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\permute_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\reorder_prim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\tile_broadcast_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\concat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\conv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_greedy_decoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_greedy_decoder_seq_len.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_loss.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\cum_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\deconv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\def_conv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\depth_to_space.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\detection_output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\dft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\eltwise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_offset_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_packed_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_segments_sum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_opt_transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\convert_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\deconv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\deconv_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_convolution_primitive.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_fullyconnected_primitive.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\eltwise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\eltwise_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\fullyconnected_implementations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\interpolate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\interpolate_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mlas\mlas_gemm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mlas\mlas_transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mvn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mvn_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\pooling_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\precision_matcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\precision_translation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\printers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\reduce.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\reduce_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\transpose_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\x64\jit_transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_detection_output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_generate_proposals_single_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_priorgridgenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_roifeatureextractor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_topkrois.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\extract_image_patches.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\eye.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\fake_quantize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\fullyconnected.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_elements.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_nd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\generate_proposals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\grid_sample.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\grn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\if.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\interaction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\interpolate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\brgemm_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\dft_uni_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\gather_uni_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\grid_sample.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\jit_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\jit_kernel_base.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\non_max_suppression.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\random_uniform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\rdft_kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\log_softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\lrn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mathematics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\matmul.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\matrix_nms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mha.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\multiclass_nms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\multinomial.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mvn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ngram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\non_max_suppression.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\non_zero.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\normalize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\one_hot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\pad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\priorbox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\priorbox_clustered.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\proposal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\psroi_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\random_uniform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\range.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rdft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reduce.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reference.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\region_yolo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reorder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reorg_yolo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reshape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reverse_sequence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rnn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roi_align.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roi_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roll.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rope.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\scaled_attn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\scatter_update.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\shapeof.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\shuffle_channels.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\space_to_batch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\space_to_depth.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\split.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\strided_slice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\subgraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\tensoriterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\tile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\topk.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\unique.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes_factory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\onednn\dnnl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\onednn\iml_type_mapper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\partitioned_mem_mgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\post_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\proxy_mem_mgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\serialize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\adaptive_pooling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\color_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\eltwise.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\fullyconnected.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\gather.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\matmul.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\ngram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\one_hot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\priorbox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\priorbox_clustered.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\reshape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\scaled_attn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\strided_slice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_ngraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\static_dimension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\static_shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\fully_connected.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\leaky_relu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\ngram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\power_static.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\rope.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\sdpa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\swish_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\align_matmul_input_ranks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_broadcast_to_tiles.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_fq_rnn_to_quantized_rnn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_matmul_to_fc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_tile_to_seq_tiles.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_leaky_relu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_power_static.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_swish_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\decompose_integer_divide.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\insert_convert_after_extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\move_eltwise_up_data_movement.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\move_fc_reshape_to_weights.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\ngram_fusion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\rnn_sequences_optimization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\rope_fusion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\stateful_sdpa_fusion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\swap_convert_transpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\op\interaction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\op\mha.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\pass\convert_to_interaction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\pass\mha_fusion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\brgemm_copy_b.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\brgemm_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\fused_mul_add.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\load_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\perf_count_rdtsc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\store_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\brgemm_to_brgemm_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\enforce_precision.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\brgemm_blocking.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\fuse_load_store_and_convert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\set_brgemm_copy_b_buffers_shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\mul_add_to_fma.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\remove_converts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\set_brgemm_cpu_blocking_params.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\snippets_mark_skipped.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\shape_inference.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\transformation_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\blob_dump.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\debug_capabilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\debug_caps_config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\node_dumper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\precision_support.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\rt_info\memory_formats_attribute.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\verbose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\weights_cache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX2\proposal_imp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\ANY\proposal_imp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\proposal_imp_disp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX512F\softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX2\softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\ANY\softmax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\softmax_disp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX512F\mha_single_token.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX2\mha_single_token.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\ANY\mha_single_token.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\mha_single_token_disp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX512F\attn_memcpy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\AVX2\attn_memcpy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\ANY\attn_memcpy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\cross-compiled\attn_memcpy_disp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\async_infer_request.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cache\cache_entry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cache\lru_cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cache\multi_cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\compiled_model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_map_scheduling.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_shape.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_streams_calculation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_tensor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\cpu_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_extension_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_postops_composer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_postops_composer_legacy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\dnnl_scratch_pad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\edge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_bf16_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_conversion_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_dnnl_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_dnnl_ext_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_eltwise_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\jit_load_store_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\plugin\x64\utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\utils\debug_caps_config.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\cpu_generator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_brgemm_copy_b_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_brgemm_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_container_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_debug_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_fill_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_horizon_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_kernel_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_loop_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_memory_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_perf_count_chrono_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_perf_count_rdtsc_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_segfault_detector_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\jit_snippets_emitters.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\snippets\x64\verbose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\emitters\utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_dumper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\graph_optimizer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\hash_builder.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\infer_request.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\internal_properties.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\itt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\blocked_memory_desc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\cpu_blocked_memory_desc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\cpu_memory_desc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\cpu_memory_desc_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\dnnl_blocked_memory_desc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_desc\dnnl_memory_desc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\memory_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\mlas\sgemm.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\mlas\thread_pool.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\adaptive_pooling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\batch_to_space.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\bin_conv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\broadcast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\bucketize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\color_convert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\arbitrary_order_desc_creator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\blocked_desc_creator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\cpu_convert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\cpu_memcpy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\defs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\dnnl_executor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\fp16_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\permute_kernel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\reorder_prim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\softmax.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\tile_broadcast_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\common\uni_simd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\concat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\conv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\convert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_greedy_decoder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_greedy_decoder_seq_len.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ctc_loss.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\cum_sum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\deconv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\def_conv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\depth_to_space.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\detection_output.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\dft.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\eltwise.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_offset_sum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_packed_sum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_bag_sum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\embedding_segments_sum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_opt_transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\common\ref_transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\convert_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\convolution_config.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\debug_messages.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\deconv.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\deconv_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_aliases.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_convolution_primitive.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_fullyconnected.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_fullyconnected_primitive.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_post_op_data.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_shape_agnostic_data.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\dnnl\dnnl_utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\eltwise.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\eltwise_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\executor.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\executor_config.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\executor_factory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\executor_implementation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\fullyconnected_config.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\graph_emitter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\implementation_utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\implementations.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\interpolate.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\interpolate_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\memory_arguments.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mlas\mlas_gemm.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mlas\mlas_transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mvn.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\mvn_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\pooling.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\pooling_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\precision_matcher.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\precision_translation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\printers.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\reduce.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\reduce_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\transpose_list.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\type_mask.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\executors\x64\jit_transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_detection_output.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_generate_proposals_single_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_priorgridgenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_roifeatureextractor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\experimental_detectron_topkrois.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\extract_image_patches.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\eye.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\fake_quantize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\fullyconnected.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_elements.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_nd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\gather_tree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\generate_proposals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\grid_sample.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\grn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\if.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\interaction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\interpolate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\scaled_attn\attn_memcpy.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\scaled_attn\common.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\scaled_attn\mha_single_token.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\scaled_attn\softmax.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\scaled_attn\softmax_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\brgemm_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\dft_uni_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\gather_uni_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\grid_sample.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\jit_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\jit_kernel_base.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\non_max_suppression.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\random_uniform.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\rdft_kernel.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\kernels\x64\registers_pool.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\log_softmax.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\lrn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mathematics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\matmul.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\matrix_nms.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\memory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mha.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\multiclass_nms.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\multinomial.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\mvn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\ngram.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\node_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\non_max_suppression.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\non_zero.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\normalize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\one_hot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\pad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\pooling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\priorbox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\priorbox_clustered.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\proposal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\proposal_imp.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\psroi_pooling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\random_uniform.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\range.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rdft.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reduce.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reference.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\region_yolo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reorder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reorg_yolo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reshape.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\reverse_sequence.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rnn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roi_align.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roi_pooling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\roll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\rope.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\scaled_attn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\scatter_update.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\shapeof.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\shuffle_channels.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\softmax.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\space_to_batch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\space_to_depth.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\split.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\strided_slice.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\subgraph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\tensoriterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\tile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\topk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\transpose.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\nodes\unique.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\onednn\dnnl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\onednn\iml_type_mapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\partitioned_mem_mgr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\perf_count.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\plugin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\post_ops.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\proxy_mem_mgr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\selective_build.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\serialize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\adaptive_pooling.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\color_convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\eltwise.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\fullyconnected.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\gather.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\matmul.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\ngram.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\one_hot.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\priorbox.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\priorbox_clustered.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\reshape.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\scaled_attn.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\shapeof.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\strided_slice.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\subgraph.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\custom\transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\memory_accessor.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_cpu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_internal_dyn.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_ngraph.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_pass_through.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\shape_inference_status.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\static_dimension.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\shape_inference\static_shape.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\fully_connected.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\leaky_relu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\ngram.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\power_static.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\rope.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\sdpa.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\op\swish_cpu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\align_matmul_input_ranks.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_broadcast_to_tiles.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_fq_rnn_to_quantized_rnn.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_matmul_to_fc.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_tile_to_seq_tiles.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_leaky_relu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_power_static.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\convert_to_swish_cpu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\decompose_integer_divide.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\insert_convert_after_extension.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\move_eltwise_up_data_movement.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\move_fc_reshape_to_weights.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\ngram_fusion.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\rnn_sequences_optimization.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\rope_fusion.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\stateful_sdpa_fusion.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\common\pass\swap_convert_transpose.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\convert_to_cpu_specific_opset.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\op\interaction.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\op\mha.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\pass\convert_to_interaction.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\pass\mha_fusion.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\cpu_opset\x64\pass\simplify_fakequantize.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\defs.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\itt.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\brgemm_copy_b.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\brgemm_cpu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\fused_mul_add.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\load_convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\perf_count_rdtsc.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\op\store_convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\brgemm_to_brgemm_cpu.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\enforce_precision.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\brgemm_blocking.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\fuse_load_store_and_convert.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\lowered\set_brgemm_copy_b_buffers_shape.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\mul_add_to_fma.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\remove_converts.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\set_brgemm_cpu_blocking_params.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\pass\snippets_mark_skipped.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\snippets\x64\shape_inference.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\transformation_pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\transformations\utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\bfloat16.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\bit_util.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\blob_dump.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\caseless.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\cpp\maybe_unused.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\cpu_utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\debug_capabilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\debug_caps_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\denormals.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\enum_class_hash.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\gen_pattern.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\general_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\multidim_map.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\ngraph_transformation.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\ngraph_utils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\node_dumper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\plain_tensor.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\precision_support.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\print_model.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\rt_info\memory_formats_attribute.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\utils\verbose.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\src\weights_cache.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\95dbf05a70fed97934cbaadb3bbec3e2\proposal_imp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b75e5001161a846215185ca2863fac01\proposal_imp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\4d213e490641214c1834289d18633d40\proposal_imp_disp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\069bc1e7e0f274a33c10a27eac79b1cd\softmax.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\95dbf05a70fed97934cbaadb3bbec3e2\softmax.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b75e5001161a846215185ca2863fac01\softmax.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\4d213e490641214c1834289d18633d40\softmax_disp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\069bc1e7e0f274a33c10a27eac79b1cd\mha_single_token.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\95dbf05a70fed97934cbaadb3bbec3e2\mha_single_token.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b75e5001161a846215185ca2863fac01\mha_single_token.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\4d213e490641214c1834289d18633d40\mha_single_token_disp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\069bc1e7e0f274a33c10a27eac79b1cd\attn_memcpy.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\95dbf05a70fed97934cbaadb3bbec3e2\attn_memcpy.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b75e5001161a846215185ca2863fac01\attn_memcpy.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\4d213e490641214c1834289d18633d40\attn_memcpy_disp.cpp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\openvino_intel_cpu_plugin_version.dir\$(Configuration)\plugin.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\vs_version.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4AB65DCD-AF60-3373-9FA5-1021DF5123DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object Libraries">
+      <UniqueIdentifier>{C44514EB-4311-3886-8C41-402145186015}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

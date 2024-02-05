@@ -1,0 +1,641 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{25F2DFD3-0263-302B-B984-C183BCC7ACD7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino_paddle_frontend</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_paddle_frontend.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_paddle_frontendd</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_paddle_frontend.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_paddle_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_paddle_frontend.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_paddle_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_paddle_frontend.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_paddle_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Debug\";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Debug\openvino_protobuf_shutdownd.lib;..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\bin\intel64\Debug\openvinod.lib;..\..\..\..\bin\intel64\Debug\libprotobuf-lited.lib;..\..\..\..\bin\intel64\Debug\openvino_ittd.lib;..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\bin\intel64\Debug\pugixmld.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_paddle_frontendd.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_paddle_frontendd.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Release\";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Release\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\bin\intel64\Release\openvino.lib;..\..\..\..\bin\intel64\Release\libprotobuf-lite.lib;..\..\..\..\bin\intel64\Release\openvino_itt.lib;..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\bin\intel64\Release\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Release/openvino_paddle_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Release/openvino_paddle_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"MinSizeRel\";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\MinSizeRel\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino.lib;..\..\..\..\bin\intel64\MinSizeRel\libprotobuf-lite.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_itt.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\bin\intel64\MinSizeRel\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_paddle_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_paddle_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"RelWithDebInfo\";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_paddle_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\paddle\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\paddle\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\RelWithDebInfo\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino.lib;..\..\..\..\bin\intel64\RelWithDebInfo\libprotobuf-lite.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_itt.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\bin\intel64\RelWithDebInfo\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_paddle_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_paddle_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\b32fed44d5ed4cfd4119e69a6353b7dd\framework.pb.cc.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Running C++ protocol buffer compiler (D:/OPENVINO/openvino/bin/intel64/Debug/protoc.exe) on src/frontends/paddle/src/proto/framework.proto</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+..\..\..\..\bin\intel64\Debug\protoc.exe --cpp_out D:/OPENVINO/openvino/src/frontends/paddle/src -I D:/OPENVINO/openvino/src/frontends/paddle/src/proto D:/OPENVINO/openvino/src/frontends/paddle/src/proto/framework.proto
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\protoc.exe;D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc;D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Running C++ protocol buffer compiler (D:/OPENVINO/openvino/bin/intel64/Release/protoc.exe) on src/frontends/paddle/src/proto/framework.proto</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+..\..\..\..\bin\intel64\Release\protoc.exe --cpp_out D:/OPENVINO/openvino/src/frontends/paddle/src -I D:/OPENVINO/openvino/src/frontends/paddle/src/proto D:/OPENVINO/openvino/src/frontends/paddle/src/proto/framework.proto
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\protoc.exe;D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc;D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Running C++ protocol buffer compiler (D:/OPENVINO/openvino/bin/intel64/MinSizeRel/protoc.exe) on src/frontends/paddle/src/proto/framework.proto</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+..\..\..\..\bin\intel64\MinSizeRel\protoc.exe --cpp_out D:/OPENVINO/openvino/src/frontends/paddle/src -I D:/OPENVINO/openvino/src/frontends/paddle/src/proto D:/OPENVINO/openvino/src/frontends/paddle/src/proto/framework.proto
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\protoc.exe;D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc;D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Running C++ protocol buffer compiler (D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/protoc.exe) on src/frontends/paddle/src/proto/framework.proto</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+..\..\..\..\bin\intel64\RelWithDebInfo\protoc.exe --cpp_out D:/OPENVINO/openvino/src/frontends/paddle/src -I D:/OPENVINO/openvino/src/frontends/paddle/src/proto D:/OPENVINO/openvino/src/frontends/paddle/src/proto/framework.proto
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\protoc.exe;D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc;D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/paddle/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\frontends\paddle\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder_proto.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\exception.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\extensions.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\frontend.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\input_model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\conditional_block.cpp">
+      <ObjectFileName>$(IntDir)/internal/op/conditional_block.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\tensorarray_write.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\while.cpp">
+      <ObjectFileName>$(IntDir)/internal/op/while.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_fakequantize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_if.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_tensorarray.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_while.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\argmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\assign.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\assign_value.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\batch_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\box_coder.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cast.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\ceil.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\clip.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\concat.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conditional_block.cpp">
+      <ObjectFileName>$(IntDir)/op/conditional_block.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_transpose.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_utils.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cos.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\cumsum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\deformable_conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\dequantize_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\dropout.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\elementwise_ops.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\embedding.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\exp.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\expand_v2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_any_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_constant.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\fill_constant_batch_size_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\flatten_contiguous_range.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\flip.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\floor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gather.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gather_nd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\gelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\generate_proposals_v2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\greater_than.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\grid_sampler.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\group_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\hard_sigmoid.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\hard_swish.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\index_select.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\interp.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\layer_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\leakyrelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\less_than.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\linspace.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\lod_array_length.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\log.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_and.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_not.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_or.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\logical_xor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\lstm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matmul.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matmul_v2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\matrix_nms.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\meshgrid.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\multiclass_nms.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\one_hot_v2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\p_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pad3d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\partial_ops.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pool2d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pool3d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\pow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\prior_box.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\quantize_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\range.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_all.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_max.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_mean.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_min.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_prod.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_sum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\relu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\relu6.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reshape2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reverse.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\rnn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\roi_align.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\scale.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\select_input.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\set_value.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\shape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\share_data.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sigmoid.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\silu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sin.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\slice.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softplus.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\softshrink.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\split.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sqrt.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\squeeze.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\stack.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\strided_slice.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\sum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\swish.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tanh.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tanh_shrink.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tensor_array_to_tensor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\tile.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\top_k_v2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\transpose2.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unique.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unsqueeze.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\unstack.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\where.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\where_index.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\while.cpp">
+      <ObjectFileName>$(IntDir)/op/while.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\write_to_array.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\yolo_box.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op_table.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_fw_node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_utils.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\place.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\decoder_proto.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\default_opset.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\input_model.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\conditional_block.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\tensorarray_write.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\op\while.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_fakequantize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_if.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_tensorarray.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\internal\pass\transform_while.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\conv2d_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\elementwise_ops.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\partial_ops.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reduce_ops.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\reverse_op.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op\slice_ops.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\op_table.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_fw_node.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\paddle_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\place.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\decoder.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\exception.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\extension\conversion.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\extension\op.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\frontend.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\node_context.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\include\openvino\frontend\paddle\visibility.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.cc">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalOptions) -w</AdditionalOptions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ScanSourceforModuleDependencies>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalOptions) -w</AdditionalOptions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ScanSourceforModuleDependencies>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalOptions) -w</AdditionalOptions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</ScanSourceforModuleDependencies>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalOptions) -w</AdditionalOptions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</ScanSourceforModuleDependencies>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\paddle\src\framework.pb.h" />
+    <None Include="D:\OPENVINO\openvino\src\frontends\paddle\src\proto\framework.proto">
+    </None>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\paddle\src\vs_version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\cmake\libprotobuf-lite.vcxproj">
+      <Project>{506B34A9-019D-33A9-AB69-599C50335C3C}</Project>
+      <Name>libprotobuf-lite</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\common\shutdown_protobuf\openvino_protobuf_shutdown.vcxproj">
+      <Project>{2AAC983F-8535-3911-90E6-447850120333}</Project>
+      <Name>openvino_protobuf_shutdown</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\cmake\protoc.vcxproj">
+      <Project>{8233ABD5-1D87-3ABE-98BF-78BEC5206A72}</Project>
+      <Name>protoc</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

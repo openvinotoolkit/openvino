@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\common_util.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\env_util.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\file_util.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\log.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\os\win\win_mmap_object.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\os\win\win_shared_object_loader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\common\util\src\xml_parse_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\common_util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\const_string.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\env_util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\file_util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\log.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\mmap_object.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\pp.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\shared_object.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\util.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\common\util\include\openvino\util\xml_parse_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\common\util\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

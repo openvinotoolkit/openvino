@@ -1,0 +1,615 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A1FEE476-9A49-39F6-8F1D-3CD16E30C9EF}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino_pytorch_frontend</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_pytorch_frontend.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_pytorch_frontendd</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_pytorch_frontend.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_pytorch_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_pytorch_frontend.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_pytorch_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_pytorch_frontend.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_pytorch_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Debug\";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\bin\intel64\Debug\openvinod.lib;..\..\..\..\bin\intel64\Debug\openvino_ittd.lib;..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\bin\intel64\Debug\pugixmld.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_pytorch_frontendd.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_pytorch_frontendd.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Release\";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\bin\intel64\Release\openvino.lib;..\..\..\..\bin\intel64\Release\openvino_itt.lib;..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\bin\intel64\Release\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Release/openvino_pytorch_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Release/openvino_pytorch_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"MinSizeRel\";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_itt.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\bin\intel64\MinSizeRel\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_pytorch_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_pytorch_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"RelWithDebInfo\";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_pytorch_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\pytorch\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\pytorch\src;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_itt.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\bin\intel64\RelWithDebInfo\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_pytorch_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_pytorch_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/pytorch/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\frontends\pytorch\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\extensions.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\frontend.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\input_model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\node_context.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\adaptive_poolnd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\add.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\addcmul.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\addmm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\all.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\arange.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\argmax_argmin.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\as_strided.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\as_tensor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\avg_poolnd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\batch_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\bitwise.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\bool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cat.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\clamp.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\constant.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\conv_transposend.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convnd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convolution.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\convolution_mode.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\copy.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cross.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\cumsum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\deform_conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\derive_index.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\dim.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\distance.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\div.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\elu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\embedding.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\embedding_bag.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\erf.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\erfc.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\expand.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\eye.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\fake_quantize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\flatten.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\flip.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\floor_divide.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\fmod.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\full.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gather.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gcd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\gelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\get_attr.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\getitem.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\glu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\grid_sampler.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\group_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\hardtanh.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\if.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\im2col.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_add.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_put_.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\index_select.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\instance_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\int.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\is_nonzero.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\layer_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\leaky_relu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\len.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\linspace.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\list_construct.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\list_unpack.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\log.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\log_softmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\logical.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\loop.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\lstm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\masked_fill.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\masked_scatter.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\max_poolnd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\mean.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\meshgrid.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\min_max.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\multinomial.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\narrow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\native_multi_head_attention.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\neg.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\nms.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\nonzero.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\numel.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\one_hot.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\outer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pack_sequence.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pad.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pixel_shuffle.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\prod.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\pythonop.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_add.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_convnd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_hardswish.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\quantized_mul.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rand.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\range_length.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reciprocal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\relu6.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\remainder.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\repeat_interleave.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reshape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\reshape_as.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\roi_align.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\roll.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\round.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rsqrt.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\rsub.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scalar_tensor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scaled_dot_product_attention.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\scatter.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\select.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\selu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\set_item.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\shape_as_tensor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sign.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\size.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\slice.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\slice_scatter.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\softmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sort.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\split.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\square.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\squeeze.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sub.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\sum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\take_along_dim.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\to.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\topk.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\transpose.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\trilu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\tuple_index.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\unflatten.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\unfold.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\upsample.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\var_mean.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op\where.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op_table.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\place.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\pytorch.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\align_types_removal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\append_list_unpack_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_cat_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_getitem_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_put_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_stack_list_construct_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\dict_resolver.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\einsum_list_construct.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\index_loop_getitem_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\irfftn_complex_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\listconstruct_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\min_max_prim_list_construct_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_construct_pad.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_tuple_construct_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_unpack_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_unpack_parameter_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\quantized_node_remover.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\remove_packing_ops.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\reverseprop_resolver.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\rfftn_complex_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\softmax_reshape_elimination.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\string_equality_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\tuple_unpack_replacer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\u4_block_repack.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\translate_session.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils_quantize.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\align_types.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\gather_assign.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\internal_op.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\packed_sequence.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\helper_ops\slice_assign.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\input_model.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\op_table.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\place.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\pt_framework_node.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\align_types_removal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\append_list_unpack_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_cat_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_getitem_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_put_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_index_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\aten_stack_list_construct_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\dict_resolver.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\einsum_list_construct.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\index_loop_getitem_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\irfftn_complex_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\listconstruct_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\min_max_prim_list_construct_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_construct_pad.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_tuple_construct_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_list_unpack_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\prim_unpack_parameter_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\quantized_node_remover.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\remove_packing_ops.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\reverseprop_resolver.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\rfftn_complex_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\softmax_reshape_elimination.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\string_equality_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\tuple_unpack_replacer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\transforms\u4_block_repack.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\translate_session.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\utils_quantize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\decoder.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\extension\conversion.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\extension\op.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\frontend.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\node_context.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\pytorch\include\openvino\frontend\pytorch\visibility.hpp" />
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\vs_version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

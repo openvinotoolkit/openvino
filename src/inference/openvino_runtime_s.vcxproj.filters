@@ -1,0 +1,190 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\inference\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\infer_request.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\plugin.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\remote_context.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\remote_tensor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\any_copy.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\blob_factory.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cache_guard.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\check_network_batchable.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cnn_network_ngraph_impl.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\compilation_context.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\compiled_model.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_cnn_network.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_executable_network.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_infer_request.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_variable_state.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iexecutable_network_internal.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iinfer_request_internal.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iplugin_internal.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_ivariable_state_internal.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\converter_utils.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core_impl.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core_impl_ie.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\device_id_parser.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\exec_model_info.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iasync_infer_request.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\icompiled_model.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\icompiled_model_wrapper.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iplugin.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iplugin_wrapper.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iremote_context.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iremote_tensor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\isync_infer_request.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ivariable_state.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\make_tensor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\plugin.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cpu_streams_executor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cpu_streams_executor_internal.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\executor_manager.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\istreams_executor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\itask_executor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\parallel_custom_arena.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\thread_affinity.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\exception.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_blob_common.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_common.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_core.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_data.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_layouts.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_network_reader.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_ngraph_utils.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\infer_request.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\model_reader.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\openvino_shutdown.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\win_system_conf.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\remote_context.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\remote_tensor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\system_allocator.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\system_conf.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Object Libraries">
+      <UniqueIdentifier>{C44514EB-4311-3886-8C41-402145186015}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

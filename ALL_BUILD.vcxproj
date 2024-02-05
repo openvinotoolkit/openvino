@@ -1,0 +1,506 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ResolveNugetPackages>false</ResolveNugetPackages>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{090A3FFE-28C7-3AE3-9571-530B726FD5F6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>ALL_BUILD</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCXXInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCheckCompilerFlagCommonPatterns.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeDependentOption.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeGenericSystem.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeInitializeConfigs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeLanguageInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakePackageConfigHelpers.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeParseArguments.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeRCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPack.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPackComponent.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\shared_internal_commands.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindCygwin.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindGit.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindMsys.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython\Support.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython3.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindWget.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\GNUInstallDirs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckFlagCommonConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-Initialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\WindowsPaths.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ProcessorCount.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Templates\CPackConfig.cmake.in;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCXXCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeRCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeSystem.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\dependencies.cmake;D:\OPENVINO\openvino\cmake\developer_package\OpenVINODeveloperScriptsConfig.cmake;D:\OPENVINO\openvino\cmake\developer_package\add_target_helpers.cmake;D:\OPENVINO\openvino\cmake\developer_package\api_validator\api_validator.cmake;D:\OPENVINO\openvino\cmake\developer_package\clang_format\clang_format.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\fuzzing.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\os_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sanitizer.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sdl.cmake;D:\OPENVINO\openvino\cmake\developer_package\coverage\coverage.cmake;D:\OPENVINO\openvino\cmake\developer_package\cpplint\cpplint.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\cross_compiled_func.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\find_commands.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\native_compile.cmake;D:\OPENVINO\openvino\cmake\developer_package\debug.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\dependency_solver.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_apply.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_check.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\faster_build.cmake;D:\OPENVINO\openvino\cmake\developer_package\features.cmake;D:\OPENVINO\openvino\cmake\developer_package\frontends\frontends.cmake;D:\OPENVINO\openvino\cmake\developer_package\linux_name.cmake;D:\OPENVINO\openvino\cmake\developer_package\models.cmake;D:\OPENVINO\openvino\cmake\developer_package\ncc_naming_style\ncc_naming_style.cmake;D:\OPENVINO\openvino\cmake\developer_package\options.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\developer_package\plugins\plugins.cmake;D:\OPENVINO\openvino\cmake\developer_package\python_requirements.cmake;D:\OPENVINO\openvino\cmake\developer_package\shellcheck\shellcheck.cmake;D:\OPENVINO\openvino\cmake\developer_package\target_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\version.cmake;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.cmake;D:\OPENVINO\openvino\cmake\developer_package\whole_archive.cmake;D:\OPENVINO\openvino\cmake\extra_modules.cmake;D:\OPENVINO\openvino\cmake\features.cmake;D:\OPENVINO\openvino\cmake\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfig.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfigRelocatable.cmake.in;D:\OPENVINO\openvino\thirdparty\dependencies.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCXXInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCheckCompilerFlagCommonPatterns.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeDependentOption.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeGenericSystem.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeInitializeConfigs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeLanguageInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakePackageConfigHelpers.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeParseArguments.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeRCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPack.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPackComponent.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\shared_internal_commands.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindCygwin.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindGit.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindMsys.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython\Support.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython3.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindWget.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\GNUInstallDirs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckFlagCommonConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-Initialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\WindowsPaths.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ProcessorCount.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Templates\CPackConfig.cmake.in;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCXXCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeRCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeSystem.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\dependencies.cmake;D:\OPENVINO\openvino\cmake\developer_package\OpenVINODeveloperScriptsConfig.cmake;D:\OPENVINO\openvino\cmake\developer_package\add_target_helpers.cmake;D:\OPENVINO\openvino\cmake\developer_package\api_validator\api_validator.cmake;D:\OPENVINO\openvino\cmake\developer_package\clang_format\clang_format.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\fuzzing.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\os_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sanitizer.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sdl.cmake;D:\OPENVINO\openvino\cmake\developer_package\coverage\coverage.cmake;D:\OPENVINO\openvino\cmake\developer_package\cpplint\cpplint.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\cross_compiled_func.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\find_commands.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\native_compile.cmake;D:\OPENVINO\openvino\cmake\developer_package\debug.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\dependency_solver.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_apply.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_check.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\faster_build.cmake;D:\OPENVINO\openvino\cmake\developer_package\features.cmake;D:\OPENVINO\openvino\cmake\developer_package\frontends\frontends.cmake;D:\OPENVINO\openvino\cmake\developer_package\linux_name.cmake;D:\OPENVINO\openvino\cmake\developer_package\models.cmake;D:\OPENVINO\openvino\cmake\developer_package\ncc_naming_style\ncc_naming_style.cmake;D:\OPENVINO\openvino\cmake\developer_package\options.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\developer_package\plugins\plugins.cmake;D:\OPENVINO\openvino\cmake\developer_package\python_requirements.cmake;D:\OPENVINO\openvino\cmake\developer_package\shellcheck\shellcheck.cmake;D:\OPENVINO\openvino\cmake\developer_package\target_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\version.cmake;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.cmake;D:\OPENVINO\openvino\cmake\developer_package\whole_archive.cmake;D:\OPENVINO\openvino\cmake\extra_modules.cmake;D:\OPENVINO\openvino\cmake\features.cmake;D:\OPENVINO\openvino\cmake\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfig.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfigRelocatable.cmake.in;D:\OPENVINO\openvino\thirdparty\dependencies.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCXXInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCheckCompilerFlagCommonPatterns.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeDependentOption.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeGenericSystem.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeInitializeConfigs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeLanguageInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakePackageConfigHelpers.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeParseArguments.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeRCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPack.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPackComponent.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\shared_internal_commands.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindCygwin.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindGit.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindMsys.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython\Support.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython3.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindWget.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\GNUInstallDirs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckFlagCommonConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-Initialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\WindowsPaths.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ProcessorCount.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Templates\CPackConfig.cmake.in;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCXXCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeRCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeSystem.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\dependencies.cmake;D:\OPENVINO\openvino\cmake\developer_package\OpenVINODeveloperScriptsConfig.cmake;D:\OPENVINO\openvino\cmake\developer_package\add_target_helpers.cmake;D:\OPENVINO\openvino\cmake\developer_package\api_validator\api_validator.cmake;D:\OPENVINO\openvino\cmake\developer_package\clang_format\clang_format.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\fuzzing.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\os_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sanitizer.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sdl.cmake;D:\OPENVINO\openvino\cmake\developer_package\coverage\coverage.cmake;D:\OPENVINO\openvino\cmake\developer_package\cpplint\cpplint.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\cross_compiled_func.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\find_commands.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\native_compile.cmake;D:\OPENVINO\openvino\cmake\developer_package\debug.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\dependency_solver.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_apply.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_check.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\faster_build.cmake;D:\OPENVINO\openvino\cmake\developer_package\features.cmake;D:\OPENVINO\openvino\cmake\developer_package\frontends\frontends.cmake;D:\OPENVINO\openvino\cmake\developer_package\linux_name.cmake;D:\OPENVINO\openvino\cmake\developer_package\models.cmake;D:\OPENVINO\openvino\cmake\developer_package\ncc_naming_style\ncc_naming_style.cmake;D:\OPENVINO\openvino\cmake\developer_package\options.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\developer_package\plugins\plugins.cmake;D:\OPENVINO\openvino\cmake\developer_package\python_requirements.cmake;D:\OPENVINO\openvino\cmake\developer_package\shellcheck\shellcheck.cmake;D:\OPENVINO\openvino\cmake\developer_package\target_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\version.cmake;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.cmake;D:\OPENVINO\openvino\cmake\developer_package\whole_archive.cmake;D:\OPENVINO\openvino\cmake\extra_modules.cmake;D:\OPENVINO\openvino\cmake\features.cmake;D:\OPENVINO\openvino\cmake\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfig.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfigRelocatable.cmake.in;D:\OPENVINO\openvino\thirdparty\dependencies.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCXXInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCheckCompilerFlagCommonPatterns.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeDependentOption.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeGenericSystem.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeInitializeConfigs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeLanguageInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakePackageConfigHelpers.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeParseArguments.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeRCInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPack.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CPackComponent.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCXXSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Compiler\MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ExternalProject\shared_internal_commands.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindCygwin.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindGit.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindMsys.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython\Support.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPython3.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindWget.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\GNUInstallDirs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckCompilerFlag.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckFlagCommonConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Internal\CheckSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-Initialize.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows-MSVC.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\Windows.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\Platform\WindowsPaths.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\ProcessorCount.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\WriteBasicConfigVersionFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Templates\CPackConfig.cmake.in;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeCXXCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeRCCompiler.cmake;D:\OPENVINO\openvino\CMakeFiles\3.28.1\CMakeSystem.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\dependencies.cmake;D:\OPENVINO\openvino\cmake\developer_package\OpenVINODeveloperScriptsConfig.cmake;D:\OPENVINO\openvino\cmake\developer_package\add_target_helpers.cmake;D:\OPENVINO\openvino\cmake\developer_package\api_validator\api_validator.cmake;D:\OPENVINO\openvino\cmake\developer_package\clang_format\clang_format.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\fuzzing.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\os_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sanitizer.cmake;D:\OPENVINO\openvino\cmake\developer_package\compile_flags\sdl.cmake;D:\OPENVINO\openvino\cmake\developer_package\coverage\coverage.cmake;D:\OPENVINO\openvino\cmake\developer_package\cpplint\cpplint.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\cross_compiled_func.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\find_commands.cmake;D:\OPENVINO\openvino\cmake\developer_package\cross_compile\native_compile.cmake;D:\OPENVINO\openvino\cmake\developer_package\debug.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\dependency_solver.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_apply.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_check.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\download_and_extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\download\extract.cmake;D:\OPENVINO\openvino\cmake\developer_package\faster_build.cmake;D:\OPENVINO\openvino\cmake\developer_package\features.cmake;D:\OPENVINO\openvino\cmake\developer_package\frontends\frontends.cmake;D:\OPENVINO\openvino\cmake\developer_package\linux_name.cmake;D:\OPENVINO\openvino\cmake\developer_package\models.cmake;D:\OPENVINO\openvino\cmake\developer_package\ncc_naming_style\ncc_naming_style.cmake;D:\OPENVINO\openvino\cmake\developer_package\options.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\developer_package\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\developer_package\plugins\plugins.cmake;D:\OPENVINO\openvino\cmake\developer_package\python_requirements.cmake;D:\OPENVINO\openvino\cmake\developer_package\shellcheck\shellcheck.cmake;D:\OPENVINO\openvino\cmake\developer_package\target_flags.cmake;D:\OPENVINO\openvino\cmake\developer_package\version.cmake;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.cmake;D:\OPENVINO\openvino\cmake\developer_package\whole_archive.cmake;D:\OPENVINO\openvino\cmake\extra_modules.cmake;D:\OPENVINO\openvino\cmake\features.cmake;D:\OPENVINO\openvino\cmake\packaging\archive.cmake;D:\OPENVINO\openvino\cmake\packaging\packaging.cmake;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfig.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINODeveloperPackageConfigRelocatable.cmake.in;D:\OPENVINO\openvino\thirdparty\dependencies.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\benchmark_app\benchmark_app.vcxproj">
+      <Project>{CC1EE336-F42E-3D14-A5AF-08FCEC69ACD7}</Project>
+      <Name>benchmark_app</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\classification_sample_async\classification_sample_async.vcxproj">
+      <Project>{7AA77E1A-D6FC-3248-B58C-597723FCD263}</Project>
+      <Name>classification_sample_async</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\common\format_reader\format_reader.vcxproj">
+      <Project>{2BB62ED0-BFA4-3F86-B719-9A809EDC34D9}</Project>
+      <Name>format_reader</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\hello_classification\hello_classification.vcxproj">
+      <Project>{DE694436-2820-366F-98AF-B217D9674B29}</Project>
+      <Name>hello_classification</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\c\hello_classification\hello_classification_c.vcxproj">
+      <Project>{02B36B62-3BFC-39F3-A41D-CD91483E6C21}</Project>
+      <Name>hello_classification_c</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\hello_nv12_input_classification\hello_nv12_input_classification.vcxproj">
+      <Project>{0D41ECD1-518A-3428-901D-A9F4A1532DFB}</Project>
+      <Name>hello_nv12_input_classification</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\c\hello_nv12_input_classification\hello_nv12_input_classification_c.vcxproj">
+      <Project>{BE86FEF1-526E-36DE-B68F-7BBB63B5CD9F}</Project>
+      <Name>hello_nv12_input_classification_c</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\hello_query_device\hello_query_device.vcxproj">
+      <Project>{3E9400C1-5C9B-3585-A13F-65444A2B8FC1}</Project>
+      <Name>hello_query_device</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\hello_reshape_ssd\hello_reshape_ssd.vcxproj">
+      <Project>{08FE81F3-672F-3ECA-9135-2AD2A9DE0215}</Project>
+      <Name>hello_reshape_ssd</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\docs\snippets\ie_docs_snippets.vcxproj">
+      <Project>{C744C15B-C7A3-3699-BD4B-11338C78E069}</Project>
+      <Name>ie_docs_snippets</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\thirdparty\mlas\mlas.vcxproj">
+      <Project>{CC8BE9FC-40F2-336A-92E3-018958461C28}</Project>
+      <Name>mlas</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\model_creation_sample\model_creation_sample.vcxproj">
+      <Project>{FD3D5A64-46D7-346D-97C5-26AFFF907AE8}</Project>
+      <Name>model_creation_sample</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\c\common\opencv_c_wrapper\opencv_c_wrapper.vcxproj">
+      <Project>{7A875C2E-F7B0-3A46-AB6D-861723907ADB}</Project>
+      <Name>opencv_c_wrapper</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\auto_batch\openvino_auto_batch_plugin.vcxproj">
+      <Project>{97A30E05-F95C-35FE-AD3E-70F7FE22BD4D}</Project>
+      <Name>openvino_auto_batch_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\auto_batch\openvino_auto_batch_plugin_version.vcxproj">
+      <Project>{B7EDBDE6-99B1-3190-A462-D41A5036B1EC}</Project>
+      <Name>openvino_auto_batch_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\auto\openvino_auto_plugin.vcxproj">
+      <Project>{48BDDB09-E305-371E-955E-602642387E96}</Project>
+      <Name>openvino_auto_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\auto\openvino_auto_plugin_version.vcxproj">
+      <Project>{2CA64EBB-3389-3B69-BD6A-6EAB8E4E6545}</Project>
+      <Name>openvino_auto_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\c\src\openvino_c.vcxproj">
+      <Project>{73630B33-074D-3720-805B-418A7B63968B}</Project>
+      <Name>openvino_c</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.vcxproj">
+      <Project>{C396BFBE-B22C-3D23-A99A-D2949BDFEF5D}</Project>
+      <Name>openvino_core_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\openvino_core_obj_version.vcxproj">
+      <Project>{74E5B645-8AAC-3561-9F89-AB526040156F}</Project>
+      <Name>openvino_core_obj_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.vcxproj">
+      <Project>{415A8B0B-44D5-31B5-8C0C-73818CCA04D8}</Project>
+      <Name>openvino_frontend_common_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\hetero\openvino_hetero_plugin.vcxproj">
+      <Project>{91780B14-D393-30F2-B037-4F4BEE3FA969}</Project>
+      <Name>openvino_hetero_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\hetero\openvino_hetero_plugin_version.vcxproj">
+      <Project>{1507FC75-88D5-3FD6-878A-E195D84E898C}</Project>
+      <Name>openvino_hetero_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\openvino_intel_cpu_plugin.vcxproj">
+      <Project>{ABB83081-286A-3B86-A804-37ADCA63794D}</Project>
+      <Name>openvino_intel_cpu_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\openvino_intel_cpu_plugin_obj_version.vcxproj">
+      <Project>{27FC7D41-2DA2-3012-8D1C-7436486B7252}</Project>
+      <Name>openvino_intel_cpu_plugin_obj_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_cpu\openvino_intel_cpu_plugin_version.vcxproj">
+      <Project>{39360204-95B9-3518-8B99-1499F61B7E32}</Project>
+      <Name>openvino_intel_cpu_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\openvino_intel_gpu_graph.vcxproj">
+      <Project>{402F9267-26C9-36D4-A819-DD0DA22AE5BA}</Project>
+      <Name>openvino_intel_gpu_graph</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\openvino_intel_gpu_kernels.vcxproj">
+      <Project>{FBEF0255-2404-3460-9C3D-C1878CF49552}</Project>
+      <Name>openvino_intel_gpu_kernels</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\openvino_intel_gpu_plugin.vcxproj">
+      <Project>{AA2A785F-6B58-3DBA-8DD1-165F2BE9DFE5}</Project>
+      <Name>openvino_intel_gpu_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\openvino_intel_gpu_plugin_version.vcxproj">
+      <Project>{88A08142-5559-30D9-9244-4C69A4996B8A}</Project>
+      <Name>openvino_intel_gpu_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\openvino_intel_gpu_runtime.vcxproj">
+      <Project>{A72AC562-5FDC-3D3A-B6F5-59F48DDBECA9}</Project>
+      <Name>openvino_intel_gpu_runtime</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\ir\src\openvino_ir_frontend.vcxproj">
+      <Project>{F5B26BE7-E59C-329F-9DE3-D482333C132D}</Project>
+      <Name>openvino_ir_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.vcxproj">
+      <Project>{D7C6E14C-ADEF-3DDB-9700-859F43A756ED}</Project>
+      <Name>openvino_lp_transformations_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\offline_transformations\openvino_offline_transformations.vcxproj">
+      <Project>{EB2B324C-7232-3AB1-AE10-1BD00DD22B7A}</Project>
+      <Name>openvino_offline_transformations</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\openvino_onnx_common.vcxproj">
+      <Project>{D4DA828E-7BE1-34C7-89E5-A4E0BBCCE420}</Project>
+      <Name>openvino_onnx_common</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\openvino_onnx_frontend.vcxproj">
+      <Project>{105A13F1-8BBE-3264-980E-939B41E84E88}</Project>
+      <Name>openvino_onnx_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\paddle\src\openvino_paddle_frontend.vcxproj">
+      <Project>{25F2DFD3-0263-302B-B984-C183BCC7ACD7}</Project>
+      <Name>openvino_paddle_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\common\shutdown_protobuf\openvino_protobuf_shutdown.vcxproj">
+      <Project>{2AAC983F-8535-3911-90E6-447850120333}</Project>
+      <Name>openvino_protobuf_shutdown</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.vcxproj">
+      <Project>{8B91AC96-B5E5-3CB6-8CC2-11C1183831C2}</Project>
+      <Name>openvino_proxy_plugin_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\pytorch\src\openvino_pytorch_frontend.vcxproj">
+      <Project>{A1FEE476-9A49-39F6-8F1D-3CD16E30C9EF}</Project>
+      <Name>openvino_pytorch_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\reference\openvino_reference.vcxproj">
+      <Project>{7402B9D7-10D7-3328-8A2E-F1E0723F368D}</Project>
+      <Name>openvino_reference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.vcxproj">
+      <Project>{C7C4C259-D805-3A0A-9439-5D3CDD18CF7B}</Project>
+      <Name>openvino_runtime_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\shape_inference\openvino_shape_inference.vcxproj">
+      <Project>{D18B7EF1-6721-377F-AEA9-C45B1EE6240A}</Project>
+      <Name>openvino_shape_inference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\snippets\openvino_snippets.vcxproj">
+      <Project>{FA5DE761-E0FA-3327-B45F-62E351C7F363}</Project>
+      <Name>openvino_snippets</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\build-modules\template_extension\openvino_template_extension.vcxproj">
+      <Project>{D0F61962-D830-377E-8D4D-88BA9DC76D56}</Project>
+      <Name>openvino_template_extension</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\build-modules\template\src\openvino_template_plugin.vcxproj">
+      <Project>{9647D2FD-6862-376B-BD4B-25F84EAE481A}</Project>
+      <Name>openvino_template_plugin</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\build-modules\template\src\openvino_template_plugin_version.vcxproj">
+      <Project>{98175C02-76F9-35A5-A223-2DB9D1913CF1}</Project>
+      <Name>openvino_template_plugin_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\tensorflow_common\src\openvino_tensorflow_common.vcxproj">
+      <Project>{86CA803E-FE73-3E11-8657-9EC0902A56AD}</Project>
+      <Name>openvino_tensorflow_common</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\openvino_tensorflow_frontend.vcxproj">
+      <Project>{ED6EBA19-C917-3F14-88C2-6C8C6C08DE28}</Project>
+      <Name>openvino_tensorflow_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\openvino_tensorflow_lite_frontend.vcxproj">
+      <Project>{954EEA7D-12BE-37B8-AE4E-BB785985629F}</Project>
+      <Name>openvino_tensorflow_lite_frontend</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.vcxproj">
+      <Project>{A69544BE-B14D-31BA-80BB-04F833144ACE}</Project>
+      <Name>openvino_transformations_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\docs\snippets\ov_integration_snippet.vcxproj">
+      <Project>{772D2835-7B8F-3609-80C3-40824ADD7932}</Project>
+      <Name>ov_integration_snippet</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\docs\snippets\ov_integration_snippet_c.vcxproj">
+      <Project>{CAC948FA-E273-3171-A2F2-429C75F75361}</Project>
+      <Name>ov_integration_snippet_c</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\js\node\ov_node_addon.vcxproj">
+      <Project>{62839A9E-136F-36C8-A314-57FC1DC8B1C8}</Project>
+      <Name>ov_node_addon</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\benchmark\sync_benchmark\ov_samples.vcxproj">
+      <Project>{34F5E33F-1FDC-3D77-BFB2-C19C331F3E86}</Project>
+      <Name>ov_samples</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\onnx\py_onnx_frontend.vcxproj">
+      <Project>{7522333F-5441-397F-8FB5-F9CBD746C380}</Project>
+      <Name>py_onnx_frontend</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\paddle\py_paddle_frontend.vcxproj">
+      <Project>{C1AE7C34-68DF-3834-82B6-449095B65011}</Project>
+      <Name>py_paddle_frontend</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\pytorch\py_pytorch_frontend.vcxproj">
+      <Project>{E3A99CCC-843D-3A2F-96C7-30B882B10E40}</Project>
+      <Name>py_pytorch_frontend</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\tensorflow\py_tensorflow_frontend.vcxproj">
+      <Project>{9A31CC05-5684-3CF5-A615-25CD4BD81AF2}</Project>
+      <Name>py_tensorflow_frontend</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\pyopenvino.vcxproj">
+      <Project>{43A8498A-82D8-39D3-9496-019934BB5B2D}</Project>
+      <Name>pyopenvino</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\pyopenvino_version.vcxproj">
+      <Project>{29AE8884-E19E-3486-8C9C-FF8851FA88D4}</Project>
+      <Name>pyopenvino_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\benchmark\sync_benchmark\sync_benchmark.vcxproj">
+      <Project>{09F092F1-C2E6-3446-BD50-DE69D8B9481E}</Project>
+      <Name>sync_benchmark</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\samples\cpp\benchmark\throughput_benchmark\throughput_benchmark.vcxproj">
+      <Project>{5F39033E-A8CA-30BA-A6F7-A78C5A872991}</Project>
+      <Name>throughput_benchmark</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

@@ -1,0 +1,573 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{43A8498A-82D8-39D3-9496-019934BB5B2D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>pyopenvino</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\python\openvino\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pyopenvino.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_pyopenvinod.cp311-win_amd64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.pyd</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\python\openvino\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pyopenvino.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_pyopenvino.cp311-win_amd64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.pyd</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\python\openvino\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">pyopenvino.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">_pyopenvino.cp311-win_amd64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.pyd</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\python\openvino\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">pyopenvino.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">_pyopenvino.cp311-win_amd64</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.pyd</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/viswa/AppData/Local/Programs/Python/Python311/include" /external:I "D:/OPENVINO/openvino/src/bindings/python/thirdparty/pybind11/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/ /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\python\openvino\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Debug\";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PreBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E cmake_echo_color --red "OpenVINO Python API cannot be built for 'Debug'"
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E false
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy_directory D:/OPENVINO/openvino/src/bindings/python/src/openvino D:/OPENVINO/openvino/bin/intel64/Debug/python/openvino
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy D:/OPENVINO/openvino/src/bindings/python/requirements.txt D:/OPENVINO/openvino/bin/intel64/Debug/python/openvino/../requirements.txt
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\..\bin\intel64\Debug\openvino_offline_transformationsd.lib;C:\Users\viswa\AppData\Local\Programs\Python\Python311\libs\python311.lib;..\..\..\..\..\bin\intel64\Debug\openvinod.lib;..\..\..\..\..\bin\intel64\Debug\openvino_referenced.lib;..\..\..\..\..\bin\intel64\Debug\openvino_ittd.lib;..\..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\..\bin\intel64\Debug\pugixmld.lib;Shlwapi.lib;..\..\..\..\..\temp\tbb\lib\tbb12_debug.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Debug/python/openvino/_pyopenvinod.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Debug/python/openvino/_pyopenvinod.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/viswa/AppData/Local/Programs/Python/Python311/include" /external:I "D:/OPENVINO/openvino/src/bindings/python/thirdparty/pybind11/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/ /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\python\openvino\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Release\";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PreBuildEvent>
+      <Message></Message>
+      <Command></Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy_directory D:/OPENVINO/openvino/src/bindings/python/src/openvino D:/OPENVINO/openvino/bin/intel64/Release/python/openvino
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy D:/OPENVINO/openvino/src/bindings/python/requirements.txt D:/OPENVINO/openvino/bin/intel64/Release/python/openvino/../requirements.txt
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\..\bin\intel64\Release\openvino_offline_transformations.lib;C:\Users\viswa\AppData\Local\Programs\Python\Python311\libs\python311.lib;..\..\..\..\..\bin\intel64\Release\openvino.lib;..\..\..\..\..\bin\intel64\Release\openvino_reference.lib;..\..\..\..\..\bin\intel64\Release\openvino_itt.lib;..\..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\..\bin\intel64\Release\pugixml.lib;Shlwapi.lib;..\..\..\..\..\temp\tbb\lib\tbb12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Release/python/openvino/_pyopenvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Release/python/openvino/_pyopenvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/viswa/AppData/Local/Programs/Python/Python311/include" /external:I "D:/OPENVINO/openvino/src/bindings/python/thirdparty/pybind11/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/ /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\python\openvino\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"MinSizeRel\";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PreBuildEvent>
+      <Message></Message>
+      <Command></Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy_directory D:/OPENVINO/openvino/src/bindings/python/src/openvino D:/OPENVINO/openvino/bin/intel64/MinSizeRel/python/openvino
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy D:/OPENVINO/openvino/src/bindings/python/requirements.txt D:/OPENVINO/openvino/bin/intel64/MinSizeRel/python/openvino/../requirements.txt
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\..\bin\intel64\MinSizeRel\openvino_offline_transformations.lib;C:\Users\viswa\AppData\Local\Programs\Python\Python311\libs\python311.lib;..\..\..\..\..\bin\intel64\MinSizeRel\openvino.lib;..\..\..\..\..\bin\intel64\MinSizeRel\openvino_reference.lib;..\..\..\..\..\bin\intel64\MinSizeRel\openvino_itt.lib;..\..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\..\bin\intel64\MinSizeRel\pugixml.lib;Shlwapi.lib;..\..\..\..\..\temp\tbb\lib\tbb12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/python/openvino/_pyopenvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/python/openvino/_pyopenvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/viswa/AppData/Local/Programs/Python/Python311/include" /external:I "D:/OPENVINO/openvino/src/bindings/python/thirdparty/pybind11/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/ /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\python\openvino\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"RelWithDebInfo\";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";pyopenvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\..;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\common\offline_transformations\include;C:\Users\viswa\AppData\Local\Programs\Python\Python311\include;D:\OPENVINO\openvino\src\bindings\python\thirdparty\pybind11\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PreBuildEvent>
+      <Message></Message>
+      <Command></Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy_directory D:/OPENVINO/openvino/src/bindings/python/src/openvino D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/python/openvino
+if %errorlevel% neq 0 goto :cmEnd
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -E copy D:/OPENVINO/openvino/src/bindings/python/requirements.txt D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/python/openvino/../requirements.txt
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\..\bin\intel64\RelWithDebInfo\openvino_offline_transformations.lib;C:\Users\viswa\AppData\Local\Programs\Python\Python311\libs\python311.lib;..\..\..\..\..\bin\intel64\RelWithDebInfo\openvino.lib;..\..\..\..\..\bin\intel64\RelWithDebInfo\openvino_reference.lib;..\..\..\..\..\bin\intel64\RelWithDebInfo\openvino_itt.lib;..\..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\..\bin\intel64\RelWithDebInfo\pugixml.lib;Shlwapi.lib;..\..\..\..\..\temp\tbb\lib\tbb12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/python/openvino/_pyopenvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/python/openvino/_pyopenvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/bindings/python/src/pyopenvino/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\async_infer_queue.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\common.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\compiled_model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\core.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\extension.cpp">
+      <ObjectFileName>$(IntDir)/core/extension.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\infer_request.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\offline_transformations.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\profiling_info.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\properties\properties.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\tensor.cpp">
+      <ObjectFileName>$(IntDir)/core/tensor.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\variable_state.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\core\version.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\decoder.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\extension.cpp">
+      <ObjectFileName>$(IntDir)/frontend/extension.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\frontend.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\input_model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\manager.cpp">
+      <ObjectFileName>$(IntDir)/frontend/manager.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\node_context.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\frontend\place.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\any.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\axis_set.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\axis_vector.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\coordinate.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\coordinate_diff.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\descriptors\tensor.cpp">
+      <ObjectFileName>$(IntDir)/graph/descriptors/tensor.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\dict_attribute_visitor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\dimension.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\discrete_type_info.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\layout.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\layout_helpers.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_factory.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_input.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\node_output.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\assign.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\constant.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\if.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\loop.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\parameter.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\result.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\tensor_iterator.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\arithmetic_reduction.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_arithmetic.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_comparison.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\binary_elementwise_logical.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\index_reduction.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\multisubgraph.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\regmodule_graph_op_util.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\unary_elementwise_arithmetic.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\ops\util\variable.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\partial_shape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\graph_rewrite.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\manager.cpp">
+      <ObjectFileName>$(IntDir)/graph/passes/manager.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\matcher_pass.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\model_pass.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\pass_base.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\pattern_ops.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\regmodule_graph_passes.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\passes\transformations.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\preprocess\pre_post_process.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\rt_map.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\shape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\strides.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\types\element_type.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\types\regmodule_graph_types.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\graph\util.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\utils\utils.cpp" />
+    <Object Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\pyopenvino_version.dir\$(Configuration)\pyopenvino.obj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\offline_transformations\openvino_offline_transformations.vcxproj">
+      <Project>{EB2B324C-7232-3AB1-AE10-1BD00DD22B7A}</Project>
+      <Name>openvino_offline_transformations</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\reference\openvino_reference.vcxproj">
+      <Project>{7402B9D7-10D7-3328-8A2E-F1E0723F368D}</Project>
+      <Name>openvino_reference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\bindings\python\src\pyopenvino\pyopenvino_version.vcxproj">
+      <Project>{29AE8884-E19E-3486-8C9C-FF8851FA88D4}</Project>
+      <Name>pyopenvino_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

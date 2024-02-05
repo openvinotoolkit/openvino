@@ -1,0 +1,35 @@
+#include <winver.h>
+
+VS_VERSION_INFO         VERSIONINFO
+  FILEVERSION           2024,0,0,14272
+  PRODUCTVERSION        2024,0,0,14272
+  FILEFLAGSMASK         VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+  FILEFLAGS             1
+#else
+  FILEFLAGS             0
+#endif
+  FILEOS                VOS__WINDOWS32
+  FILETYPE              VFT_DLL
+  FILESUBTYPE           0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "Intel Corporation\0"
+      VALUE "FileDescription", "FrontEnd to load and convert TensorFlow file format\0"
+      VALUE "FileVersion", "2024.0.0.14272\0"
+      VALUE "InternalName", "openvino_tensorflow_frontend\0"
+      VALUE "LegalCopyright", "Copyright (C) 2018-2021, Intel Corporation\0"
+      VALUE "OriginalFilename", "openvino_tensorflow_frontend.dll\0"
+      VALUE "ProductName", "OpenVINO toolkit\0"
+      VALUE "ProductVersion", "2024.0.0-14272-48a78b876c7-new-branch\0"
+      VALUE "Comments", "https://docs.openvino.ai/\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1252
+  END
+END

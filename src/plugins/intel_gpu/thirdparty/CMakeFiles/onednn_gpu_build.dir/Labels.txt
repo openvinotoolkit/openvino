@@ -1,0 +1,13 @@
+# Target labels
+ onednn_gpu_build
+# Source files and their labels
+D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeFiles/onednn_gpu_build
+D:/OPENVINO/openvino/CMakeFiles/bc4217748596a180b6306f7ba68e6a0f/onednn_gpu_build.rule
+D:/OPENVINO/openvino/CMakeFiles/f46f9bcf2944e655847cee9d796c855b/onednn_gpu_build-complete.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-build.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-configure.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-download.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-install.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-mkdir.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-patch.rule
+D:/OPENVINO/openvino/CMakeFiles/6259acb775fc22b1731bfc38398470f1/onednn_gpu_build-update.rule

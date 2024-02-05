@@ -1,0 +1,9 @@
+# CMake generation dependency list for this directory.
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/CheckCSourceCompiles.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/CheckIncludeFile.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/CheckLibraryExists.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/FindPackageHandleStandardArgs.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/FindPackageMessage.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/FindThreads.cmake
+D:/OPENVINO/openvino/CMakeFiles/cmake.verify_globs
+D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeLists.txt

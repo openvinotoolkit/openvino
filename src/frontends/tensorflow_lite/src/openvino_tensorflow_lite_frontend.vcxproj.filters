@@ -1,0 +1,236 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\decoder_flatbuffer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\extension\conversion.cpp">
+      <Filter>src\extension</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\frontend.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\graph_iterator_flatbuffer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\input_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\arg_min_max.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\batch_matmul.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\cast.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\complex_abs.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\concatenation.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\conv2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\depth_to_space.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\depthwise_conv2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\fully_connected.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\gather.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\l2_normalization.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\leaky_relu.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\mirror_pad.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\one_hot.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\op_translation_utils.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\pack.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\pool2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\quantize.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\range.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\reshape.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\resize.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\reverse_sequence.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\rfft2d.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\shape.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\softmax.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\space_to_depth.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\split.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\squeeze.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\strided_slice.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\transpose_conv.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\unique.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\unpack.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\while.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op_table.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\quantization_info.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\sparsity_info.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tensor_lite_place.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tensorflow_lite.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tflite_transformations\rfft2d_complex_abs.cpp">
+      <Filter>src\tflite_transformations</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tflite_transformations\tflite_quantize_resolver.cpp">
+      <Filter>src\tflite_transformations</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\decoder_map.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\graph_iterator_flatbuffer.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\input_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op\op_translation_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\op_table.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\quantization_info.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\sparsity_info.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tensor_lite_place.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tflite_ops\tflite_quantize.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\tflite_transformations\tflite_quantize_resolver.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\include\openvino\frontend\tensorflow_lite\extension\conversion.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\include\openvino\frontend\tensorflow_lite\extension\op.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\include\openvino\frontend\tensorflow_lite\frontend.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\include\openvino\frontend\tensorflow_lite\node_context.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\include\openvino\frontend\tensorflow_lite\visibility.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\schema_generated.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\3d1c293ab4bd84f900238d0571e37b4b\schema_generated.h.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\schema\schema.fbs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow_lite\src\vs_version.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4AB65DCD-AF60-3373-9FA5-1021DF5123DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="public include">
+      <UniqueIdentifier>{D1D62569-1AC0-300E-ADBA-D7C68054090D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\extension">
+      <UniqueIdentifier>{35540B66-76A6-325E-B8FF-5A4847C64B90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\op">
+      <UniqueIdentifier>{2F1EE874-49F9-363E-93AC-051DF655B2EA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tflite_transformations">
+      <UniqueIdentifier>{FD985328-7F70-3627-9383-E45DDC51CFBA}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

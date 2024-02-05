@@ -1,0 +1,1143 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvinod</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Debug";openvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\openvino.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"Debug\";openvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Debug";openvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\bin\intel64\Debug\openvino_referenced.lib;..\bin\intel64\Debug\openvino_shape_inferenced.lib;..\bin\intel64\Debug\pugixmld.lib;..\temp\tbb\lib\tbb12_debug.lib;..\bin\intel64\Debug\openvino_ittd.lib;..\bin\intel64\Debug\openvino_utild.lib;..\bin\intel64\Debug\pugixmld.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Debug/openvinod.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Debug/openvinod.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Release";openvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\openvino.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"Release\";openvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Release";openvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\bin\intel64\Release\openvino_reference.lib;..\bin\intel64\Release\openvino_shape_inference.lib;..\bin\intel64\Release\pugixml.lib;..\temp\tbb\lib\tbb12.lib;..\bin\intel64\Release\openvino_itt.lib;..\bin\intel64\Release\openvino_util.lib;..\bin\intel64\Release\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Release/openvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Release/openvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="MinSizeRel";openvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\openvino.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"MinSizeRel\";openvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="MinSizeRel";openvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\bin\intel64\MinSizeRel\openvino_reference.lib;..\bin\intel64\MinSizeRel\openvino_shape_inference.lib;..\bin\intel64\MinSizeRel\pugixml.lib;..\temp\tbb\lib\tbb12.lib;..\bin\intel64\MinSizeRel\openvino_itt.lib;..\bin\intel64\MinSizeRel\openvino_util.lib;..\bin\intel64\MinSizeRel\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="RelWithDebInfo";openvino_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\openvino.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"RelWithDebInfo\";openvino_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="RelWithDebInfo";openvino_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\common\conditional_compilation\include;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\bin\intel64\RelWithDebInfo\openvino_reference.lib;..\bin\intel64\RelWithDebInfo\openvino_shape_inference.lib;..\bin\intel64\RelWithDebInfo\pugixml.lib;..\temp\tbb\lib\tbb12.lib;..\bin\intel64\RelWithDebInfo\openvino_itt.lib;..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\bin\intel64\RelWithDebInfo\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 /ignore:4098 /ignore:4286</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig.cmake.in;D:\OPENVINO\openvino\src\cmake\install_tbb.cmake;D:\OPENVINO\openvino\src\cmake\openvino.cmake;D:\OPENVINO\openvino\src\cmake\ov_parallel.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfig.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfigVersion.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-debug.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-release.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig.cmake.in;D:\OPENVINO\openvino\src\cmake\install_tbb.cmake;D:\OPENVINO\openvino\src\cmake\openvino.cmake;D:\OPENVINO\openvino\src\cmake\ov_parallel.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfig.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfigVersion.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-debug.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-release.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig.cmake.in;D:\OPENVINO\openvino\src\cmake\install_tbb.cmake;D:\OPENVINO\openvino\src\cmake\openvino.cmake;D:\OPENVINO\openvino\src\cmake\ov_parallel.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfig.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfigVersion.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-debug.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-release.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPkgConfig.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig-version.cmake.in;D:\OPENVINO\openvino\cmake\templates\OpenVINOConfig.cmake.in;D:\OPENVINO\openvino\src\cmake\install_tbb.cmake;D:\OPENVINO\openvino\src\cmake\openvino.cmake;D:\OPENVINO\openvino\src\cmake\ov_parallel.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfig.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBConfigVersion.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-debug.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets-release.cmake;D:\OPENVINO\openvino\temp\tbb\lib\cmake\TBB\TBBTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\src\any.cpp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\attribute_visitor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\axis_set.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\axis_vector.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bound_evaluate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\coordinate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\coordinate_diff.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\input.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\output.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\tensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\dimension.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\dimension_tracker.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\except.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\extension.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\graph_util.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\interval.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\layout.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\model.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\node.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\node_input.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\node_output.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\node_vector.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\abs.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\acos.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\acosh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\adaptive_avg_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\adaptive_max_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\add.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\asin.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\asinh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\assign.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\atan.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\atanh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\avg_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\batch_norm.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\batch_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\binary_convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bitwise_and.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bitwise_not.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bitwise_or.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bitwise_xor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\broadcast.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bucketize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\ceiling.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\clamp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\concat.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\constant.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convert.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convert_like.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\cos.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\cosh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\ctc_greedy_decoder.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\ctc_greedy_decoder_seq_len.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\ctc_loss.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\cum_sum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\deformable_convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\deformable_psroi_pooling.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\depth_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\detection_output.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\dft.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\divide.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\einsum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\elu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\embedding_segments_sum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\embeddingbag_offsets_sum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\embeddingbag_packedsum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\equal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\erf.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\exp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\experimental_detectron_detection_output.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\experimental_detectron_generate_proposals.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\experimental_detectron_prior_grid_generator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\experimental_detectron_roi_feature.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\experimental_detectron_topkrois.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\extractimagepatches.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\eye.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\fake_convert.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\floor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\floor_mod.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather_elements.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather_nd.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather_tree.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gelu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\generate_proposals.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\greater.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\greater_eq.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\grid_sample.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\grn.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\group_conv.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\group_normalization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gru_cell.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gru_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\hard_sigmoid.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\hsigmoid.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\hswish.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\i420_to_bgr.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\i420_to_rgb.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\idft.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\if.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\interpolate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\irdft.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\is_finite.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\is_inf.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\is_nan.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\less.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\less_eq.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\log.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\log_softmax.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\logical_and.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\logical_not.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\logical_or.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\loop.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\lrn.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\lstm_cell.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\lstm_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\matmul.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\matrix_nms.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\max_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\maximum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\minimum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\mish.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\mod.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\multiclass_nms.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\multinomial.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\multiply.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\mvn.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\negative.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\nms_rotated.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\non_max_suppression.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\non_zero.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\normalize_l2.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\not_equal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\nv12_to_bgr.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\nv12_to_rgb.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\one_hot.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\op.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pad.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\parameter.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\power.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\prelu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\prior_box.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\prior_box_clustered.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\proposal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\psroi_pooling.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\random_uniform.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\range.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\rdft.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\read_value.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_l1.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_l2.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_logical_and.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_logical_or.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_max.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_mean.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_min.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_prod.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduce_sum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\region_yolo.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\relu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reorg_yolo.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\result.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reverse.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reverse_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\rnn_cell.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\rnn_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\roi_align.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\roi_pooling.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\roll.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\round.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scaled_dot_product_attention.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_elements_update.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_nd_update.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_update.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\select.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\selu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\shape_of.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\shuffle_channels.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sigmoid.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sign.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sin.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sinh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sink.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\softmax.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\softplus.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\softsign.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\space_to_batch.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\space_to_depth.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\split.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sqrt.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\squared_difference.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\squeeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\strided_slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\subtract.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\swish.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\tan.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\tanh.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\tensor_iterator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\tile.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\topk.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\transpose.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\type_relaxed.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\unique.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\unsqueeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\activation_functions.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\arithmetic_reduction.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\arithmetic_reductions_keep_dims.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\assign_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\attr_types.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\axes_util.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\binary_elementwise_arithmetic.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\binary_elementwise_bitwise.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\binary_elementwise_comparison.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\binary_elementwise_logical.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\broadcast_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convert_color_i420_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convert_color_nv12_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\deformable_convolution_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\detection_output_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\elementwise_args.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\embeddingbag_offsets_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\embeddingbag_packed_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\fft_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\framework_node.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\gather_nd_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\index_reduction.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\interpolate_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\logical_reduction.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\logical_reduction_keep_dims.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\max_pool_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\multi_subgraph_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\multiclass_nms_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\op_types.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pad_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\precision_sensitive_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\read_value_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\recurrent_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\reduction_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\rnn_cell_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_elements_update_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\scatter_nd_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\slice_plan.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\sub_graph_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\symbolic_info.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\topk_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\unary_elementwise_arithmetic.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\variable_value.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\variadic_split.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\xor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\opset.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\partial_shape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\constant_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\convert_fp32_to_fp16.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\graph_rewrite.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\low_latency.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\make_stateful.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\manager.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pass.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pass_config.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\perf_counters.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\serialize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\validate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\visualize_tree.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\matcher.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\src\pattern\op\any.cpp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\any_of.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\any_output.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\branch.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\capture.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\label.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\optional.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\or.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pattern.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\skip.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\true.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\wrap_type.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\color_utils.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\pre_post_process.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\preprocess_impls.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\preprocess_steps_impl.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\rt_info.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\aligned_buffer.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\allocator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\itensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\ov_tensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\string_aligned_buffer.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\runtime_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\shape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\shape_util.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\so_extension.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\strides.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\type.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\bfloat16.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\element_type.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\float16.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\float8_e4m3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\float8_e5m2.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\nf4.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.dir\$(Configuration)\validation_util.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\core\openvino_core_obj_version.dir\$(Configuration)\version.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\decoder.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\exception.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\conversion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\decoder_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\progress_reporter.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\telemetry.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\frontend.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\input_model.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\manager.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\place.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\plugin_loader.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.dir\$(Configuration)\random_normal_helper.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\any_copy.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\blob_factory.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cache_guard.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\check_network_batchable.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cnn_network_ngraph_impl.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\compilation_context.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\compiled_model.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_cnn_network.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_executable_network.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_infer_request.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_variable_state.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iexecutable_network_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iinfer_request_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_iplugin_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_ivariable_state_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\converter_utils.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core_impl.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\core_impl_ie.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\device_id_parser.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\exec_model_info.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iasync_infer_request.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\icompiled_model.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\icompiled_model_wrapper.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iplugin.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iplugin_wrapper.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iremote_context.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\iremote_tensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\isync_infer_request.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ivariable_state.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\make_tensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\plugin.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cpu_streams_executor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\cpu_streams_executor_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\executor_manager.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\istreams_executor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\itask_executor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\parallel_custom_arena.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\thread_affinity.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\exception.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_blob_common.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_common.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_core.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_data.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_layouts.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_network_reader.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\ie_ngraph_utils.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\infer_request.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\model_reader.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\openvino_shutdown.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\win_system_conf.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\remote_context.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\remote_tensor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\system_allocator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.dir\$(Configuration)\system_conf.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\augru_cell.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\augru_sequence.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\generate_proposals_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\multiclass_nms_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nms_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nms_static_shape_ie.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\rotary_positional_embeddings.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\adaptive_pool_to_reduce.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\add_fake_quantize_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\align_eltwise_input_ranks.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\augru_cell_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\batch_to_space_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\binarize_weights.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\broadcast_elementwise_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\broadcast_transition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\change_placeholder_types.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\clamp_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\common_optimizations.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\compress_float_constants.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\concat_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\concat_reduce_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\conv_mul_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\conv_to_binary_conv.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_nms_gather_path_to_unsigned.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_quantize_dequantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_u4_weights_zero_point_to_scalar.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convolution_to_group_convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\depth_to_space_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\dilated_convolution_converter.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\dimension_tracking.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\disable_random_uniform_constant_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\disable_shapeof_constant_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\divide_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\dropout_with_random_uniform_replacer.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\eliminate_duplicate_ti_inputs.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\eliminate_unsqueeze_gather.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\enable_shapeof_constant_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fold_subgraph_empty_inputs.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fq_mul_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fq_reshape_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fuse_rotary_positional_embeddings.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fused_names_cleanup.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\gelu_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\gru_cell_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\hsigmoid_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\hswish_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\interpolate_sequence_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\leaky_relu_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\lin_op_sequence_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\lstm_cell_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mark_precision_sensitive_shapeof_subgraphs.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\matmul_const_transposes_extraction.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\matmul_multiply_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mish_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\moc_legacy_transformations.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\moc_transformations.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mul_conv_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mul_fake_quantize_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mvn_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nearest_neighbor_upsampling_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nonzero_horizontal_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nop_elimination.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\normalize_l2_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\optimize_strided_slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\pad_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\prelu_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\pull_through_reduce.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\pull_transpose_through_fq.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\push_constant_to_subgraph.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\random_uniform_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reduce_merge.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reduce_reshape_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\relu_fake_quantize_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\remove_concat_zero_dim_input.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\remove_filtering_boxes_by_size.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\remove_multi_subgraph_op_dangling_params.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reshape_prelu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reshape_sequence_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reverse_shape_and_type_infer.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ric_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\select_with_one_value_condition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\sequence_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\shared_ops_optimization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\shuffle_channels_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\simplify_shape_of_sub_graph.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\skip_gather_before_transpose_and_reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softmax_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softplus_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softplus_to_mish_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\space_to_batch_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\split_concat_pair_to_interpolate_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\split_squeeze_concat_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\strides_optimization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\subtract_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\swish_fusion.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\transpose_reshape_elimination_for_matmul.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\transpose_sinking.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\transpose_to_reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\weights_dequantize_to_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\wrap_interpolate_into_transposes.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\unroll_if.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\unroll_tensor_iterator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_precision.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\flush_fp32_subnormals_to_zero.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\align_mixed_fp32_fp16_types.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_compression_only_to_legacy.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mark_decompression_convert_constant_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mark_subgraphs_to_keep_in_mixed_precision.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\init_node_info.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mark_dequantization_subgraph.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\batch_norm_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\bidirectional_sequences_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_batch_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_bitwise_to_logical_bool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_broadcast3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_broadcast_to_tiles.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_convertlike.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_deformable_conv_v8_to_v1.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_depth_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_divide.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_gather_0d.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_gather_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_gather_upgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_gelu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_gp9_to_gp_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_interpolate11_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_interpolate1_to_interpolate4.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_matrix_nms_to_matrix_nms_ie.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_maxpool_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_maxpool_upgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_minimum_to_power_and_max.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_mod.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_multiclass_nms_to_multiclass_nms_ie.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_multiclass_nms_upgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_mvn1_to_mvn6.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_negative.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_nms9_to_nms_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_nms_rotated_to_nms_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_nms_to_nms_ie_internal.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_pad12_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_pad_to_group_conv.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_previous_nms_to_nms_5.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_previous_nms_to_nms_9.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_prior_box_v8_to_v0.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_reduce_to_pooling.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_reduce_to_reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_roi_align_v3_to_v9.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_roi_align_v9_to_v3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_scatter_elements_to_scatter.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_scatter_elements_update12_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_sequences_to_tensor_iterator.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_shapeof3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_shuffle_channels3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_slice_to_strided_slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_softmax_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_softmax_upgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_space_to_batch.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_space_to_depth.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_subtract.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_ti_to_sequences.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_topk11_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_topk3.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_xor_to_logical_xor.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\detection_output_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\detection_output_upgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\einsum_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\eye_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fq_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\gelu7_downgrade.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\group_normalization_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\gru_cell_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\hsigmoid_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\hswish_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\log_softmax_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\lstm_cell_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mvn6_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\normalize_l2_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reduce_l1_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reduce_l2_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\rnn_cell_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\scaled_dot_product_attention_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\simplify_ctc_greedy_decoder_seq_len.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softmax_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softplus_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\softsign_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\unique_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_opset2_to_opset1.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\convert_opset3_to_opset2.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\resolve_names_collisions.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\attributes.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\decompression.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\dequantization_node.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\disable_fp16_compression.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\fused_names_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\is_shape_sugraph.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\keep_const_precision.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nms_selected_indices.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nonconvertible_divide.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\old_api_map_element_type_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\old_api_map_order_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\original_precision_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\preprocessing_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\primitives_priority_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\strides_property.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\transpose_sinking_attr.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\broadcast_const_range_replacement.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\lstm_states_broadcast.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\matmul_sr.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\mimic_set_batch_size.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\proposal_scales_stridedslice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reshape_sinking.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reshape_to_1D.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\set_batch_size.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\shape_of_const_folding.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\smart_reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\strided_slice_squeeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\chained_maximum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\dereshape_matmul.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\label_optimization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\nop_broadcast.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\reshape_optimizations.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\symbolic_optimizations.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\src\transformations\symbolic_transformations\utils.cpp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_base.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_binary.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_concat.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_cumsum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_data_movement.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_fuse.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_gather.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_general.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_interpolate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_reduction.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_reset_no_sinking_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_shape_of.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_split.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_squeeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_tile.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_unary.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_unsqueeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\ts_utils.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.dir\$(Configuration)\src\transformations\utils\utils.cpp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\add.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\align_quantization_intervals.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\align_quantization_parameters.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\assign_and_read_value.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\avg_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\base_matcher_pass.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\batch_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\clamp.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\cleanup_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\concat.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\convert.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\convert_subtract_constant.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\convolution_backprop_data.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\depth_to_space.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\eliminate_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\eltwise_base_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fake_quantize_decomposition.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fake_quantize_dequantization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fold_convert.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fold_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fuse_convert.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fuse_elementwise_to_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fuse_multiply_to_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\fuse_subtract_to_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\gather.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\group_convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\interpolate.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\layer_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\low_precision.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\markup_avg_pool_precision_preserved.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\markup_bias.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\markup_can_be_quantized.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\markup_precisions.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\markup_quantization_granularity.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\mat_mul.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\max_pool.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\move_fake_quantize.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\multiply.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\multiply_partial.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\multiply_to_group_convolution.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\mvn.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\network_helper.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\normalize_l2.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\pad.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\prelu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\propagate_precisions.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\pull_reshape_through_dequantization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\pull_transpose_through_dequantization.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\quantization_details.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\recurrent_cell.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reduce_base_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reduce_max.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reduce_mean.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reduce_min.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reduce_sum.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\relu.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\reshape.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\avg_pool_precision_preserved_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\bias_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\intervals_alignment_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\precision_preserved_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\precisions_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\quantization_alignment_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\quantization_granularity_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\quantization_mode_attribute.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\shuffle_channels.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\space_to_batch.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\split.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\squeeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\strided_slice.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\subtract.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\transformation_context.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\transparent_base_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\transpose.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\unsqueeze.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\variadic_split.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.dir\$(Configuration)\weightable_layer_transformation.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\infer_request.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\plugin.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\remote_context.obj" />
+    <Object Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.dir\$(Configuration)\remote_tensor.obj" />
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\vs_version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\openvino_core_obj.vcxproj">
+      <Project>{C396BFBE-B22C-3D23-A99A-D2949BDFEF5D}</Project>
+      <Name>openvino_core_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\openvino_core_obj_version.vcxproj">
+      <Project>{74E5B645-8AAC-3561-9F89-AB526040156F}</Project>
+      <Name>openvino_core_obj_version</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\common\openvino_frontend_common_obj.vcxproj">
+      <Project>{415A8B0B-44D5-31B5-8C0C-73818CCA04D8}</Project>
+      <Name>openvino_frontend_common_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\low_precision_transformations\openvino_lp_transformations_obj.vcxproj">
+      <Project>{D7C6E14C-ADEF-3DDB-9700-859F43A756ED}</Project>
+      <Name>openvino_lp_transformations_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\proxy\openvino_proxy_plugin_obj.vcxproj">
+      <Project>{8B91AC96-B5E5-3CB6-8CC2-11C1183831C2}</Project>
+      <Name>openvino_proxy_plugin_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\reference\openvino_reference.vcxproj">
+      <Project>{7402B9D7-10D7-3328-8A2E-F1E0723F368D}</Project>
+      <Name>openvino_reference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\inference\openvino_runtime_obj.vcxproj">
+      <Project>{C7C4C259-D805-3A0A-9439-5D3CDD18CF7B}</Project>
+      <Name>openvino_runtime_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\shape_inference\openvino_shape_inference.vcxproj">
+      <Project>{D18B7EF1-6721-377F-AEA9-C45B1EE6240A}</Project>
+      <Name>openvino_shape_inference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\transformations\openvino_transformations_obj.vcxproj">
+      <Project>{A69544BE-B14D-31BA-80BB-04F833144ACE}</Project>
+      <Name>openvino_transformations_obj</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

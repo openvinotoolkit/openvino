@@ -1,0 +1,823 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{105A13F1-8BBE-3264-980E-939B41E84E88}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino_onnx_frontend</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_onnx_frontend.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_onnx_frontendd</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_onnx_frontend.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_onnx_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_onnx_frontend.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_onnx_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_onnx_frontend.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_onnx_frontend</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /external:I "D:/OPENVINO/openvino/thirdparty/onnx/onnx" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Debug\";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Debug";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Debug\openvino_protobuf_shutdownd.lib;..\..\..\..\bin\intel64\Debug\openvino_onnx_commond.lib;..\..\..\..\bin\intel64\Debug\openvinod.lib;..\..\..\..\bin\intel64\Debug\libprotobuf-lited.lib;..\..\..\..\bin\intel64\Debug\onnxd.lib;..\..\..\..\bin\intel64\Debug\onnx_protod.lib;..\..\..\..\bin\intel64\Debug\libprotobuf-lited.lib;..\..\..\..\bin\intel64\Debug\openvino_ittd.lib;..\..\..\..\bin\intel64\Debug\openvino_utild.lib;..\..\..\..\bin\intel64\Debug\pugixmld.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_onnx_frontendd.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Debug/openvino_onnx_frontendd.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /external:I "D:/OPENVINO/openvino/thirdparty/onnx/onnx" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"Release\";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="Release";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\Release\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\Release\openvino_onnx_common.lib;..\..\..\..\bin\intel64\Release\openvino.lib;..\..\..\..\bin\intel64\Release\libprotobuf-lite.lib;..\..\..\..\bin\intel64\Release\onnx.lib;..\..\..\..\bin\intel64\Release\onnx_proto.lib;..\..\..\..\bin\intel64\Release\libprotobuf-lite.lib;..\..\..\..\bin\intel64\Release\openvino_itt.lib;..\..\..\..\bin\intel64\Release\openvino_util.lib;..\..\..\..\bin\intel64\Release\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/Release/openvino_onnx_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/Release/openvino_onnx_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /external:I "D:/OPENVINO/openvino/thirdparty/onnx/onnx" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"MinSizeRel\";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="MinSizeRel";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\MinSizeRel\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_onnx_common.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino.lib;..\..\..\..\bin\intel64\MinSizeRel\libprotobuf-lite.lib;..\..\..\..\bin\intel64\MinSizeRel\onnx.lib;..\..\..\..\bin\intel64\MinSizeRel\onnx_proto.lib;..\..\..\..\bin\intel64\MinSizeRel\libprotobuf-lite.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_itt.lib;..\..\..\..\bin\intel64\MinSizeRel\openvino_util.lib;..\..\..\..\bin\intel64\MinSizeRel\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_onnx_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/MinSizeRel/openvino_onnx_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/thirdparty/protobuf/protobuf/src" /external:I "D:/OPENVINO/openvino/thirdparty/onnx/onnx" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR=\"RelWithDebInfo\";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;ONNX_OPSET_VERSION=18;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;ONNX_NAMESPACE=openvino_onnx;ONNX_ML=1;ONNX_USE_LITE_PROTO=1;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;CMAKE_INTDIR="RelWithDebInfo";openvino_onnx_frontend_EXPORTS</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\frontends\onnx\frontend\include;D:\OPENVINO\openvino\src\frontends\common\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\frontends\onnx\frontend\src;D:\OPENVINO\openvino\src\frontends\onnx\frontend;D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\src;D:\OPENVINO\openvino\thirdparty\onnx\onnx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>..\..\..\..\bin\intel64\RelWithDebInfo\openvino_protobuf_shutdown.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_onnx_common.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino.lib;..\..\..\..\bin\intel64\RelWithDebInfo\libprotobuf-lite.lib;..\..\..\..\bin\intel64\RelWithDebInfo\onnx.lib;..\..\..\..\bin\intel64\RelWithDebInfo\onnx_proto.lib;..\..\..\..\bin\intel64\RelWithDebInfo\libprotobuf-lite.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_itt.lib;..\..\..\..\bin\intel64\RelWithDebInfo\openvino_util.lib;..\..\..\..\bin\intel64\RelWithDebInfo\pugixml.lib;Shlwapi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_onnx_frontend.lib</ImportLibrary>
+      <ProgramDataBaseFile>D:/OPENVINO/openvino/bin/intel64/RelWithDebInfo/openvino_onnx_frontend.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\frontends\onnx\frontend\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\frontends\onnx\frontend\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\frontends\onnx\frontend\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/frontends/onnx/frontend/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;D:\OPENVINO\openvino\cmake\developer_package\vs_version\vs_version.rc.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\frontends\onnx\frontend\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\attribute.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\graph.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\graph_cache.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\null_node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\tensor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\transform.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\detail\subgraph_extraction.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\edge_mapper.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\editor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\exceptions.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\extensions.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\frontend.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\input_model.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\node_context.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\onnx_framework_node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\adaptive_avg_pooling2d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\add.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\affine.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\argmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\argmin.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\aten.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\average_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\batch_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitshift.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_and.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_not.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_or.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_xor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\blackmanwindow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cast.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cast_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\clip.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\attention.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\bias_gelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\embed_layer_normalization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\fused_conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\fusedgemm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\skip_layer_normalization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\compress.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\concat.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant_fill.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant_of_shape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv_integer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv_transpose.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cos.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cosh.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\crop.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cum_sum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\depth_to_space.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dequantize_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dft.cpp">
+      <ObjectFileName>$(IntDir)/src/op/dft.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dropout.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dynamic_quantize_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\einsum.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\elu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\expand.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\eye_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\flatten.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gather_nd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gemm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\global_average_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\global_max_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\greater_or_equal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\grid_sample.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\group_normalization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gru.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hammingwindow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hannwindow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hard_sigmoid.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hardmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\if.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\image_scaler.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\instance_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_finite.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_inf.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_nan.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\layer_normalization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\leaky_relu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\less_or_equal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\log.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\log_softmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\loop.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lp_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lp_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lrn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lstm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\matmul_integer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\max_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\max_roi_pool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mean.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mean_variance_normalization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mod.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\non_max_suppression.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\non_zero.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\onehot.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\deformable_conv_2d.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\detection_output.cpp">
+      <ObjectFileName>$(IntDir)/src/op/org.openvinotoolkit/detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\detection_output.cpp">
+      <ObjectFileName>$(IntDir)/src/op/org.openvinotoolkit/experimental_detectron/detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\generate_proposals_single_image.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\prior_grid_generator.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\roi_feature_extractor.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\topk_rios.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\fake_quantize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\generate_proposals.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\group_norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\normalize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\prior_box.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\swish.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\pad.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\pow.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\prelu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\qlinear_conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\qlinear_matmul.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\quant_conv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\quantize_linear.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_normal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_normal_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_uniform.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_uniform_like.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\range.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reciprocal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reduce.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reshape.cpp">
+      <ObjectFileName>$(IntDir)/src/op/reshape.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\resize.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reverse_sequence.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\rnn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\roi_align.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\round.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scan.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scatter_elements.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scatter_nd.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\selu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\shape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\shrink.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\size.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\slice.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softmax.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softplus.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softsign.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\space_to_depth.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\split.cpp">
+      <ObjectFileName>$(IntDir)/src/op/split.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\squeeze.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\stft.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\thresholded_relu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\tile.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\topk.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\transpose.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\trilu.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\unique.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\unsqueeze.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\upsample.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\ops_bridge.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\place.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\arg_min_max_factory.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\common.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\conv_factory.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\convpool.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\dft.cpp">
+      <ObjectFileName>$(IntDir)/src/utils/dft.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\norm.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\onnx_internal.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\pooling_factory.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\recurrent.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\reshape.cpp">
+      <ObjectFileName>$(IntDir)/src/utils/reshape.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\split.cpp">
+      <ObjectFileName>$(IntDir)/src/utils/split.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\tensor_external_data.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\attribute.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\graph.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\graph_cache.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\model.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\node.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\null_node.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\operator_set.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\sparse_tensor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\tensor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\transform.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\core\value_info.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\detail\subgraph_extraction.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\edge_mapper.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\editor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\editor_types.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\exceptions.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\input_model.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\onnx_framework_node.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\abs.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\acos.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\acosh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\adaptive_avg_pooling2d.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\add.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\affine.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\and.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\argmax.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\argmin.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\asin.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\asinh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\atan.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\atanh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\aten.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\average_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\batch_norm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitshift.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_and.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_not.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_or.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\bitwise_xor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\blackmanwindow.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cast.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cast_like.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\ceil.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\clip.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\attention.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\bias_gelu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\embed_layer_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\fused_conv.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\fusedgemm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\com.microsoft\skip_layer_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\compress.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\concat.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant_fill.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\constant_of_shape.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv_integer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\conv_transpose.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cos.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cosh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\crop.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\cum_sum.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\depth_to_space.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dequantize_linear.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dft.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\div.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dropout.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\dynamic_quantize_linear.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\einsum.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\elu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\equal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\erf.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\exp.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\expand.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\eye_like.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\flatten.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\floor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gather.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gather_elements.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gather_nd.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gelu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gemm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\global_average_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\global_max_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\greater.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\greater_or_equal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\grid_sample.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\group_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\gru.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hammingwindow.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hannwindow.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hard_sigmoid.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hard_swish.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\hardmax.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\identity.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\if.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\image_scaler.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\instance_norm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_finite.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_inf.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\is_nan.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\layer_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\leaky_relu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\less.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\less_or_equal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\log.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\log_softmax.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\loop.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lp_norm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lp_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lrn.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\lstm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\matmul.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\matmul_integer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\max.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\max_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\max_roi_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mean.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mean_variance_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\min.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mod.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\mul.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\neg.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\nms_rotated.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\non_max_suppression.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\non_zero.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\not.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\onehot.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\or.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\deformable_conv_2d.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\detection_output.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\detection_output.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\generate_proposals_single_image.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\prior_grid_generator.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\roi_feature_extractor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\experimental_detectron\topk_rios.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\fake_quantize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\generate_proposals.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\group_norm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\normalize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\prior_box.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\org.openvinotoolkit\swish.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\pad.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\pow.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\prelu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\qlinear_conv.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\qlinear_matmul.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\quant_conv.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\quantize_linear.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_normal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_normal_like.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_uniform.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\random_uniform_like.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\range.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reciprocal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reduce.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\relu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reshape.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\resize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\reverse_sequence.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\rnn.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\roi_align.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\round.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scan.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scatter_elements.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\scatter_nd.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\selu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\shape.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\shrink.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sigmoid.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sign.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sin.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sinh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\size.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\slice.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softmax.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softplus.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\softsign.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\space_to_depth.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\split.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sqrt.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\squeeze.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\stft.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sub.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\sum.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\tan.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\tanh.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\thresholded_relu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\tile.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\topk.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\transpose.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\trilu.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\unique.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\unsqueeze.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\upsample.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\where.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\op\xor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\ops_bridge.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\place.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\precomp.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\arg_min_max_factory.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\common.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\conv_factory.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\convpool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\dft.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\norm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\onnx_internal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\pooling_factory.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\recurrent.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\reshape.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\split.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\tensor_external_data.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\utils\variadic.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\src\version_range.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\include\openvino\frontend\onnx\extension\conversion.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\include\openvino\frontend\onnx\extension\op.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\include\openvino\frontend\onnx\frontend.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\include\openvino\frontend\onnx\node_context.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\include\openvino\frontend\onnx\visibility.hpp" />
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\onnx\frontend\vs_version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\protobuf\protobuf\cmake\libprotobuf-lite.vcxproj">
+      <Project>{506B34A9-019D-33A9-AB69-599C50335C3C}</Project>
+      <Name>libprotobuf-lite</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\onnx\onnx\onnx.vcxproj">
+      <Project>{855E038D-2277-3589-B366-1E07B317B49A}</Project>
+      <Name>onnx</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\onnx\onnx\onnx_proto.vcxproj">
+      <Project>{4FB5EEA6-46FC-3AB0-8BDB-3A8A241AB48A}</Project>
+      <Name>onnx_proto</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\onnx\onnx_common\openvino_onnx_common.vcxproj">
+      <Project>{D4DA828E-7BE1-34C7-89E5-A4E0BBCCE420}</Project>
+      <Name>openvino_onnx_common</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\frontends\common\shutdown_protobuf\openvino_protobuf_shutdown.vcxproj">
+      <Project>{2AAC983F-8535-3911-90E6-447850120333}</Project>
+      <Name>openvino_protobuf_shutdown</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

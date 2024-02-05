@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\samples\cpp\common\utils\src\args_helper.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\samples\cpp\common\utils\src\latency_metrics.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\samples\cpp\common\utils\src\slog.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\args_helper.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\classification_results.h">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\common.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\console_progress.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\csv_dumper.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\latency_metrics.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\os\windows\w_dirent.h">
+      <Filter>include\samples\os\windows</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\samples\cpp\common\utils\include\samples\slog.hpp">
+      <Filter>include\samples</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\samples\cpp\common\utils\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\samples">
+      <UniqueIdentifier>{411FD6FF-266C-3EE8-8DDC-C122B687DE30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\samples\os">
+      <UniqueIdentifier>{A92E232D-8036-379E-9716-DD0C97D35313}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\samples\os\windows">
+      <UniqueIdentifier>{F453C27E-2041-347F-BD40-D0EA3467ED18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

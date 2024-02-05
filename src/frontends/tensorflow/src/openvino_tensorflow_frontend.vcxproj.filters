@@ -1,0 +1,703 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\checkpoint_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\checkpoint_v1_reader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\decoder_argdef.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\decoder_proto.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\extension\conversion.cpp">
+      <Filter>src\extension</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\frontend.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_meta.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_saved_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\input_model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\node_context.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\approximate_equal.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign_add.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign_add_variable_op.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign_sub.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign_sub_variable_op.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\assign_variable_op.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\block_lstm.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\enter.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\exit.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\fifo_queue.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\gru_block_cell.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\hash_table.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\if.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\iterator.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\lookup_table_find.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\lookup_table_import.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\loop_cond.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\merge.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\next_iteration.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\partitioned_call.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\placeholder.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\queue_dequeue.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\read_variable_op.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\sparse_reshape.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\switch.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\tensor_array_operations.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\var_handle.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\variable.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\while.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\write_file.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\xla_conv_v2.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op\xla_dot.cpp">
+      <Filter>src\op</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op_table.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\tensorflow.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\tf_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\transformations\switch_merge_resolve.cpp">
+      <Filter>src\transformations</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\translate_session.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\variables_index.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\allocation_description.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\api_def.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\attr_value.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\cost_graph.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\dataset_options.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\device_attributes.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\function.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\graph.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\graph_transfer_info.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\kernel_def.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\log_memory.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\meta_graph.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\model.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\node_def.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\op_def.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\reader_base.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\remote_fused_graph_execute_info.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\resource_handle.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_model.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_object_graph.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_tensor_slice.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saver.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\step_stats.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\struct.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\summary.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_bundle.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_description.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_shape.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_slice.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\trackable_object_graph.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\types.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\variable.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\versions.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\xla_data.pb.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\checkpoint_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\checkpoint_v1_reader.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\decoder_argdef.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\decoder_proto.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_meta.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_proto.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_proto_txt.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\graph_iterator_saved_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\hash_table.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\input_model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\op_table.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\tf_utils.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\transformations\switch_merge_resolve.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\translate_session.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\variables_index.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\decoder.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\exception.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\extension\conversion.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\extension\op.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\frontend.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\node_context.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\special_types.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\variable.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\include\openvino\frontend\tensorflow\visibility.hpp">
+      <Filter>public include</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\allocation_description.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\api_def.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\attr_value.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\cost_graph.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\dataset_options.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\device_attributes.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\function.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\graph.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\graph_transfer_info.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\kernel_def.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\log_memory.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\meta_graph.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\model.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\node_def.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\op_def.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\reader_base.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\remote_fused_graph_execute_info.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\resource_handle.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_model.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_object_graph.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saved_tensor_slice.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\saver.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\step_stats.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\struct.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\summary.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_bundle.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_description.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_shape.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\tensor_slice.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\trackable_object_graph.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\types.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\variable.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\versions.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\ov_tensorflow\xla_data.pb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\allocation_description.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\api_def.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\attr_value.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\cost_graph.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\dataset_options.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\device_attributes.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\function.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\graph.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\graph_transfer_info.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\kernel_def.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\log_memory.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\meta_graph.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\model.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\node_def.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\op_def.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\reader_base.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\remote_fused_graph_execute_info.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\resource_handle.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\saved_model.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\saved_object_graph.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\saved_tensor_slice.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\saver.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\step_stats.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\struct.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\summary.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\tensor.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\tensor_bundle.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\tensor_description.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\tensor_shape.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\tensor_slice.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\trackable_object_graph.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\types.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\variable.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\versions.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\84234052dc721e817bd7df245a836912\xla_data.pb.cc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\google\protobuf\any.proto">
+      <Filter>src\proto\google\protobuf</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\google\protobuf\wrappers.proto">
+      <Filter>src\proto\google\protobuf</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\allocation_description.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\api_def.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\attr_value.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\cost_graph.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\dataset_options.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\device_attributes.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\function.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\graph.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\graph_transfer_info.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\kernel_def.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\log_memory.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\meta_graph.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\model.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\node_def.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\op_def.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\reader_base.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\remote_fused_graph_execute_info.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\resource_handle.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\saved_model.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\saved_object_graph.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\saved_tensor_slice.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\saver.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\step_stats.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\struct.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\summary.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\tensor.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\tensor_bundle.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\tensor_description.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\tensor_shape.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\tensor_slice.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\trackable_object_graph.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\types.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\variable.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\versions.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+    <None Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\proto\ov_tensorflow\xla_data.proto">
+      <Filter>src\proto\ov_tensorflow</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\OPENVINO\openvino\src\frontends\tensorflow\src\vs_version.rc">
+      <Filter>src</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4AB65DCD-AF60-3373-9FA5-1021DF5123DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{78146D8A-0355-3FB9-B63E-6AE1593CB7FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{43185D68-D7AA-3725-B836-6E45E10F0820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{D7BDD275-EDC2-330C-B0DE-D7ED884287F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="public include">
+      <UniqueIdentifier>{D1D62569-1AC0-300E-ADBA-D7C68054090D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{9F7D6189-28F5-3781-99C7-1123304BED97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\extension">
+      <UniqueIdentifier>{35540B66-76A6-325E-B8FF-5A4847C64B90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\op">
+      <UniqueIdentifier>{2F1EE874-49F9-363E-93AC-051DF655B2EA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\proto">
+      <UniqueIdentifier>{B1D4B42A-7EEC-3078-8AEC-534CA6409371}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\proto\google">
+      <UniqueIdentifier>{BAC81676-05CB-3537-8378-E28DDE87EDE6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\proto\google\protobuf">
+      <UniqueIdentifier>{D5C82948-1944-3695-964E-02E21D00B46C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\proto\ov_tensorflow">
+      <UniqueIdentifier>{CCF1BA6F-1568-3878-9DF0-463C59DB40E4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\transformations">
+      <UniqueIdentifier>{BC13B8FE-A382-3484-80B4-0121A98BDF62}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

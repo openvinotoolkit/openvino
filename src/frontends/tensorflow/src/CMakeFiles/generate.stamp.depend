@@ -1,0 +1,4 @@
+# CMake generation dependency list for this directory.
+D:/OPENVINO/openvino/CMakeFiles/cmake.verify_globs
+D:/OPENVINO/openvino/cmake/developer_package/vs_version/vs_version.rc.in
+D:/OPENVINO/openvino/src/frontends/tensorflow/src/CMakeLists.txt

@@ -21,14 +21,17 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ApproximateEqual"});
 
     // Extract necessary attributes and inputs
-    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f); // Set default value for tolerance
-    auto x = node.get_input(0); // Access inputs directly
+    // Set default value for tolerance
+    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f);
+    // Access inputs directly
+    auto x = node.get_input(0); 
     auto y = node.get_input(1);
 
     // Implement the logic for ApproximateEqual
     auto difference = make_shared<Subtract>(x, y);
     auto absolute = make_shared<Abs>(difference);
-    auto less = make_shared<Less>(absolute, Constant::create(element::f32, Shape{}, {tolerance}));
+    auto tolerance_constant = create_same_type_const_scalar(x, tolerance);
+     auto less = make_shared<Less>(absolute, tolerance_constant);
 
     // Create and return the corresponding OpenVINO operation
     set_node_name(node.get_name(), less);

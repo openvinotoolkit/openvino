@@ -1,0 +1,10 @@
+# CMake generation dependency list for this directory.
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject.cmake
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/PatchInfo.txt.in
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/RepositoryInfo.txt.in
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/UpdateInfo.txt.in
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/cfgcmd.txt.in
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/ExternalProject/mkdirs.cmake.in
+D:/OPENVINO/openvino/CMakeFiles/cmake.verify_globs
+D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
+D:/OPENVINO/openvino/src/plugins/intel_gpu/thirdparty/onednn_gpu_root/tmp/onednn_gpu_build-mkdirs.cmake

@@ -1,0 +1,1 @@
+openvino-dev[pytorch]==2024.0.0  # dependabot-ignore

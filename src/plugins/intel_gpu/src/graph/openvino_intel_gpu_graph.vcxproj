@@ -1,0 +1,1289 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{402F9267-26C9-36D4-A819-DD0DA22AE5BA}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>openvino_intel_gpu_graph</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\bin\intel64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_intel_gpu_graph.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">openvino_intel_gpu_graphd</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\bin\intel64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_intel_gpu_graph.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvino_intel_gpu_graph</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_intel_gpu_graph.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">openvino_intel_gpu_graph</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_intel_gpu_graph.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">openvino_intel_gpu_graph</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275;4996;4244;4018</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Debug\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"d\";IE_BUILD_POSTFIX=\"d\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="d";IE_BUILD_POSTFIX="d";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;TBB_USE_DEBUG;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+      <DisableSpecificWarnings>4251;4275;4996;4244;4018;4996</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SDLCheck>true</SDLCheck>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\Release\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <AdditionalOptions>%(AdditionalOptions) /Os</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4251;4275;4996;4244;4018</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\MinSizeRel\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "D:/OPENVINO/openvino/temp/tbb/include" /bigobj /d1trimfile:D:\OPENVINO\openvino\ /d1trimfile:D:/OPENVINO/openvino/</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DisableSpecificWarnings>4251;4275;4996;4244;4018</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>D:\OPENVINO\openvino\bin\intel64\RelWithDebInfo\</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX=\"\";IE_BUILD_POSTFIX=\"\";OV_NATIVE_PARENT_PROJECT_ROOT_DIR=\"openvino\";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <MASM>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;TBB_PREVIEW_WAITING_FOR_WORKERS=1;IE_THREAD=IE_THREAD_TBB;OV_THREAD=OV_THREAD_TBB;OV_BUILD_POSTFIX="";IE_BUILD_POSTFIX="";OV_NATIVE_PARENT_PROJECT_ROOT_DIR="openvino";IN_OV_COMPONENT;CL_TARGET_OPENCL_VERSION=200;OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;ENABLE_ONEDNN_FOR_GPU;__TBB_NO_IMPLICIT_LINKAGE=1;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <IncludePaths>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(IncludePaths)</IncludePaths>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\OPENVINO\openvino\src\plugins\intel_gpu\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\include;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include;D:\OPENVINO\openvino\thirdparty\ocl\cl_headers;D:\OPENVINO\openvino\thirdparty\ocl\clhpp_headers\include;D:\OPENVINO\openvino\src\core\shape_inference\include;D:\OPENVINO\openvino\src\core\include;D:\OPENVINO\openvino\src\core\dev_api;D:\OPENVINO\openvino\src\frontends\common\include;D:\OPENVINO\openvino\src\common\transformations\include;D:\OPENVINO\openvino\src\common\low_precision_transformations\include;D:\OPENVINO\openvino\src\common\itt\include;D:\OPENVINO\openvino\src\common\util\include;D:\OPENVINO\openvino\thirdparty\pugixml\src;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\kernels;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\codegen\include;D:\OPENVINO\openvino\src\inference\include;D:\OPENVINO\openvino\src\inference\include\ie;D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime;D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_install\include;D:\OPENVINO\openvino\src\core\reference\include;D:\OPENVINO\openvino\src\inference\dev_api;D:\OPENVINO\openvino\temp\tbb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\bin\cmake.exe -SD:/OPENVINO/openvino -BD:/OPENVINO/openvino --check-stamp-file D:/OPENVINO/openvino/src/plugins/intel_gpu/src/graph/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckCSourceCompiles.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckIncludeFile.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\CheckLibraryExists.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindPackageMessage.cmake;C:\Users\viswa\AppData\Local\Programs\Python\Python310\Lib\site-packages\cmake\data\share\cmake-3.28\Modules\FindThreads.cmake;D:\OPENVINO\openvino\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\fused_primitive_desc.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\kernel_impl_params.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\network.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\program.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\activation_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\binary_buffer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\bind.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\buffer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\cl_kernel_data_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\helpers.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\layout_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\map_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\polymorphic_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\set_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\static_instance.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\string_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\tensor_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\serialization\vector_serializer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\graph\topology.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\fully_connected.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\fully_connected_compressed.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\gather_compressed.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\gemm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\kv_cache.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\read_value.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\op\rms.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\async_infer_request.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\common_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\compiled_model.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\custom_layer.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\graph.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\plugin.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\primitives_list.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\program_builder.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\remote_context.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\remote_tensor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\simple_math.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\sync_infer_request.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\transformations_pipeline.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\usm_host_tensor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\plugin\variable_state.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\activation.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\adaptive_pooling.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\arg_max_min.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\assign.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\batch_to_space.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\border.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\broadcast.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\bucketize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\concatenation.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\condition.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\convert_color.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\convolution.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\crop.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\ctc_greedy_decoder.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\ctc_loss.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\cum_sum.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\custom_gpu_primitive.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\data.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\deconvolution.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\depth_to_space.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\detection_output.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\dft.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\eltwise.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\embedding_bag.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\experimental_detectron_detection_output.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\experimental_detectron_generate_proposals_single_image.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\experimental_detectron_prior_grid_generator.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\experimental_detectron_roi_feature_extractor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\experimental_detectron_topk_rois.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\extract_image_patches.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\eye.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\fully_connected.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\gather.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\gather_elements.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\gather_nd.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\gather_tree.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\gemm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\generate_proposals.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\grid_sample.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\grn.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\group_normalization.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\implementation_desc.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\input_layout.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\kv_cache.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\loop.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\lrn.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\lstm.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\matrix_nms.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\multiclass_nms.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\multinomial.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\mutable_data.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\mvn.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\non_max_suppression.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\non_zero.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\normalize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\one_hot.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\permute.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\pooling.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\primitive.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\prior_box.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\proposal.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\quantize.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\random_uniform.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\range.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\read_value.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reduce.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\region_yolo.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reorder.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reorg_yolo.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\resample.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reshape.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reverse.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\reverse_sequence.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\rms.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\roi_align.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\roi_pooling.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\roll.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\scatter_elements_update.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\scatter_nd_update.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\scatter_update.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\select.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\shape_of.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\shuffle_channels.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\slice.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\softmax.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\space_to_batch.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\space_to_depth.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\strided_slice.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\tile.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\primitives\unique.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\compilation_context.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\compounds.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\debug_configuration.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\device.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\device_info.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\device_query.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\engine.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\engine_configuration.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\error_handler.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\event.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\execution_config.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\file_util.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\format.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\internal_properties.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\itt.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\kernel.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\kernel_args.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\layout.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\lru_cache.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\memory.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\memory_caps.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\memory_pool.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\optionals.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\profiling.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\shape_predictor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\stream.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\tensor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\tensor_accessor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\intel_gpu\runtime\utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\include\va\va.h" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\activation.cpp">
+      <ObjectFileName>$(IntDir)/activation.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\adaptive_pooling.cpp">
+      <ObjectFileName>$(IntDir)/adaptive_pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\arg_max_min.cpp">
+      <ObjectFileName>$(IntDir)/arg_max_min.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\assign.cpp">
+      <ObjectFileName>$(IntDir)/assign.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\batch_to_space.cpp">
+      <ObjectFileName>$(IntDir)/batch_to_space.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\border.cpp">
+      <ObjectFileName>$(IntDir)/border.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\broadcast.cpp">
+      <ObjectFileName>$(IntDir)/broadcast.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\bucketize.cpp">
+      <ObjectFileName>$(IntDir)/bucketize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\compilation_context.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\concatenation.cpp">
+      <ObjectFileName>$(IntDir)/concatenation.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\condition.cpp">
+      <ObjectFileName>$(IntDir)/condition.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\convert_color.cpp">
+      <ObjectFileName>$(IntDir)/convert_color.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\convolution.cpp">
+      <ObjectFileName>$(IntDir)/convolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\crop.cpp">
+      <ObjectFileName>$(IntDir)/crop.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\ctc_greedy_decoder.cpp">
+      <ObjectFileName>$(IntDir)/ctc_greedy_decoder.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\ctc_loss.cpp">
+      <ObjectFileName>$(IntDir)/ctc_loss.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\cum_sum.cpp">
+      <ObjectFileName>$(IntDir)/cum_sum.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\custom_gpu_primitive.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\data.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\deconvolution.cpp">
+      <ObjectFileName>$(IntDir)/deconvolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\deformable_convolution.cpp">
+      <ObjectFileName>$(IntDir)/deformable_convolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\depth_to_space.cpp">
+      <ObjectFileName>$(IntDir)/depth_to_space.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\detection_output.cpp">
+      <ObjectFileName>$(IntDir)/detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\dft.cpp">
+      <ObjectFileName>$(IntDir)/dft.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\eltwise.cpp">
+      <ObjectFileName>$(IntDir)/eltwise.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\embedding_bag.cpp">
+      <ObjectFileName>$(IntDir)/embedding_bag.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\error_handler.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\experimental_detectron_detection_output.cpp">
+      <ObjectFileName>$(IntDir)/experimental_detectron_detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\experimental_detectron_generate_proposal_single_image.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\experimental_detectron_prior_grid_generator.cpp">
+      <ObjectFileName>$(IntDir)/experimental_detectron_prior_grid_generator.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\experimental_detectron_roi_feature_extractor.cpp">
+      <ObjectFileName>$(IntDir)/experimental_detectron_roi_feature_extractor.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\experimental_detectron_topk_rois.cpp">
+      <ObjectFileName>$(IntDir)/experimental_detectron_topk_rois.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\extract_image_patches.cpp">
+      <ObjectFileName>$(IntDir)/extract_image_patches.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\eye.cpp">
+      <ObjectFileName>$(IntDir)/eye.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\fully_connected.cpp">
+      <ObjectFileName>$(IntDir)/fully_connected.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\gather.cpp">
+      <ObjectFileName>$(IntDir)/gather.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\gather_elements.cpp">
+      <ObjectFileName>$(IntDir)/gather_elements.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\gather_nd.cpp">
+      <ObjectFileName>$(IntDir)/gather_nd.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\gather_tree.cpp">
+      <ObjectFileName>$(IntDir)/gather_tree.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\gemm.cpp">
+      <ObjectFileName>$(IntDir)/gemm.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\generate_proposals.cpp">
+      <ObjectFileName>$(IntDir)/generate_proposals.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\add_onednn_optimization_attributes.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\add_required_reorders.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\basic_memory_dependencies.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\build_implementations.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\compile_graph.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\concat_input_order.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\fuse_primitives_with_layout.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\graph_initializations.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\handle_reshape.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\mark_nodes.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\mark_runtime_skippable_nodes.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\mark_shape_of_subgraphs.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\oooq_memory_dependencies.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\post_input_reorder.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\post_optimize_weights.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\pre_replace_deconv.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_buffer_fusing.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_buffer_fusing.h" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_padding.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_primitive_fusing.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_primitive_fusing_through.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\prepare_quantization.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\propagate_constants.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\remove_redundant_reorders.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\reorder_inputs.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\reorder_transfer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\select_preferred_formats.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\skipped_branch_memory_dependencies.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\trim_to_outputs.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\graph_optimizer\update_inner_program_io_map.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\grid_sample.cpp">
+      <ObjectFileName>$(IntDir)/grid_sample.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\grn.cpp">
+      <ObjectFileName>$(IntDir)/grn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\group_normalization.cpp">
+      <ObjectFileName>$(IntDir)/group_normalization.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\common\condition.cpp">
+      <ObjectFileName>$(IntDir)/impls/common/condition.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\common\loop.cpp">
+      <ObjectFileName>$(IntDir)/impls/common/loop.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\common\register.cpp">
+      <ObjectFileName>$(IntDir)/impls/common/register.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\common\register.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\common\wait_for_events.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\activation.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/activation.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\assign.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/assign.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\broadcast.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/broadcast.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\concat.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\cpu_impl_helpers.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\crop.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/crop.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\detection_output.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/detection_output.cpp.obj</ObjectFileName>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ScanSourceforModuleDependencies>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(PreprocessorDefinitions);HAVE_SSE</PreprocessorDefinitions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ScanSourceforModuleDependencies>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(PreprocessorDefinitions);HAVE_SSE</PreprocessorDefinitions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</ScanSourceforModuleDependencies>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(PreprocessorDefinitions);HAVE_SSE</PreprocessorDefinitions>
+      <ScanSourceforModuleDependencies Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</ScanSourceforModuleDependencies>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(PreprocessorDefinitions);HAVE_SSE</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\eltwise.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/eltwise.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\gather.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/gather.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\non_max_suppression.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/non_max_suppression.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\proposal.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/proposal.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\range.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/range.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\read_value.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/read_value.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\register.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/register.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\register.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\reorder.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/reorder.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\scatter_update.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/scatter_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\select.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/select.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\shape_of.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/shape_of.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\strided_slice.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/strided_slice.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\cpu\tile.cpp">
+      <ObjectFileName>$(IntDir)/impls/cpu/tile.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\activation.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/activation.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\adaptive_pooling.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/adaptive_pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\arg_max_min.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/arg_max_min.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\batch_to_space.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/batch_to_space.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\border.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/border.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\broadcast.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/broadcast.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\bucketize.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/bucketize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\concatenation.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/concatenation.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\convert_color.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/convert_color.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\convolution.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/convolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\crop.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/crop.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\ctc_greedy_decoder.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/ctc_greedy_decoder.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\ctc_loss.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/ctc_loss.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\cum_sum.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/cum_sum.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\custom_primitive.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\deconvolution.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/deconvolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\deformable_convolution.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/deformable_convolution.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\depth_to_space.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/depth_to_space.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\detection_output.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\dft.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/dft.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\eltwise.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/eltwise.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\embedding_bag.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/embedding_bag.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\experimental_detectron_detection_output.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/experimental_detectron_detection_output.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\experimental_detectron_generate_proposals_single_image.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\experimental_detectron_prior_grid_generator.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/experimental_detectron_prior_grid_generator.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\experimental_detectron_roi_feature_extractor.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/experimental_detectron_roi_feature_extractor.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\experimental_detectron_topk_rois.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/experimental_detectron_topk_rois.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\extract_image_patches.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/extract_image_patches.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\eye.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/eye.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\fully_connected.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/fully_connected.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\gather.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/gather.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\gather_elements.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/gather_elements.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\gather_nd.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/gather_nd.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\gather_tree.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/gather_tree.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\gemm.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/gemm.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\generate_proposals.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/generate_proposals.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\grid_sample.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/grid_sample.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\grn.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/grn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\group_normalization.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/group_normalization.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\kernel_selector_helper.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\kernel_selector_helper.h" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\kv_cache.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/kv_cache.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\lrn.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/lrn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\lstm_elt.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/lstm_elt.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\matrix_nms.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/matrix_nms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\multiclass_nms.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/multiclass_nms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\multinomial.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/multinomial.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\mutable_data.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/mutable_data.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\mvn.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/mvn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\non_max_suppression.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/non_max_suppression.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\non_zero.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/non_zero.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\normalize.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/normalize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\one_hot.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/one_hot.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\permute.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/permute.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\pooling.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\primitive_base.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\prior_box.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/prior_box.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\quantize.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/quantize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\random_uniform.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/random_uniform.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\range.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/range.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reduce.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reduce.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\region_yolo.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/region_yolo.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\register.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/register.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\register.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reorder.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reorder.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reorg_yolo.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reorg_yolo.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\resample.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/resample.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reshape.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reshape.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reverse.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reverse.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\reverse_sequence.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/reverse_sequence.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\rms.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/rms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\roi_align.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/roi_align.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\roi_pooling.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/roi_pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\roll.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/roll.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\scatter_elements_update.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/scatter_elements_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\scatter_nd_update.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/scatter_nd_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\scatter_update.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/scatter_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\select.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/select.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\shape_of.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/shape_of.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\shuffle_channels.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/shuffle_channels.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\slice.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/slice.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\softmax.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/softmax.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\space_to_batch.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/space_to_batch.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\space_to_depth.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/space_to_depth.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\strided_slice.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/strided_slice.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\tile.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/tile.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\ocl\unique.cpp">
+      <ObjectFileName>$(IntDir)/impls/ocl/unique.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\concatenation_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\convolution_onednn.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\convolution_onednn.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\deconvolution_onednn.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\deconvolution_onednn.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\eltwise_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\fully_connected_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\gemm_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\onednn_formats_map.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\onednn_formats_map.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\pooling_onednn.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\primitive_onednn_base.h" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\reduction_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\register.cpp">
+      <ObjectFileName>$(IntDir)/impls/onednn/register.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\register.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\reorder_onednn.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\utils.cpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\impls\onednn\utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\activation_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\adaptive_pooling_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\arg_max_min_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\assign_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\batch_to_space_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\border_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\broadcast_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\bucketize_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\concatenation_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\condition_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\convert_color_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\convolution_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\crop_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\ctc_greedy_decoder_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\ctc_loss_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\cum_sum_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\custom_gpu_primitive_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\data_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\deconvolution_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\deformable_convolution_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\depth_to_space_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\detection_output_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\dft_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\eltwise_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\embedding_bag_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\experimental_detectron_detection_output_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\experimental_detectron_generate_proposals_single_image_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\experimental_detectron_prior_grid_generator_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\experimental_detectron_roi_feature_extractor_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\experimental_detectron_topk_rois_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\extract_image_patches_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\eye_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\fully_connected_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\gather_elements_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\gather_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\gather_nd_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\gather_tree_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\gemm_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\generate_proposals_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\grid_sample_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\grn_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\group_normalization_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\implementation_map.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\input_layout_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\json_object.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\kv_cache_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\layout_optimizer.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\loop_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\lrn_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\lstm_elt_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\matrix_nms_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\memory_accessor.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\multiclass_nms_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\multinomial_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\mutable_data_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\mvn_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\non_max_suppression_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\non_zero_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\normalize_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\one_hot_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\pass_manager.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\permute_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\pooling_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\primitive_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\primitive_type.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\primitive_type_base.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\prior_box_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\program_dump_graph.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\program_helpers.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\program_node.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\proposal_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\quantize_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\random_uniform_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\range_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\read_value_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reduce_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\region_yolo_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reorder_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reorg_yolo_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\resample_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reshape_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reverse_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\reverse_sequence_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\rms_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\roi_align_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\roi_pooling_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\roll_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\scatter_elements_update_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\scatter_nd_update_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\scatter_update_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\select_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\shape_of_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\shuffle_channels_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\slice_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\sliding_window_utils.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\softmax_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\space_to_batch_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\space_to_depth_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\strided_slice_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\tile_inst.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\to_string_utils.h" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\unique_inst.hpp" />
+    <ClInclude Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\include\variable.hpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\input_layout.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\kernel_impl_params.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\kv_cache.cpp">
+      <ObjectFileName>$(IntDir)/kv_cache.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\layout_optimizer.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\loop.cpp">
+      <ObjectFileName>$(IntDir)/loop.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\lrn.cpp">
+      <ObjectFileName>$(IntDir)/lrn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\lstm_elt.cpp">
+      <ObjectFileName>$(IntDir)/lstm_elt.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\matrix_nms.cpp">
+      <ObjectFileName>$(IntDir)/matrix_nms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\multiclass_nms.cpp">
+      <ObjectFileName>$(IntDir)/multiclass_nms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\multinomial.cpp">
+      <ObjectFileName>$(IntDir)/multinomial.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\mutable_data.cpp">
+      <ObjectFileName>$(IntDir)/mutable_data.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\mvn.cpp">
+      <ObjectFileName>$(IntDir)/mvn.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\network.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\nodes_ordering.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\non_max_suppression.cpp">
+      <ObjectFileName>$(IntDir)/non_max_suppression.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\non_zero.cpp">
+      <ObjectFileName>$(IntDir)/non_zero.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\normalize.cpp">
+      <ObjectFileName>$(IntDir)/normalize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\one_hot.cpp">
+      <ObjectFileName>$(IntDir)/one_hot.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\pass_manager.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\permute.cpp">
+      <ObjectFileName>$(IntDir)/permute.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\pooling.cpp">
+      <ObjectFileName>$(IntDir)/pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\primitive_inst.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\prior_box.cpp">
+      <ObjectFileName>$(IntDir)/prior_box.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\program.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\program_dump_graph.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\program_helpers.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\program_node.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\proposal.cpp">
+      <ObjectFileName>$(IntDir)/proposal.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\quantize.cpp">
+      <ObjectFileName>$(IntDir)/quantize.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\random_uniform.cpp">
+      <ObjectFileName>$(IntDir)/random_uniform.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\range.cpp">
+      <ObjectFileName>$(IntDir)/range.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\read_value.cpp">
+      <ObjectFileName>$(IntDir)/read_value.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reduce.cpp">
+      <ObjectFileName>$(IntDir)/reduce.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\region_yolo.cpp">
+      <ObjectFileName>$(IntDir)/region_yolo.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reorder.cpp">
+      <ObjectFileName>$(IntDir)/reorder.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reorg_yolo.cpp">
+      <ObjectFileName>$(IntDir)/reorg_yolo.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\resample.cpp">
+      <ObjectFileName>$(IntDir)/resample.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reshape.cpp">
+      <ObjectFileName>$(IntDir)/reshape.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reverse.cpp">
+      <ObjectFileName>$(IntDir)/reverse.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\reverse_sequence.cpp">
+      <ObjectFileName>$(IntDir)/reverse_sequence.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\rms.cpp">
+      <ObjectFileName>$(IntDir)/rms.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\roi_align.cpp">
+      <ObjectFileName>$(IntDir)/roi_align.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\roi_pooling.cpp">
+      <ObjectFileName>$(IntDir)/roi_pooling.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\roll.cpp">
+      <ObjectFileName>$(IntDir)/roll.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\scatter_elements_update.cpp">
+      <ObjectFileName>$(IntDir)/scatter_elements_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\scatter_nd_update.cpp">
+      <ObjectFileName>$(IntDir)/scatter_nd_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\scatter_update.cpp">
+      <ObjectFileName>$(IntDir)/scatter_update.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\select.cpp">
+      <ObjectFileName>$(IntDir)/select.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\shape_of.cpp">
+      <ObjectFileName>$(IntDir)/shape_of.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\shuffle_channels.cpp">
+      <ObjectFileName>$(IntDir)/shuffle_channels.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\slice.cpp">
+      <ObjectFileName>$(IntDir)/slice.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\softmax.cpp">
+      <ObjectFileName>$(IntDir)/softmax.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\space_to_batch.cpp">
+      <ObjectFileName>$(IntDir)/space_to_batch.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\space_to_depth.cpp">
+      <ObjectFileName>$(IntDir)/space_to_depth.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\strided_slice.cpp">
+      <ObjectFileName>$(IntDir)/strided_slice.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\tile.cpp">
+      <ObjectFileName>$(IntDir)/tile.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\topology.cpp" />
+    <ClCompile Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\graph\unique.cpp">
+      <ObjectFileName>$(IntDir)/unique.cpp.obj</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\OPENVINO\openvino\ZERO_CHECK.vcxproj">
+      <Project>{9E8B6657-932B-34BC-8935-ECE31CEFFE84}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\ocl\icd_loader\OpenCL.vcxproj">
+      <Project>{B4A42F0A-430A-3EED-AA46-A0E4A09380BE}</Project>
+      <Name>OpenCL</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\onednn_gpu_build.vcxproj">
+      <Project>{4ABB875A-3722-38A0-81E7-64A92DC6EFEB}</Project>
+      <Name>onednn_gpu_build</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\openvino.vcxproj">
+      <Project>{E3BCD75E-EA05-35AD-A02F-D69474AC9DBC}</Project>
+      <Name>openvino</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\kernel_selector\openvino_intel_gpu_kernels.vcxproj">
+      <Project>{FBEF0255-2404-3460-9C3D-C1878CF49552}</Project>
+      <Name>openvino_intel_gpu_kernels</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\src\runtime\openvino_intel_gpu_runtime.vcxproj">
+      <Project>{A72AC562-5FDC-3D3A-B6F5-59F48DDBECA9}</Project>
+      <Name>openvino_intel_gpu_runtime</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\itt\openvino_itt.vcxproj">
+      <Project>{D8014B23-D0FF-32DA-8A8E-A76D70E0F9CC}</Project>
+      <Name>openvino_itt</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\reference\openvino_reference.vcxproj">
+      <Project>{7402B9D7-10D7-3328-8A2E-F1E0723F368D}</Project>
+      <Name>openvino_reference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\core\shape_inference\openvino_shape_inference.vcxproj">
+      <Project>{D18B7EF1-6721-377F-AEA9-C45B1EE6240A}</Project>
+      <Name>openvino_shape_inference</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\src\common\util\openvino_util.vcxproj">
+      <Project>{D04F090E-81D9-3899-AE1B-ED76B6EEE126}</Project>
+      <Name>openvino_util</Name>
+    </ProjectReference>
+    <ProjectReference Include="D:\OPENVINO\openvino\thirdparty\pugixml\pugixml-static.vcxproj">
+      <Project>{FD272955-66FB-306F-ABBC-5B624CB96A4F}</Project>
+      <Name>pugixml-static</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>

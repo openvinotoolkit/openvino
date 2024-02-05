@@ -1,0 +1,5 @@
+# CMake generation dependency list for this directory.
+C:/Users/viswa/AppData/Local/Programs/Python/Python310/Lib/site-packages/cmake/data/share/cmake-3.28/Modules/CMakeParseArguments.cmake
+D:/OPENVINO/openvino/CMakeFiles/cmake.verify_globs
+D:/OPENVINO/openvino/samples/c/CMakeLists.txt
+D:/OPENVINO/openvino/samples/cpp/CMakeLists.txt

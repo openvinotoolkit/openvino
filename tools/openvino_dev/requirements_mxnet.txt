@@ -1,0 +1,1 @@
+openvino-dev[mxnet]==2024.0.0  # dependabot-ignore

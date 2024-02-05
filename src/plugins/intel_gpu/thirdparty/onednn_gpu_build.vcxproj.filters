@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-mkdir.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-download.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-update.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-patch.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-configure.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-build.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\6259acb775fc22b1731bfc38398470f1\onednn_gpu_build-install.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\f46f9bcf2944e655847cee9d796c855b\onednn_gpu_build-complete.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\CMakeFiles\bc4217748596a180b6306f7ba68e6a0f\onednn_gpu_build.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="D:\OPENVINO\openvino\src\plugins\intel_gpu\thirdparty\CMakeFiles\onednn_gpu_build" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4AB65DCD-AF60-3373-9FA5-1021DF5123DF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
