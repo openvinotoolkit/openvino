@@ -21,8 +21,7 @@ using namespace ::tests;
 
 TEST(multistream_gpu, basic) {
     const int num_streams = 2;
-    auto task_config = ov::threading::IStreamsExecutor::Config();
-    task_config._streams = num_streams;
+    auto task_config = ov::threading::IStreamsExecutor::Config{"gpu_test", num_streams};
     auto task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_config);
     auto& engine = get_test_engine();
 
