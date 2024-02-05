@@ -51,12 +51,6 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
-
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
@@ -103,9 +97,7 @@ jobs:
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
-        run: |
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
