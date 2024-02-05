@@ -161,7 +161,7 @@ Instructions below show how to build sample applications with CMake. If you are 
 
                      build_samples_msvc.bat
 
-            By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
+            By default, the script automatically detects the highest Microsoft Visual Studio version installed on the system and uses it to create and build a solution for a sample code
 
             Once the build is completed, you can find sample binaries in the following folders:
 
