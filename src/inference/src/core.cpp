@@ -19,17 +19,15 @@ namespace ov {
 std::string find_plugins_xml(const std::string& xml_file) {
     std::string xml_file_name = xml_file;
     if (xml_file_name.empty()) {
-        // Default plugin xml file name.
+        // Default plugin xml file name, will search in OV folder.
         xml_file_name = "plugins.xml";
     } else {
-        // Check plugin xml extension name.
-        if (!ov::util::ends_with(xml_file_name, "xml") && !ov::util::ends_with(xml_file_name, "XML")) {
-            OPENVINO_THROW("Unsupport plugin xml file with non-xml extension name(.xml or .XML): ",
-                           xml_file_name.c_str());
-        }
-
-        // If the xml file exists, will use it; else will search it only in ov folder.
-        if (ov::util::file_exists(xml_file_name)) {
+        // User can set any path for plugins xml file but need guarantee security issue if apply file path out of OV
+        // folder.
+        // If the xml file exists or file path contains file separator, return file path;
+        // Else search it in OV folder with no restriction on file name and extension.
+        if (ov::util::file_exists(xml_file_name) ||
+            xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
             return xml_file_name;
         }
     }
