@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include "cpu_shape.h"
+
+#include "openvino/core/type/element_type.hpp"
 
 #include <algorithm>
 #include <cassert>

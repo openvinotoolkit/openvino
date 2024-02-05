@@ -7,6 +7,7 @@
 #include <gmock/gmock.h>
 
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/icore.hpp"
 
 namespace ov {
 
@@ -16,7 +17,6 @@ public:
     MOCK_METHOD(ov::Any, get_property, (const std::string&, const std::string&), (const));
     MOCK_METHOD(ov::AnyMap, get_supported_property, (const std::string&, const ov::AnyMap&, const bool), (const));
 
-    MOCK_METHOD(bool, is_new_api, (), (const));
     MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>,
                 create_context,
                 (const std::string& deviceName, const ov::AnyMap& params),

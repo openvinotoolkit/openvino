@@ -7,6 +7,7 @@
 #include <cpu_memory.h>
 #include <memory_desc/cpu_blocked_memory_desc.h>
 #include <thread>
+#include <atomic>
 
 using namespace ov::intel_cpu;
 

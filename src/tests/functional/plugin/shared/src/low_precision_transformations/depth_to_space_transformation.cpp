@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -52,7 +51,7 @@ void DepthToSpaceTransformation::SetUp() {
     init_input_shapes(inputShape);
 
     if (inputShape.rank().is_dynamic() || inputShape.rank().get_length() != 4) {
-        IE_THROW() << "not supported input shape size " << inputShape.rank();
+        OPENVINO_THROW("not supported input shape size ", inputShape.rank());
     }
 
     function = ov::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>

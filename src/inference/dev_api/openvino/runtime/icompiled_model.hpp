@@ -22,15 +22,10 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
-namespace InferenceEngine {
-class ICompiledModelWrapper;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class CoreImpl;
 class IPlugin;
-class IExecutableNetworkWrapper;
 class IAsyncInferRequest;
 
 /**
@@ -150,8 +145,6 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
-    friend ov::IExecutableNetworkWrapper;
-    friend InferenceEngine::ICompiledModelWrapper;
 
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;

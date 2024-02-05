@@ -261,14 +261,6 @@ public:
     }
 };
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
-{                                                      \
-    try {                                              \
-        __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
-        GTEST_SKIP();                                  \
-    }                                                  \
-}
 } // namespace behavior
 } // namespace test
 } // namespace ov

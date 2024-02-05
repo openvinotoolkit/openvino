@@ -4,16 +4,17 @@
 
 #include "openvino/runtime/core.hpp"
 
-#include "any_copy.hpp"
-#include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "itt.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
+
+namespace {
 
 std::string find_plugins_xml(const std::string& xml_file) {
     if (xml_file.empty()) {
@@ -39,6 +40,8 @@ std::string find_plugins_xml(const std::string& xml_file) {
     return xml_file;
 }
 
+}  // namespace
+
 #define OV_CORE_CALL_STATEMENT(...)             \
     try {                                       \
         __VA_ARGS__;                            \
@@ -50,13 +53,13 @@ std::string find_plugins_xml(const std::string& xml_file) {
 
 class Core::Impl : public CoreImpl {
 public:
-    Impl() : ov::CoreImpl(true) {}
+    Impl() : ov::CoreImpl() {}
 };
 
 Core::Core(const std::string& xml_config_file) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile = ov::find_plugins_xml(xml_config_file);
+    std::string xmlConfigFile = find_plugins_xml(xml_config_file);
     if (!xmlConfigFile.empty())
         OV_CORE_CALL_STATEMENT(
             // If XML is default, load default plugins by absolute paths
@@ -66,13 +69,7 @@ Core::Core(const std::string& xml_config_file) {
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
-    OV_CORE_CALL_STATEMENT({
-        std::map<std::string, Version> versions;
-        for (auto&& kvp : _impl->GetVersions(device_name)) {
-            versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
-        }
-        return versions;
-    })
+    OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path, const std::wstring& bin_path) const {
@@ -214,7 +211,7 @@ Any Core::get_property(const std::string& device_name, const std::string& name, 
 }
 
 std::vector<std::string> Core::get_available_devices() const {
-    OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
+    OV_CORE_CALL_STATEMENT(return _impl->get_available_devices(););
 }
 
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
@@ -258,6 +255,10 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
         auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
         return {remoteContext._ptr, remoteContext._so};
     });
+}
+
+void shutdown() {
+    frontend::FrontEndManager::shutdown();
 }
 
 }  // namespace ov

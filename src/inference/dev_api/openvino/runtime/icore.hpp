@@ -170,8 +170,6 @@ public:
      */
     virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const = 0;
 
-    virtual bool is_new_api() const = 0;
-
     /**
      * @brief Get a pointer to default shared context object for the specified device.
      * @param device_name  - A name of a device to get create shared context from.

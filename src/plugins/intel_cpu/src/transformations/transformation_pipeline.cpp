@@ -258,7 +258,7 @@ void Transformations::UpToLpt() {
 
     const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
-    PreLpt(defaultPrecisions, isLegacyApi);
+    PreLpt(defaultPrecisions);
 
     if (useLpt)
         Lpt(defaultPrecisions);
@@ -270,7 +270,7 @@ void Transformations::CpuSpecificOpSet(void) {
     ConvertToCPUSpecificOpset(model);
 }
 
-void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
+void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
     // Decompression handling related transformations must be run separately from common preLPT pipeline
@@ -457,7 +457,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = [isLegacyApi](const_node_ptr &node) -> bool {
+    auto nmsCallback = [](const_node_ptr &node) -> bool {
+        // TODO: remove nmsCallback at all
+        const bool isLegacyApi = false;
         return isLegacyApi ?  false : true;
     };
 

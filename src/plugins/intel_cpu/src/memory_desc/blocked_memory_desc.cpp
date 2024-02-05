@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <unordered_set>
+
 #include "blocked_memory_desc.h"
 #include "utils/general_utils.h"
 

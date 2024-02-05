@@ -4,7 +4,6 @@
 
 #include "model_reader.hpp"
 
-#include "cnn_network_ngraph_impl.hpp"
 #include "itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -15,6 +14,21 @@
 #include "transformations/utils/utils.hpp"
 
 namespace {
+
+ov::element::Type toLegacyType(const ov::element::Type& ngraph_type, bool input) {
+    if (input) {
+        return ngraph_type == ov::element::f16 ? ov::element::f32 : ngraph_type;
+    } else {
+        if (ngraph_type == ov::element::i64 || ngraph_type == ov::element::u64 || ngraph_type == ov::element::i32 ||
+            ngraph_type == ov::element::u32) {
+            return ov::element::i32;
+        } else if (ngraph_type != ov::element::f32) {
+            return ov::element::f32;
+        }
+    }
+
+    return ngraph_type;
+}
 
 void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps
@@ -27,7 +41,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         for (size_t i = 0; i < inputs.size(); ++i) {
             if (!frontendMode) {
                 const auto ov_type = inputs[i].get_element_type();
-                const auto legacy_type = InferenceEngine::details::toLegacyType(ov_type, true);
+                const auto legacy_type = toLegacyType(ov_type, true);
                 prepost.input(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : inputs[i].get_names()) {
@@ -42,7 +56,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         for (size_t i = 0; i < outputs.size(); ++i) {
             if (!frontendMode) {
                 const auto ov_type = outputs[i].get_element_type();
-                const auto legacy_type = InferenceEngine::details::toLegacyType(ov_type, false);
+                const auto legacy_type = toLegacyType(ov_type, false);
                 prepost.output(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : outputs[i].get_names()) {
