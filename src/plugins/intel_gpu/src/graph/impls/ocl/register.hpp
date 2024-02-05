@@ -68,6 +68,7 @@
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
@@ -157,6 +158,7 @@ REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
+REGISTER_OCL(swiglu);
 REGISTER_OCL(tile);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
