@@ -51,7 +51,7 @@ void copy_7D(void* src_raw_ptr,
         }
     }
 }
-} // namespace
+}  // namespace
 
 namespace {
 static int randInt(int low, int high) {
