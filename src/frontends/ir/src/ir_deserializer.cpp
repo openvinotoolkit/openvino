@@ -369,7 +369,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
         pugi::xml_node dn = m_node.child("data");
-        auto type = pugixml::utils::get_str_attr(m_node, "type");
+        const auto& type = pugixml::get_str_attr(m_node, "type");
         if (name == "value" && type == "Const") {
             std::vector<int64_t> shape;
             std::string el_type_str;
