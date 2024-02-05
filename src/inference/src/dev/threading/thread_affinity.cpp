@@ -51,8 +51,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperthreads,
                                int ncores,
                                const CpuSet& procMask,
-                               const std::vector<int>& cpu_ids,
-                               int cpuIdxOffset) {
+                               const std::vector<int>& cpu_ids) {
     if (procMask == nullptr)
         return false;
     const size_t size = CPU_ALLOC_SIZE(ncores);
@@ -64,7 +63,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
         mapped_idx = cpu_ids[thrIdx];
     } else {
         // Place threads with specified step
-        int cpu_idx = cpuIdxOffset;
+        int cpu_idx = 0;
         for (int i = 0, offset = 0; i < thrIdx; ++i) {
             cpu_idx += hyperthreads;
             if (cpu_idx >= num_cpus)
@@ -72,8 +71,8 @@ bool pin_thread_to_vacant_core(int thrIdx,
         }
 
         // Find index of 'cpu_idx'-th bit that equals to 1
-        mapped_idx = cpuIdxOffset - 1;
-        while (cpu_idx >= cpuIdxOffset) {
+        mapped_idx = -1;
+        while (cpu_idx >= 0) {
             mapped_idx++;
             if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
                 --cpu_idx;
@@ -125,8 +124,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperthreads,
                                int ncores,
                                const CpuSet& procMask,
-                               const std::vector<int>& cpu_ids,
-                               int cpuIdxOffset) {
+                               const std::vector<int>& cpu_ids) {
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
@@ -146,8 +144,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperthreads,
                                int ncores,
                                const CpuSet& procMask,
-                               const std::vector<int>& cpu_ids,
-                               int cpuIdxOffset) {
+                               const std::vector<int>& cpu_ids) {
     return false;
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {

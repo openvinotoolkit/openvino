@@ -14,9 +14,6 @@ Configuration::Configuration() {}
 
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
-    // If plugin needs to use ov::threading::StreamsExecutor it should be able to process its configuration
-    auto streamExecutorConfigKeys =
-        streams_executor_config.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     for (auto&& c : config) {
         const auto& key = c.first;
         const auto& value = c.second;
@@ -25,9 +22,39 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             disable_transformations = value.as<bool>();
         } else if (ov::internal::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-        } else if (streamExecutorConfigKeys.end() !=
-                   std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streams_executor_config.set_property(key, value);
+        } else if (ov::num_streams.name() == key) {
+            ov::Any val = value.as<std::string>();
+            auto streams_value = val.as<ov::streams::Num>();
+            if (streams_value.num >= 0) {
+                streams = streams_value.num;
+            } else if (streams_value == ov::streams::NUMA) {
+                streams = 1;
+            } else if (streams_value == ov::streams::AUTO) {
+                streams = ov::threading::IStreamsExecutor::Config::get_default_num_streams();
+            } else {
+                OPENVINO_THROW("Wrong value for property key ",
+                               key,
+                               ". Expected non negative numbers (#streams) or ",
+                               "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                               value.as<std::string>());
+            }
+        } else if (ov::inference_num_threads.name() == key) {
+            int val;
+            try {
+                val = value.as<int>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            if (val < 0) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            threads = val;
+        } else if (ov::internal::threads_per_stream.name() == key) {
+            try {
+                threads_per_stream = value.as<int>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<std::string>(), "for property key ", key);
+            }
         } else if (ov::device::id == key) {
             device_id = std::stoi(value.as<std::string>());
             OPENVINO_ASSERT(device_id <= 0, "Device ID ", device_id, " is not supported");
@@ -45,8 +72,6 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 OPENVINO_THROW("Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: ",
                                value.as<std::string>());
             }
-        } else if (ov::num_streams == key) {
-            streams_executor_config.set_property(key, value);
         } else if (ov::hint::num_requests == key) {
             auto tmp_val = value.as<std::string>();
             int tmp_i = std::stoi(tmp_val);
@@ -65,12 +90,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 }
 
 ov::Any Configuration::Get(const std::string& name) const {
-    auto streamExecutorConfigKeys =
-        streams_executor_config.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
-    if ((streamExecutorConfigKeys.end() !=
-         std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), name))) {
-        return streams_executor_config.get_property(name);
-    } else if (name == ov::device::id) {
+    if (name == ov::device::id) {
         return {std::to_string(device_id)};
     } else if (name == ov::enable_profiling) {
         return {perf_count};
@@ -79,13 +99,11 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else if (name == ov::template_plugin::disable_transformations) {
         return {disable_transformations};
     } else if (name == ov::num_streams) {
-        return {std::to_string(streams_executor_config._streams)};
-    } else if (name == ov::internal::cpu_bind_thread) {
-        return streams_executor_config.get_property(name);
+        return {std::to_string(streams)};
     } else if (name == ov::inference_num_threads) {
-        return {std::to_string(streams_executor_config._threads)};
+        return {std::to_string(threads)};
     } else if (name == ov::internal::threads_per_stream) {
-        return {std::to_string(streams_executor_config._threadsPerStream)};
+        return {std::to_string(threads_per_stream)};
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
     } else if (name == ov::hint::inference_precision) {

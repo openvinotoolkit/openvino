@@ -156,7 +156,7 @@ std::vector<EltwiseTypes> eltwise_op_typesSingleThread = {
 };
 
 ov::AnyMap additional_config_single_thread = {
-        ov::inference_num_threads(1),
+    ov::inference_num_threads(1),
 };
 
 const auto single_thread_params = ::testing::Combine(
