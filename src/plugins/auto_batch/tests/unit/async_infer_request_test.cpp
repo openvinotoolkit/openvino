@@ -207,7 +207,7 @@ public:
                     } else if ((status == std::cv_status::timeout) && sz) {
                         std::pair<AsyncInferRequest*, ov::threading::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            OPENVINO_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             t.first->m_sync_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->m_request_without_batch->start_async();

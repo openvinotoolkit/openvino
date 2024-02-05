@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include "ie_common.h"
 #include "nodes/eltwise.h"
 
 using namespace ov::intel_cpu;

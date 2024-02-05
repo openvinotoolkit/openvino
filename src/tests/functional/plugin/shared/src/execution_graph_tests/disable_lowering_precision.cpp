@@ -9,7 +9,6 @@
 #include <string>
 #include <functional>
 
-#include <ie_core.hpp>
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/core/model.hpp"
 #include "common_test_utils/common_utils.hpp"
