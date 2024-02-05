@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
-    const auto& input = node.get_ng_inputs();
+    const auto& input = node.get_ov_inputs();
     const auto a = input.at(0);
     const auto b = input.at(1);
     FRONT_END_GENERAL_CHECK(a.get_element_type() != ov::element::bf16 && b.get_element_type() != ov::element::bf16,
@@ -27,7 +27,7 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
 
 namespace set_16 {
 ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
-    const auto& input = node.get_ng_inputs();
+    const auto& input = node.get_ov_inputs();
     const auto a = input.at(0);
     const auto b = input.at(1);
     return {std::make_shared<v1::LessEqual>(a, b)};

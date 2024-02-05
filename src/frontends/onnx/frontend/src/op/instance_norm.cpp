@@ -20,9 +20,9 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector instance_norm(const ov::frontend::onnx::Node& node) {
-    ov::Output<ov::Node> data(node.get_ng_inputs().at(0));
-    ov::Output<ov::Node> scale(node.get_ng_inputs().at(1));
-    ov::Output<ov::Node> bias(node.get_ng_inputs().at(2));
+    ov::Output<ov::Node> data(node.get_ov_inputs().at(0));
+    ov::Output<ov::Node> scale(node.get_ov_inputs().at(1));
+    ov::Output<ov::Node> bias(node.get_ov_inputs().at(2));
     const ov::PartialShape& data_pshape = data.get_partial_shape();
     const ov::PartialShape& scale_pshape = scale.get_partial_shape();
     const ov::PartialShape& bias_pshape = bias.get_partial_shape();

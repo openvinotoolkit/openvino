@@ -22,7 +22,7 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // Crop is an obsolete experimental ONNX operation.
     // Crops an image's spatial dimensions.
 
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto& input_data = inputs.at(0);
 
     // Border values: leftBorder, topBorder, rightBorder, bottomBorder.

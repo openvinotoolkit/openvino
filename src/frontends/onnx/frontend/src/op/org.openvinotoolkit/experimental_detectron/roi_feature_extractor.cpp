@@ -17,7 +17,7 @@ namespace set_1 {
 ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend::onnx::Node& node) {
     using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
 
     ROIFeatureExtractor::Attributes attrs{};
     attrs.output_size = node.get_attribute_value<std::int64_t>("output_size", 7);

@@ -18,7 +18,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto indices = std::make_shared<v0::Convert>(inputs.at(0), ov::element::i64);
     auto depth = std::make_shared<v0::Convert>(reshape::interpret_as_scalar(inputs.at(1)), ov::element::i64);
     // Rank 1 tensor containing exactly two elements: [off_value, on_value]

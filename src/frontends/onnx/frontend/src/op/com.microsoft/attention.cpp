@@ -72,7 +72,7 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 
 namespace set_1 {
 ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
-    auto nodes = node.get_ng_inputs();
+    auto nodes = node.get_ov_inputs();
     const auto& input = nodes[0];
     const auto& weights = nodes[1];
     const auto& bias = nodes[2];

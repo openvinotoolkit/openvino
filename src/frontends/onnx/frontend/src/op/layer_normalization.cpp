@@ -30,7 +30,6 @@ using namespace ov::op::v8;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -38,7 +37,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node,
                      num_inputs == 2 || num_inputs == 3,
@@ -103,4 +102,3 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

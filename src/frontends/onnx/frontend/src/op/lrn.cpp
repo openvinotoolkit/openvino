@@ -14,7 +14,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1e-4);
     double beta = node.get_attribute_value<double>("beta", 0.75);
     double bias = node.get_attribute_value<double>("bias", 1);

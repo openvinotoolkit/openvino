@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector selu(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     auto alpha = node.get_attribute_value<double>("alpha", 1.67326319217681884765625);
     auto gamma = node.get_attribute_value<double>("gamma", 1.05070102214813232421875);
 

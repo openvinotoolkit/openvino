@@ -34,7 +34,7 @@ ov::OutputVector get_shape_width_and_height(const ov::Output<ov::Node>& shape) {
 namespace set_1 {
 
 ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
-    const auto input = node.get_ng_inputs().at(0);
+    const auto input = node.get_ov_inputs().at(0);
 
     const auto& input_rank = input.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
