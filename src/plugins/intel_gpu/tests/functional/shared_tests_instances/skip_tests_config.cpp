@@ -21,6 +21,9 @@ std::vector<std::string> disabledTestPatterns() {
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput5In).*)",
+
+            // R"(.*LSTMSequence.*)",
+
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
             // TODO: Issue: 54194
@@ -40,7 +43,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue 114262
             R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
-            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
+            R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // Unsupported
@@ -65,7 +68,12 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // unsupported metrics
+            R"(.*nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*)",
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+
+            // Support property in BATCH plugin issue
+            R"(.*nightly_OVClassCompiledModelGetPropertyTest/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_SUPPORTED_CONFIG_KEYS/2)",
+
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",

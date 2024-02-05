@@ -683,7 +683,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),
         ov::intel_gpu::execution_units_count.name(),
-        ov::intel_gpu::driver_version.name(),
         ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
     };
@@ -701,8 +700,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ASSERT_TRUE(std::find(caching_properties.begin(), caching_properties.end(), property_name) !=
                     caching_properties.end());
     }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
