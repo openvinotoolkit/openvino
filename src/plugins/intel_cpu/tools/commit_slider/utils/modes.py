@@ -58,6 +58,12 @@ class CheckOutputMode(Mode):
         checkOut = ""
         commitLogger = getCommitLogger(cfg, commit)
         isCommitCashed, cashedOutput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
             logMsg = "Cashed commit - {commit}".format(commit=commit)
             self.commonLogger.info(logMsg)
@@ -141,6 +147,12 @@ class BenchmarkAppPerformanceMode(Mode):
         curThroughput = 0
         commitLogger = getCommitLogger(cfg, commit)
         isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
             logMsg = "Cashed commit - {commit}".format(commit=commit)
             self.commonLogger.info(logMsg)
@@ -189,6 +201,12 @@ class CompareBlobsMode(Mode):
         commitLogger = getCommitLogger(cfg, commit)
         filename = ''
         isCommitCashed, cachedfileName = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
             logMsg = "Cashed commit - {commit}".format(commit=commit)
             self.commonLogger.info(logMsg)

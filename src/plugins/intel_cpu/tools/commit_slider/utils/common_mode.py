@@ -4,6 +4,8 @@
 from abc import ABC
 import utils.helpers as util
 import utils.map_builder as mapBuilder
+from utils.break_validator import validateBMOutput
+from utils.break_validator import BmValidationError
 import json
 import os
 from enum import Enum
@@ -140,7 +142,7 @@ class Mode(ABC):
                     "Error handling mode {} is not supported".format(errorHandlingMode)
                     )
 
-    def postRun(self, list):
+    def postRun(self, list: list):
         util.returnToActualVersion(self.cfg)
         if "printCSV" in self.cfg\
                 and self.cfg["printCSV"]\
@@ -163,6 +165,23 @@ class Mode(ABC):
                 csvwriter = csv.writer(csvfile)
                 csvwriter.writerow(fields)
                 csvwriter.writerows(rows)
+        if self.isPerformanceBased():
+            commitList = [{
+                'id': int(list.index(item.cHash)),
+                'hash': item.cHash,
+                'throughput': self.getCommitIfCashed(item.cHash)[1]
+            } for i, item in enumerate(self.commitPath.getList())]
+            commitList = sorted(
+                commitList,
+                key=lambda el: el['id']
+            )
+            breakCommit = [item.cHash for item in self.commitPath.getList()\
+                           if item.state == self.CommitPath.CommitState.BREAK][0]
+            try:
+                validateBMOutput(commitList, breakCommit, self.cfg["runConfig"]["perfAppropriateDeviation"])
+            except BmValidationError as e:
+                self.commitPath.metaInfo["postValidationPassed"] = False
+                self.commitPath.metaInfo["reason"] = e.message
 
     def run(self, list, cfg) -> int:
         list = self.prepareRun(list, cfg)
@@ -178,8 +197,14 @@ class Mode(ABC):
         pass
 
     def printResult(self):
-        for pathcommit in self.commitPath.getList():
-            print(self.getCommitInfo(pathcommit))
+        if not self.commitPath.metaInfo["postValidationPassed"]:
+            print("Output results invalid, reason: {}".format(
+                self.commitPath.metaInfo["reason"]
+            ))
+        else:
+            for pathcommit in self.commitPath.getList():
+                if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
+                    print(self.getCommitInfo(pathcommit))
 
     def getCommitInfo(self, commit):
         # override if you need more details in output representation
@@ -193,14 +218,16 @@ class Mode(ABC):
 
         def __init__(self):
             self.commitList = []
+            self.metaInfo = { "postValidationPassed": True }
 
         def accept(self, traversal, commitToReport) -> None:
             traversal.visit(self, commitToReport)
 
         class CommitState(Enum):
-            BREAK = 1
-            SKIPPED = 2
-            IGNORED = 3
+            DEFAULT = 1
+            BREAK = 2
+            SKIPPED = 3
+            IGNORED = 4
 
         class CommitSource(Enum):
             BUILDED = 1
@@ -211,8 +238,22 @@ class Mode(ABC):
                 self.cHash = cHash
                 self.state = state
 
-        def append(self, commit):
-            self.commitList.append(commit)
+            def setupState(self, state):
+                self.state = state
+
+        def append(self, commit: PathCommit):
+            if commit.cHash not in [x.cHash for x in self.commitList]:
+                self.commitList.append(commit)
+
+        def changeState(self, commit: str, state: CommitState):
+            if commit in [x.cHash for x in self.commitList]:
+                commitInd = [
+                    i for i, elem in enumerate(self.commitList) if elem.cHash == commit
+                    ][0]
+                self.commitList[commitInd].setupState(state)
+            else:
+                raise Exception(
+                    "Commit {} in not in commit path".format(commit))
 
         def pop(self):
             return self.commitList.pop(0)
@@ -322,12 +363,10 @@ class Mode(ABC):
                 isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
-                pc = Mode.CommitPath.PathCommit(
+                self.mode.commitPath.changeState(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
                 )
-                self.mode.setOutputInfo(pc)
-                self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
@@ -355,12 +394,10 @@ class Mode(ABC):
                 isBad = not self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
-                pc = Mode.CommitPath.PathCommit(
+                self.mode.commitPath.changeState(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
                 )
-                self.mode.setOutputInfo(pc)
-                self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = not self.mode.compareCommits(
@@ -388,12 +425,10 @@ class Mode(ABC):
                 isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
-                pc = Mode.CommitPath.PathCommit(
+                self.mode.commitPath.changeState(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
                 )
-                self.mode.setOutputInfo(pc)
-                self.mode.commitPath.accept(self, pc)
                 lastCommit = list[-1]
                 isTailDiffer = self.mode.compareCommits(
                     breakCommit, lastCommit, list, cfg)

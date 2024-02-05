@@ -173,9 +173,17 @@ def getActualCommit(td: TestData):
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
-    foundCommit = re.search(
-            "Break commit: (.*),", sliderOutput, flags=re.MULTILINE
-        ).group(1)
+    rejectReason, foundCommit = None, None
+    commitMatcher = re.search(
+            "Break commit: (.*), state", sliderOutput, flags=re.MULTILINE
+        )
+    if commitMatcher is not None:
+        foundCommit = commitMatcher.group(1)
+    else:
+        commitMatcher = re.search(
+                "Output results invalid, reason: (.*)", sliderOutput, flags=re.MULTILINE
+            )
+        rejectReason = commitMatcher.group(1)
 
     # clear temp data
     [shutil.rmtree(dir) for dir in [
@@ -184,7 +192,7 @@ def getActualCommit(td: TestData):
             td.logPath]]
     os.remove(testCfg)
 
-    return foundCommit
+    return foundCommit, rejectReason
 
 def requireBinarySearchData(td: TestData, rsc: map):
     td.requireTestData(

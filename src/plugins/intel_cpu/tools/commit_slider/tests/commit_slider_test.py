@@ -8,10 +8,10 @@ from tests import skip_commit_slider_devtest
 sys.path.append('./')
 from test_util import getExpectedCommit
 from test_util import getActualCommit
-from utils.break_validator import validateBMOutput
+from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
-    BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2
-from utils.break_validator import BmValidationError
+    BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
+    BenchmarkAppDataUnstable, BenchmarkAppDataStable
 
 
 class CommitSliderTest(TestCase):
@@ -19,7 +19,7 @@ class CommitSliderTest(TestCase):
     def testFirstValidVersion(self):
         breakCommit, updatedData = getExpectedCommit(
             FirstValidVersionData())
-        actualCommit = getActualCommit(updatedData)
+        actualCommit, _ = getActualCommit(updatedData)
 
         self.assertEqual(breakCommit, actualCommit)
 
@@ -27,8 +27,22 @@ class CommitSliderTest(TestCase):
     def testFirstBadVersion(self):
         breakCommit, updatedData = getExpectedCommit(
             FirstBadVersionData())
-        actualCommit = getActualCommit(updatedData)
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
 
+    @skip_commit_slider_devtest
+    def testBmUnstable(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BenchmarkAppDataUnstable())
+        actualCommit, reason = getActualCommit(updatedData)
+        # self.assertEqual(breakCommit, actualCommit)
+        self.assertEqual(reason, "left interval is stable, right interval is unstable")
+
+    @skip_commit_slider_devtest
+    def testBmStable(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BenchmarkAppDataStable())
+        actualCommit, reason = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
@@ -80,4 +94,3 @@ class CommitSliderTest(TestCase):
             e.exception.errType,
             BmValidationError.BmValErrType.LOW_LOCAL_GAP
         )
-

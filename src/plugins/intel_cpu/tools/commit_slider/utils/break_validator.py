@@ -34,15 +34,15 @@ def checkBreakLocality(leftInterval: list, rightInterval: list, dev: float):
     realGap = (preBreakValue - postBreakValue) / preBreakValue
     return realGap > dev, realGap
 
-def validateBMOutput(commitMap: map, breakCommit: str, dev: float):
+def validateBMOutput(commitList: list, breakCommit: str, dev: float):
     breakId = int(
-        [item['id'] for item in commitMap
+        [item['id'] for item in commitList
             if item['hash'] == breakCommit][0]
         )
 
-    leftInterval = [float(item['throughput']) for item in commitMap
+    leftInterval = [float(item['throughput']) for item in commitList
             if int(item['id']) < breakId]
-    rightInterval = [float(item['throughput']) for item in commitMap
+    rightInterval = [float(item['throughput']) for item in commitList
             if int(item['id']) >= breakId]
 
     # first criterion: both intervals are stable
@@ -101,10 +101,10 @@ def breakValidator(args):
     breakCommit = argDict["-break_commit"]
     dev = float(argDict["-deviation"])
 
-    commitMap = getJSONFromCSV(csvPath)
+    commitList = getJSONFromCSV(csvPath)
 
     try:
-        validateBMOutput(commitMap, breakCommit, dev)
+        validateBMOutput(commitList, breakCommit, dev)
         print("Results are valid")
     except BmValidationError as e:
         print("Invalid benchmark results: {}".format(e.message))
