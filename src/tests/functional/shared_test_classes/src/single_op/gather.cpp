@@ -245,8 +245,8 @@ void Gather8withIndicesDataLayerTest::SetUp() {
 }
 
 // Gather String support
-std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<gatherStringParamsTuple>& obj) {
-    gatherStringParamsTuple basicParams = obj.param;
+std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<GatherStringParamsTuple>& obj) {
+    const GatherStringParamsTuple& basicParams = obj.param;
     std::vector<int64_t> indicesData;
     std::vector<std::string> str_data;
 
@@ -282,7 +282,7 @@ std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing:
 }
 
 void GatherStringWithIndicesDataLayerTest::SetUp() {
-    gatherStringParamsTuple basicParams = GetParam();
+    const GatherStringParamsTuple& basicParams = GetParam();
     std::vector<int64_t> indicesData;
     std::tuple<int, int> axis_batch_idx;
     ov::Shape indices_shape;

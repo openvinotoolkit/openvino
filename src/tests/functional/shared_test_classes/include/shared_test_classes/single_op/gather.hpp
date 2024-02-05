@@ -78,20 +78,20 @@ protected:
     void SetUp() override;
 };
 
-typedef std::tuple<
-        std::vector<InputShape>,  // Input shapes
-        ov::Shape,                // Indices shape
-        std::tuple<int, int>,     // Gather axis and batch
-        ov::element::Type,        // Model type
-        std::string,               // Device name
-        std::vector<int64_t>, // indices data
-        std::vector<std::string>  // String data
-> gatherStringParamsTuple;
+typedef std::tuple<std::vector<InputShape>,  // Input shapes
+                   ov::Shape,                // Indices shape
+                   std::tuple<int, int>,     // Gather axis and batch
+                   ov::element::Type,        // Model type
+                   std::string,              // Device name
+                   std::vector<int64_t>,     // indices data
+                   std::vector<std::string>  // String data
+                   >
+    GatherStringParamsTuple;
 
-class GatherStringWithIndicesDataLayerTest : public testing::WithParamInterface<gatherStringParamsTuple>,
-                         virtual public ov::test::SubgraphBaseTest {
+class GatherStringWithIndicesDataLayerTest : public testing::WithParamInterface<GatherStringParamsTuple>,
+                                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<gatherStringParamsTuple>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherStringParamsTuple>& obj);
 
 protected:
     void SetUp() override;
