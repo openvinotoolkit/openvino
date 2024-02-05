@@ -88,7 +88,7 @@ class TorchScriptPythonDecoder (Decoder):
         return preserved_attributes
 
     def _patch_modules(self, model):
-        print('[ INFO ] _path_modules', self.module_extensions)
+        print('[ INFO ] _patch_modules', self.module_extensions)
         def module_patcher(module, name):
             extension = None
 
@@ -102,6 +102,8 @@ class TorchScriptPythonDecoder (Decoder):
             if extension:
                 print('extension is identified')
                 class Trampoline(torch.autograd.Function):
+                    target_extension = extension
+                    original_module = module
                     @staticmethod
                     def forward(*args, **kwargs):
                         if extension.replacer:
@@ -315,6 +317,15 @@ class TorchScriptPythonDecoder (Decoder):
     def get_op_type(self) -> str:
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
+        if self.graph_element.kind() == "prim::PythonOp":
+            trampoline = self.graph_element.pyobj().__self__
+            print('[ INFO ] Going to override type:', trampoline)
+            target = trampoline.target_extension.extension(trampoline.original_module)
+            if callable(target):
+                print('[ ERROR ] Callable as a target of extension is not yet supported')
+            else:
+                print('[ INFO ] Target override:', target)
+                return target
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
