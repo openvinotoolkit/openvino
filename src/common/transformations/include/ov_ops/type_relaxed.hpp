@@ -90,9 +90,7 @@ protected:
         for (size_t i = 0; i < node.get_input_size(); ++i) {
             auto origin_input_type = get_origin_input_type(i);
             if (origin_input_type != element::undefined) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
                 node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
-                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
     }
@@ -100,9 +98,7 @@ protected:
     void restore_input_data_types(Node& node, const element::TypeVector& old_input_types) {
         // Restore original input data types
         for (size_t i = 0; i < node.get_input_size(); ++i) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
             node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         if (m_original_output_data_types.empty()) {
@@ -161,9 +157,7 @@ public:
     TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
         // save original element type in order to restore it in the destructor
         orig_type = m_output.get_element_type();
-        OPENVINO_SUPPRESS_DEPRECATED_START
         m_output.get_tensor().set_element_type(tmp_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// Return the output port that was used in the constructor
@@ -173,9 +167,7 @@ public:
 
     /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         m_output.get_tensor().set_element_type(orig_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 

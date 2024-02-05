@@ -273,9 +273,7 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
 }
 
 void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::string ov::Node::description() const {

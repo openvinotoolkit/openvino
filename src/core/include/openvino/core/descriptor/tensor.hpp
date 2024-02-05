@@ -28,17 +28,19 @@ using TensorLabelVector = std::vector<TensorLabel>;
 namespace pass {
 class ReverseShapeAndTypeInfer;
 class SymbolicPropagation;
-}
+}  // namespace pass
 
 namespace op {
 class TypeRelaxedBase;
 class TemporaryReplaceOutputType;
+
 std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> OPENVINO_API
 convert_input_types(OutputVector& inputs, const element::TypeVector& types);
+
 void OPENVINO_API
 reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>>& original_input_vals,
                   OutputVector& inputs);
-}
+}  // namespace op
 
 namespace descriptor {
 
@@ -114,11 +116,10 @@ public:
     void clone_from(const Tensor& old);
 
 private:
-    OPENVINO_DEPRECATED(
-        "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
+    // set_element_type() is private func. To change Tensor element type please change the Parameter type.
     void set_element_type(const element::Type& elemenet_type);
 
-    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
+    // set_tensor_type() is private func. To change Tensor type please change the Parameter type.
     void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
 
 protected:
