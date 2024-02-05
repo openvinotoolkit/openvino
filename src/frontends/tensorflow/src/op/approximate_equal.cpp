@@ -21,8 +21,10 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ApproximateEqual"});
 
     // Extract necessary attributes and inputs
-    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f); // Set default value for tolerance
-    auto x = node.get_input(0); // Access inputs directly
+    // Set default value for tolerance
+    auto tolerance = node.get_attribute<float>("tolerance", 1e-5f);
+    // Access inputs directly
+    auto x = node.get_input(0);
     auto y = node.get_input(1);
 
     // Implement the logic for ApproximateEqual
