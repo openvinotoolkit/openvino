@@ -28,7 +28,7 @@ ov::OutputVector greater_or_equal(const Node& node) {
 }
 }  // namespace set_1
 
-namespace ngraph {
+
 namespace onnx_import {
 namespace op {
 
@@ -66,7 +66,6 @@ OutputVector relu(const Node& node) {
 
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
 
 
 namespace set_16 {
