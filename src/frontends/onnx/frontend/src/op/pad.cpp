@@ -38,9 +38,9 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
 
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "Data rank must be static for pad op");
     const auto data_rank_value = data_rank.get_length();
 
@@ -63,7 +63,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 }  // namespace set_1
 namespace set_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
     ov::Output<ov::Node> values;

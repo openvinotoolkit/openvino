@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
-    const auto input = node.get_ng_inputs().at(0);
+    const auto input = node.get_ov_inputs().at(0);
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
     if (node.has_attribute("split")) {
@@ -32,7 +32,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
 
 namespace set_13 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
     if (inputs.size() < 2) {

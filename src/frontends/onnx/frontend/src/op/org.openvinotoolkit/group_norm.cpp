@@ -17,7 +17,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 3,
                             "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
 

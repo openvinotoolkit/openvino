@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto X = inputs.at(0);
     const auto input_low = inputs.at(1);
     const auto input_high = inputs.at(2);
