@@ -77,8 +77,6 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
                                                     const float max,
                                                     const int seed);
 
-ov::Tensor create_and_fill_tensor_sin_values(const ov::element::Type element_type, const ov::Shape& shape);
-
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold = std::numeric_limits<double>::max(),
