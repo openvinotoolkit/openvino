@@ -52,21 +52,40 @@ inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
     return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
 }
 
+#if BEAM_TABLE_TERM
+inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BEAM_TABLE_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
+#else
+#   error gemm_ref.cl : Unsupported bt for input 1 format
+#endif
+}
+
+inline uint FUNC(get_bt_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INDIRECT_INPUT0
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT0_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+#endif
+}
+
+#endif // BEAM_TABLE_TERM
+
 #if INDIRECT_INPUT0
 inline uint FUNC(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
-    int b_index = beam_table[b*BEAM_TABLE_SIZE_X + x];
+    int b_index = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)];
     return FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
 
 #if INDIRECT_INPUT1
 inline uint FUNC(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
-    int b_index = beam_table[b*BEAM_TABLE_SIZE_X + y];
+    int b_index = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)];
     return FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
 
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
 inline uint FUNC(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z) {
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, 0, 0);
@@ -74,7 +93,7 @@ inline uint FUNC(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f
 #   error gemm_tiled_opt.cl : Unsupported input 2 format
 #endif // INPUT2_SIMPLE
 }
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #define VLOAD CAT(vload, SIMD_WIDTH)
 
@@ -85,9 +104,9 @@ KERNEL(gemm_tiled_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input0,
     const __global INPUT1_TYPE* input1,
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     const __global INPUT2_TYPE* input2,
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 #if BEAM_TABLE_TERM
     const __global BEAM_TABLE_TYPE* beam_table,
 #endif
@@ -130,9 +149,9 @@ KERNEL(gemm_tiled_opt)(
     // Batch offsets
     const uint batch_offset_input0 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, 0);
     const uint batch_offset_input1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 0, tile_n_offset);
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     const uint batch_offset_input2 = FUNC_CALL(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
     uint write_id = 0;
     const uint batch_offset_output = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X);
     write_id = 1;
@@ -176,9 +195,9 @@ KERNEL(gemm_tiled_opt)(
     #endif
     const uint input1_fetch_size = ((N - tile_n_offset) < TILE_K) ? (N - tile_n_offset) : TILE_K;
 #endif // TRANSPOSE_INPUT1
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     const __global INPUT2_TYPE* c_ptr = input2 + batch_offset_input2 + tile_m_offset * N + tile_n_offset;
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
     __global OUTPUT_TYPE* d_ptr = output + batch_offset_output;
 
     const uint b_raw_global_id = tile_n_offset + sglid;
@@ -472,11 +491,11 @@ KERNEL(gemm_tiled_opt)(
     unroll_for (uint write_id = 0; write_id < tile_m_iterations; write_id++) {
 #if IS_DYNAMIC
         if (b_raw_global_id < N) {
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
             ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
-#else // INPUT2_TYPE
+#else // BIAS_TERM
             ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
@@ -493,11 +512,11 @@ KERNEL(gemm_tiled_opt)(
 #else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
         if (b_raw_global_id < N) {
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
             ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
-#else // INPUT2_TYPE
+#else // BIAS_TERM
             ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
@@ -514,12 +533,12 @@ KERNEL(gemm_tiled_opt)(
 
 #else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
         B_FLOATN c_val = BLOCK_READ_B(c_ptr, 0);
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_val;
-#else // INPUT2_TYPE
+#else // BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
@@ -536,9 +555,9 @@ KERNEL(gemm_tiled_opt)(
 #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 #endif // IS_DYNAMIC
         d_ptr += batch_offset_output_diff;
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
         c_ptr += N;
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
     } // Writing result in the global memory end
 }
 
