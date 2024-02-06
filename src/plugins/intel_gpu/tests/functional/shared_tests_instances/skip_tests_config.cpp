@@ -22,7 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput5In).*)",
 
-            // R"(.*LSTMSequence.*)",
 
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
@@ -38,6 +37,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            // Issue: 122177
+            R"(.*LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
@@ -68,12 +69,10 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // unsupported metrics
-            R"(.*nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*)",
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
-
-            // Support property in BATCH plugin issue
-            R"(.*nightly_OVClassCompiledModelGetPropertyTest/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_SUPPORTED_CONFIG_KEYS/2)",
-
+            // Issue: 131699 SUPPORTED_PROPERTIES in BATCH issue. DEVICE_ID in BATCH, HETERO issue.
+            R"(.*OVClassCompiledModelGetPropertyTest/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_SUPPORTED_CONFIG_KEYS/2)",
+            R"(.*nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
