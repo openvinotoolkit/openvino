@@ -9,8 +9,6 @@
 
 #ifdef PY_ENABLE_LIBVA
 #include <va/va.h>
-#include <va/va_drm.h>
-#include <fcntl.h>
 #endif  // PY_ENABLE_LIBVA
 
 namespace py = pybind11;
@@ -24,23 +22,6 @@ void regclass_ClContext(py::module m);
 #ifdef PY_ENABLE_LIBVA
 class VADisplayWrapper {
 public:
-    // Get VADisplay based on path passed by user:
-    VADisplayWrapper(std::string& device) {
-        fd = open(device.c_str(), O_RDWR);
-        if (fd < 0) {
-            OPENVINO_THROW("Failed to open DRM device!");
-        }
-
-        va_display = vaGetDisplayDRM(fd);
-
-        int major_ver, minor_ver;
-        VAStatus va_status = vaInitialize(va_display, &major_ver, &minor_ver);
-        if (va_status != VA_STATUS_SUCCESS) {
-            close(fd);
-            OPENVINO_THROW("Failed to initialize libva!");
-        }
-    }
-
     // Wrap VADisplay to be recognized by OV:
     VADisplayWrapper(VADisplay device) {
         va_display = device;
@@ -53,16 +34,10 @@ public:
 
     // Terminate the display and clean up:
     void release() {
-        if (fd != -1) {
-            vaTerminate(va_display);
-            close(fd);
-        }
-        else {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "Release of VADisplay was not succesful! The display is referencing "
-                         "the other pointer. Owner is responsible for memory release.",
-                         2);
-        }
+        PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "Release of VADisplay was not succesful! The display is referencing "
+                     "the other pointer. Owner is responsible for memory release.",
+                     2);
     }
 
 private:

@@ -13,8 +13,10 @@
 
 #ifdef PY_ENABLE_OPENCL
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
-#include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif  // PY_ENABLE_OPENCL
+#ifdef PY_ENABLE_LIBVA
+#include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#endif  // PY_ENABLE_LIBVA
 
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -29,7 +31,6 @@ void regclass_RemoteContext(py::module m) {
     cls.def(
         "get_params",
         [](ov::RemoteContext& self) {
-            // TODO: check if conversion is needed - RTMap issues...
             return self.get_params();
         });
 
@@ -74,11 +75,7 @@ void regclass_ClContext(py::module m) {
 void regclass_VADisplayWrapper(py::module m) {
     py::class_<VADisplayWrapper, std::shared_ptr<VADisplayWrapper>> cls(m, "VADisplayWrapper");
 
-    cls.def(py::init([](std::string& device) {
-        return VADisplayWrapper(device);
-    }),
-    py::arg("device"));
-
+    // Use of the pointer obtained from external library to wrap around:
     cls.def(py::init([](VADisplay device) {
         return VADisplayWrapper(device);
     }),

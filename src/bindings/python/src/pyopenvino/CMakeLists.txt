@@ -45,9 +45,6 @@ if(ENABLE_INTEL_GPU)
     if(OpenCL_FOUND AND libva_FOUND AND libva_drm_FOUND)
         # Pass macro
         target_compile_definitions(${TARGET_NAME} PUBLIC PY_ENABLE_LIBVA)
-        # GCC flags for VADisplayWrapper constructors
-        add_link_options(-lva -lva-drm)
-        add_compile_options(-lva -lva-drm)
     else()
         if(NOT OpenCL_FOUND)
             message(WARNING "libva support requires OpenCL to build ${TARGET_NAME}. Install OpenCL.")
