@@ -104,6 +104,7 @@ TEST_P(InferRequestPropertiesTest, withoutExclusiveAsyncRequests) {
 }
 
 TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
+    ov::threading::executor_manager()->clear();
     ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
     ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
 
