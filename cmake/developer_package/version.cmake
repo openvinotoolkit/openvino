@@ -108,7 +108,7 @@ macro(ov_parse_ci_build_number repo_root)
         endforeach()
     endfunction()
 
-    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
+    # detect OpenVINO version via openvino/core/version.hpp
     ov_compare_version_with_headers()
 
     # detect commit number
