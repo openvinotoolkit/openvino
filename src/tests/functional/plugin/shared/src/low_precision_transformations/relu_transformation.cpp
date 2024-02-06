@@ -32,7 +32,6 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
 
 
 void ReluTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ReluTestValues testValues;

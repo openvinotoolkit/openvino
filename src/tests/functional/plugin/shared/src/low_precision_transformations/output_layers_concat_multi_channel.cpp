@@ -53,8 +53,6 @@ std::string OutputLayersConcatMultiChannel::getTestCaseName(
 */
 
 void OutputLayersConcatMultiChannel::SetUp() {
-    rel_threshold = 0.05;
-
     ov::Shape inputShape1;
     ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

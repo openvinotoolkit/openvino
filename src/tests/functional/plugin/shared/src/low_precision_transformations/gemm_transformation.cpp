@@ -30,8 +30,6 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
 }
 
 void GemmTransformation::SetUp() {
-    abs_threshold = 17;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

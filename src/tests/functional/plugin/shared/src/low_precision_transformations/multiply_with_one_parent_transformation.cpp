@@ -28,8 +28,6 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 }
 
 void MultiplyWithOneParentTransformation::SetUp() {
-    rel_threshold = 0.01f;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

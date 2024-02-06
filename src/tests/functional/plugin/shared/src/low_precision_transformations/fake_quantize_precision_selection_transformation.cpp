@@ -28,8 +28,6 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
-    abs_threshold = 0.01;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

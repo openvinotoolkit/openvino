@@ -49,8 +49,6 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void MultiplyTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type precision;
     ov::PartialShape inputShape;
     MultiplyTestValues param;

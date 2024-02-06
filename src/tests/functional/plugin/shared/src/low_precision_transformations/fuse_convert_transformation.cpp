@@ -36,7 +36,6 @@ std::string FuseConvertTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void FuseConvertTransformation::SetUp() {
-    abs_threshold = 0.01;
     ov::PartialShape shape;
     ov::element::Type precision;
     ov::builder::subgraph::DequantizationOperations deqOperations;

@@ -39,9 +39,6 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    rel_threshold = 0.01;
-    abs_threshold = 2.1;
-
     ov::element::Type precision;
     std::pair<ov::PartialShape, ov::PartialShape> shapes;
     ov::pass::low_precision::LayerTransformation::Params params;

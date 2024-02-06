@@ -43,9 +43,6 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 }
 
 void GroupConvolutionTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ov::PartialShape, ov::Shape> inputShapes;
