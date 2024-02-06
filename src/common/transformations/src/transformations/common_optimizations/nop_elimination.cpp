@@ -849,8 +849,7 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
             !strided_slice_node->get_ellipsis_mask().empty()) {
             return false;
         }
-        if (!op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1) &&
-            node->get_input_partial_shape(3).size() != 0) {
+        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
         auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
@@ -866,6 +865,8 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
                     return false;
                 }
             }
+        } else {
+            return false;
         }
 
         auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
@@ -885,6 +886,8 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
                     return false;
                 }
             }
+        } else {
+            return false;
         }
 
         return replace_output_update_name(strided_slice_node->output(0),
@@ -903,7 +906,6 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
     auto end_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
-    ;
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -915,11 +917,18 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
             !strided_slice_node->get_ellipsis_mask().empty()) {
             return false;
         }
-        if (strided_slice_node->get_input_partial_shape(0) != strided_slice_node->get_output_partial_shape(0)) {
+        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
-        return replace_output_update_name(strided_slice_node->output(0),
-                                          strided_slice_node->get_input_node_shared_ptr(0)->get_default_output());
+        if (strided_slice_node->get_input_partial_shape(0).is_static() &&
+            strided_slice_node->get_output_partial_shape(0).is_static()) {
+            if (strided_slice_node->get_input_shape(0) == strided_slice_node->get_output_shape(0)) {
+                return replace_output_update_name(
+                    strided_slice_node->output(0),
+                    strided_slice_node->get_input_node_shared_ptr(0)->get_default_output());
+            }
+        }
+        return false;
     };
 
     auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
