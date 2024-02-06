@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
