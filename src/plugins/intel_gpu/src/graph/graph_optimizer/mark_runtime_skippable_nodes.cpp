@@ -5,6 +5,7 @@
 #include "pass_manager.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
+#include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
 #include "gemm_inst.h"
 #include "program_helpers.h"
@@ -35,7 +36,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
                 // May be skipepd
                 node.can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << "can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
         program_helpers::do_for_types<permute>(*node, [](permute_node& node){
@@ -54,7 +55,39 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1)
                     return;
                 node.can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << "can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+        program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node){
+            if (node.has_fused_primitives())
+                return;
+
+            auto impl_params = node.get_kernel_impl_params();
+            auto prim = impl_params->typed_desc<strided_slice>();
+            if (!prim->new_axis_mask.empty()
+                || !prim->shrink_axis_mask.empty()
+                || !prim->ellipsis_mask.empty()) {
+                return;
+            }
+
+            auto begin = prim->begin;
+            auto strides = prim->strides;
+            if (all_zeroes(begin) && all_ones(strides)) {
+                auto end = prim->end;
+                auto end_mask = prim->end_mask;
+                auto in_ps = impl_params->get_input_layout(0).get_partial_shape();
+                bool is_valid = false;
+                for (size_t i = 0; i < end.size(); i++) {
+                    if (end_mask[i] == 1 || (in_ps[i].is_static() && end[i] == in_ps[i].get_length())) {
+                        is_valid = true;
+                    } else {
+                        is_valid = false;
+                    }
+                }
+                if (!end.empty() && !is_valid)
+                    return;
+                node.can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
     }
