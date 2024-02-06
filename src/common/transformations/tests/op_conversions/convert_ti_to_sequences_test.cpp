@@ -880,13 +880,13 @@ TEST_P(ConvertLoopToLSTMSequenceTest, FusionTest) {
         auto gather_axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
         auto X_slice = std::make_shared<op::v8::Gather>(X_body, gather_index, gather_axis);
         std::vector<float> W_values(4 * hidden_size * input_size);
-        std::iota(W_values.begin(), W_values.end(), 0);
+        std::iota(W_values.begin(), W_values.end(), 0.0f);
         auto W = op::v0::Constant::create(element::f32, Shape{4 * hidden_size, input_size}, W_values);
         std::vector<float> R_values(4 * hidden_size * hidden_size);
-        std::iota(R_values.begin(), R_values.end(), 0);
+        std::iota(R_values.begin(), R_values.end(), 0.0f);
         auto R = op::v0::Constant::create(element::f32, Shape{4 * hidden_size, hidden_size}, R_values);
         std::vector<float> B_values(4 * hidden_size);
-        std::iota(B_values.begin(), B_values.end(), 0);
+        std::iota(B_values.begin(), B_values.end(), 0.0f);
         auto B = op::v0::Constant::create(element::f32, Shape{4 * hidden_size}, B_values);
         auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X_slice,
                                                             H_body,
@@ -964,11 +964,11 @@ TEST_P(ConvertLoopToLSTMSequenceTest, FusionTest) {
         auto C_broadcasted = std::make_shared<op::v3::Broadcast>(C, new_C_shape);
 
         std::vector<float> W_values(4 * hidden_size * input_size);
-        std::iota(W_values.begin(), W_values.end(), 0);
+        std::iota(W_values.begin(), W_values.end(), 0.0f);
         std::vector<float> R_values(4 * hidden_size * hidden_size);
-        std::iota(R_values.begin(), R_values.end(), 0);
+        std::iota(R_values.begin(), R_values.end(), 0.0f);
         std::vector<float> B_values(4 * hidden_size);
-        std::iota(B_values.begin(), B_values.end(), 0);
+        std::iota(B_values.begin(), B_values.end(), 0.0f);
         auto W = std::make_shared<op::v0::Unsqueeze>(
             op::v0::Constant::create(element::f32, Shape{4 * hidden_size, input_size}, W_values),
             zero);
