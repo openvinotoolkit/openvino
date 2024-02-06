@@ -63,8 +63,8 @@ public:
         }
         results << "secondaryInputType=" << secondaryInputType << "_";
         results << "WithQuant=" << withQuantization << "_";
-        if (conversion == ov::element::undefined) {
-            results << "Conversion" << conversion << "_";
+        if (conversion != ov::element::undefined) {
+            results << "Conversion=" << conversion << "_";
         }
         results << "targetDevice=" << targetName;
 
@@ -233,7 +233,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                                      ::testing::ValuesIn(inputPrecisionsConvert),
                                      ::testing::ValuesIn(eltwiseOpsConvert),
                                      ::testing::Values(false),
-                                     ::testing::Values(ov::element::f32),
+                                     ::testing::ValuesIn({ov::element::f32, ov::element::i8, ov::element::u8}),
                                      ::testing::Values(ov::test::utils::DEVICE_CPU)),
                              EltwiseChainTest::getTestCaseName);
 

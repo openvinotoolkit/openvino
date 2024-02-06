@@ -165,7 +165,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
         dnnl::impl::cpu::x64::cpu();
     });
 #if defined(OV_CPU_WITH_ACL)
-    scheduler_guard = SchedulerGuard::instance();
+    //scheduler_guard = SchedulerGuard::instance();
 #endif
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
