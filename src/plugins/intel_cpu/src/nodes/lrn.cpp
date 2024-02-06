@@ -161,8 +161,8 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_
 }
 
 void Lrn::prepareParams() {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " input memory did not allocate");
     if (!dstMemPtr || !dstMemPtr->isAllocated())

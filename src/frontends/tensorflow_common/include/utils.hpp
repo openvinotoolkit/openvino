@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-using OpMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMapPtr = std::shared_ptr<NameTensorMap>;
 
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
@@ -63,9 +64,7 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size) + " inputs, but requested input port index to be " +
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = get_constant_from_source(ov_input)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(ov_input)) {
         *vector = constant->cast_vector<T>();
         return;
     }

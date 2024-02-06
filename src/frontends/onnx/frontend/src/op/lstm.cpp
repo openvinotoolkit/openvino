@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/lstm.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -15,14 +15,15 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/util/common_util.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
-#include "ov_models/ov_builders/split.hpp"
+#include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -40,7 +41,7 @@ enum class LSTMInput {
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const Node& node) {
-        const auto& ng_inputs = node.get_ng_inputs();
+        const auto& ng_inputs = node.get_ov_inputs();
         // We have input, output, forget and cell gates
         constexpr std::size_t gates_count{4};
         constexpr std::size_t P_gates_count{3};
@@ -69,17 +70,25 @@ struct LSTMNgInputMap {
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
-        auto axes = v0::Constant::create(element::Type_t::i32, Shape{1}, {0});
+        auto axes = v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0});
         auto batch_size_node =
-            std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::Type_t::i32, Shape{1}, {0}), axes);
+            std::make_shared<v8::Gather>(shape_of_x,
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
+                                         axes);
         auto seq_length_node =
-            std::make_shared<v8::Gather>(shape_of_x, v0::Constant::create(element::Type_t::i32, Shape{1}, {1}), axes);
+            std::make_shared<v8::Gather>(shape_of_x,
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {1}),
+                                         axes);
 
         auto shape_of_r = std::make_shared<v3::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_R]);
         auto num_directions_node =
-            std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::Type_t::i32, Shape{1}, {0}), axes);
+            std::make_shared<v8::Gather>(shape_of_r,
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {0}),
+                                         axes);
         auto hidden_size_node =
-            std::make_shared<v8::Gather>(shape_of_r, v0::Constant::create(element::Type_t::i32, Shape{1}, {2}), axes);
+            std::make_shared<v8::Gather>(shape_of_r,
+                                         v0::Constant::create(ov::element::Type_t::i32, ov::Shape{1}, {2}),
+                                         axes);
 
         // ------ Optional inputs ------
         // `B` - The bias tensor for input gate.
@@ -87,7 +96,7 @@ struct LSTMNgInputMap {
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
             auto bias = ng_inputs.at(3);
-            auto split_bias = ov::op::util::split(bias, 2, 1);
+            auto split_bias = ov::op::util::make_split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v1::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 ov::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
@@ -96,13 +105,13 @@ struct LSTMNgInputMap {
                                                        1);
         } else {
             auto b_shape = std::make_shared<v0::Concat>(
-                OutputVector{
-                    num_directions_node,
-                    std::make_shared<v1::Multiply>(v0::Constant::create(element::Type_t::i64, Shape{1}, {gates_count}),
-                                                   hidden_size_node)},
+                ov::OutputVector{num_directions_node,
+                                 std::make_shared<v1::Multiply>(
+                                     v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {gates_count}),
+                                     hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_B] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 b_shape);
         }
         // `sequence_lens`- The lengths of the sequences in a batch.
@@ -120,9 +129,10 @@ struct LSTMNgInputMap {
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
         } else {
             auto init_h_shape =
-                std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
+                std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
+                                             0);
             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 init_h_shape);
         }
         // `initial_c` - The initial value of the cell.
@@ -132,9 +142,10 @@ struct LSTMNgInputMap {
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = ov::op::util::reorder_axes(ng_inputs.at(6), {1, 0, 2});
         } else {
             auto init_c_shape =
-                std::make_shared<v0::Concat>(OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
+                std::make_shared<v0::Concat>(ov::OutputVector{batch_size_node, num_directions_node, hidden_size_node},
+                                             0);
             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 init_c_shape);
         }
         // `P` - The weight tensor for peepholes.
@@ -148,22 +159,22 @@ struct LSTMNgInputMap {
                                                             1);
         } else {
             auto p_shape = std::make_shared<v0::Concat>(
-                OutputVector{num_directions_node,
-                             std::make_shared<v1::Multiply>(
-                                 v0::Constant::create(element::Type_t::i64, Shape{1}, {P_gates_count}),
-                                 hidden_size_node)},
+                ov::OutputVector{num_directions_node,
+                                 std::make_shared<v1::Multiply>(
+                                     v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {P_gates_count}),
+                                     hidden_size_node)},
                 0);
             m_input_map[LSTMInput::LSTM_INPUT_P] = std::make_shared<v3::Broadcast>(
-                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
+                v0::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), ov::Shape{}, {0}),
                 p_shape);
             m_input_map[LSTMInput::LSTM_INPUT_P].set_names({"P_blank"});
         }
     }
 
-    Output<ov::Node>& at(const LSTMInput& key) {
+    ov::Output<ov::Node>& at(const LSTMInput& key) {
         return m_input_map.at(key);
     }
-    std::map<LSTMInput, Output<ov::Node>> m_input_map;
+    std::map<LSTMInput, ov::Output<ov::Node>> m_input_map;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -179,9 +190,8 @@ struct LSTMAttributes {
           m_activation_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
           m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))} {
         m_clip_threshold = std::abs(m_clip_threshold);
-        OPENVINO_SUPPRESS_DEPRECATED_START
+
         std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
     }
@@ -198,7 +208,7 @@ struct LSTMAttributes {
 }  // anonymous namespace
 
 namespace set_1 {
-OutputVector lstm(const Node& node) {
+ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;
@@ -246,10 +256,7 @@ OutputVector lstm(const Node& node) {
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

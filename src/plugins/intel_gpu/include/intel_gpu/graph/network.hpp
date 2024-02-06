@@ -220,18 +220,12 @@ public:
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
+    std::vector<primitive_id> get_kv_cache_ids() const { return kv_cache_ids; }
 
     const ExecutionConfig& get_config() const { return _config; }
 
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
-
-    std::unordered_map<primitive_id, std::vector<primitive_id>> get_kv_cache_mem_deps() {
-        return _kv_cache_mem_deps;
-    }
-    void add_kv_cache_mem_deps(primitive_id kv_cache, primitive_id read_value) {
-        _kv_cache_mem_deps[kv_cache].push_back(read_value);
-    }
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
@@ -262,6 +256,7 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<primitive_id> kv_cache_ids;
 
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
@@ -273,9 +268,6 @@ private:
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
-
-    // Record corresponding read_values for kv_cache so that we can release those read_value's output memories when they are no longer needed
-    std::unordered_map<primitive_id/*kv_cache*/, std::vector<primitive_id/*read_value*/>> _kv_cache_mem_deps;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

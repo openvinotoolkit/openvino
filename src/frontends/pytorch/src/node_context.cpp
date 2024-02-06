@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/constant.hpp"
@@ -12,6 +11,7 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -109,7 +109,7 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
 }
 
 Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
-    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index is lower then number of inputs.");
+    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
@@ -156,9 +156,7 @@ std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size
             return {};
         input_val = concat_list_construct(input_val);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto constant = get_constant_from_source(input_val);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto constant = ov::util::get_constant_from_source(input_val);
     FRONT_END_GENERAL_CHECK(constant, "Input with index ", index, " cannot be interpreted as Constant: ", input_val);
     return constant;
 }

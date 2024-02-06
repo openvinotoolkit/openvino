@@ -49,6 +49,9 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
             auto new_shape = context.mark_node(std::make_shared<v3::Broadcast>(k, input_rank));
             indices =
                 context.mark_node(std::make_shared<v3::Broadcast>(indices, new_shape, BroadcastType::BIDIRECTIONAL));
+        } else {
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+            indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, zero));
         }
     }
     return {indices};

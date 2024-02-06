@@ -14,13 +14,11 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "dev/converter_utils.hpp"
-#include "file_utils.h"
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
 #include "itt.hpp"
-#include "legacy_op_extension.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -28,6 +26,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -35,11 +34,7 @@
 namespace InferenceEngine {
 
 namespace {
-
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
-                                 const std::vector<IExtensionPtr>& exts,
-                                 bool is_new_api,
-                                 bool frontendMode = false) {
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function, bool is_new_api, bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps
     if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11 && !is_new_api) {
         IR_READER_SCOPE(ir11_old_api);
@@ -62,7 +57,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
                 // In the following code we add Convert node from old_api_map_type to Parameter type
                 // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
                 // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
-                if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                if ((param_type == ov::element::u8 && old_api_map_type.is_real())) {
                     parameter->set_element_type(old_api_map_type);
                     need_validate_nodes_and_infer_types = true;
                 } else {
@@ -106,7 +101,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ov::Model>& function,
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, is_new_api));
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, is_new_api));
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
@@ -117,8 +112,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool is_new_api,
                                 bool enable_mmap) {
-    auto exts = ov::legacy_convert::convert_extension(ov_exts);
-
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
@@ -151,7 +144,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, is_new_api);
+        return convert_to_cnnnetwork(ngFunc, is_new_api);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -171,7 +164,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
-    auto exts = ov::legacy_convert::convert_extension(ov_exts);
 
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
@@ -193,7 +185,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, is_new_api, frontendMode);
+        return convert_to_cnnnetwork(ngFunc, is_new_api, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "ie_iextension.h"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -75,7 +74,7 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
-    bool supports_model_caching(bool check_old_api = true) const;
+    bool supports_model_caching() const;
 };
 
 }  // namespace ov

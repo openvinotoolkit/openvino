@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,24 +13,24 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeProposal(const ov::Output<Node>& class_probs,
-                                   const ov::Output<Node>& class_logits,
-                                   const std::vector<float>& image_info,
-                                   const element::Type& type,
-                                   size_t base_size,
-                                   size_t pre_nms_topn,
-                                   size_t post_nms_topn,
-                                   float nms_thresh,
-                                   size_t feat_stride,
-                                   size_t min_size,
-                                   const std::vector<float>& ratio,
-                                   const std::vector<float>& scale,
-                                   bool clip_before_nms,
-                                   bool clip_after_nms,
-                                   bool normalize,
-                                   float box_size_scale,
-                                   float box_coordinate_scale,
-                                   std::string framework) {
+std::shared_ptr<ov::Node> makeProposal(const ov::Output<ov::Node>& class_probs,
+                                       const ov::Output<ov::Node>& class_logits,
+                                       const std::vector<float>& image_info,
+                                       const ov::element::Type& type,
+                                       size_t base_size,
+                                       size_t pre_nms_topn,
+                                       size_t post_nms_topn,
+                                       float nms_thresh,
+                                       size_t feat_stride,
+                                       size_t min_size,
+                                       const std::vector<float>& ratio,
+                                       const std::vector<float>& scale,
+                                       bool clip_before_nms,
+                                       bool clip_after_nms,
+                                       bool normalize,
+                                       float box_size_scale,
+                                       float box_coordinate_scale,
+                                       std::string framework) {
     ov::op::v4::Proposal::Attributes attrs;
     attrs.base_size = base_size;
     attrs.pre_nms_topn = pre_nms_topn;

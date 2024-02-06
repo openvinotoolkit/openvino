@@ -71,6 +71,21 @@ OutputVector translate_full(const NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
+OutputVector translate_full_fx(const NodeContext& context) {
+    // aten.full.default([16, 16], 0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'),
+    // pin_memory = False)
+    num_inputs_check(context, 2, 2);
+    auto sizes = context.get_input(0);
+    auto value = context.get_input(1);
+
+    auto filled_tensor = base_translate_full(context, sizes, value);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    }
+    return {filled_tensor};
+};
+
 OutputVector translate_full_like(const NodeContext& context) {
     num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
@@ -220,7 +235,7 @@ OutputVector translate_empty_like(const NodeContext& context) {
         if (!context.input_is_none(dtype_id)) {
             empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
         } else {
-            empty = base_translate_full(context, sizes, value);
+            empty = base_translate_full_with_convertlike(context, sizes, value, input);
         }
     } else if (context.get_input_size() == 4) {
         auto out = context.input_is_none(3) ? input : context.get_input(3);

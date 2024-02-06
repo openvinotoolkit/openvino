@@ -8,7 +8,6 @@
 #include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -185,272 +184,49 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.count(ov::num_streams.name());
 }
 
-void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<ov::Model>& model) const {
-    auto getNumStreamsThroughput = [&]() {
-        const auto isa = dnnl::get_effective_cpu_isa();
-        float isaSpecificThreshold = 1.0f;
-        switch (isa) {
-        case dnnl::cpu_isa::sse41:
-            isaSpecificThreshold = 0.5f;
-            break;
-        case dnnl::cpu_isa::avx2:
-        case dnnl::cpu_isa::avx512_core:
-            isaSpecificThreshold = 1.0f;
-            break;
-        case dnnl::cpu_isa::avx512_core_vnni:
-        case dnnl::cpu_isa::avx2_vnni:
-            isaSpecificThreshold = 2.0f;
-            break;
-        case dnnl::cpu_isa::avx512_core_amx:
-            isaSpecificThreshold = 4.0f;
-            break;
-        default:
-            isaSpecificThreshold = 1.0f;
-        }
-        // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-        ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
-        const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
-                                                   ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT,
-                                                   engConfig.streamExecutorConfig._enable_hyper_thread);
-        auto streams_info = default_streams;
-        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
-                                             ov::threading::IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
-                                             engConfig.streamExecutorConfig._enable_hyper_thread);
-            }  //  otherwise (no recognized layers) falling back to the default value
-        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-            // network is below the ISA-specific threshold
-            streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
-                                         ov::threading::IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
-                                         engConfig.streamExecutorConfig._enable_hyper_thread);
-        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-            // network is below general threshold
-            streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
-                                         ov::threading::IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE,
-                                         engConfig.streamExecutorConfig._enable_hyper_thread);
-            streams_info.num_streams = std::max(default_streams.num_streams, streams_info.num_streams);
-        }
-
-        auto num_requests = config.find(ov::hint::num_requests.name());
-        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            int val = -1;
-            try {
-                ov::Any value = num_requests->second.as<std::string>();
-                val = value.as<int>();
-                if (val < 0)
-                    OPENVINO_THROW("invalid value!");
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Wrong value of ",
-                               num_requests->second.as<std::string>(),
-                               " for property key ",
-                               ov::hint::num_requests.name(),
-                               ". Expected only positive integer numbers");
-            }
-            if (val > 0)
-                streams_info.num_streams = std::min(streams_info.num_streams, val);
-        } else if (engConfig.hintNumRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
-            streams_info.num_streams = std::min(streams_info.num_streams, static_cast<int>(engConfig.hintNumRequests));
-        }
-        return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
-    };
-
-    auto getPerfHintName = [&]() {
-        const bool streamsExplicitlySetForModel = streamsSet(config);
-        // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
-        // SetConfig)
-        if (streamsExplicitlySetForModel || streamsExplicitlySetForEngine)
-            return std::string();
-
-        const auto& perf_hint = config.find(ov::hint::performance_mode.name());
-        /* performance hints set for network has higher pririty than engine ones.
-         * This applies for all the configuration parameters */
-        const auto& perf_hint_name = (perf_hint != config.end()) ? perf_hint->second.as<std::string>()
-                                                                 : ov::util::to_string(engConfig.hintPerfMode);
-        return perf_hint_name;
-    };
-
-    // We compute both hints values because the optimal number of streams are computed based on ov::Model
-    // while we export model in cpu internal opset so we need to save precomputed optimal # streams for both hint modes
-    const auto latency_hints = ov::util::to_string(ov::streams::NUMA);
-    const auto tput_hints = getNumStreamsThroughput();
-
-    // save hints parameters to model rt_info
-    ov::AnyMap hints_props;
-    const auto latency_name =
-        ov::util::to_string(ov::hint::PerformanceMode::LATENCY) + "_" + std::string(ov::num_streams.name());
-    const auto tput_name =
-        ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT) + "_" + std::string(ov::num_streams.name());
-    hints_props.insert({latency_name, latency_hints});
-    hints_props.insert({tput_name, std::to_string(tput_hints.second.num_streams)});
-    model->set_rt_info(hints_props, "intel_cpu_hints_config");
-
-    const auto perf_hint_name = getPerfHintName();
-    if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) {
-        config[ov::num_streams.name()] = latency_hints;
-    } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
-        config[ov::num_streams.name()] = tput_hints.first;
-        config[ov::threading::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
-        config[ov::threading::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
-        config[ov::threading::threads_per_stream_big.name()] = std::to_string(tput_hints.second.threads_per_stream_big);
-        config[ov::threading::threads_per_stream_small.name()] =
-            std::to_string(tput_hints.second.threads_per_stream_small);
-        config[ov::threading::small_core_offset.name()] = std::to_string(tput_hints.second.small_core_offset);
-    }
-}
-
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
     const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
+    int streams_set = config.streams;
     int streams;
-    if (config.streamExecutorConfig._streams_changed) {
-        streams = config.streamExecutorConfig._streams;
+    if (config.streamsChanged) {
+        streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
         streams = latency_streams;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
-        streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
+        streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
+    if (!((0 == streams_set) && config.streamsChanged)) {
         get_num_streams(streams, model, config);
-    } else {
-        config.streamExecutorConfig.set_config_zero_stream();
     }
 }
 
 void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
-    // import config props from caching model
-    if (imported && !is_cpu_map_available()) {
-        if (model->has_rt_info("intel_cpu_hints_config")) {
-            const auto perf_mode = conf.hintPerfMode;
-            if (perf_mode == ov::hint::PerformanceMode::LATENCY || perf_mode == ov::hint::PerformanceMode::THROUGHPUT) {
-                const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-                const auto hints_param_name =
-                    ov::util::to_string(perf_mode) + "_" + std::string(ov::num_streams.name());
-                const auto it = hints_config.find(hints_param_name);
-                if (it != hints_config.end()) {
-                    conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
-                } else {
-                    OPENVINO_THROW("Cache file doesn't contain precalculated number of streams for mode ",
-                                   ov::util::to_string(perf_mode));
-                }
+    const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
+    if (imported && model->has_rt_info("intel_cpu_hints_config")) {
+        // load model_prefer_threads from cache
+        int cache_model_prefer;
+        const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+        const auto it_model_prefer = hints_config.find(model_prefer_name);
+        if (it_model_prefer != hints_config.end()) {
+            try {
+                cache_model_prefer = it_model_prefer->second.as<int>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
             }
+
+            conf.modelPreferThreads = cache_model_prefer;
         }
     }
-
-    if (is_cpu_map_available()) {
-        const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
-        if (imported && model->has_rt_info("intel_cpu_hints_config")) {
-            // load model_prefer_threads from cache
-            int cache_model_prefer;
-            const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-            const auto it_model_prefer = hints_config.find(model_prefer_name);
-            if (it_model_prefer != hints_config.end()) {
-                try {
-                    cache_model_prefer = it_model_prefer->second.as<int>();
-                } catch (const ov::Exception&) {
-                    OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
-                }
-
-                conf.modelPreferThreads = cache_model_prefer;
-            }
-        }
-        get_performance_streams(conf, model);
-        // save model_prefer_threads to model rt_info when loading network
-        if (!imported) {
-            ov::AnyMap hints_props;
-            hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
-            model->set_rt_info(hints_props, "intel_cpu_hints_config");
-        }
+    get_performance_streams(conf, model);
+    // save model_prefer_threads to model rt_info when loading network
+    if (!imported) {
+        ov::AnyMap hints_props;
+        hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
+        model->set_rt_info(hints_props, "intel_cpu_hints_config");
     }
-}
-
-StreamCfg Engine::get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
-                                        int stream_mode,
-                                        const bool enable_hyper_thread) const {
-    const int sockets = static_cast<int>(get_available_numa_nodes().size());
-    const int num_cores =
-        thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-            ? parallel_get_max_threads()
-            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() :  get_number_of_cpu_cores())
-                            : get_number_of_cpu_cores());
-    const int num_cores_phy = get_number_of_cpu_cores();
-    const int num_big_cores_phy = get_number_of_cpu_cores(true);
-    const int num_small_cores = num_cores_phy - num_big_cores_phy;
-    const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
-    StreamCfg stream_cfg = {0};
-
-    if (stream_mode == IStreamsExecutor::Config::StreamMode::DEFAULT) {
-        // bare minimum of streams (that evenly divides available number of core)
-        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-            if (0 == num_big_cores_phy % 4) {
-                stream_cfg.threads_per_stream_big = 4;
-            } else if (0 == num_big_cores_phy % 5) {
-                stream_cfg.threads_per_stream_big = 5;
-            } else if (0 == num_big_cores_phy % 3) {
-                stream_cfg.threads_per_stream_big = 3;
-            } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-                stream_cfg.threads_per_stream_big = num_big_cores_phy;
-            }
-
-            stream_cfg.big_core_streams = num_big_cores / stream_cfg.threads_per_stream_big;
-            stream_cfg.threads_per_stream_small = stream_cfg.threads_per_stream_big;
-            if (num_small_cores == 0) {
-                stream_cfg.threads_per_stream_small = 0;
-            } else if (num_small_cores < stream_cfg.threads_per_stream_small) {
-                stream_cfg.small_core_streams = 1;
-                stream_cfg.threads_per_stream_small = num_small_cores;
-                stream_cfg.threads_per_stream_big = stream_cfg.threads_per_stream_small;
-                // Balance the computation of physical core and logical core, the number of threads on the physical core
-                // and logical core should be equal
-                stream_cfg.big_core_streams = num_big_cores_phy / stream_cfg.threads_per_stream_big * 2;
-            } else {
-                stream_cfg.small_core_streams = num_small_cores / stream_cfg.threads_per_stream_small;
-            }
-        } else {
-            if (0 == num_cores % 4)
-                stream_cfg.num_streams = std::max(4, num_cores / 4);
-            else if (0 == num_cores % 5)
-                stream_cfg.num_streams = std::max(5, num_cores / 5);
-            else if (0 == num_cores % 3)
-                stream_cfg.num_streams = std::max(3, num_cores / 3);
-            else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-                stream_cfg.num_streams = 1;
-        }
-    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::AGGRESSIVE) {
-        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-            stream_cfg.big_core_streams = num_big_cores;
-            stream_cfg.small_core_streams = num_small_cores;
-            stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
-            stream_cfg.threads_per_stream_small =
-                num_small_cores == 0 ? 0 : num_small_cores / stream_cfg.small_core_streams;
-        } else {
-            stream_cfg.num_streams = num_cores_phy;
-        }
-    } else if (stream_mode == IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE) {
-        if (thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-            stream_cfg.big_core_streams = num_big_cores / 2;
-            stream_cfg.small_core_streams = num_small_cores / 2;
-            stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
-            stream_cfg.threads_per_stream_small =
-                num_small_cores == 0 ? 0 : num_small_cores / stream_cfg.small_core_streams;
-        } else {
-            stream_cfg.num_streams = num_cores_phy / 2;
-        }
-    } else {
-        OPENVINO_THROW("Wrong stream mode to get num of streams: ", stream_mode);
-    }
-    stream_cfg.num_streams = stream_cfg.num_streams > 0
-                                 ? stream_cfg.num_streams
-                                 : stream_cfg.big_core_streams + stream_cfg.small_core_streams;
-    stream_cfg.small_core_offset = num_small_cores == 0 ? 0 : num_big_cores;
-    return stream_cfg;
 }
 
 static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -543,10 +319,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     transformations.UpToLpt();
 
-    if (!is_cpu_map_available()) {
-        apply_performance_hints(config, cloned_model);
-    }
-
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
@@ -612,15 +384,16 @@ bool Engine::is_legacy_api() const {
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
     if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = engConfig.streamExecutorConfig._streams;
+        const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
-        const auto streams = engConfig.streamExecutorConfig._streams;
+        const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
-        const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
+        const auto affinity = engConfig.threadBindingType;
         switch (affinity) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
@@ -632,11 +405,12 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
-        const auto num_threads = engConfig.streamExecutorConfig._threads;
-        return decltype(ov::inference_num_threads)::value_type(num_threads);
+        const auto threads = engConfig.streamExecutorConfig.get_threads();
+        return decltype(ov::inference_num_threads)::value_type(threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
@@ -701,6 +475,8 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RO_property(ov::execution_devices.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::type.name()),
+                                                    RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
@@ -764,6 +540,22 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
+    } else if (name == ov::device::type) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+    } else if (name == ov::device::architecture) {
+#if defined(OPENVINO_ARCH_X86_64)
+        return decltype(ov::device::architecture)::value_type{"intel64"};
+#elif defined(OPENVINO_ARCH_X86)
+        return decltype(ov::device::architecture)::value_type{"ia32"};
+#elif defined(OPENVINO_ARCH_ARM)
+        return decltype(ov::device::architecture)::value_type{"armhf"};
+#elif defined(OPENVINO_ARCH_ARM64)
+        return decltype(ov::device::architecture)::value_type{"arm64"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return decltype(ov::device::architecture)::value_type{"riscv"};
+#else
+#error "Undefined system processor"
+#endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

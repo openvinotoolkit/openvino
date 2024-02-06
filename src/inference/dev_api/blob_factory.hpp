@@ -15,7 +15,6 @@
 
 #include "ie_blob.h"
 #include "ie_data.h"
-#include "ie_memcpy.h"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -122,22 +121,6 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
         IE_THROW() << "cannot locate blob for precision: " << precision;
     }
 #undef USE_FACTORY
-}
-
-/**
- * @brief Copy data from std::vector to Blob
- * @ingroup ie_dev_api_memory
- * @tparam T type of data in std::vector
- * @param outputBlob An output blob to copy to
- * @param inputVector An input std::vector to copy from
- */
-template <typename T>
-void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
-    if (outputBlob->size() != inputVector.size())
-        IE_THROW() << "Size mismatch between dims and vector";
-    if (outputBlob->element_size() != sizeof(T))
-        IE_THROW() << "Element size mismatch between blob and vector";
-    ie_memcpy(outputBlob->buffer().as<T*>(), outputBlob->byteSize(), &inputVector[0], inputVector.size() * sizeof(T));
 }
 
 namespace ov {

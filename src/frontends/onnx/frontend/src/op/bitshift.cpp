@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector bitshift(const Node& node) {
-    const Output<ov::Node> input_x = node.get_ng_inputs().at(0);
-    const Output<ov::Node> input_y = node.get_ng_inputs().at(1);
+ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> input_x = node.get_ov_inputs().at(0);
+    const ov::Output<ov::Node> input_y = node.get_ov_inputs().at(1);
 
     std::string direction = node.get_attribute_value<std::string>("direction", "");
 
@@ -31,7 +31,8 @@ OutputVector bitshift(const Node& node) {
                      "attribute. Given: ",
                      direction);
 
-    auto shift = std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), Shape{1}, {2}), input_y);
+    auto shift =
+        std::make_shared<v1::Power>(v0::Constant::create(input_y.get_element_type(), ov::Shape{1}, {2}), input_y);
 
     if (direction == "RIGHT") {
         return {std::make_shared<v1::Divide>(input_x, shift)};
@@ -41,10 +42,7 @@ OutputVector bitshift(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

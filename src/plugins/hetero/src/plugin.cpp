@@ -14,6 +14,7 @@
 
 #include "compiled_model.hpp"
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -71,7 +72,7 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it)
-            device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
+            device_properties[device_name] = get_core()->get_supported_property(device_name, properties, false);
     }
     return device_properties;
 }
@@ -96,6 +97,15 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     ov::SupportedOpsMap supported_ops_final;
     std::map<std::string, ov::SupportedOpsMap> query_results;
     ov::hetero::SubgraphsMappingInfo mapping_info;
+    ResultVector new_outputs;
+    for (auto& param : model->get_parameters()) {
+        if (param->get_users().size() == 0) {
+            auto result = std::make_shared<ov::op::v0::Result>(param);
+            ov::copy_runtime_info(param->shared_from_this(), result);
+            new_outputs.push_back(result);
+        }
+    }
+    model->add_results(new_outputs);
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed

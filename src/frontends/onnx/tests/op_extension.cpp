@@ -5,8 +5,6 @@
 #include "op_extension.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "ie_extension.h"
-#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/op.hpp"

@@ -35,7 +35,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
-    , m_layout(make_layout(element_type, shape))
+    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
     , m_mem_type(mem_type)
     , m_mem(mem)
     , m_surf(surf)

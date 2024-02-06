@@ -24,7 +24,7 @@ else()
     endif()
 endif()
 
-set(TARGET_NAME "zlib")
+set(TARGET_NAME "openvino_zlib")
 
 set(zlib_srcs
     zlib/adler32.c
@@ -59,7 +59,7 @@ set(zlib_ext_hdrs
     zlib/zconf.h)
 
 add_library(${TARGET_NAME} STATIC ${zlib_srcs} ${zlib_hdrs} ${lib_ext_hdrs})
-add_library(ZLIB::ZLIB ALIAS ${TARGET_NAME})
+add_library(openvino::zlib ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
 

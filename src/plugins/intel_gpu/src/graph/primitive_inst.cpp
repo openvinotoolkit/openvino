@@ -259,14 +259,13 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep: " << _deps[i].first->id()
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
                                    << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
         }
     }
-
     if (get_node().is_type<read_value>()) {
         auto prim = get_node().as<read_value>().get_primitive();
         const auto& variable_id = prim->variable_id;
@@ -352,7 +351,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -434,6 +433,14 @@ void primitive_inst::update_shape() {
         // Custom output layout update as update_output_layout handles paddings incorrectly for optimized out read_value + kv_cache pattern
         _impl_params->output_layouts[0] = variable_layout;
     }
+
+    if (get_node().is_type<kv_cache>()) {
+        auto desc = get_node().as<kv_cache>().get_primitive();
+        auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
+        // Need to trigger realloc_if_needed
+        if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
+            set_shape_change();
+    }
 }
 
 event::ptr primitive_inst::realloc_if_needed() {
@@ -508,7 +515,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
+            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
             user->update_shape();
             user->update_shape_done_by_other = true;
 
@@ -544,7 +552,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
 
     // If we allocated too large memory, reclaim the memory.
-    if (updated_layout.count() * 10 < _max_output_layout_count) {
+    if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;
@@ -560,7 +568,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     auto current_shape = updated_layout.get_shape();
     std::pair<bool, ov::Shape> prealloc_info;
-    int32_t tmp_prealloc_count = _node->is_type<kv_cache>() ? kv_cache_inst::get_prealloc_iter_num() : -1;
+    int32_t tmp_prealloc_count = get_prealloc_iter_num();
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
         // If debug config is set, repsect the config most
         tmp_prealloc_count = -1;
@@ -584,6 +592,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
         if (need_reset_output_memory() && !can_be_optimized()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
             ev = _outputs[0]->fill(_network.get_stream());
         }
     } else {
@@ -596,8 +605,59 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
     // Set variable memory same as output memory
     if (_node->is_type<kv_cache>()) {
-        dynamic_cast<kv_cache_inst*>(this)->post_realloc_optimization(updated_params.output_layouts[0]);
+        auto desc = _node->as<kv_cache>().get_primitive();
+        auto& variable = get_network().get_variable(desc->variable_info.variable_id);
+        auto present_layout = _impl_params->output_layouts[0];
+        auto present_layout_rank = present_layout.get_partial_shape().size();
+        const auto sequence_axis = desc->concat_axis >= 0 ? desc->concat_axis
+                                                          : present_layout_rank + desc->concat_axis;
+        auto sequence_axis_legacy =
+            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout_rank);
+        GPU_DEBUG_TRACE_DETAIL << id() << " is kv_cache => set the variable with newly allocated output memory"
+                               << std::endl;
+        bool axis_is_outer_most = true;
+        for (size_t dim = 0; dim < sequence_axis; ++dim) {
+            if (present_layout.get_shape()[dim] > 1) {
+                axis_is_outer_most = false;
+                break;
+            }
+        }
+        if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] == 1) {
+            // Apply padding of variable to make it be optimized in the next iteration
+            auto max_pad = kv_cache_inst::get_max_pad(present_layout,
+                                                      updated_params.output_layouts[0].get_buffer_size().count(),
+                                                      sequence_axis_legacy,
+                                                      "present_layout");
+            if (max_pad > 0) {
+                kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis_legacy);
+                if (!axis_is_outer_most) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": Update impl with new output padding" << std::endl;
+                    set_shape_change();
+                    _impl_params->output_layouts[0] = present_layout;
+                    update_impl();
+                }
+                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+                                       << "'s memory with allocated kv cache output: "
+                                       << present_layout.to_short_string() << " is_set  = " << variable.is_set()
+                                       << std::endl;
+                variable.set_memory(_outputs[0], present_layout);
+                _impl_params->_can_be_optimized = true;
+                // No need to copy, still it can be optimized
+                GPU_DEBUG_TRACE_DETAIL << id() << ": Set can_be_optimized = true " << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+                                       << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
+                                       << " (is_set  = " << variable.is_set() << ") " << std::endl;
+                variable.set_layout(present_layout);
+            }
+        } else {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+                                   << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
+                                   << " (is_set  = " << variable.is_set() << ") " << std::endl;
+            variable.set_layout(present_layout);
+        }
     }
+
     _mem_allocated = true;
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
@@ -635,7 +695,24 @@ bool primitive_inst::use_async_compilation() {
         return false;
     }
 
-    return (_node->is_type<convolution>() || _node->is_type<fully_connected>() || _node->is_type<gemm>() ||
+    bool compile_fc_impls = _node->is_type<fully_connected>();
+    if (compile_fc_impls) {
+        const auto& fc_node = _node->as<fully_connected>();
+        if (fc_node.get_primitive()->compressed_weights) {
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            auto input_shape = _impl_params->get_input_layout().get_shape();
+            auto batch_size = std::accumulate(input_shape.begin(),
+                                              input_shape.end() - 1,
+                                              size_t{1},
+                                              std::multiplies<size_t>());
+
+            // Disable async compilation for all int4 FC, except in the case of batch_size == 1
+            if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
+                compile_fc_impls = false;
+        }
+    }
+
+    return (_node->is_type<convolution>() || compile_fc_impls || _node->is_type<gemm>() ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -675,7 +752,7 @@ void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) 
     size_t offset = 0;
     for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        const auto& node_in_lay = _node->get_dependency(i).get_output_layout();
+        const auto& node_in_lay = _node->get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];
         fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
     }
@@ -752,6 +829,13 @@ bool primitive_inst::update_impl() {
 
                         if (!can_be_optimized()) {
                             auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                            // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
+                            // the newly chosen impl is not added to the impl cache for beffer performance.
+                            if (_node->is_type<gemm>() &&
+                                    (_node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") == std::string::npos) &&
+                                    impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
+                                return;
+                            }
                             if (impl->get_kernels_source().size() > 0) {
                                 auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                                 impl->set_kernels(kernels);
@@ -1098,7 +1182,15 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    for (size_t i = 0; i < _deps.size(); ++i) {
+        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     bool need_args_update = false;
+    _mem_changed = false;
+    const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
@@ -1173,9 +1265,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
         if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
-            need_args_update = true;
-
             if (update_impl()) {
+                need_args_update = true;
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
@@ -1194,16 +1285,29 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
     bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
         [](const std::pair<primitive_inst*, int32_t>& dep) {
-            return dep.first->is_dynamic();
+            return dep.first->mem_changed();
     });
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || (!is_dynamic() && has_dynamic_dependencies_insts)) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         set_arguments();
     }
     on_execute();
 
-    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic() << ", "
+    if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
+        for (size_t i = 0; i < _outputs.size(); ++i) {
+            if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
+                _mem_changed = true;
+                break;
+            }
+            if (!_network.get_engine().is_the_same_buffer(*orig_outputs[i], *_outputs[i])) {
+                _mem_changed = true;
+                break;
+            }
+        }
+    }
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
+                    << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
     const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
