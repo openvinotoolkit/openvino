@@ -33,6 +33,13 @@ build = [
 ]
 
 [tool.pdm.dev-dependencies]  # will either need --dev or --prod usage
+torchvision = [
+    "torch>=1.13",
+    "torchvision; platform_machine == 'arm64' and python_version >= '3.8'",
+    "torchvision; platform_machine != 'arm64'",
+    "pillow>=9.0",
+]
+
 linters = [
     "black",
     "flake8",

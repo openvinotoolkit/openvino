@@ -108,10 +108,9 @@ jobs:
         run: |
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           #Initialize pdm environment
-            #pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
             pdm use -v ${{ env.PYTHON_VERSION }}
-            pdm lock -v --strategy no_cross_platform -G tests -p ${PDM_PROJECT}
-            pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
+            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -p ${PDM_PROJECT}
+            #pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
           fi
 
           # Install the core OV wheel
@@ -135,9 +134,13 @@ jobs:
           ${PYTHON_INSTALL_PREFIX} pytest-xdist[psutil]
           # For torchvision to OpenVINO preprocessing converter
           # pdm add -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
+          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
+            pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
+            pdm install --frozen-lockfile --no-self -v -G torchvision -p ${PDM_PROJECT}
+          fi
 
           # TODO: replace with Python API tests requirements and add to test pkg
-          ${PYTHON_INSTALL_PYTHON_REQS}
+          # ${PYTHON_INSTALL_PYTHON_REQS}
 
       #
       # Tests
