@@ -8,7 +8,6 @@
 
 #include "element_visitor.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_optional.hpp"
 #include "shape_infer_type_utils.hpp"
