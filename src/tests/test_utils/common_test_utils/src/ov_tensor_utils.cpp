@@ -6,6 +6,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "precomp.hpp"
 
 namespace ov {
@@ -470,6 +471,16 @@ void compare(const ov::Tensor& expected,
     }
 }
 
+void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_element_type(), ov::element::string);
+    ASSERT_EQ(actual.get_element_type(), ov::element::string);
+    EXPECT_EQ(expected.get_shape(), actual.get_shape());
+
+    const auto expected_const = ov::op::v0::Constant(expected);
+    const auto result_const = ov::op::v0::Constant(actual);
+    EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
+}
+
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold,
@@ -527,6 +538,9 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+    case ov::element::Type_t::string:
+        compare_str(expected, actual);
+        break;
     default:
         OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
     }

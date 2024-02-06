@@ -34,6 +34,9 @@ namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (op->get_output_element_type(0) == element::string) {
+            return false;
+        }
         if (!one_of(op->get_type_info(),
                 ov::op::v7::Gather::get_type_info_static(),
                 ov::op::v8::Gather::get_type_info_static())) {

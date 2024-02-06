@@ -4111,3 +4111,29 @@ TEST(eval, invalid_shape) {
                                       make_tensor<element::Type_t::f32>({1, 3}, {7.0f, 6.0f, 1.0f})};
     ASSERT_THROW(model->evaluate(out_vector, in_vector), ov::Exception);
 }
+
+TEST(eval, evaluate_gather_string_basic) {
+    std::vector<std::string> input_values = {"Abc", "x", "1234", "...."};
+    std::vector<std::string> out_expected{"x", "...."};
+    std::vector<int32_t> indices_val{1, 3};
+
+    const auto data_shape = Shape{input_values.size()};
+    const auto exp_out_shape = Shape{out_expected.size()};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto indices = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{indices_val.size()}, indices_val);
+    auto axis = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{1}, {0});
+    auto op = make_shared<op::v8::Gather>(data, indices, axis, 0);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), exp_out_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(out_expected, result_const.get_value_strings());
+}
