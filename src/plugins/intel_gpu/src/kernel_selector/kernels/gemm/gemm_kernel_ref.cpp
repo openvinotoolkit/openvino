@@ -68,7 +68,9 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
         last_idx = (last_idx >= order_idx.size()) ? (order_idx.size() - 1) : last_idx;
 
         std::vector<std::string> dims;
-        if (order_idx.size() == 2) {
+        if (order_idx.size() == 1) {
+            dims = {"X"};
+        } else if (order_idx.size() == 2) {
             dims = {"Y", "X"};
         } else if (order_idx.size() == 3) {
             dims = {"F", "Y", "X"};

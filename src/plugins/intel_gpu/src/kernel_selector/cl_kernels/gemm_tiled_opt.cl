@@ -124,7 +124,7 @@ KERNEL(gemm_tiled_opt)(
     // Start pointers offsets
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
-    #if HAS_DYNAMIC_K_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT0_OFFSET
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y+1), 0) - batch_offset_input0;
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (TILE_K)) - batch_offset_input0;
     #else
@@ -133,7 +133,7 @@ KERNEL(gemm_tiled_opt)(
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_Y_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
-    #if HAS_DYNAMIC_K_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT0_OFFSET
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, 1) - batch_offset_input0;
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (TILE_K)) - batch_offset_input0;
     #else
@@ -143,14 +143,14 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT0
 #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_K_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT1_OFFSET
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 1, tile_n_offset) - batch_offset_input1;
     #else
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 1, 0);
     #endif
 #elif TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_K_PADDING
+    #if HAS_DYNAMIC_K_PADDING || INPUT1_OFFSET
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 0, (tile_n_offset + 1)) - batch_offset_input1;
         const uint input1_offset1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (TILE_K), tile_n_offset) - batch_offset_input1;
     #else
@@ -187,7 +187,7 @@ KERNEL(gemm_tiled_opt)(
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
 #if IS_DYNAMIC
 #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
-#if HAS_DYNAMIC_N_PADDING
+#if HAS_DYNAMIC_N_PADDING || INPUT1_OFFSET
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
 #else
             b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
@@ -229,7 +229,7 @@ KERNEL(gemm_tiled_opt)(
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
 #if IS_DYNAMIC
-#if HAS_DYNAMIC_K_PADDING
+#if HAS_DYNAMIC_K_PADDING || INPUT0_OFFSET
             // In case of dynamic padding we can't guarantee memory access alignment for
             // block reads (4 bytes), so use scattered read
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
@@ -286,7 +286,7 @@ KERNEL(gemm_tiled_opt)(
         // Loading leftovers of the matrix B
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
         #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
-            #if HAS_DYNAMIC_N_PADDING
+            #if HAS_DYNAMIC_N_PADDING || INPUT1_OFFSET
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
                 b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
