@@ -262,6 +262,8 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

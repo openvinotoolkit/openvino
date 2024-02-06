@@ -46,7 +46,7 @@ TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {
 TEST_F(SharedObjectOVTests, canFindExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function("CreatePluginEngine");
+    auto factory = make_std_function(ov::create_plugin_function);
     EXPECT_NE(nullptr, factory);
 }
 
@@ -58,7 +58,7 @@ TEST_F(SharedObjectOVTests, throwIfMethodNofFoundInLibrary) {
 TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function("CreatePluginEngine");
+    auto factory = make_std_function(ov::create_plugin_function);
     std::shared_ptr<ov::IPlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }

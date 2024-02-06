@@ -54,7 +54,6 @@ void allowNotImplemented(F&& f) {
     try {
         f();
     } catch (const ov::NotImplemented&) {
-    } catch (const ov::NotImplemented&) {
     }
 }
 
@@ -704,15 +703,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                        "Please, check your environment\n",
                        ex.what(),
                        "\n");
-    } catch (const ov::Exception& ex) {
-        OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::from_file_path(desc.libraryLocation),
-                       " for device ",
-                       deviceName,
-                       "\n",
-                       "Please, check your environment\n",
-                       ex.what(),
-                       "\n");
     }
 }
 
@@ -900,8 +890,6 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
             devicesIDs = p.as<std::vector<std::string>>();
         } catch (const ov::Exception&) {
             // plugin is not created by e.g. invalid env
-        } catch (const ov::Exception&) {
-            // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
@@ -925,59 +913,6 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     }
 
     return devices;
-}
-
-std::map<std::string, ov::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
-    std::map<std::string, ov::Version> versions;
-    std::vector<std::string> deviceNames;
-
-    {
-        // for compatibility with samples / demo
-        if (deviceName.find("HETERO") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = ov::DeviceIDParser::get_hetero_devices(deviceName.substr(pos + 1));
-            }
-            deviceNames.push_back("HETERO");
-        } else if (deviceName.find("MULTI") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
-            }
-            deviceNames.push_back("MULTI");
-        } else if (deviceName.find("AUTO") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
-            }
-            deviceNames.emplace_back("AUTO");
-        } else if (deviceName.find("BATCH") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = {ov::DeviceIDParser::get_batch_device(deviceName.substr(pos + 1))};
-            }
-            deviceNames.push_back("BATCH");
-        } else {
-            deviceNames.push_back(deviceName);
-        }
-    }
-
-    for (auto&& deviceName_ : deviceNames) {
-        ov::DeviceIDParser parser(deviceName_);
-        std::string deviceNameLocal = parser.get_device_name();
-
-        try {
-            ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
-            versions[deviceNameLocal] = cppPlugin.get_version();
-        } catch (const ov::Exception& ex) {
-            std::string exception(ex.what());
-            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
-                throw;
-            }
-        }
-    }
-
-    return versions;
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
@@ -1418,8 +1353,6 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     try {
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-    } catch (const ov::NotImplemented&) {
-        return false;
     } catch (const ov::NotImplemented&) {
         return false;
     }

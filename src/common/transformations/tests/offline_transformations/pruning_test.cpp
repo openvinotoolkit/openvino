@@ -5180,7 +5180,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
     m.run_passes(model);
 }
 
-INSTANTIATE_TEST_CASE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
 
 TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
     {

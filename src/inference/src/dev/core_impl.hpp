@@ -208,12 +208,6 @@ public:
      */
     void register_compile_time_plugins();
 
-    //
-    // ICore public API
-    //
-
-    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
-
     // Common API
 
     /**

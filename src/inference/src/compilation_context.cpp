@@ -155,9 +155,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
 
-    if (res.status != pugi::status_ok) {
-        OPENVINO_THROW("Error reading compiled blob header");
-    }
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
 
     pugi::xml_node compiledBlobNode = document.document_element();
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");

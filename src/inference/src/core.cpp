@@ -79,9 +79,51 @@ Core::Core(const std::string& xml_config_file) {
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({
-        std::map<std::string, Version> versions;
-        for (auto&& kvp : _impl->GetVersions(device_name)) {
-            versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
+        std::map<std::string, ov::Version> versions;
+        std::vector<std::string> deviceNames;
+
+        // for compatibility with samples / demo
+        if (device_name.find("HETERO") == 0) {
+            auto pos = device_name.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_hetero_devices(device_name.substr(pos + 1));
+            }
+            deviceNames.push_back("HETERO");
+        } else if (device_name.find("MULTI") == 0) {
+            auto pos = device_name.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(device_name.substr(pos + 1));
+            }
+            deviceNames.push_back("MULTI");
+        } else if (device_name.find("AUTO") == 0) {
+            auto pos = device_name.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(device_name.substr(pos + 1));
+            }
+            deviceNames.emplace_back("AUTO");
+        } else if (device_name.find("BATCH") == 0) {
+            auto pos = device_name.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = {ov::DeviceIDParser::get_batch_device(device_name.substr(pos + 1))};
+            }
+            deviceNames.push_back("BATCH");
+        } else {
+            deviceNames.push_back(device_name);
+        }
+
+        for (auto&& deviceName_ : deviceNames) {
+            ov::DeviceIDParser parser(deviceName_);
+            std::string deviceNameLocal = parser.get_device_name();
+
+            try {
+                ov::Plugin cppPlugin = _impl->get_plugin(deviceNameLocal);
+                versions[deviceNameLocal] = cppPlugin.get_version();
+            } catch (const ov::Exception& ex) {
+                std::string exception(ex.what());
+                if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                    throw;
+                }
+            }
         }
         return versions;
     })
