@@ -165,40 +165,45 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     if (device.find("MULTI") != std::string::npos)
         plugin->set_device_name("MULTI");
 
+    const auto cpu_failed = std::string{"Mock CPU Load Failed"};
+    const auto gpu_failed = std::string{"Mock GPU Load Failed"};
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{"Mock GPU Load Failed"}));
+        .WillByDefault(ov::Throw(gpu_failed));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{"Mock CPU Load Failed"}));
+        .WillByDefault(ov::Throw(cpu_failed));
+
+    const auto auto_failed = std::string{"[AUTO] compile model failed"};
+    const auto multi_failed = std::string{"[MULTI] compile model failed"};
+    auto expected_substrings = std::vector<std::reference_wrapper<const std::string>>{};
     if (device == "AUTO") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        expected_substrings = {auto_failed, cpu_failed, gpu_failed};
     } else if (device == "AUTO:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, CPU:Mock CPU Load Failed");
+        expected_substrings = {auto_failed, cpu_failed};
     } else if (device == "AUTO:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed");
+        expected_substrings = {auto_failed, gpu_failed};
     } else if (device == "MULTI") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        expected_substrings = {multi_failed, cpu_failed, gpu_failed};
     } else if (device == "MULTI:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, CPU:Mock CPU Load Failed");
+        expected_substrings = {multi_failed, cpu_failed};
     } else if (device == "MULTI:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed");
+        expected_substrings = {multi_failed, gpu_failed};
+    }
+    if (!expected_substrings.empty()) {
+        EXPECT_THROW(
+            try { plugin->compile_model(model, config); } catch (const ov::Exception& ex) {
+                const auto what = std::string{ex.what()};
+                for (const auto& substr : expected_substrings) {
+                    EXPECT_THAT(what, HasSubstr(substr));
+                }
+                throw;
+            },
+            ov::Exception);
     }
 }
 
@@ -278,9 +283,9 @@ public:
                     .WillByDefault(RETURN_MOCK_VALUE(value));
             } else {
                 ON_CALL(*mockIExeNet.get(), get_property(StrEq(property.first)))
-                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+                    .WillByDefault(ov::Throw("unsupported property"));
                 ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(property.first)))
-                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+                    .WillByDefault(ov::Throw("unsupported property"));
             }
         }
         ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::supported_properties.name())))
