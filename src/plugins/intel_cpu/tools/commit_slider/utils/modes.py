@@ -193,7 +193,7 @@ class CompareBlobsMode(Mode):
         self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         # no check of prerun-cashed commits
-        self.initialDegradationCheck(list, cfg)
+        self.preliminaryCheck(list, cfg)
         return list
 
     def getPseudoMetric(self, commit, cfg):

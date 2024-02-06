@@ -31,18 +31,22 @@ def getVersionList(td: TestData):
 
     # apply patches and fill version list
     versionList = []
-    for patch in patchList:
+    for id, patch in enumerate(patchList):
         state = 'EMPTY'
         if 'state' in patch:
             state = patch['state']
         sub = patch['str']
-        newData = data[:prefixPos] + sub + "\n" + data[postfixPos + 1:]
+        newData = "// {}\n{}{}\n{}".format(
+            id,  # distinctive string to guarantee that versions differ
+            data[:prefixPos],
+            sub, # patch
+            data[postfixPos + 1:]
+        )
         newVersion = {
             "content": newData,
             "state": state,
             "comment": patch['comment']}
         versionList.append(newVersion)
-
     return versionList
 
 
@@ -143,11 +147,13 @@ def commitPatchList(versionList, innerPath, fileName):
 
 def getExpectedCommit(td: TestData):
     markedVersionList = createRepo(td)
-    breakCommit = markedVersionList[[
-        i for i in range(
-            len(markedVersionList)
-        ) if markedVersionList[i]['state'] == 'BREAK'][0]]['commit']
-    breakCommit = getMeaningfullCommitTail(breakCommit)
+    breakList = [i for i in range(len(markedVersionList))\
+                if markedVersionList[i]['state'] == 'BREAK']
+    if not breakList:
+        breakCommit = None
+    else:
+        breakCommit = markedVersionList[breakList[0]]['commit']
+        breakCommit = getMeaningfullCommitTail(breakCommit)
 
     td.fillActualData(markedVersionList)
     td.actualDataReceived = True
@@ -173,18 +179,7 @@ def getActualCommit(td: TestData):
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
-    rejectReason, foundCommit = None, None
-    commitMatcher = re.search(
-            "Break commit: (.*), state", sliderOutput, flags=re.MULTILINE
-        )
-    if commitMatcher is not None:
-        foundCommit = commitMatcher.group(1)
-    else:
-        commitMatcher = re.search(
-                "Output results invalid, reason: (.*)", sliderOutput, flags=re.MULTILINE
-            )
-        rejectReason = commitMatcher.group(1)
-
+    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
     # clear temp data
     [shutil.rmtree(dir) for dir in [
             td.repoName,
@@ -193,6 +188,38 @@ def getActualCommit(td: TestData):
     os.remove(testCfg)
 
     return foundCommit, rejectReason
+
+def parseSliderOutput(sliderOutput: str):
+    rejectReason, foundCommit, matcher = None, None, None
+    pattern = "Preliminary check failed, reason: (.*)"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        rejectReason = matcher.group(1)
+        return rejectReason, None
+
+    pattern = "Break commit: (.*), state"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        foundCommit = matcher.group(1)
+        return None, foundCommit
+
+    pattern = "Output results invalid, reason: (.*)"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        rejectReason = matcher.group(1)
+        return rejectReason, None
+    else:
+        raise TestError(
+            "Unexpected output: {}".format(
+                sliderOutput
+            ))
+
 
 def requireBinarySearchData(td: TestData, rsc: map):
     td.requireTestData(

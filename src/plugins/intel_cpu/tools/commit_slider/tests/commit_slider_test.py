@@ -11,7 +11,7 @@ from test_util import getActualCommit
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
-    BenchmarkAppDataUnstable, BenchmarkAppDataStable
+    BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData
 
 
 class CommitSliderTest(TestCase):
@@ -35,7 +35,6 @@ class CommitSliderTest(TestCase):
         breakCommit, updatedData = getExpectedCommit(
             BenchmarkAppDataUnstable())
         actualCommit, reason = getActualCommit(updatedData)
-        # self.assertEqual(breakCommit, actualCommit)
         self.assertEqual(reason, "left interval is stable, right interval is unstable")
 
     @skip_commit_slider_devtest
@@ -44,6 +43,14 @@ class CommitSliderTest(TestCase):
             BenchmarkAppDataStable())
         actualCommit, reason = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testBmNoDegradation(self):
+        _, updatedData = getExpectedCommit(
+            BenchmarkAppNoDegradationData())
+        _, reason = getActualCommit(updatedData)
+        reasonPrefix = reason.split(':')[0]
+        self.assertEqual(reasonPrefix, "No degradation found")
 
     @skip_commit_slider_devtest
     def testBmStability(self):

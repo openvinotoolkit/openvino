@@ -94,13 +94,20 @@ class Mode(ABC):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
-    def initialDegradationCheck(self, list, cfg):
+    def preliminaryCheck(self, list, cfg):
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
-            raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
-                i1=0, i2=len(list) - 1))
+            raise util.PreliminaryAnalysisError(
+                "No degradation found: {i1} and {i2} don't differ".format(
+                    i1=list[0], i2=list[-1]),
+                util.PreliminaryAnalysisError.\
+                    PreliminaryErrType.NO_DEGRADATION
+                )
 
     def prepareRun(self, list, cfg):
+        # validate cfg
+        # check if differ
+        # check stability
         self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         # check prerun-cashed commits
@@ -115,7 +122,7 @@ class Mode(ABC):
                 )
                 list = newList
         else:
-            self.initialDegradationCheck(list, cfg)
+            self.preliminaryCheck(list, cfg)
         return list
 
     def normalizeCfg(self, cfg):
@@ -184,20 +191,28 @@ class Mode(ABC):
                 self.commitPath.metaInfo["reason"] = e.message
 
     def run(self, list, cfg) -> int:
-        list = self.prepareRun(list, cfg)
-        for i, item in enumerate(list):
-            list[i] = item.replace('"', "")
-        self.traversal.wrappedBypass(
-            list, list, cfg
-        )
-        self.postRun(list)
+        try:
+            list = self.prepareRun(list, cfg)
+            for i, item in enumerate(list):
+                list[i] = item.replace('"', "")
+            self.traversal.wrappedBypass(
+                list, list, cfg
+            )
+            self.postRun(list)
+        except util.PreliminaryAnalysisError as e:
+            self.commitPath.metaInfo["preValidationPassed"] = False
+            self.commitPath.metaInfo["reason"] = e.message
 
     def setOutputInfo(self, pathCommit):
         # override if you need more details in output representation
         pass
 
     def printResult(self):
-        if not self.commitPath.metaInfo["postValidationPassed"]:
+        if not self.commitPath.metaInfo["preValidationPassed"]:
+            print("Preliminary check failed, reason: {}".format(
+                self.commitPath.metaInfo["reason"]
+            ))
+        elif not self.commitPath.metaInfo["postValidationPassed"]:
             print("Output results invalid, reason: {}".format(
                 self.commitPath.metaInfo["reason"]
             ))
@@ -218,7 +233,10 @@ class Mode(ABC):
 
         def __init__(self):
             self.commitList = []
-            self.metaInfo = { "postValidationPassed": True }
+            self.metaInfo = {
+                    "preValidationPassed": True,
+                    "postValidationPassed": True
+                }
 
         def accept(self, traversal, commitToReport) -> None:
             traversal.visit(self, commitToReport)
