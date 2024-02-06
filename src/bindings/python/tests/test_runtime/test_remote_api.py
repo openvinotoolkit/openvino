@@ -50,6 +50,7 @@ def test_create_device_tensor_gpu():
     assert "GPU" in context.get_device_name()
     # Test RemoteTensor class:
     tensor = context.create_device_tensor(ov.Type.f32, ov.Shape([1, 2, 3]), {})
+    assert isinstance(tensor, ov.Tensor)
     assert isinstance(tensor, ov.RemoteTensor)
     assert "GPU" in tensor.get_device_name()
     # TODO: check tensor.get_params() and bind related properties:
