@@ -374,9 +374,6 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         src_t lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
-        constexpr size_t batch = 64;
-        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
-
         if (ctx.interimPrc != ctx.srcPrc && ctx.interimPrc != ctx.dstPrc) {
             if (std::is_integral<src_t>::value || ctx.interimPrc.is_real() || std::is_integral<dst_t>::value) {
                 parallel_for(ctx.size, [&](size_t i) {
@@ -387,12 +384,6 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
                     dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
                 });
             }
-        } else if (std::is_same<src_t, float>::value && std::is_same<dst_t, int8_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> int8
-            });
         } else {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
@@ -481,12 +472,6 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                     jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
                 });
             }
-        } else if (std::is_same<src_t, uint8_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // uint8_t -> fp16
-            });
         } else {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
@@ -535,12 +520,6 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                         dst[offset + j] = static_cast<dst_t>(std::trunc(std::max(std::min(tmp[j], ubound), lbound)));
                 });
             }
-        } else if (std::is_same<dst_t, float>::value || std::is_same<dst_t, int8_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp16 -> fp32/int8_t
-            });
         } else {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
@@ -580,6 +559,149 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
                 for (size_t j = 0; j < current_batch_size; ++j)         // truncate fp32
                     tmp[j] = std::trunc(std::max(std::min(tmp[j], ubound), lbound));
                 jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template <>
+struct ConvertPrecision<std::tuple<float, int8_t>> {
+    void operator()(ConvertContext& ctx) {
+        auto src = static_cast<const float*>(ctx.srcPtr);
+        auto dst = static_cast<int8_t*>(ctx.dstPtr);
+
+        float lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<float>();
+
+        constexpr size_t batch = 64;
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
+
+        if (ctx.interimPrc != ov::element::f32 && ctx.interimPrc != ov::element::i8) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<int8_t>(std::max(std::min(src[i], ubound), lbound));
+            });
+
+        } else {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> int8
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template <>
+struct ConvertPrecision<std::tuple<float, ov::float16>> {
+    void operator()(ConvertContext& ctx) {
+        auto src = static_cast<const float*>(ctx.srcPtr);
+        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        float lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<float>();
+
+        if (ctx.interimPrc != ov::element::f32 && ctx.interimPrc != ov::element::f16) {
+            if (ctx.interimPrc.is_real()) {
+                parallel_for(iterations, [&](size_t i) {
+                    batch_type tmp;
+                    const size_t offset = i * batch;
+                    const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                    for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                        tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
+                    jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
+                });
+            } else {
+                parallel_for(iterations, [&](size_t i) {
+                    batch_type tmp;
+                    const size_t offset = i * batch;
+                    const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                    for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                        tmp[j] = static_cast<float>(std::trunc(std::max(std::min(src[offset + j], ubound), lbound)));
+                    jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
+                });
+            }
+        } else {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> fp16
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template <>
+struct ConvertPrecision<std::tuple<uint8_t, ov::float16>> {
+    void operator()(ConvertContext& ctx) {
+        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        uint8_t lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<uint8_t>();
+
+        if (ctx.interimPrc != ov::element::u8 && ctx.interimPrc != ov::element::f16) {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)  // uint8_t -> fp32
+                    tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
+                jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
+            });
+
+        } else {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, dst + offset, current_batch_size);  // uint8 -> fp16
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template <>
+struct ConvertPrecision<std::tuple<ov::float16, int8_t>> {
+    void operator()(ConvertContext& ctx) {
+        auto src = static_cast<const ov::float16*>(ctx.srcPtr);
+        auto dst = static_cast<int8_t*>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        float lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<ov::float16>();
+
+        if (ctx.interimPrc != ov::element::f16 && ctx.interimPrc != ov::element::i8) {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> int8_t
+                    dst[offset + j] = static_cast<int8_t>(std::max(std::min(tmp[j], ubound), lbound));
+            });
+        } else {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, dst + offset, current_batch_size);  // float16 -> int8_t
             });
         }
 
