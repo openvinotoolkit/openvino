@@ -38,6 +38,14 @@ TEST_F(TypePropMultinomialV13Test, input_probs_f32_num_samples_const_i32_convert
     EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{4, 10}));
 }
 
+TEST_F(TypePropMultinomialV13Test, input_negative_num_samples) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-10});
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Number of samples must be positive. Got number of samples"));
+}
+
 TEST_F(TypePropMultinomialV13Test, probs_incompatibile_data_type) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});

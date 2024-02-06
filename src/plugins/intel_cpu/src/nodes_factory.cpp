@@ -44,7 +44,7 @@
 #include "nodes/input.h"
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
-#include "nodes/inverse.h"
+#include "nodes/inverse.hpp"
 #include "nodes/log_softmax.h"
 #include "nodes/lrn.h"
 #include "nodes/mathematics.h"

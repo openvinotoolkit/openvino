@@ -17,6 +17,7 @@ from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
     as_node,
+    as_nodes
 )
 
 _get_node_factory_opset14 = partial(_get_node_factory, "opset14")
@@ -25,17 +26,17 @@ _get_node_factory_opset14 = partial(_get_node_factory, "opset14")
 # -------------------------------------------- ops ------------------------------------------------
 @nameable_op
 def inverse(
-    input: NodeInput,
+    data: NodeInput,
     adjoint: bool = False
 ) -> Node:
     """Return a node with inverse matrices of the input.
 
-    :param input: Tensor with matrices to invert. Last two dimensions must be of same size.
+    :param data: Tensor with matrices to invert. Last two dimensions must be of the same size.
     :param adjoint: Whether to return adjoint instead of inverse matrices. Defaults to false.
 
     :return: The new node performing Inverse operation.
     """
-    inputs = as_node(input)
+    inputs = as_nodes(data)
 
     attributes = {
         "adjoint": adjoint,

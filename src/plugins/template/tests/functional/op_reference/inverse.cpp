@@ -66,7 +66,7 @@ std::vector<InverseParams> generateInverseParams() {
                                          std::vector<VT>{7, -2, 5, 8, -6, 3, -2, 27, 10, -12, 23, 21, 1, -21, 16, 15});
     reference_tests::Tensor matrices_2_3_3(matrices_2_3_3_shape,
                                            ET,
-                                           std::vector<VT>{2, -1, 0, -1, 2, -1, 0, -1, 2 3, 1, 2, 0, 4, 1, 2, -2, 0});
+                                           std::vector<VT>{2, -1, 0, -1, 2, -1, 0, -1, 2, 3, 1, 2, 0, 4, 1, 2, -2, 0});
 
     reference_tests::Tensor output_4_4_no_adjoint(matrices_4_4_shape,
                                                   ET,

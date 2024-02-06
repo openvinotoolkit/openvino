@@ -17,13 +17,14 @@ public:
     OPENVINO_OP("Inverse", "opset14");
     Inverse() = default;
     /**
-     * @brief Inverse operation computes the inverse of the input tensor.
+     * @brief Inverse operation computes the inverse of the input matrices. The inverse is computed for each MxM matrix
+     * separetely, preserving all batch dimensions.
      *
-     * @param input Input matrix to compute the inverse for.
+     * @param data Input matrices to compute the inverse for. Last two tensor dimensions must be of the same size.
      * @param adjoint Boolean that determines whether to return a normal inverse or adjoint (conjugate transpose) of the
-     * input matrix.
+     * input matrices.
      */
-    Inverse(const Output<Node>& input, const bool adjoint = false);
+    Inverse(const Output<Node>& data, const bool adjoint = false);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

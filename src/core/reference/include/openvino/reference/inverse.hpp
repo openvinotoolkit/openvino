@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <cmath>
-#include <cstddef>
+#include <openvino/core/shape.hpp>
 #include <vector>
 
 namespace ov {
@@ -16,7 +15,7 @@ template <typename T>
 void lu_decomposition(const T* input,
                       std::vector<std::vector<T>>& L,
                       std::vector<std::vector<T>>& U,
-                      std::vector<std::vector<T>>& P,
+                      std::vector<T>& P,
                       size_t b,
                       size_t n) {
     // Make L identity, U a copy of input and P a range(0, n)
@@ -25,8 +24,9 @@ void lu_decomposition(const T* input,
         P[i] = static_cast<T>(i);
         L[i][i] = static_cast<T>(1);
 
+        size_t i_idx = i * n;
         for (size_t j = 0; j < n; ++j) {
-            U[i][j] = input[batch_idx][i][j];
+            U[i][j] = input[batch_idx + i_idx + j];
         }
     }
 
@@ -53,10 +53,10 @@ void lu_decomposition(const T* input,
 }
 
 template <typename T>
-void lu_solve(const T* output,
+void lu_solve(T* output,
               std::vector<std::vector<T>>& L,
               std::vector<std::vector<T>>& U,
-              std::vector<std::vector<T>>& P,
+              std::vector<T>& P,
               size_t b,
               size_t n,
               size_t column) {
@@ -79,17 +79,22 @@ void lu_solve(const T* output,
         for (size_t j = i + 1; j < n; ++j) {
             X[i] -= U[i][j] * X[j];
         }
+
+        // Necessary since for i = 0, i-- underflows back to max(size_t)
         X[i] /= U[i][i];
+        if (i == 0) {
+            break;
+        }
     }
 
     size_t batch_idx = b * n * n;
     for (size_t row = 0; row < n; ++row) {
-        output[batch_idx][row][column] = X[row];
+        output[batch_idx + row * n + column] = X[row];
     }
 }
 
 template <typename T>
-void to_adjoint(const T* output, std::vector<std::vector<T>>& U, size_t b, size_t n) {
+void to_adjoint(T* output, std::vector<std::vector<T>>& U, size_t b, size_t n) {
     T determinant = 1;
 
     for (size_t i = 0; i < n; ++i) {
@@ -97,9 +102,9 @@ void to_adjoint(const T* output, std::vector<std::vector<T>>& U, size_t b, size_
     }
 
     size_t batch_idx = b * n * n;
-    for (size_t row = 0; row < n; ++row) {
+    for (size_t row = 0; row < n * n; row += n) {
         for (size_t column = 0; column < n; ++column) {
-            output[batch_idx][row][column] *= determinant;
+            output[batch_idx + row + column] *= determinant;
         }
     }
 }
@@ -115,7 +120,7 @@ void to_adjoint(const T* output, std::vector<std::vector<T>>& U, size_t b, size_
  **/
 template <typename T>
 void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) {
-    const auto n = shape.back();
+    const size_t n = shape.back();
     const auto total_elements = shape_size<Shape>(shape);
     const auto batch_size = total_elements / n / n;
 
@@ -131,7 +136,7 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
         }
 
         if (adjoint) {
-            // Multiply by det(A) = det(U)
+            // Multiply by det(A) (= det(U))
             to_adjoint(output, U, b, n);
         }
     }

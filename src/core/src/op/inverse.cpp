@@ -14,9 +14,9 @@
 
 namespace ov {
 
-// ------------------------------ v13 ------------------------------
+// ------------------------------ v14 ------------------------------
 
-op::v14::Inverse::Inverse(const Output<Node>& input, const bool adjoint) : Op({input}), m_adjoint(adjoint) {
+op::v14::Inverse::Inverse(const Output<Node>& data, const bool adjoint) : Op({data}), m_adjoint(adjoint) {
     constructor_validate_and_infer_types();
 }
 
@@ -30,7 +30,6 @@ void op::v14::Inverse::Inverse::validate_and_infer_types() {
     OV_OP_SCOPE(v14_Inverse_validate_and_infer_types);
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-
     const auto output_shapes = shape_infer(this, input_shapes);
 
     inverse::validate::input_types(this);
@@ -59,7 +58,7 @@ namespace validate {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
                           op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the 'input' input.");
+                          "Expected floating point type as element type for the 'data' input.");
 }
 }  // namespace validate
 }  // namespace inverse

@@ -14,7 +14,7 @@ inline bool evaluate(const std::shared_ptr<ov::op::v14::Inverse>& op,
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const std::vector<ov::PartialShape> input_shapes{op->get_input_shape(0)};
-    const auto out_shape = ov::op::v14::shape_infer(op.get(), input_shapes, make_tensor_accessor()).front().to_shape();
+    const auto out_shape = ov::op::v14::shape_infer(op.get(), input_shapes).front().to_shape();
     outputs[0].set_shape(out_shape);
 
     ov::reference::inverse::inverse<T>(inputs[0].data<const T>(), outputs[0].data<T>(), out_shape, op->get_adjoint());

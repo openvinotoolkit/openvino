@@ -4,9 +4,10 @@
 
 #include "multinomial.hpp"
 
-#include "openvino/op/multinomial.hpp"
-#include <openvino/op/constant.hpp>
 #include <openvino/core/type.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/multinomial.hpp>
+
 #include "utils/bfloat16.hpp"
 
 namespace ov {
@@ -94,11 +95,9 @@ void Multinomial::prepareParams() {
     }
 
     if (m_num_samples_precision == ov::element::i32) {
-        m_samples_count =
-            getSrcDataAtPortAs<const int32_t>(NUM_SAMPLES_PORT)[0];
+        m_samples_count = getSrcDataAtPortAs<const int32_t>(NUM_SAMPLES_PORT)[0];
     } else {
-        m_samples_count =
-            getSrcDataAtPortAs<const int64_t>(NUM_SAMPLES_PORT)[0];
+        m_samples_count = getSrcDataAtPortAs<const int64_t>(NUM_SAMPLES_PORT)[0];
     }
 
     m_batches_count = probs_shape[0];

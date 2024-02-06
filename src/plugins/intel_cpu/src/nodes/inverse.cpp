@@ -6,8 +6,8 @@
 
 #include <openvino/core/type.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/inverse.hpp>
 
-#include "openvino/op/inverse.hpp"
 #include "utils/bfloat16.hpp"
 
 namespace ov {
@@ -73,7 +73,7 @@ void Inverse::prepareParams() {
     const auto& input_shape = getParentEdgeAt(INPUT_PORT)->getMemory().getStaticDims();
 
     if (input_shape.size() < 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'input' shape ",
+        THROW_CPU_NODE_ERR("has incompatible 'data' shape ",
                            PartialShape(input_shape),
                            ". Only tensors of rank at least 2 are allowed.");
     }
@@ -82,7 +82,7 @@ void Inverse::prepareParams() {
     m_batches_count = 1;
 
     for (size_t i = 0; i < input_shape.size() - 2; ++i) {
-        m_batches_count *= input_shape[i];
+        m_batches_count = m_batches_count * input_shape[i];
     }
 }
 
@@ -113,35 +113,35 @@ void Inverse::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename T>
 void Inverse::execute_internal() {
-    const auto* input = getSrcDataAtPortAs<const P>(INPUT_PORT);
-    auto* output = getDstDataAtPortAs<O>(OUTPUT_PORT);
+    const auto* data = getSrcDataAtPortAs<const T>(INPUT_PORT);
+    auto* output = getDstDataAtPortAs<T>(OUTPUT_PORT);
 
     std::vector<T> L(m_side_squared);
     std::vector<T> U(m_side_squared);
     std::vector<T> P(m_side);
 
     for (size_t b = 0; b < m_batches_count; ++b) {
-        lu_decomposition(input, L, U, P, b);
+        lu_decomposition(data, L, U, P, b);
 
-        for (size_t column = 0; column < n; ++column) {
+        for (size_t column = 0; column < m_side; ++column) {
             lu_solve(output, L, U, P, b, column);
         }
 
         if (m_adjoint) {
             // Multiply by det(A) = det(U)
-            to_adjoint(output, U, b, n);
+            to_adjoint(output, U, b);
         }
     }
 }
 
 template <typename T>
-void Inverse::lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
-    // Make L identity, U a copy of input and P a range(0, n)
+void Inverse::lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
+    // Make L identity, U a copy of data and P a range(0, side)
     size_t batch_idx = b * m_side_squared;
 
     parallel_for(m_side_squared, [&](size_t i) {
         L[i] = static_cast<T>(0);
-        U[i] = input[batch_idx + i];
+        U[i] = data[batch_idx + i];
     });
 
     parallel_for(m_side, [&](size_t i) {
@@ -149,11 +149,11 @@ void Inverse::lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>
         P[i] = static_cast<T>(i);
     });
 
-    for (size_t k = 0; k < n - 1; ++k) {
+    for (size_t k = 0; k < m_side - 1; ++k) {
         // Find maximum value pivot
         size_t pivot_row = k;
         size_t k_idx = k * m_side;
-        for (size_t i = k + 1; i < n; ++i) {
+        for (size_t i = k + 1; i < m_side; ++i) {
             if (abs(U[k_idx + i]) > abs(U[k_idx + pivot_row])) {
                 pivot_row = i;
             }
@@ -176,32 +176,27 @@ void Inverse::lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>
             L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
         });
 
-        parallel_for(remaining_rows * remaining_columns, [&](size_t i)) {
+        parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
             size_t i_idx = (i / remaining_columns) * m_side;
             size_t j_idx = i % remaining_columns;
 
-            U[i_idx + j_idx] -= L[i_idx + k] * U[k_idx + j_idx];
+            U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
         });
     }
 }
 
 template <typename T>
-void Inverse::lu_solve(const T* output,
-                       std::vector<T>& L,
-                       std::vector<T>& U,
-                       std::vector<T>& P,
-                       size_t b,
-                       size_t column) {
-    std::vector<T> B(n, static_cast<T>(0));
-    std::vector<T> X(n, static_cast<T>(0));
-    std::vector<T> Y(n, static_cast<T>(0));
+void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column) {
+    std::vector<T> B(m_side, static_cast<T>(0));
+    std::vector<T> X(m_side, static_cast<T>(0));
+    std::vector<T> Y(m_side, static_cast<T>(0));
     B[column] = static_cast<T>(1);
 
     // Forward substitution: Ly = Pb
     parallel_for(m_side, [&](size_t i) {
         Y[i] = B[P[i]];
         for (size_t j = 0; j < i; ++j) {
-            Y[i] -= L[i * m_side + j] * Y[j];
+            Y[i] = Y[i] - L[i * m_side + j] * Y[j];
         }
     });
 
@@ -210,10 +205,10 @@ void Inverse::lu_solve(const T* output,
         i = m_side - i - 1;
         size_t i_idx = i * m_side;
         X[i] = Y[i];
-        for (size_t j = i + 1; j < n; ++j) {
-            X[i] -= U[i_idx + j] * X[j];
+        for (size_t j = i + 1; j < m_side; ++j) {
+            X[i] = X[i] - U[i_idx + j] * X[j];
         }
-        X[i] /= U[i_idx + i];
+        X[i] = X[i] / U[i_idx + i];
     });
 
     // Substitute back to get result
@@ -224,15 +219,15 @@ void Inverse::lu_solve(const T* output,
 }
 
 template <typename T>
-void Inverse::to_adjoint(const T* output, std::vector<T>& U, size_t b) {
+void Inverse::to_adjoint(T* output, std::vector<T>& U, size_t b) {
     T determinant = 1;
     for (size_t i = 0; i < m_side; ++i) {
-        determinant *= U[i * m_side + i];
+        determinant = determinant * U[i * m_side + i];
     }
 
     size_t batch_idx = b * m_side_squared;
     parallel_for(m_side_squared, [&](size_t i) {
-        output[batch_idx + i] *= determinant;
+        output[batch_idx + i] = output[batch_idx + i] * determinant;
     });
 }
 

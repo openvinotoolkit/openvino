@@ -59,13 +59,13 @@ private:
     void execute_internal();
 
     template <typename T>
-    void lu_decomposition(const T* input, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
+    void lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
 
     template <typename T>
-    void to_adjoint(const T* output, std::vector<T>& U, size_t b);
+    void to_adjoint(T* output, std::vector<T>& U, size_t b);
 
     template <typename T>
-    void lu_solve(const T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
+    void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
 };
 
 }  // namespace node
