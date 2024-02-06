@@ -853,10 +853,9 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
             node->get_input_partial_shape(3).size() != 0) {
             return false;
         }
-        std::shared_ptr<ov::op::v0::Constant> constant_node;
         auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
-        if (constant_node = ov::util::get_constant_from_source(begin_node)) {
-            const auto& values = constant_node->cast_vector<int64_t>();
+        if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
+            const auto& values = begin_constant_node->cast_vector<int64_t>();
             auto begin_mask = strided_slice_node->get_begin_mask();
             const auto dim_size = begin_mask.size();
             if (values.size() != dim_size) {
@@ -870,8 +869,8 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
         }
 
         auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
-        if (constant_node = ov::util::get_constant_from_source(end_node)) {
-            const auto& values = constant_node->cast_vector<int64_t>();
+        if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
+            const auto& values = end_constant_node->cast_vector<int64_t>();
             auto end_mask = strided_slice_node->get_end_mask();
             const auto dim_size = end_mask.size();
             if (values.size() != dim_size) {
