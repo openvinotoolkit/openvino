@@ -7,8 +7,6 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/fake_quantize.hpp"
 
-#include <ie_data.h>
-
 using namespace ::testing;
 using namespace std;
 using namespace ov::pass::low_precision;

@@ -14,7 +14,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-using namespace InferenceEngine;
 using namespace ov::test;
 
 namespace GPULayerTestsDefinitions {
