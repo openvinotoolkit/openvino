@@ -11,9 +11,7 @@
 
 - Make sure that all submodules are updated `git submodule update --init --recursive`
 - Create build dir `mkdir build && cd build`
-- To configure binaries building run:
-
-  ### Linux x86, Linux arm, Mac x86, Mac arm
+- Configure binaries building:
   ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
@@ -28,8 +26,9 @@
     -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
     ..
   ```
-
-- To get binaries for openvinojs-node package run compilation:
+- Build bindings:
+  `cmake --build . --config Release --verbose -j4`
+- Install binaries for openvinojs-node package:
   `make --jobs=$(nproc --all) install`
 - Go to npm package folder `cd ../src/bindings/js/node`
 - Now you can install dependencies packages and transpile ts to js code. Run `npm install`
