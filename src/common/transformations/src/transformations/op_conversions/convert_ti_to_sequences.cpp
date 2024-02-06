@@ -830,7 +830,6 @@ public:
     EliminateGatherWithRange() {
         using namespace ov;
         using namespace ov::pass;
-        MATCHER_SCOPE("EliminateGatherWithRange");
 
         auto data_label = pattern::any_input(pattern::rank_equals(3));
         auto shapeof_label = pattern::wrap_type<op::util::ShapeOfBase>({data_label});
