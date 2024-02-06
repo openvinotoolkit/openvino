@@ -5,11 +5,8 @@
 
 #include <napi.h>
 
-#include "compiled_model.hpp"
-#include "errors.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
 public:

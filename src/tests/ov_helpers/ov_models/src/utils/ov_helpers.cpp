@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "backend.hpp"
+#include "common_test_utils/specialize_function.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ngraph/specialize_function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -226,9 +226,7 @@ std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& functi
         }
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START;
-    const auto& foldedFunc = ngraph::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    NGRAPH_SUPPRESS_DEPRECATED_END;
+    const auto& foldedFunc = ov::test::utils::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
     ov::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto& op : foldedFunc->get_ops()) {
         OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),

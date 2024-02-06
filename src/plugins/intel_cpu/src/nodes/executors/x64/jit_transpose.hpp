@@ -17,11 +17,10 @@ public:
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr &attr) override;
-    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) override;
-    impl_desc_type getImplType() const override { return implType; }
+    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
+    impl_desc_type implType() const override { return impl_desc_type::jit; }
 private:
     std::shared_ptr<PermuteKernel> pKernel;
-    static const impl_desc_type implType = impl_desc_type::jit;
 };
 
 class JitTransposeExecutorBuilder : public TransposeExecutorBuilder {

@@ -12,10 +12,9 @@
 #endif
 
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_exception.hpp"
-#include "file_utils.h"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -59,7 +58,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
     auto absPath = filePath;
     if (filePath.size() > 0) {
         try {
-            absPath = FileUtils::absoluteFilePath(filePath);
+            absPath = ov::util::get_absolute_file_path(filePath);
         } catch (std::runtime_error&) {
             // can't get absolute path, will use filePath for hash
         }
@@ -127,7 +126,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
-        seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
+        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
     } catch (...) {
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);

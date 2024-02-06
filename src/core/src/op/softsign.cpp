@@ -6,7 +6,6 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
 

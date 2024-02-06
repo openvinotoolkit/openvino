@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/branch.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -484,6 +485,29 @@ TEST(pattern, matcher) {
     }
 }
 
+TEST(pattern, matching_optional) {
+    Shape shape{};
+    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto b = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto c = std::make_shared<op::v1::Add>(a, b);
+    auto d = std::make_shared<op::v1::Add>(a, b);
+
+    TestMatcher n;
+
+    // Check Optional pattern
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Relu>(c)));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
+    ASSERT_FALSE(
+        n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Result>(c)));
+
+    const auto predicate = [](const Output<Node>& output) {
+        return false;
+    };
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d, predicate),
+                         std::make_shared<op::v0::Abs>(c)));
+}
+
 TEST(pattern, mean) {
     // construct mean
     TestMatcher n;
@@ -564,14 +588,21 @@ TEST(pattern, test_sort) {
 }
 
 TEST(pattern, label_on_skip) {
+    const auto zero = std::string{"0"};
+    const auto is_zero = [&zero](const Output<Node>& node) {
+        if (const auto c = as_type_ptr<op::v0::Constant>(node.get_node_shared_ptr())) {
+            return (c->get_all_data_elements_bitwise_identical() && c->convert_value_to_string(0) == zero);
+        } else {
+            return false;
+        }
+    };
+
     Shape shape{2, 2};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
     auto b = make_shared<op::v0::Parameter>(element::i32, Shape{});
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto iconst = ngraph::make_zero(element::i32, Shape{});
+    auto iconst = op::v0::Constant::create(element::i32, Shape{}, {0.0f});
     auto label = std::make_shared<pattern::op::Label>(iconst);
-    auto const_label = std::make_shared<pattern::op::Label>(iconst, ngraph::is_zero, NodeVector{iconst});
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto const_label = std::make_shared<pattern::op::Label>(iconst, is_zero, NodeVector{iconst});
 
     auto bcst_pred = [](std::shared_ptr<Node> n) {
         return ov::as_type_ptr<op::v1::Broadcast>(n) != nullptr;

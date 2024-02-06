@@ -50,8 +50,8 @@ struct InterpolateV1Params {
     Shape outShape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inData;
-    runtime::Tensor outData;
+    ov::Tensor inData;
+    ov::Tensor outData;
     std::shared_ptr<op::v0::Constant> outShapeInput;
     op::v0::Interpolate::Attributes attrs;
 };
@@ -82,8 +82,8 @@ struct InterpolateV4Params {
     Shape outShape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inData;
-    runtime::Tensor outData;
+    ov::Tensor inData;
+    ov::Tensor outData;
     std::vector<size_t> outShapeInput;
     element::Type outShapeInputType;
     std::vector<float> scales;

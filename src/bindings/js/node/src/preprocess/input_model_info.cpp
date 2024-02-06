@@ -1,12 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/input_model_info.hpp"
+#include "node/include/preprocess/input_model_info.hpp"
 
-#include <iostream>
-
-#include "errors.hpp"
-#include "helper.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 
 InputModelInfo::InputModelInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputModelInfo>(info){};
 

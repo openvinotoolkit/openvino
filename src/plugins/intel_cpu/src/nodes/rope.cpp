@@ -18,7 +18,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-RoPE::RoPE(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -279,15 +279,15 @@ void RoPE::initSupportedPrimitiveDescriptors() {
 void RoPE::execute(dnnl::stream strm) {
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
-        inputs[i] = getParentEdgeAt(i)->getMemoryPtr();
+        inputs[i] = getSrcMemoryAtPort(i);
     }
     for (size_t i = 0; i < outputs.size(); i++) {
-        outputs[i] = getChildEdgeAt(i)->getMemoryPtr();
+        outputs[i] = getDstMemoryAtPort(i);
     }
     m_executor->execute(strm, m_config, inputs, outputs);
 }
 
-bool RoPE::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto node = std::dynamic_pointer_cast<const RoPENode>(op);
         if (!node) {

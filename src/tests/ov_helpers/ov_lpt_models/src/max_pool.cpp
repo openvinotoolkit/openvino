@@ -24,13 +24,12 @@ std::shared_ptr<ov::Model> MaxPoolFunction::getOriginal(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ov::Node> maxPool = std::make_shared<ov::opset1::MaxPool>(
-        fakeQuantize,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        op::RoundingType::FLOOR);
+    const std::shared_ptr<ov::Node> maxPool = std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                                                    Strides{1, 1},
+                                                                                    Shape{1, 1},
+                                                                                    Shape{0, 0},
+                                                                                    Shape{2, 2},
+                                                                                    ov::op::RoundingType::FLOOR);
 
     ov::ResultVector results{ std::make_shared<ov::opset1::Result>(maxPool) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "MaxPoolTransformation");
@@ -47,13 +46,12 @@ std::shared_ptr<ov::Model> MaxPoolFunction::get(
 
     parent = makeDequantization(parent, dequantizationBefore);
 
-    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        parent,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        op::RoundingType::FLOOR);
+    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(parent,
+                                                               Strides{1, 1},
+                                                               Shape{1, 1},
+                                                               Shape{0, 0},
+                                                               Shape{2, 2},
+                                                               ov::op::RoundingType::FLOOR);
     parent = maxPool;
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, precisionAfterOperation);
 

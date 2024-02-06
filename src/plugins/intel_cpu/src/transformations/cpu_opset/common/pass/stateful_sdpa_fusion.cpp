@@ -55,14 +55,21 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto multi_query_bcst = [](std::shared_ptr<Node> kv) {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, -2});
-        auto constant_bcst = makeConst(ov::element::f32, ov::PartialShape("[...]"), [](ov::op::v0::Constant& node) {
-            const auto& bcst_arg = node.cast_vector<float>();
+        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
+
+        auto check_one = [] (Output<Node> output) -> bool {
+            auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
+            const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0;
+                return i == 1.0f;
             });
-        });
-        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst});
+        };
+        auto constant_bcst = wrap_type<opset1::Constant>(check_one);
+
+        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
+            any_input(), any_input()}, {{"mode", "numpy"}});
+
+        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
     };
 
@@ -94,7 +101,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -102,7 +108,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            if (present_to.size() != 2)
+            if (present_to.size() < 2)
                 return false;
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
@@ -192,9 +198,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        auto old_node = sdp_node;
+        auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
+        copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
         if (assign_cvt_k_node)
             assign_cvt_k_node->set_arguments({new_node->output(1)});

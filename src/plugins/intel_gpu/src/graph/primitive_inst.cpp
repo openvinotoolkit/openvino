@@ -351,7 +351,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -432,6 +432,14 @@ void primitive_inst::update_shape() {
         auto variable_layout = variable.get_layout();
         // Custom output layout update as update_output_layout handles paddings incorrectly for optimized out read_value + kv_cache pattern
         _impl_params->output_layouts[0] = variable_layout;
+    }
+
+    if (get_node().is_type<kv_cache>()) {
+        auto desc = get_node().as<kv_cache>().get_primitive();
+        auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
+        // Need to trigger realloc_if_needed
+        if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
+            set_shape_change();
     }
 }
 
@@ -560,7 +568,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     auto current_shape = updated_layout.get_shape();
     std::pair<bool, ov::Shape> prealloc_info;
-    int32_t tmp_prealloc_count = _node->is_type<kv_cache>() ? kv_cache_inst::get_prealloc_iter_num() : -1;
+    int32_t tmp_prealloc_count = get_prealloc_iter_num();
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
         // If debug config is set, repsect the config most
         tmp_prealloc_count = -1;
@@ -600,13 +608,15 @@ event::ptr primitive_inst::realloc_if_needed() {
         auto desc = _node->as<kv_cache>().get_primitive();
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         auto present_layout = _impl_params->output_layouts[0];
-        const auto& sequence_axis = desc->concat_axis;
+        auto present_layout_rank = present_layout.get_partial_shape().size();
+        const auto sequence_axis = desc->concat_axis >= 0 ? desc->concat_axis
+                                                          : present_layout_rank + desc->concat_axis;
         auto sequence_axis_legacy =
-            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout.get_partial_shape().size());
+            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout_rank);
         GPU_DEBUG_TRACE_DETAIL << id() << " is kv_cache => set the variable with newly allocated output memory"
                                << std::endl;
         bool axis_is_outer_most = true;
-        for (int64_t dim = 0; dim < sequence_axis; ++dim) {
+        for (size_t dim = 0; dim < sequence_axis; ++dim) {
             if (present_layout.get_shape()[dim] > 1) {
                 axis_is_outer_most = false;
                 break;
