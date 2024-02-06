@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"

@@ -14,7 +14,6 @@
 namespace ov {
 namespace pass {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 /**
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
@@ -75,7 +74,5 @@ private:
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 }  // namespace pass
 }  // namespace ov

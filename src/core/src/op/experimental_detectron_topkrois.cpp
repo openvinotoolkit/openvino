@@ -38,9 +38,7 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
                               (out_et.is_dynamic() || out_et.is_real()),
                           "ROIs and probabilities of ROIs must same floating-point type.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_START
 
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_et, output_shapes[0]);

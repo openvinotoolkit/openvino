@@ -248,12 +248,10 @@ TRShape out_shape_infer(const TOp* op, const std::vector<TShape>& input_shapes, 
 
     const auto& data_rank = data_shape.rank();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
                           ov::util::is_rank_compatible_any_of(data_rank, {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     TRShape output_shape;
     if (data_rank.is_static()) {
