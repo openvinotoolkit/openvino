@@ -149,7 +149,9 @@ OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_or);
 OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_outer);
+OP_CONVERTER(translate_pack_padded_sequence);
 OP_CONVERTER(translate_pad);
+OP_CONVERTER(translate_pad_packed_sequence);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
@@ -278,6 +280,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
+        {"aten::_pack_padded_sequence", op::translate_pack_padded_sequence},
+        {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},

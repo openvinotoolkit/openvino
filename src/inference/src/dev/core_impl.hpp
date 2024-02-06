@@ -152,8 +152,8 @@ private:
 
     const bool m_new_api;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
-                                                          ov::Plugin& plugin,
+    ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(ov::Plugin& plugin,
+                                                          const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& parsedConfig,
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const CacheContent& cacheContent) const;
@@ -172,11 +172,6 @@ private:
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
-
-    ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
-                                                                const std::shared_ptr<const ov::Model>& model,
-                                                                const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
 
@@ -277,7 +272,7 @@ public:
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
-    std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
     // Common API
 

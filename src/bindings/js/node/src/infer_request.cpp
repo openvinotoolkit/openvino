@@ -195,7 +195,6 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
     delete context;
