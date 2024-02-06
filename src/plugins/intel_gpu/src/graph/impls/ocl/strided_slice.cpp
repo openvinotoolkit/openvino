@@ -173,16 +173,24 @@ public:
                 bool is_stride_reverse = (stride < 0) ? true : false;
 
                 // Clamping
-                if (should_clamp_begin)
-                    begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]-1);
-                if (should_clamp_end)
-                    end = std::min(std::max(end, (int32_t)0), out_shape[dim]-1);
+                begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]);
+                end = std::min(std::max(end, (int32_t)0), out_shape[dim]);
 
                 if (is_stride_reverse) {
-                    // If begin <= end and is_stride_reverse, then we swap begin/end values
-                    // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
-                    // swap: begin=99; end=0;
+                    // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
+                    // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
+                    // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
+                    // clamp: begin=100; end=0;
+                    // sub: begin=99; end=-1;
+                    // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
+                    // E.g. out_shape[dim] = 100; begin=-100; end=100; stride=-1
+                    // sub: begin=-1; end=100;
+                    // swap: begin=100; end=-1;
                     // So the kernel will put the slices [99, 0] in reversed order as expected.
+                    if (should_clamp_begin)
+                        begin--;
+                    if (should_clamp_end)
+                        end--;
                     if (begin <= end)
                         std::swap(begin, end);
                 }
