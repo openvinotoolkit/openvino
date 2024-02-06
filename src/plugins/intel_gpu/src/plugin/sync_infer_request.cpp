@@ -662,7 +662,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                     ". Those are expected to be equal");
 
     if (is_remote) {
-        m_plugin_inputs[name] = user_tensor_wrapper;
+        if (convert_needed) {
+            m_plugin_inputs[name] = { create_device_tensor(pshape,
+                                                           cldnn::element_type_to_data_type(element_type), true), TensorOwner::PLUGIN };
+        } else {
+            m_plugin_inputs[name] = user_tensor_wrapper;
+        }
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
         if (element_type != cldnn::element_type_to_data_type(element_type)) {
             m_plugin_inputs[name] = {std::make_shared<RemoteTensorImpl>(m_context,
@@ -740,15 +745,14 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote) {
-        if (convert_needed) {
-            convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
-        } else {
-            auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
-            if (!same_host_mem(memory, src_ptr)) {
-                ret_event = memory->copy_from(stream, src_ptr, false);
-            }
+    if (!is_remote && !convert_needed) {
+        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
+        if (!same_host_mem(memory, src_ptr)) {
+            ret_event = memory->copy_from(stream, src_ptr, false);
         }
+    }
+    if (convert_needed) {
+        convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
     }
 
     GPU_DEBUG_TRACE_DETAIL << name << " prepare input: " << memory->buffer_ptr() << std::endl;
