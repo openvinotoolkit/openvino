@@ -1,7 +1,7 @@
 # Installing
 
 Once the project is built you can install OpenVINO™ Runtime into custom location:
- 
+
 ```
 cmake --install <BUILDDIR> --prefix <INSTALLDIR>
 ```
@@ -93,10 +93,15 @@ cd <INSTALLDIR>/samples/cpp
 ./build_samples.sh
 ```
 
-Windows:
+Windows Command Prompt:
 ```sh
 cd <INSTALLDIR>\samples\cpp
 build_samples_msvc.bat
+```
+
+Windows PowerShell:
+```sh
+& <path-to-build-samples-folder>/build_samples.ps1
 ```
 
 2. Install OpenVINO Development Tools
@@ -165,9 +170,14 @@ Linux and macOS:
 source <INSTALLDIR>/setupvars.sh
 ```
 
-Windows:
+Windows Command Prompt:
 ```bat
 <INSTALLDIR>\setupvars.bat
+```
+
+Windows PowerShell:
+```bat
+. <path-to-setupvars-folder>/setupvars.ps1
 ```
 
 The following commands run the Image Classification Code Sample using the [`dog.bmp`](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
@@ -265,4 +275,3 @@ target_link_libraries(ov_c_app PRIVATE openvino::runtime::c)
  * [OpenVINO Developer Documentation](index.md)
  * [OpenVINO How to Build](build.md)
 
- 

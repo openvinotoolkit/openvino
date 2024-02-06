@@ -5,7 +5,7 @@ RandomUniform
 
 
 .. meta::
-  :description: Learn about RandomUniform-8 - a generation operation, which can be 
+  :description: Learn about RandomUniform-8 - a generation operation, which can be
                 performed on three required input tensors.
 
 **Versioned name**: *RandomUniform-8*
@@ -16,10 +16,10 @@ RandomUniform
 
 **Detailed description**:
 
-*RandomUniform* operation generates random numbers from a uniform distribution in the range ``[minval, maxval)``. 
-The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm 
-is a counter-based pseudo-random generator, which produces uint32 values. Single invocation of Philox algorithm returns 
-four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized 
+*RandomUniform* operation generates random numbers from a uniform distribution in the range ``[minval, maxval)``.
+The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm
+is a counter-based pseudo-random generator, which produces uint32 values. Single invocation of Philox algorithm returns
+four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized
 with *global_seed* and *op_seed* attributes respectively.
 
 If both seed values equal to zero, RandomUniform generates non-deterministic sequence.
@@ -32,7 +32,7 @@ If both seed values equal to zero, RandomUniform generates non-deterministic seq
 
 Link to the original paper `Parallel Random Numbers: As Easy as 1, 2, 3 <https://www.thesalmons.org/john/random123/papers/random123sc11.pdf>`__.
 
-The result of Philox is calculated by applying a fixed number of *key* and *counter* updating so-called "rounds". 
+The result of Philox is calculated by applying a fixed number of *key* and *counter* updating so-called "rounds".
 This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
 
 Suppose we have *n* which determines *n*-th 4 elements of random sequence.
@@ -43,7 +43,7 @@ In each round *key*, *counter* and *n* are splitted to pairs of uint32 values:
    R = cast\_to\_uint32(value)\\
    L = cast\_to\_uint32(value >> 32),
 
-where *cast\_to\_uint32* - static cast to uint32, *value* - uint64 input value, *L*, *R* - uint32 
+where *cast\_to\_uint32* - static cast to uint32, *value* - uint64 input value, *L*, *R* - uint32
 result values, >> - bitwise right shift.
 
 Then *n* and *counter* are updated with the following formula:
@@ -68,7 +68,7 @@ Values :math:`L'_{n}, R'_{n}, L'_{counter}, R'_{counter}` are resulting four ran
 
 Float values between [0..1) are obtained from 32-bit integers by the following rules.
 
-Float16 is formatted as follows: *sign* (1 bit) *exponent* (5 bits) *mantissa* (10 bits). The value is interpreted 
+Float16 is formatted as follows: *sign* (1 bit) *exponent* (5 bits) *mantissa* (10 bits). The value is interpreted
 using following formula:
 
 .. math::
@@ -99,7 +99,7 @@ where x is uint32 generated random value.
 Float32 is formatted as follows: *sign* (1 bit) *exponent* (8 bits) *mantissa* (23 bits). The value is interpreted using following formula:
 
 .. math::
-   
+
    (-1)^{sign} * 1, mantissa * 2 ^{exponent - 127}
 
 
@@ -117,7 +117,7 @@ So the resulting float value is:
 
 .. code-block:: xml
    :force:
-   
+
    val = ((exponent << 23) | x & 0x7fffffu) - 1.0,
 
 where x is uint32 generated random value.
@@ -125,7 +125,7 @@ where x is uint32 generated random value.
 Double is formatted as follows: *sign* (1 bit) *exponent* (11 bits) *mantissa* (52 bits). The value is interpreted using following formula:
 
 .. math::
-   
+
    (-1)^{sign} * 1, mantissa * 2 ^{exponent - 1023}
 
 
@@ -133,7 +133,7 @@ so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
 
 .. code-block:: xml
    :force:
-     
+
    sign = 0
    exponent = 1023 - representation of a zero exponent.
    mantissa = 52 right bits from two concatinated uint32 values from random integer generator.
@@ -143,7 +143,7 @@ So the resulting double is obtained as follows:
 
 .. code-block:: xml
    :force:
-   
+
    mantissa_h = x0 & 0xfffffu;  // upper 20 bits of mantissa
    mantissa_l = x1;             // lower 32 bits of mantissa
    mantissa = (mantissa_h << 32) | mantissa_l;
@@ -156,7 +156,7 @@ To obtain a value in a specified range each value is processed with the followin
 For float values:
 
 .. math::
-   
+
    result = x * (maxval - minval) + minval,
 
 where *x* is random float or double value between [0..1).
@@ -174,7 +174,7 @@ Example 1. *RandomUniform* output with ``global_seed`` = 150, ``op_seed`` = 10, 
 
 .. code-block:: xml
    :force:
-   
+
     input_shape    = [ 3, 3 ]
     output  = [[0.7011236  0.30539632 0.93931055]
             [0.9456035   0.11694777 0.50770056]
@@ -185,7 +185,7 @@ Example 2. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 .. code-block:: xml
    :force:
-    
+
    input_shape    = [ 2, 2 ]
 
    minval = 2
@@ -200,7 +200,7 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 .. code-block:: xml
    :force:
-     
+
    input_shape    = [ 2, 3 ]
 
    minval = 50
@@ -261,11 +261,11 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
     <layer ... name="RandomUniform" type="RandomUniform">
         <data output_type="f32" global_seed="234" op_seed="148"/>
         <input>
-            <port id="0" precision="I32">  < !-- shape value: [2, 3, 10] -->
+            <port id="0" precision="I32">  <!-- shape value: [2, 3, 10] -->
                 <dim>3</dim>
             </port>
-            <port id="1" precision="FP32"/> < !-- min value -->
-            <port id="2" precision="FP32"/> < !-- max value -->
+            <port id="1" precision="FP32"/> <!-- min value -->
+            <port id="2" precision="FP32"/> <!-- max value -->
         </input>
         <output>
             <port id="3" precision="FP32" names="RandomUniform:0">
