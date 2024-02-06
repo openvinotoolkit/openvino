@@ -13,6 +13,42 @@ namespace op {
 TypeRelaxedBase::~TypeRelaxedBase() = default;
 
 namespace {
+void convert_types(std::shared_ptr<v0::Parameter>& parameter,
+                   std::shared_ptr<v0::Convert>& convert,
+                   Output<Node>& output,
+                   const element::Type& new_type) {
+    parameter->set_element_type(output.get_element_type());
+    parameter->set_partial_shape(output.get_shape());
+    parameter->validate_and_infer_types();
+    if (auto& bound = output.get_tensor().get_lower_value())
+        parameter->get_output_tensor(0).set_lower_value(bound);
+    if (auto& bound = output.get_tensor().get_upper_value())
+        parameter->get_output_tensor(0).set_upper_value(bound);
+
+    convert->set_destination_type(new_type);
+    convert->validate_and_infer_types();
+
+    ov::TensorVector lower_tensor = {ov::Tensor(new_type, output.get_shape())};
+    ov::TensorVector upper_tensor = {ov::Tensor(new_type, output.get_shape())};
+    bool lower_success = convert->evaluate_lower(lower_tensor);
+    bool upper_success = convert->evaluate_upper(upper_tensor);
+    auto& tensor = output.get_tensor();
+
+    if (lower_success || upper_success) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        tensor.set_element_type(new_type);  // deprecated piece
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
+    if (lower_success)
+        tensor.set_lower_value(lower_tensor[0]);
+    if (upper_success)
+        tensor.set_upper_value(upper_tensor[0]);
+    if (lower_success && upper_success) {
+        if (memcmp(lower_tensor[0].data(), upper_tensor[0].data(), lower_tensor[0].get_byte_size()) == 0)
+            tensor.set_upper_value(lower_tensor[0]);
+    }
+}
+
 void reset_convert(std::shared_ptr<v0::Parameter> parameter,
                    std::shared_ptr<v0::Convert> convert,
                    const ov::Tensor& tensor,
@@ -49,39 +85,7 @@ std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> convert_input_type
             parameter = std::make_shared<op::v0::Parameter>(element::undefined, PartialShape());
             convert = std::make_shared<ov::op::v0::Convert>(parameter, element::undefined);
         }
-        // ov::op::convert_types(parameter, convert, input, original_type);
-        {
-            parameter->set_element_type(input.get_element_type());
-            parameter->set_partial_shape(input.get_shape());
-            parameter->validate_and_infer_types();
-            if (auto& bound = input.get_tensor().get_lower_value())
-                parameter->get_output_tensor(0).set_lower_value(bound);
-            if (auto& bound = input.get_tensor().get_upper_value())
-                parameter->get_output_tensor(0).set_upper_value(bound);
-
-            convert->set_destination_type(original_type);
-            convert->validate_and_infer_types();
-
-            ov::TensorVector lower_tensor = {ov::Tensor(original_type, input.get_shape())};
-            ov::TensorVector upper_tensor = {ov::Tensor(original_type, input.get_shape())};
-            bool lower_success = convert->evaluate_lower(lower_tensor);
-            bool upper_success = convert->evaluate_upper(upper_tensor);
-            auto& tensor = input.get_tensor();
-
-            if (lower_success || upper_success) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                tensor.set_element_type(original_type);  // deprecated piece
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            }
-            if (lower_success)
-                tensor.set_lower_value(lower_tensor[0]);
-            if (upper_success)
-                tensor.set_upper_value(upper_tensor[0]);
-            if (lower_success && upper_success) {
-                if (memcmp(lower_tensor[0].data(), upper_tensor[0].data(), lower_tensor[0].get_byte_size()) == 0)
-                    tensor.set_upper_value(lower_tensor[0]);
-            }
-        }
+        ov::op::convert_types(parameter, convert, input, original_type);
         original_inputs[i] = {parameter->get_output_tensor(0).get_lower_value(),
                               parameter->get_output_tensor(0).get_upper_value()};
     }
