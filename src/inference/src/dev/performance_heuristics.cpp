@@ -6,10 +6,9 @@
 
 namespace ov {
 
-MemBandwidthPressure mem_bandwidth_pressure_tolerance(
-    const std::shared_ptr<ov::Model> model,
-    const float cache_size,
-    const float memThresholdAssumeLimited) {
+MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
+                                                      const float cache_size,
+                                                      const float memThresholdAssumeLimited) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
