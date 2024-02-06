@@ -204,7 +204,7 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
 
     using namespace ov::element;
     return IF_TYPE_OF(util_GatherBase_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64),
+                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64, string),
                       gather::Evaluate,
                       data.get_element_type(),
                       data,
@@ -226,9 +226,7 @@ bool GatherBase::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     return gather::have_indices_and_axis_bound_set(this) && ov::util::default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
