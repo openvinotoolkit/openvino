@@ -84,7 +84,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
         subprocess.check_call(["sh", "build.sh"], cwd=os.path.join(
             self.repo_dir.name, "custom_ops"))
 
-    def load_model(self, model_name, model_link):
+    def load_model_impl(self, model_name, model_link):
         sys.path.append(self.repo_dir.name)
         from nets.aliked import ALIKED
 

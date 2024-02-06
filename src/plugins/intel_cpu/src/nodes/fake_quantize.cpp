@@ -1298,11 +1298,6 @@ void FakeQuantize::getSupportedDescriptors() {
     if (getChildEdges().empty())
         OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgesAtPort(i).size() != 1)
-            OPENVINO_THROW(errorPrefix, "has unsupported number of parent edges at port ", i);
-    }
-
     if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         OPENVINO_THROW(errorPrefix, "has different ranks for input and output tensors");
     }
@@ -1390,7 +1385,7 @@ bool FakeQuantize::needPrepareParams() const {
             return true;
         }
 
-        const auto axisSize = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()[getAxis()];
+        const auto axisSize = getParentEdgeAt(0)->getMemory().getStaticDims()[getAxis()];
         const auto newPaddedSize = rnd_up(axisSize, 16);
         const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
@@ -1494,10 +1489,10 @@ void FakeQuantize::createPrimitive() {
 }
 
 void FakeQuantize::executeReference() {
-    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getSrcMemoryAtPort(0);
+    auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = reinterpret_cast<const float *>(srcMemory->getData());
+    auto src = srcMemory->getDataAs<const float>();
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1524,13 +1519,13 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
+        auto dst = dstMemory->getDataAs<uint8_t>();
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
 
-        auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
-        auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->getData());
+        auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
+        auto output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
@@ -1560,7 +1555,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->getData());
+        auto dst = dstMemory->getDataAs<float>();
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
@@ -1604,14 +1599,14 @@ void FakeQuantize::executeReference() {
 }
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getSrcMemoryAtPort(0);
+    auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
+    auto src = srcMemory->getDataAs<const uint8_t>();
+    auto dst = dstMemory->getDataAs<uint8_t>();
 
-    auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
-    auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->getData());
+    auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
+    auto output_mask = internalBlobMemory[1]->getDataAs<const float>();
 
     auto src_dims = srcMemory->getStaticDims();
 
@@ -1646,11 +1641,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getSrcMemoryAtPort(0);
+    auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
+    auto src = srcMemory->getDataAs<const uint8_t>();
+    auto dst = dstMemory->getDataAs<uint8_t>();
 
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
@@ -2048,7 +2043,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
 // map FQ to oneDNN's attribuites & postOps
 // equation:
 //      y = clip2(round(x * inputScale + inputShift))*outputScale + outputShift
-bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                                      bool isLastPostOp,
                                      dnnl::memory::data_type outDataType,
                                      bool allowBinary,

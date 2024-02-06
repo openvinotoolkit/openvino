@@ -95,6 +95,8 @@ TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_lookup_table_import_op);
+TF_OP_CONVERTER(translate_lookup_table_find_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -222,6 +224,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ClipByValue", CreatorFunction(translate_clip_by_value_op)},
         {"Complex", CreatorFunction(translate_complex_op)},
         {"ComplexAbs", CreatorFunction(translate_complex_abs_op)},
+        {"Conj", CreatorFunction(translate_conj_op)},
         {"ConjugateTranspose", CreatorFunction(translate_conj_transpose_op)},
         {"Concat", CreatorFunction(translate_concat_op)},
         {"ConcatV2", CreatorFunction(translate_concat_op)},
@@ -287,6 +290,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ListDiff", CreatorFunction(translate_list_diff_op)},
         {"LogSoftmax", CreatorFunction(translate_log_softmax_op)},
         {"Log1p", CreatorFunction(translate_log_1p_op)},
+        {"LookupTableFind", CreatorFunction(translate_lookup_table_find_op)},
+        {"LookupTableFindV2", CreatorFunction(translate_lookup_table_find_op)},
+        {"LookupTableImport", CreatorFunction(translate_lookup_table_import_op)},
+        {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},

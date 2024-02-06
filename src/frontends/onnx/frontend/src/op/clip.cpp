@@ -6,8 +6,7 @@
 
 #include <limits>
 
-#include "default_opset.hpp"
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
@@ -15,13 +14,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector clip(const Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
+    const auto data = node.get_ov_inputs().at(0);
 
     const double max_value = node.get_attribute_value<double>("max", std::numeric_limits<double>::max());
 
@@ -72,8 +71,8 @@ std::shared_ptr<ov::op::v0::Constant> get_constant_max_of_type(ov::element::Type
 }
 }  // namespace
 
-ov::OutputVector clip(const Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
     const ov::Output<ov::Node> data = inputs.at(0);
     const ov::element::Type data_type = data.get_element_type();
     ov::Output<ov::Node> min;
@@ -101,10 +100,7 @@ ov::OutputVector clip(const Node& node) {
 }
 
 }  // namespace set_11
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
