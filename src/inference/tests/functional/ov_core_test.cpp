@@ -36,7 +36,7 @@ static void remove_plugin_xml(const std::string& file_name) {
 TEST(CoreBaseTest, LoadPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -45,7 +45,7 @@ TEST(CoreBaseTest, LoadPluginXML) {
 TEST(CoreBaseTest, LoadPluginDifferentXMLExtension) {
     std::string xml_file_name = "test_plugin.test";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -54,7 +54,7 @@ TEST(CoreBaseTest, LoadPluginDifferentXMLExtension) {
 TEST(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::test::utils::getOpenvinoLibDirectory() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
