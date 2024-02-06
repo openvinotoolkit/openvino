@@ -440,7 +440,7 @@ static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t&
    +------------------------------+
    |              X               |    +----------------+    +------+
    |         (invariant)          |    | sequence index |    | axis |
-   | [seq_len, batch, input size] |    |       []       |    | {0}  |
+   | [seq_len, batch, input_size] |    |       []       |    | {0}  |
    +--------------+---------------+    +--------+-------+    +--+---+
                   |                             |               |
                   |          +----------------- +               |
@@ -451,7 +451,7 @@ static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t&
                       v      v      v        +----------------------+    +----------------------+
                   +---+------+------+---+    |          H           |    |          C           |
                   |        Gather       |    | (merged with H_out)  |    | (merged with C_out)  |    +-----+    +-----+    +-----+
-                  | [batch, input size] |    | [batch, hidden size] |    | [batch, hidden size] |    |  W  |    |  R  |    |  B  |
+                  | [batch, input_size] |    | [batch, hidden_size] |    | [batch, hidden_size] |    |  W  |    |  R  |    |  B  |
                   +----------+----------+    +----------+-----------+    +----------+-----------+    +--+--+    +--+--+    +--+--+
                              |                          |                           |                   |          |          |
                              |                          |                           |                   |          |          |
@@ -472,18 +472,18 @@ static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t&
        +---+                                              v    v    v    v    v    v
        | Y |                                          +---+----+----+----+----+----+---+
        +---+                                          |            LSTMCell            |
-         |                                            +--------+--------------+--------+
-         |                                                     |              |
-         v                                                     |              |
-   +-----+-----+                                    +----------+              +------+
-   | Broadcast |                                    |                                |
-   +-----+-----+                                    |                                v
-         |                                          v                       +--------+--------+
-         |       +----------------+    +------------+------------+          |      C_out      |
-         |       | sequence index |    |       Unsqueeze         |          | (merged with C) |
-         |       +--------+-------+    | [batch, 1, hidden size] |          +-----------------+
-         |                |            +------------+------------+
-         |                |                         |
+         |                                            +--------+-------------------+---+
+         |                                                     |                   |
+         v                                                     |                   |
+   +-----+-----+                                    +----------+---------------+   |
+   | Broadcast |                                    |                          |   +---------------------+
+   +-----+-----+                                    |                          |                         |
+         |                                          v                          v                         v
+         |       +----------------+    +------------+------------+   +---------+------------+   +--------+--------+
+         |       | sequence index |    |       Unsqueeze         |   |         H_out        |   |      C_out      |
+         |       +--------+-------+    | [batch, 1, hidden_size] |   |   (merged with H)    |   | (merged with C) |
+         |                |            +------------+------------+   | [batch, hidden_size] |   +-----------------+
+         |                |                         |                +----------------------+
          |                |                         |
          |                |                         |
          |                |                         |      +------+
@@ -748,10 +748,13 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
             new_input_perm_values = batch_first_perm;
         }
 
+        NodeRegistry node_registry;
+
         if (new_input_perm_values != std::vector<int>{0, 1, 2}) {
-            auto new_input_perm =
-                op::v0::Constant::create(element::i32, Shape{new_input_perm_values.size()}, new_input_perm_values);
-            X = std::make_shared<op::v1::Transpose>(X, new_input_perm);
+            auto new_input_perm = node_registry.make<op::v0::Constant>(element::i32,
+                                                                       Shape{new_input_perm_values.size()},
+                                                                       new_input_perm_values);
+            X = node_registry.make<op::v1::Transpose>(X, new_input_perm);
         }
 
         const auto& X_shape = X.get_partial_shape();
@@ -761,61 +764,45 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         }
 
         // Finally create LSTMSequence
-        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
-        auto max_sequence_length = op::v0::Constant::create(element::i32, Shape{1}, {sequence_index_limit});
-        auto shapeof_X = std::make_shared<op::v3::ShapeOf>(X);
-        auto batch_size = std::make_shared<op::v8::Gather>(shapeof_X, zero, zero);
-        auto shapeof_H = std::make_shared<op::v3::ShapeOf>(H);
-        auto new_H_shape = std::make_shared<op::v0::Concat>(OutputVector{batch_size, shapeof_H}, 0);
-        auto new_H = std::make_shared<op::v3::Broadcast>(H, new_H_shape);
-        auto shapeof_C = std::make_shared<op::v3::ShapeOf>(C);
-        auto new_C_shape = std::make_shared<op::v0::Concat>(OutputVector{batch_size, shapeof_C}, 0);
-        auto new_C = std::make_shared<op::v3::Broadcast>(C, new_C_shape);
-        auto new_W = std::make_shared<op::v0::Unsqueeze>(W, zero);
-        auto new_R = std::make_shared<op::v0::Unsqueeze>(R, zero);
-        auto new_B = std::make_shared<op::v0::Unsqueeze>(B, zero);
+        auto zero = node_registry.make<op::v0::Constant>(element::i32, Shape{1}, 0);
+        auto max_sequence_length = node_registry.make<op::v0::Constant>(element::i32, Shape{1}, sequence_index_limit);
+        auto shapeof_X = node_registry.make<op::v3::ShapeOf>(X);
+        auto batch_size = node_registry.make<op::v8::Gather>(shapeof_X, zero, zero);
+        auto shapeof_H = node_registry.make<op::v3::ShapeOf>(H);
+        auto new_H_shape = node_registry.make<op::v0::Concat>(OutputVector{batch_size, shapeof_H}, 0);
+        auto new_H = node_registry.make<op::v3::Broadcast>(H, new_H_shape);
+        auto shapeof_C = node_registry.make<op::v3::ShapeOf>(C);
+        auto new_C_shape = node_registry.make<op::v0::Concat>(OutputVector{batch_size, shapeof_C}, 0);
+        auto new_C = node_registry.make<op::v3::Broadcast>(C, new_C_shape);
+        auto new_W = node_registry.make<op::v0::Unsqueeze>(W, zero);
+        auto new_R = node_registry.make<op::v0::Unsqueeze>(R, zero);
+        auto new_B = node_registry.make<op::v0::Unsqueeze>(B, zero);
         std::shared_ptr<Node> sequence_lengths = std::make_shared<op::v3::Broadcast>(max_sequence_length, batch_size);
         if (auto constant = ov::util::constantfold_subgraph(sequence_lengths)) {
             sequence_lengths = constant;
         }
-        auto lstm = std::make_shared<op::v5::LSTMSequence>(X,
-                                                           new_H,
-                                                           new_C,
-                                                           sequence_lengths,
-                                                           new_W,
-                                                           new_R,
-                                                           new_B,
-                                                           lstm_cell->get_hidden_size(),
-                                                           op::v5::LSTMSequence::direction::FORWARD,
-                                                           lstm_cell->get_activations_alpha(),
-                                                           lstm_cell->get_activations_beta(),
-                                                           lstm_cell->get_activations(),
-                                                           lstm_cell->get_clip());
+        node_registry.add(sequence_lengths);
+        auto lstm = node_registry.make<op::v5::LSTMSequence>(X,
+                                                             new_H,
+                                                             new_C,
+                                                             sequence_lengths,
+                                                             new_W,
+                                                             new_R,
+                                                             new_B,
+                                                             lstm_cell->get_hidden_size(),
+                                                             op::v5::LSTMSequence::direction::FORWARD,
+                                                             lstm_cell->get_activations_alpha(),
+                                                             lstm_cell->get_activations_beta(),
+                                                             lstm_cell->get_activations(),
+                                                             lstm_cell->get_clip());
         if (transformation_callback(lstm))
             return false;
 
-        const auto one = op::v0::Constant::create(element::i32, Shape{1}, {1});
-        auto H_squeezed = std::make_shared<op::v0::Squeeze>(lstm->output(0), one);
+        const auto one = node_registry.make<op::v0::Constant>(element::i32, Shape{1}, 1);
+        auto H_squeezed = node_registry.make<op::v0::Squeeze>(lstm->output(0), one);
         H_squeezed->set_friendly_name(match_root->get_friendly_name());
 
-        copy_runtime_info(NodeVector{scatter.get_node_shared_ptr(), loop},
-                          NodeVector{
-                              batch_size,
-                              sequence_lengths,
-                              X.get_node_shared_ptr(),
-                              new_H,
-                              new_C,
-                              new_W,
-                              new_R,
-                              new_B,
-                              lstm,
-                              H_squeezed,
-                              shapeof_X,
-                              shapeof_H,
-                              shapeof_C,
-                              new_H_shape,
-                              new_C_shape,
-                          });
+        copy_runtime_info(NodeVector{scatter.get_node_shared_ptr(), loop}, node_registry.get());
 
         for (auto&& loop_consumer : loop->output(0).get_target_inputs()) {
             auto node = loop_consumer.get_node()->shared_from_this();
@@ -840,11 +827,11 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
 
 class EliminateGatherWithRange : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateGatherWithRange", "0");
     EliminateGatherWithRange() {
         using namespace ov;
         using namespace ov::pass;
         MATCHER_SCOPE("EliminateGatherWithRange");
+
         auto data_label = pattern::any_input(pattern::rank_equals(3));
         auto shapeof_label = pattern::wrap_type<op::util::ShapeOfBase>({data_label});
         auto shapeof_gather_label = pattern::wrap_type<op::util::GatherBase>(
@@ -902,7 +889,7 @@ public:
             return replace_output_update_name(gather->output(0), gather->input_value(0));
         };
 
-        auto m = std::make_shared<pattern::Matcher>(match_node, matcher_name);
+        auto m = std::make_shared<pattern::Matcher>(match_node, "EliminateGatherWithRange");
         register_matcher(m, callback);
     }
 };
