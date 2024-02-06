@@ -10,12 +10,13 @@
 #include "openvino/op/convert_align_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov;
-
 ov::pass::ConvertConvertAlignTypes::ConvertConvertAlignTypes() {
     MATCHER_SCOPE(ConvertConvertAlignTypes);
 
-    auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertAlignTypes>();
+    auto has_static_defined_type = [](const Output<Node>& output) -> bool {
+        return !pattern::type_matches_any({element::dynamic, element::undefined})(output);
+    };
+    auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertAlignTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto convert = std::dynamic_pointer_cast<ov::op::v14::ConvertAlignTypes>(m.get_match_root());
@@ -23,14 +24,12 @@ ov::pass::ConvertConvertAlignTypes::ConvertConvertAlignTypes() {
             return false;
         }
         const element::Type& dest_type = convert->get_output_element_type(0);
-        if (dest_type == element::dynamic || dest_type == element::undefined) {
-            return false;
-        }
-        auto out0 = std::make_shared<ov::op::v0::Convert>(convert->input_value(0), dest_type);
-        auto out1 = std::make_shared<ov::op::v0::Convert>(convert->input_value(1), dest_type);
+        NodeRegistry node_registry;
+        const auto out0 = node_registry.make<ov::op::v0::Convert>(convert->input_value(0), dest_type);
+        const auto out1 = node_registry.make<ov::op::v0::Convert>(convert->input_value(1), dest_type);
         out0->set_friendly_name(convert->get_friendly_name() + ".0");
         out1->set_friendly_name(convert->get_friendly_name() + ".1");
-        copy_runtime_info(convert, {out0, out1});
+        copy_runtime_info(convert, node_registry.get());
         replace_node(convert, {out0, out1});
         return true;
     };

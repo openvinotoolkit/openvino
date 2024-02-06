@@ -10,22 +10,19 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 
-using namespace ov;
-using namespace ov::op;
-
 namespace {
 
 struct ConvertAlignTypesTestParams {
-    PartialShape lhs_shape;
-    element::Type lhs_type;
-    PartialShape rhs_shape;
-    element::Type rhs_type;
-    element::Type expected_type;
+    ov::PartialShape lhs_shape;
+    ov::element::Type lhs_type;
+    ov::PartialShape rhs_shape;
+    ov::element::Type rhs_type;
+    ov::element::Type expected_type;
 };
 
 class ConvertConvertAlignTypesTest : public TransformationTestsF,
                                      public testing::WithParamInterface<ConvertAlignTypesTestParams> {
-public:
+private:
     void SetUp() override {
         TransformationTestsF::SetUp();
         const auto& parameters = GetParam();
@@ -36,51 +33,67 @@ public:
         const auto& alignType = parameters.expected_type;
         model = transform(lhsShape, lhsType, rhsShape, rhsType);
         model_ref = reference(lhsShape, lhsType, rhsShape, rhsType, alignType);
-        manager.register_pass<pass::ConvertConvertAlignTypes>();
+        manager.register_pass<ov::pass::ConvertConvertAlignTypes>();
     }
 
 protected:
-    static std::shared_ptr<Model> transform(const PartialShape& lhsShape,
-                                            const element::Type& lhsType,
-                                            const PartialShape& rhsShape,
-                                            const element::Type& rhsType) {
-        const auto lhs = std::make_shared<v0::Parameter>(lhsType, lhsShape);
-        const auto rhs = std::make_shared<v0::Parameter>(rhsType, rhsShape);
-        const auto convert_align_types = std::make_shared<v14::ConvertAlignTypes>(lhs, rhs, true);
-        return std::make_shared<Model>(convert_align_types->outputs(), ParameterVector{lhs, rhs}, "Actual");
+    static std::shared_ptr<ov::Model> transform(const ov::PartialShape& lhsShape,
+                                                const ov::element::Type& lhsType,
+                                                const ov::PartialShape& rhsShape,
+                                                const ov::element::Type& rhsType) {
+        const auto lhs = std::make_shared<ov::op::v0::Parameter>(lhsType, lhsShape);
+        const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
+        const auto convert_align_types = std::make_shared<ov::op::v14::ConvertAlignTypes>(lhs, rhs, true);
+        return std::make_shared<ov::Model>(convert_align_types->outputs(), ov::ParameterVector{lhs, rhs}, "Actual");
     }
 
-    static std::shared_ptr<Model> reference(const PartialShape& lhsShape,
-                                            const element::Type& lhsType,
-                                            const PartialShape& rhsShape,
-                                            const element::Type& rhsType,
-                                            const element::Type& alignType) {
-        const auto lhs = std::make_shared<v0::Parameter>(lhsType, lhsShape);
-        const auto rhs = std::make_shared<v0::Parameter>(rhsType, rhsShape);
-        const auto lhs_converted = std::make_shared<v0::Convert>(lhs, alignType);
-        const auto rhs_converted = std::make_shared<v0::Convert>(rhs, alignType);
-        return std::make_shared<Model>(NodeVector{lhs_converted, rhs_converted},
-                                       ParameterVector{lhs, rhs},
-                                       "Reference");
+    static std::shared_ptr<ov::Model> reference(const ov::PartialShape& lhsShape,
+                                                const ov::element::Type& lhsType,
+                                                const ov::PartialShape& rhsShape,
+                                                const ov::element::Type& rhsType,
+                                                const ov::element::Type& alignType) {
+        const auto lhs = std::make_shared<ov::op::v0::Parameter>(lhsType, lhsShape);
+        const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
+        const auto lhs_converted = std::make_shared<ov::op::v0::Convert>(lhs, alignType);
+        const auto rhs_converted = std::make_shared<ov::op::v0::Convert>(rhs, alignType);
+        return std::make_shared<ov::Model>(ov::NodeVector{lhs_converted, rhs_converted},
+                                           ov::ParameterVector{lhs, rhs},
+                                           "Reference");
     }
 };
 INSTANTIATE_TEST_SUITE_P(
     ConvertAlignTypesDecomposition,
     ConvertConvertAlignTypesTest,
     testing::Values(
-        ConvertAlignTypesTestParams{PartialShape::dynamic(),
-                                    element::f32,
-                                    PartialShape::dynamic(),
-                                    element::f32,
-                                    element::f32},
-        ConvertAlignTypesTestParams{PartialShape::dynamic(), element::u16, {5, 6, 7}, element::i16, element::i32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, element::u16, PartialShape::dynamic(), element::f32, element::f32},
-        ConvertAlignTypesTestParams{{1, {3, 7}, -1, 4}, element::f8e4m3, {0, 6, 7}, element::f8e5m2, element::f16},
-        ConvertAlignTypesTestParams{{}, element::bf16, {5, 6, 7}, element::f16, element::f32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, element::u16, {}, element::boolean, element::u16},
-        ConvertAlignTypesTestParams{{}, element::u16, {}, element::u1, element::u16},
-        ConvertAlignTypesTestParams{{-1}, element::u64, {1}, element::i16, element::f32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, element::boolean, {5, 6, 7}, element::boolean, element::boolean},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, element::i64, {5, 6, 7}, element::f16, element::f16}));
+        ConvertAlignTypesTestParams{ov::PartialShape::dynamic(),
+                                    ov::element::f32,
+                                    ov::PartialShape::dynamic(),
+                                    ov::element::f32,
+                                    ov::element::f32},
+        ConvertAlignTypesTestParams{ov::PartialShape::dynamic(),
+                                    ov::element::u16,
+                                    {5, 6, 7},
+                                    ov::element::i16,
+                                    ov::element::i32},
+        ConvertAlignTypesTestParams{{1, 2, 3, 4},
+                                    ov::element::u16,
+                                    ov::PartialShape::dynamic(),
+                                    ov::element::f32,
+                                    ov::element::f32},
+        ConvertAlignTypesTestParams{{1, {3, 7}, -1, 4},
+                                    ov::element::f8e4m3,
+                                    {0, 6, 7},
+                                    ov::element::f8e5m2,
+                                    ov::element::f16},
+        ConvertAlignTypesTestParams{{}, ov::element::bf16, {5, 6, 7}, ov::element::f16, ov::element::f32},
+        ConvertAlignTypesTestParams{{1, 2, 3, 4}, ov::element::u16, {}, ov::element::boolean, ov::element::u16},
+        ConvertAlignTypesTestParams{{}, ov::element::u16, {}, ov::element::u1, ov::element::u16},
+        ConvertAlignTypesTestParams{{-1}, ov::element::u64, {1}, ov::element::i16, ov::element::f32},
+        ConvertAlignTypesTestParams{{1, 2, 3, 4},
+                                    ov::element::boolean,
+                                    {5, 6, 7},
+                                    ov::element::boolean,
+                                    ov::element::boolean},
+        ConvertAlignTypesTestParams{{1, 2, 3, 4}, ov::element::i64, {5, 6, 7}, ov::element::f16, ov::element::f16}));
 TEST_P(ConvertConvertAlignTypesTest, CompareFunctions) {}
 }  // namespace

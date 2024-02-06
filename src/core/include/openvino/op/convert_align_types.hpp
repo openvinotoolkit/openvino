@@ -18,15 +18,15 @@ public:
     /// \brief Constructs a type alignment and conversion operation.
     ConvertAlignTypes() = default;
     /// \brief Constructs a type alignment and conversion operation.
-    /// \param lhs  Node with datatype to be aligned.
-    /// \param rhs  Node with datatype to be aligned.
+    /// \param input_0  Node with datatype to be aligned.
+    /// \param input_1  Node with datatype to be aligned.
     /// \param promote_unsafe  Bool attribute wether to allow for promotions that might result in bit-widening,
     /// precision loss and undefined behaviors.
     /// \param pytorch_scalar_align  Bool attribute wether to align scalars using  PyTorch-like rules.
     /// \param u64_integer_promotion_target  Element type attribute to select alignment target for u64 and signed
     /// integers.
-    ConvertAlignTypes(const Output<Node>& lhs,
-                      const Output<Node>& rhs,
+    ConvertAlignTypes(const Output<Node>& input_0,
+                      const Output<Node>& input_1,
                       const bool promote_unsafe = false,
                       const bool pytorch_scalar_align = false,
                       const element::Type& u64_integer_promotion_target = element::f32);
@@ -35,29 +35,17 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    bool get_pytorch_scalar_align() const {
-        return m_pytorch_scalar_align;
-    }
+    bool get_pytorch_scalar_align() const;
 
-    void set_pytorch_scalar_align(bool pytorch_scalar_align) {
-        m_pytorch_scalar_align = pytorch_scalar_align;
-    }
+    void set_pytorch_scalar_align(bool pytorch_scalar_align);
 
-    bool get_promote_unsafe() const {
-        return m_promote_unsafe;
-    }
+    bool get_promote_unsafe() const;
 
-    void set_promote_unsafe(bool promote_unsafe) {
-        m_promote_unsafe = promote_unsafe;
-    }
+    void set_promote_unsafe(bool promote_unsafe);
 
-    element::Type get_u64_integer_promotion_target() const {
-        return m_u64_integer_promotion_target;
-    }
+    const element::Type& get_u64_integer_promotion_target() const;
 
-    void set_u64_integer_promotion_target(element::Type u64_integer_promotion_target) {
-        m_u64_integer_promotion_target = u64_integer_promotion_target;
-    }
+    void set_u64_integer_promotion_target(const element::Type& u64_integer_promotion_target);
 
 private:
     bool m_promote_unsafe = false;

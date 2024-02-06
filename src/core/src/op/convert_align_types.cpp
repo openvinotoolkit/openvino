@@ -20,8 +20,8 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 };
 
 element::Type infer_types(const v14::ConvertAlignTypes* op) {
-    const auto lhs = op->input(0);
-    const auto rhs = op->input(1);
+    const auto input_0 = op->input(0);
+    const auto input_1 = op->input(1);
     const auto promote_unsafe = op->get_promote_unsafe();
     const auto pytorch_scalar_align = op->get_pytorch_scalar_align();
     const auto u64_promotion_target = op->get_u64_integer_promotion_target();
@@ -44,58 +44,60 @@ element::Type infer_types(const v14::ConvertAlignTypes* op) {
                                   element::f8e4m3,
                                   element::f8e5m2,
                                   element::bf16};
-    const auto& lhs_type = lhs.get_element_type();
-    const auto& rhs_type = rhs.get_element_type();
-    NODE_VALIDATION_CHECK(op,
-                          std::find(supported_types.begin(), supported_types.end(), lhs_type) != supported_types.end());
-    NODE_VALIDATION_CHECK(op,
-                          std::find(supported_types.begin(), supported_types.end(), rhs_type) != supported_types.end());
-    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
+    const auto& input_0_type = input_0.get_element_type();
+    const auto& input_1_type = input_1.get_element_type();
+    NODE_VALIDATION_CHECK(
+        op,
+        std::find(supported_types.begin(), supported_types.end(), input_0_type) != supported_types.end());
+    NODE_VALIDATION_CHECK(
+        op,
+        std::find(supported_types.begin(), supported_types.end(), input_1_type) != supported_types.end());
+    if (input_0_type.is_dynamic() || input_1_type.is_dynamic()) {
         return element::dynamic;
     }
-    if (lhs_type == rhs_type)
-        return lhs_type;
-    if (lhs_type == element::boolean)
-        return rhs_type;
-    if (rhs_type == element::boolean)
-        return lhs_type;
-    const auto& lhs_rank = lhs.get_partial_shape().rank();
-    const auto& rhs_rank = rhs.get_partial_shape().rank();
-    const bool is_lhs_scalar = lhs_rank.is_static() ? lhs_rank.get_length() == 0 : false;
-    const bool is_rhs_scalar = rhs_rank.is_static() ? rhs_rank.get_length() == 0 : false;
-    const bool is_lhs_signed = lhs_type.is_signed();
-    const bool is_rhs_signed = rhs_type.is_signed();
-    const bool is_lhs_real = lhs_type.is_real();
-    const bool is_rhs_real = rhs_type.is_real();
-    const size_t lhs_bitwidth = lhs_type.bitwidth();
-    const size_t rhs_bitwidth = rhs_type.bitwidth();
+    if (input_0_type == input_1_type)
+        return input_0_type;
+    if (input_0_type == element::boolean)
+        return input_1_type;
+    if (input_1_type == element::boolean)
+        return input_0_type;
+    const auto& input_0_rank = input_0.get_partial_shape().rank();
+    const auto& input_1_rank = input_1.get_partial_shape().rank();
+    const bool is_input_0_scalar = input_0_rank.is_static() ? input_0_rank.get_length() == 0 : false;
+    const bool is_input_1_scalar = input_1_rank.is_static() ? input_1_rank.get_length() == 0 : false;
+    const bool is_input_0_signed = input_0_type.is_signed();
+    const bool is_input_1_signed = input_1_type.is_signed();
+    const bool is_input_0_real = input_0_type.is_real();
+    const bool is_input_1_real = input_1_type.is_real();
+    const size_t input_0_bitwidth = input_0_type.bitwidth();
+    const size_t input_1_bitwidth = input_1_type.bitwidth();
 
-    if (pytorch_scalar_align && (is_lhs_scalar ^ is_rhs_scalar) && (is_lhs_real == is_rhs_real)) {
+    if (pytorch_scalar_align && (is_input_0_scalar != is_input_1_scalar) && (is_input_0_real == is_input_1_real)) {
         if (promote_unsafe) {
-            return is_lhs_scalar ? rhs_type : lhs_type;
+            return is_input_0_scalar ? input_1_type : input_0_type;
         }
-        const auto target = is_lhs_scalar ? rhs_type : lhs_type;
-        const auto scalar = is_lhs_scalar ? lhs_type : rhs_type;
+        const auto target = is_input_0_scalar ? input_1_type : input_0_type;
+        const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
         if ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
             (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth())) {
             return target;
         }
         NODE_VALIDATION_CHECK(op, false, " Scalar input cannot be PyTorch-like aligned using safe promotion rules.");
     }
-    if (is_lhs_real ^ is_rhs_real) {
+    if (is_input_0_real != is_input_1_real) {
         if (promote_unsafe) {
-            return is_lhs_real ? lhs_type : rhs_type;
+            return is_input_0_real ? input_0_type : input_1_type;
         }
-        const auto real = is_lhs_real ? lhs_type : rhs_type;
-        const auto integer = is_lhs_real ? rhs_type : lhs_type;
+        const auto real = is_input_0_real ? input_0_type : input_1_type;
+        const auto integer = is_input_0_real ? input_1_type : input_0_type;
         if (real.bitwidth() >= integer.bitwidth() * 2) {
             return real;
         }
         NODE_VALIDATION_CHECK(op, false, "Integer input cannot be safely promoted to floating-point.");
     }
-    if ((is_lhs_real == is_rhs_real) && (is_lhs_signed ^ is_rhs_signed)) {
-        const auto uint_bitwidth = is_lhs_signed ? rhs_bitwidth : lhs_bitwidth;
-        const auto int_bitwidth = is_lhs_signed ? lhs_bitwidth : rhs_bitwidth;
+    if ((is_input_0_real == is_input_1_real) && (is_input_0_signed != is_input_1_signed)) {
+        const auto uint_bitwidth = is_input_0_signed ? input_1_bitwidth : input_0_bitwidth;
+        const auto int_bitwidth = is_input_0_signed ? input_0_bitwidth : input_1_bitwidth;
         if (uint_bitwidth <= 32 && (promote_unsafe || uint_bitwidth * 2 <= int_bitwidth)) {
             return bit_to_int.at(std::max({uint_bitwidth * 2, int_bitwidth}));
         } else if (promote_unsafe) {
@@ -107,20 +109,20 @@ element::Type infer_types(const v14::ConvertAlignTypes* op) {
                 "Unsigned integer input cannot be safely promoted into any supported signed integer.");
         }
     }
-    if ((is_lhs_real == is_rhs_real) && (lhs_bitwidth != rhs_bitwidth)) {
-        return lhs_bitwidth >= rhs_bitwidth ? lhs_type : rhs_type;
+    if ((is_input_0_real == is_input_1_real) && (input_0_bitwidth != input_1_bitwidth)) {
+        return input_0_bitwidth >= input_1_bitwidth ? input_0_type : input_1_type;
     }
-    if (promote_unsafe && (is_lhs_real == is_rhs_real) && (lhs_bitwidth == rhs_bitwidth)) {
-        const auto lhs_string = lhs_type.to_string();
-        const auto rhs_string = rhs_type.to_string();
+    if (promote_unsafe && (is_input_0_real == is_input_1_real) && (input_0_bitwidth == input_1_bitwidth)) {
+        const auto input_0_string = input_0_type.to_string();
+        const auto input_1_string = input_1_type.to_string();
         // f8e4m3 and f8e5m2
         const std::set<std::string> float8_types{"f8e4m3", "f8e5m2"};
-        if (float8_types.count(lhs_string) && float8_types.count(rhs_string)) {
+        if (float8_types.count(input_0_string) && float8_types.count(input_1_string)) {
             return element::f16;
         }
         // bf16 and f16
         const std::set<std::string> float16_types{"f16", "bf16"};
-        if (float16_types.count(lhs_string) && float16_types.count(rhs_string)) {
+        if (float16_types.count(input_0_string) && float16_types.count(input_1_string)) {
             return element::f32;
         }
     }
@@ -129,12 +131,12 @@ element::Type infer_types(const v14::ConvertAlignTypes* op) {
 }  // namespace
 namespace v14 {
 
-ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& lhs,
-                                     const Output<Node>& rhs,
+ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& input_0,
+                                     const Output<Node>& input_1,
                                      const bool promote_unsafe,
                                      const bool pytorch_scalar_align,
                                      const element::Type& u64_integer_promotion_target)
-    : Op({lhs, rhs}),
+    : Op({input_0, input_1}),
       m_promote_unsafe(promote_unsafe),
       m_pytorch_scalar_align(pytorch_scalar_align),
       m_u64_integer_promotion_target(u64_integer_promotion_target) {
@@ -166,6 +168,29 @@ std::shared_ptr<Node> ConvertAlignTypes::clone_with_new_inputs(const OutputVecto
                                                m_u64_integer_promotion_target);
 }
 
+bool ConvertAlignTypes::get_pytorch_scalar_align() const {
+    return m_pytorch_scalar_align;
+}
+
+void ConvertAlignTypes::set_pytorch_scalar_align(bool pytorch_scalar_align) {
+    m_pytorch_scalar_align = pytorch_scalar_align;
+}
+
+bool ConvertAlignTypes::get_promote_unsafe() const {
+    return m_promote_unsafe;
+}
+
+void ConvertAlignTypes::set_promote_unsafe(bool promote_unsafe) {
+    m_promote_unsafe = promote_unsafe;
+}
+
+const element::Type& ConvertAlignTypes::get_u64_integer_promotion_target() const {
+    return m_u64_integer_promotion_target;
+}
+
+void ConvertAlignTypes::set_u64_integer_promotion_target(const element::Type& u64_integer_promotion_target) {
+    m_u64_integer_promotion_target = u64_integer_promotion_target;
+}
 }  // namespace v14
 }  // namespace op
 }  // namespace ov
