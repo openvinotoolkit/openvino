@@ -16,6 +16,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
     memory_state::variable{node.get_primitive()->variable_info.variable_id} {
+    kv_cache_id = network.get_kv_cache_ids().size();
 }
 
 layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
@@ -55,4 +56,7 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
     return primitive_description.str();
 }
 
+int32_t kv_cache_inst::get_prealloc_iter_num() {
+    return 128 + kv_cache_id % 64;
+}
 } // namespace cldnn

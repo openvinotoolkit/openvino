@@ -34,6 +34,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
@@ -1328,6 +1329,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
+    }
+    if (node.is_type<kv_cache>()) {
+       kv_cache_ids.push_back(node.id());
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());
