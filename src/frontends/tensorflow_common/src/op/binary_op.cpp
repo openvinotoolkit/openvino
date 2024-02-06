@@ -32,6 +32,7 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -57,8 +58,16 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
         if (out_type.is_integral()) {
             auto float_x = make_shared<v0::Convert>(x, element::f32);
             auto float_y = make_shared<v0::Convert>(y, element::f32);
-            return make_shared<v0::Convert>(make_shared<v0::Floor>(make_shared<v1::Divide>(float_x, float_y)),
-                                            out_type);
+            auto divide_node = make_shared<v1::Divide>(float_x, float_y);
+            auto floor_node = make_shared<v0::Floor>(divide_node);
+            auto convert_node = make_shared<v0::Convert>(floor_node, out_type);
+            disable_fp16_compression(float_x);
+            disable_fp16_compression(float_y);
+            disable_fp16_compression(divide_node);
+            disable_fp16_compression(floor_node);
+            disable_fp16_compression(convert_node);
+            return convert_node;
+
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
         }
