@@ -59,12 +59,13 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
         program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node){
-            if (node.has_fused_primitives())
+            if (node.has_fused_primitives() || node.is_output())
                 return;
 
             auto impl_params = node.get_kernel_impl_params();
             auto prim = impl_params->typed_desc<strided_slice>();
-            if (!prim->new_axis_mask.empty()
+            if (prim->end_mask.empty()
+                || !prim->new_axis_mask.empty()
                 || !prim->shrink_axis_mask.empty()
                 || !prim->ellipsis_mask.empty()) {
                 return;

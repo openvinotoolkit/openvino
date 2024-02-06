@@ -1114,6 +1114,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
     // Check pattern
     if (!get_node().is_type<strided_slice>()
+        || is_output()
         || _impl_params->has_fused_primitives()
         || !get_node().can_be_optimized())
         return;
@@ -1121,7 +1122,8 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     auto desc = _node->as<strided_slice>().get_primitive();
     auto begin = desc->begin;
     auto strides = desc->strides;
-    if (!desc->new_axis_mask.empty()
+    if (desc->end_mask.empty()
+        || !desc->new_axis_mask.empty()
         || !desc->shrink_axis_mask.empty()
         || !desc->ellipsis_mask.empty()
         || !all_zeroes(begin)
