@@ -51,21 +51,29 @@ void regclass_RemoteTensor(py::module m) {
 
     cls.def_property(
         "bytes_data",
-        [](ov::Tensor& self) {
+        [](ov::RemoteTensor& self) {
             Common::utils::raise_not_implemented();
         },
-        [](ov::Tensor& self, py::object& other) {
+        [](ov::RemoteTensor& self, py::object& other) {
             Common::utils::raise_not_implemented();
         });
 
     cls.def_property(
         "str_data",
-        [](ov::Tensor& self) {
+        [](ov::RemoteTensor& self) {
             Common::utils::raise_not_implemented();
         },
-        [](ov::Tensor& self, py::object& other) {
+        [](ov::RemoteTensor& self, py::object& other) {
             Common::utils::raise_not_implemented();
         });
+
+    cls.def("__repr__", [](const ov::RemoteTensor& self) {
+        std::stringstream ss;
+
+        ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
+
+        return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
+    });
 }
 
 #ifdef PY_ENABLE_OPENCL
@@ -79,6 +87,14 @@ void regclass_ClImage2DTensor(py::module m) {
         [](ov::RemoteTensor& self) {
             Common::utils::raise_not_implemented();
         });
+
+    cls.def("__repr__", [](const ov::intel_gpu::ocl::ClImage2DTensor& self) {
+        std::stringstream ss;
+
+        ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
+
+        return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
+    });
 }
 #endif  // PY_ENABLE_OPENCL
 
@@ -106,5 +122,13 @@ void regclass_VASurfaceTensor(py::module m) {
         [](ov::RemoteTensor& self) {
             Common::utils::raise_not_implemented();
         });
+
+    cls.def("__repr__", [](const ov::intel_gpu::ocl::VASurfaceTensor& self) {
+        std::stringstream ss;
+
+        ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
+
+        return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
+    });
 }
 #endif  // PY_ENABLE_LIBVA
