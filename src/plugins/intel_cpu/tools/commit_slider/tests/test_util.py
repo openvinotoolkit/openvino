@@ -144,6 +144,10 @@ def commitPatchList(versionList, innerPath, fileName):
 
     return markedVersionList
 
+def getBordersByTestData(td: TestData):
+    return\
+        getMeaningfullCommitTail(td.start),\
+        getMeaningfullCommitTail(td.end)
 
 def getExpectedCommit(td: TestData):
     markedVersionList = createRepo(td)

@@ -71,9 +71,9 @@ class Mode(ABC):
             else:
                 return False, None
 
-    def setCommitCash(self, commit, valueToCache):
+    def setCommitCash(self, commit, valueToCache, checkIfCashed=False):
         isCommitCashed, _ = self.getCommitIfCashed(commit)
-        if isCommitCashed:
+        if isCommitCashed and checkIfCashed:
             raise util.CashError("Commit already cashed")
         else:
             with open(self.cachePath, "r+", encoding="utf-8") as cacheDump:
@@ -95,6 +95,7 @@ class Mode(ABC):
             raise util.CfgError("traversal is not configured")
 
     def preliminaryCheck(self, list, cfg):
+        # common checking if degradation exists
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.PreliminaryAnalysisError(
@@ -105,9 +106,6 @@ class Mode(ABC):
                 )
 
     def prepareRun(self, list, cfg):
-        # validate cfg
-        # check if differ
-        # check stability
         self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         # check prerun-cashed commits

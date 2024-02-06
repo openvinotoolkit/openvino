@@ -6,12 +6,13 @@ from unittest import TestCase
 from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
-from test_util import getExpectedCommit
-from test_util import getActualCommit
+from test_util import getExpectedCommit,\
+    getBordersByTestData, getActualCommit
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
-    BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData
+    BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
+    BenchmarkAppUnstableDevData
 
 
 class CommitSliderTest(TestCase):
@@ -32,16 +33,16 @@ class CommitSliderTest(TestCase):
 
     @skip_commit_slider_devtest
     def testBmUnstable(self):
-        breakCommit, updatedData = getExpectedCommit(
+        _, updatedData = getExpectedCommit(
             BenchmarkAppDataUnstable())
-        actualCommit, reason = getActualCommit(updatedData)
+        _, reason = getActualCommit(updatedData)
         self.assertEqual(reason, "left interval is stable, right interval is unstable")
 
     @skip_commit_slider_devtest
     def testBmStable(self):
         breakCommit, updatedData = getExpectedCommit(
             BenchmarkAppDataStable())
-        actualCommit, reason = getActualCommit(updatedData)
+        actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
@@ -51,6 +52,18 @@ class CommitSliderTest(TestCase):
         _, reason = getActualCommit(updatedData)
         reasonPrefix = reason.split(':')[0]
         self.assertEqual(reasonPrefix, "No degradation found")
+
+    @skip_commit_slider_devtest
+    def testBmUnstableDevice(self):
+        _, updatedData = getExpectedCommit(
+            BenchmarkAppUnstableDevData())
+        _, reason = getActualCommit(updatedData)
+        lCommit, rCommit = getBordersByTestData(updatedData)
+        self.assertEqual(
+            reason,
+            "\"{}\" is unstable, \"{}\" is unstable".format(
+                lCommit, rCommit
+        ))
 
     @skip_commit_slider_devtest
     def testBmStability(self):
@@ -90,7 +103,7 @@ class CommitSliderTest(TestCase):
     def testBmSteppedBreak2(self):
         td = BmValidatorSteppedBreakData2()
 
-        # local gap low, than expected
+        # local gap lower, than expected
         with self.assertRaises(BmValidationError) as e:
             validateBMOutput(
                 td.bmOutputMap,

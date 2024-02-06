@@ -5,7 +5,9 @@ import os
 from utils.helpers import fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail
 from utils.helpers import handleCommit, getBlobDiff
-from utils.helpers import getCommitLogger, CashError, CfgError, CmdError
+from utils.helpers import getCommitLogger, CashError, CfgError,\
+CmdError, PreliminaryAnalysisError
+from utils.break_validator import checkStability
 import re
 import shutil
 from utils.common_mode import Mode
@@ -127,6 +129,25 @@ class BenchmarkAppPerformanceMode(Mode):
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
 
+    def preliminaryCheck(self, list, cfg):
+        # common if-degradation-exists check
+        super().preliminaryCheck(list, cfg)
+        # performance - specific check if results for borders are stable,
+        isLeftStable = not cfg["preliminaryCheckCfg"]["leftCheck"] or\
+            self.preliminaryStabilityCheck(list[0], cfg)
+        isRightStable = not cfg["preliminaryCheckCfg"]["rightCheck"] or\
+            self.preliminaryStabilityCheck(list[-1], cfg)
+        if (not isLeftStable or not isRightStable):
+            raise PreliminaryAnalysisError(
+                "{lCommit} is {lStable}, {rCommit} is {rStable}".format(
+                    lCommit=list[0],
+                    rCommit=list[-1],
+                    lStable="stable" if isLeftStable else "unstable",
+                    rStable="stable" if isRightStable else "unstable"
+                ),
+                PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION
+                )
+
     def compareCommits(self, lCommit, rCommit, list, cfg):
         leftThroughput = self.getPseudoMetric(lCommit, cfg)
         rightThroughput = self.getPseudoMetric(rCommit, cfg)
@@ -171,6 +192,29 @@ class BenchmarkAppPerformanceMode(Mode):
             curThroughput = float(foundThroughput)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
+
+    def preliminaryStabilityCheck(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+
+        self.commonLogger.info(
+            "Preliminary check of commit: {commit}".format(
+                commit=commit)
+        )
+        handleCommit(commit, cfg)
+        throughputList = []
+        dev = self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        for i in range(cfg["preliminaryCheckCfg"]["tryCount"]):
+            output = fetchAppOutput(cfg, commit)
+            foundThroughput = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundThroughput)
+            throughputList.append(curThroughput)
+        resStable = checkStability(throughputList, dev)
+        if resStable:
+            self.setCommitCash(commit, curThroughput)
+        return resStable
 
     def setOutputInfo(self, pathCommit):
         pathCommit.perfRel = self.perfRel

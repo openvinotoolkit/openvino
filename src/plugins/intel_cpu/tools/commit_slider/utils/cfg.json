@@ -77,6 +77,11 @@
     "printCSV" : true,
     "usePrevRunCache" : false,
     "verboseOutput": false,
+    "preliminaryCheckCfg": {
+        "leftCheck": true,
+        "rightCheck": false,
+        "tryCount": 5
+    },
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     },

@@ -60,7 +60,8 @@ class TestData():
         BmValidatorSteppedBreak2 = 5,
         BmBinarySearch = 6,
         BmBinarySearchUnstable = 7,
-        BmNoDegradation = 8
+        BmNoDegradation = 8,
+        BmUnstableDev = 9
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -117,6 +118,19 @@ class BenchmarkAppNoDegradationData(TestData):
 
     def getTestName(self):
         return "BmNoDegradation"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class BenchmarkAppUnstableDevData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmUnstableDev
+
+    def getTestName(self):
+        return "BmUnstableDev"
 
     def __init__(self):
         from test_util import requireBinarySearchData
