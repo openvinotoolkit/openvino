@@ -85,6 +85,7 @@
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
+#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -160,8 +161,13 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+        if (consumer != nullptr) {
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return true;
+            }
+            if (is_gather_with_compressed_weights(consumer)) {
+                return true;
+            }
         }
     }
     return false;
@@ -694,7 +700,7 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    tokenization_config.concurrency = config.threadsPerStream;
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).

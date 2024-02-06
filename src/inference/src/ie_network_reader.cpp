@@ -19,7 +19,6 @@
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
 #include "itt.hpp"
-#include "legacy_op_extension.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"

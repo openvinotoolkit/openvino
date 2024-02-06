@@ -29,6 +29,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
                                                             ov::Dimension n_heads = ov::Dimension::dynamic(),
                                                             ov::Dimension n_features = ov::Dimension::dynamic(),
                                                             ov::element::Type_t element_type = ov::element::f32,
+                                                            int64_t concat_axis = 2,
                                                             bool stateful = false,
                                                             bool fuse_cache_reorder = false,
                                                             bool build_state_initializer = false) {
@@ -73,7 +74,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
 
     auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {new_token_size.size()}, {0, 2, 1, 3});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(in_new_token, transpose_const);
-    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_input, transpose}, 2);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_input, transpose}, concat_axis);
     auto convert = std::make_shared<ov::op::v0::Convert>(concat, element_type);
     auto kv_present = std::make_shared<ov::op::v0::Result>(convert);
     kv_present->set_friendly_name("present_key_values");
