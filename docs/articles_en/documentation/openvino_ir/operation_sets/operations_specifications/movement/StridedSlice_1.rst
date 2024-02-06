@@ -5,7 +5,7 @@ StridedSlice
 
 
 .. meta::
-  :description: Learn about StridedSlice-1 - a data movement operation, 
+  :description: Learn about StridedSlice-1 - a data movement operation,
                 which can be performed on three required and one optional input tensor.
 
 **Versioned name**: *StridedSlice-1*
@@ -88,13 +88,13 @@ Example of ``begin_mask`` & ``end_mask`` usage.
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>2</dim> < !-- begin: [1, 0, 0] -->
+                <dim>2</dim> <!-- begin: [1, 0, 0] -->
             </port>
             <port id="2">
-                <dim>2</dim> < !-- end: [0, 0, 2] -->
+                <dim>2</dim> <!-- end: [0, 0, 2] -->
             </port>
             <port id="3">
-                <dim>2</dim> < !-- stride: [1, 1, 1] -->
+                <dim>2</dim> <!-- stride: [1, 1, 1] -->
             </port>
         </input>
         <output>

@@ -5,7 +5,7 @@ Inverse Discrete complex-to-real Fourier Transformation (IRDFT)
 
 
 .. meta::
-  :description: Learn about IRDFT-9 - a signal processing operation, which can be 
+  :description: Learn about IRDFT-9 - a signal processing operation, which can be
                 performed on two required and one optional input tensor.
 
 **Versioned name**: *IRDFT-9*
@@ -22,18 +22,18 @@ No attributes available.
 
 * **1**: ``data`` - Input tensor of type *T* with data for the IRDFT transformation. The last dimension of the input tensor must be equal to 2, that is the input tensor shape must have the form ``[D_0, D_1, ..., D_{N-1}, 2]``, representing the real and imaginary components of complex numbers in ``[:, ..., :, 0]`` and in ``[:, ..., :, 1]`` correspondingly. **Required.**
 * **2**: ``axes`` - 1D tensor of type *T_IND* specifying dimension indices where IRDFT is applied, and ``axes`` is any unordered list of indices of different dimensions of the input tensor, for example, ``[0, 4]``, ``[4, 0]``, ``[4, 2, 1]``, ``[1, 2, 3]``, ``[-3, 0, -2]``. These indices should be integers from ``-(r - 1)`` to ``(r - 2)`` inclusively, where ``r = rank(data)``. A negative axis ``a`` is interpreted as an axis ``r - 1 + a``. Other dimensions do not change. The order of elements in the ``axes`` attribute matters, and is mapped directly to elements in the third input ``signal_size``. **Required.**
-* 
+*
 
   .. note::
-  
+
      The following constraint must be satisfied: ``rank(data) >= len(axes) + 1 and (rank(data) - 1) not in axes and (-1) not in axes``.
 
 
 * **3**: ``signal_size`` - 1D tensor of type *T_SIZE* describing signal size with respect to axes from the input ``axes``. If ``signal_size[i] == -1``, then IRDFT is calculated for full size of the axis ``axes[i]``. If ``signal_size[i] > data_shape[: r - 1][axes[i]]``, then input data is zero-padded with respect to the axis ``axes[i]`` at the end. Finally, if ``signal_size[i] < data_shape[: r - 1][axes[i]]``, then input data is trimmed with respect to the axis ``axes[i]``. More precisely, if ``signal_size[i] < data_shape[: r - 1][axes[i]]``, the slice ``0: signal_size[i]`` of the axis ``axes[i]`` is considered. Optionally, with default value ``[data_shape[: r - 1][a] for a in axes]``.
-* 
+*
 
   .. note::
-  
+
      If the input ``signal_size`` is specified, then the size of ``signal_size`` must be the same as the size of ``axes``.
 
 
@@ -110,7 +110,7 @@ There is no ``signal_size`` input (4D input tensor):
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>2</dim> < !-- [1, 2] -->
+               <dim>2</dim> <!-- [1, 2] -->
            </port>
        <output>
            <port id="2">
@@ -135,7 +135,7 @@ There is no ``signal_size`` input (3D input tensor):
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>2</dim> < !-- [0, 1] -->
+               <dim>2</dim> <!-- [0, 1] -->
            </port>
        <output>
            <port id="2">
@@ -160,10 +160,10 @@ There is ``signal_size`` input (4D input tensor):
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>2</dim> < !-- [1, 2] -->
+               <dim>2</dim> <!-- [1, 2] -->
            </port>
            <port id="2">
-               <dim>2</dim> < !-- [512, 100] -->
+               <dim>2</dim> <!-- [512, 100] -->
            </port>
        <output>
            <port id="3">
@@ -189,10 +189,10 @@ There is ``signal_size`` input (3D input tensor):
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>2</dim> < !-- [0, 1] -->
+               <dim>2</dim> <!-- [0, 1] -->
            </port>
            <port id="2">
-               <dim>2</dim> < !-- [512, 100] -->
+               <dim>2</dim> <!-- [512, 100] -->
            </port>
        <output>
            <port id="3">
@@ -219,10 +219,10 @@ There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unso
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>3</dim> < !-- axes input contains  [3, 1, 2] -->
+               <dim>3</dim> <!-- axes input contains  [3, 1, 2] -->
            </port>
            <port id="2">
-               <dim>3</dim> < !-- signal_size input contains [170, -1, 1024] -->
+               <dim>3</dim> <!-- signal_size input contains [170, -1, 1024] -->
            </port>
        <output>
            <port id="3">
@@ -250,10 +250,10 @@ There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unso
                <dim>2</dim>
            </port>
            <port id="1">
-               <dim>3</dim> < !-- axes input contains  [3, 0, 2] -->
+               <dim>3</dim> <!-- axes input contains  [3, 0, 2] -->
            </port>
            <port id="2">
-               <dim>3</dim> < !-- signal_size input contains [258, -1, 2056] -->
+               <dim>3</dim> <!-- signal_size input contains [258, -1, 2056] -->
            </port>
        <output>
            <port id="3">

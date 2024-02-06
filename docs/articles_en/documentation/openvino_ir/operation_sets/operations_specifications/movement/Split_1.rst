@@ -5,7 +5,7 @@ Split
 
 
 .. meta::
-  :description: Learn about Split-1 - a data movement operation, 
+  :description: Learn about Split-1 - a data movement operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *Split-1*
@@ -58,13 +58,13 @@ Where D is the rank of input tensor ``data``. The axis being split must be evenl
     <layer id="1" type="Split" ...>
         <data num_splits="3" />
         <input>
-            <port id="0">       < !-- some data -->
+            <port id="0">       <!-- some data -->
                 <dim>6</dim>
                 <dim>12</dim>
                 <dim>10</dim>
                 <dim>24</dim>
             </port>
-            <port id="1">       < !-- axis: 1 -->
+            <port id="1">       <!-- axis: 1 -->
             </port>
         </input>
         <output>

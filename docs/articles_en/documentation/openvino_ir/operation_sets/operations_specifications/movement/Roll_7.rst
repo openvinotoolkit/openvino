@@ -5,7 +5,7 @@ Roll
 
 
 .. meta::
-  :description: Learn about Roll-7 - a data movement operation, which can be 
+  :description: Learn about Roll-7 - a data movement operation, which can be
                 performed on three required input tensors.
 
 **Versioned name**: *Roll-7*
@@ -100,7 +100,7 @@ No attributes available.
                 <dim>2</dim>
             </port>
             <port id="2">
-                <dim>2</dim> < !-- shifting along specified axes with the corresponding shift values -->
+                <dim>2</dim> <!-- shifting along specified axes with the corresponding shift values -->
             </port>
         </input>
         <output>
@@ -131,7 +131,7 @@ No attributes available.
                 <dim>1</dim>
             </port>
             <port id="2">
-                <dim>2</dim> < !-- shifting along specified axes with the same shift value -->
+                <dim>2</dim> <!-- shifting along specified axes with the same shift value -->
             </port>
         </input>
         <output>

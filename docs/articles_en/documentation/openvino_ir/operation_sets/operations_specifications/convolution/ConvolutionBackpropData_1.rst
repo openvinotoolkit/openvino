@@ -5,7 +5,7 @@ ConvolutionBackpropData
 
 
 .. meta::
-  :description: Learn about ConvolutionBackpropData-1 - a 1D, 2D or 3D convolution operation, which 
+  :description: Learn about ConvolutionBackpropData-1 - a 1D, 2D or 3D convolution operation, which
                 can be performed on input and kernel tensors in OpenVINO.
 
 **Versioned name**: *ConvolutionBackpropData-1*
@@ -24,11 +24,11 @@ When output shape is specified as an input tensor ``output_shape`` then it speci
 
 .. code-block:: xml
    :force:
-   
+
    if auto_pads != None:
        pads_begin[i] = 0
        pads_end[i] = 0
-   
+
    Y_i = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - pads_begin[i] - pads_end[i] + output_padding[i]
 
 where ``K_i`` filter kernel dimension along spatial axis ``i``.
@@ -37,7 +37,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 .. code-block:: xml
    :force:
-   
+
    total_padding[i] = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - output_shape[i] + output_padding[i]
    if auto_pads != SAME_UPPER:
        pads_begin[i] = total_padding[i] // 2
@@ -81,7 +81,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 * *auto_pad*
 
   * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor.
-    
+
     * *explicit*: use explicit padding values from ``pads_begin`` and ``pads_end``.
     * *same_upper* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
@@ -105,7 +105,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 * **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is ``[C_INPUT, C_OUTPUT, Z, Y, X]`` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. **Required.**
 * **3**: ``output_shape`` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the ``pads_begin`` and ``pads_end`` or completely according to ``auto_pad``. **Optional.**
 * **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
-  
+
   * 1D convolution (input tensors rank 3) means that there is only one spatial axis X,
   * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X,
   * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X.
@@ -125,7 +125,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0" auto_pad="explicit"/>
        <input>
@@ -156,7 +156,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="3,3" output_padding="2,2" auto_pad="explicit"/>
        <input>
@@ -187,7 +187,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="1,1" output_padding="0,0" auto_pad="valid"/>
        <input>
@@ -204,7 +204,7 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
                <dim>3</dim>
            </port>
            <port id="2">
-               <dim>2</dim> < !-- output_shape value is: [450, 450]-->
+               <dim>2</dim> <!-- output_shape value is: [450, 450]-->
            </port>
        </input>
        <output>

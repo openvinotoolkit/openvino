@@ -5,7 +5,7 @@ ReduceL1
 
 
 .. meta::
-  :description: Learn about ReduceL1-4 - a reduction operation, which can be 
+  :description: Learn about ReduceL1-4 - a reduction operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *ReduceL1-4*
@@ -68,7 +68,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         < !-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -96,7 +96,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         < !-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -122,7 +122,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         < !-- value is [1] that means independent reduction in each channel and spatial dimensions -->
+                <dim>1</dim>         <!-- value is [1] that means independent reduction in each channel and spatial dimensions -->
             </port>
         </input>
         <output>
@@ -149,7 +149,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         < !-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
+                <dim>1</dim>         <!-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
             </port>
         </input>
         <output>
@@ -160,4 +160,4 @@ Particular cases:
             </port>
         </output>
     </layer>
-    
+
