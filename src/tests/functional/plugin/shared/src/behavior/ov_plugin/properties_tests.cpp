@@ -124,6 +124,12 @@ TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     }
 }
 
+TEST_P(OVPropertiesIncorrectTests, SetPropertiesNoThrowGetThrowWithInvalidValue) {
+    std::shared_ptr<Core> core = std::make_shared<ov::Core>();
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_THROW(core->get_versions(target_device), ov::Exception);
+}
+
 TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectKey) {
     core->get_versions(target_device);
     ASSERT_THROW(core->set_property(target_device, properties), ov::Exception);

@@ -14,6 +14,7 @@ namespace {
 
 const std::vector<ov::AnyMap> inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
+        {{ov::enable_profiling.name(), "TEST"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
