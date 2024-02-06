@@ -124,7 +124,9 @@ bool jitIsSupported(const Node* node,
         ov::element::f16,
         ov::element::f32,
         ov::element::i32,
-        ov::element::u32
+        ov::element::u32,
+        ov::element::i8,
+        ov::element::u8
     };
 
     if (!check_precisions(input_precisions, supported_precisions)) {
