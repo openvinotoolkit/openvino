@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "include/auto_unit_test.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -180,30 +181,30 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
 
     const auto auto_failed = std::string{"[AUTO] compile model failed"};
     const auto multi_failed = std::string{"[MULTI] compile model failed"};
-    auto expected_substrings = std::vector<std::reference_wrapper<const std::string>>{};
     if (device == "AUTO") {
-        expected_substrings = {auto_failed, cpu_failed, gpu_failed};
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(cpu_failed), HasSubstr(gpu_failed)));
     } else if (device == "AUTO:CPU") {
-        expected_substrings = {auto_failed, cpu_failed};
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(cpu_failed)));
     } else if (device == "AUTO:GPU") {
-        expected_substrings = {auto_failed, gpu_failed};
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(gpu_failed)));
     } else if (device == "MULTI") {
-        expected_substrings = {multi_failed, cpu_failed, gpu_failed};
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(cpu_failed), HasSubstr(gpu_failed)));
     } else if (device == "MULTI:CPU") {
-        expected_substrings = {multi_failed, cpu_failed};
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(cpu_failed)));
     } else if (device == "MULTI:GPU") {
-        expected_substrings = {multi_failed, gpu_failed};
-    }
-    if (!expected_substrings.empty()) {
-        EXPECT_THROW(
-            try { plugin->compile_model(model, config); } catch (const ov::Exception& ex) {
-                const auto what = std::string{ex.what()};
-                for (const auto& substr : expected_substrings) {
-                    EXPECT_THAT(what, HasSubstr(substr));
-                }
-                throw;
-            },
-            ov::Exception);
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(gpu_failed)));
     }
 }
 
