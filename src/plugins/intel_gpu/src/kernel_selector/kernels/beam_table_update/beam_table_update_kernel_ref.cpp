@@ -101,8 +101,10 @@ CommonDispatchData BeamTableUpdateKernelRef::SetDefault(const beam_table_update_
     CommonDispatchData dispatch_data;
 
     auto output = kernel_params.outputs[0];
-    dispatch_data.gws = {output.Batch().v, Align(output.Feature().v, 16), 1};
-    dispatch_data.lws = {1, 16, 1};
+    if (!output.is_dynamic()) {
+        dispatch_data.gws = {output.Batch().v, Align(output.LogicalSize() / output.Batch().v, 16), 1};
+        dispatch_data.lws = {1, 16, 1};
+    }
 
     return dispatch_data;
 }

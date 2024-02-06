@@ -49,7 +49,22 @@ inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
     return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
 }
 
-#ifdef INPUT2_TYPE
+#if BEAM_TABLE_TERM
+inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BEAM_TABLE_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
+#else
+#   error gemm_ref.cl : Unsupported bt for input 1 format
+#endif
+}
+
+inline uint FUNC(get_bt_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+}
+
+#endif // BEAM_TABLE_TERM
+
+#ifdef BIAS_TERM
 inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
@@ -106,10 +121,10 @@ KERNEL(gemm_ref)(
         uint b0 = b;
         uint b1 = b;
         #if INDIRECT_INPUT0
-            b0 = beam_table[b*BEAM_TABLE_SIZE_X + ki];
+            b0 = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki)];
         #endif
         #if INDIRECT_INPUT1
-            b1 = beam_table[b*BEAM_TABLE_SIZE_X + ki];
+            b1 = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x)];
         #endif
 
         uint in0_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, f, w, z, y, ki);

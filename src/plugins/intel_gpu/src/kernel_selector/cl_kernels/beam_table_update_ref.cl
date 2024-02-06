@@ -14,16 +14,16 @@ KERNEL(beam_table_update)(
     const unsigned int b = (uint)get_global_id(0);
     const unsigned int s = (uint)get_global_id(1);
 
-    const unsigned int out_offset = b * OUTPUT_FEATURE_NUM + s;
-    const unsigned int in_offset = beam_idx[b] * INPUT0_FEATURE_NUM + s;
+    const unsigned int out_offset = b * OUTPUT_BATCH_PITCH + s;
+    const unsigned int in_offset = beam_idx[b] * INPUT0_BATCH_PITCH + s;
 
-    if (s >= OUTPUT_FEATURE_NUM)
+    if (s >= OUTPUT_BATCH_PITCH)
         return;
 
     if (!is_state_set) {
         state_new[out_offset] = TO_OUTPUT_TYPE(b);
     } else {
-        if (s < INPUT0_FEATURE_NUM) {
+        if (s < INPUT0_BATCH_PITCH) {
             state_new[out_offset] = state_prev[in_offset];
         } else {
             state_new[out_offset] = b;

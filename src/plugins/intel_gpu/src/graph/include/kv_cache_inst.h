@@ -32,7 +32,7 @@ public:
         }
 
         if (get_primitive()->indirect) { // insert an additional input with beam table past layout
-            res.push_back(layout(ov::PartialShape::dynamic(2), data_types::i32, format::bfyx));
+            res.push_back(layout(ov::PartialShape::dynamic(4), data_types::i32, format::bfyx));
         }
 
         return res;

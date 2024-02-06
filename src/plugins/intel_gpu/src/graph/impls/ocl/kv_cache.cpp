@@ -206,7 +206,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto gather_axis = primitive->concat_axis;
 
         auto kv_shape = kv_layout.get_partial_shape();
-        auto beam_table_shape = ov::PartialShape{kv_shape[gather_axis], kv_shape[concat_axis], 1, 1};
+        auto beam_table_shape = ov::PartialShape(std::vector<size_t>(kv_shape.size(), 1));
+        beam_table_shape[gather_axis] = kv_shape[gather_axis];
+        beam_table_shape[concat_axis] = kv_shape[concat_axis];
         return layout{beam_table_shape, impl_param.output_layouts[1].data_type, format::get_default_format(beam_table_shape.size())};
     }
 

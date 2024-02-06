@@ -91,7 +91,10 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::Par
     if (op->get_output_size() == 2) {
         int64_t gather_axis = ov::util::normalize(op->get_gather_axis(), input_shapes[0].size());
         int64_t concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
-        out_shapes.push_back(ov::PartialShape{input_shapes[0][gather_axis], out_shapes[0][concat_axis]});
+        ov::PartialShape beam_table_shape(std::vector<size_t>(out_shapes[0].size(), 1));
+        beam_table_shape[gather_axis] = input_shapes[0][gather_axis];
+        beam_table_shape[concat_axis] = out_shapes[0][concat_axis];
+        out_shapes.push_back(beam_table_shape);
     }
 
     return out_shapes;
