@@ -5,7 +5,7 @@ IsFinite
 
 
 .. meta::
-  :description: Learn about IsFinite-10 - an element-wise, comparison operation, which 
+  :description: Learn about IsFinite-10 - an element-wise, comparison operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *IsFinite-10*
@@ -64,12 +64,12 @@ IsFinite
    <layer ... type="IsFinite">
        <input>
            <port id="0" precision="FP32">
-               <dim>4</dim> < !-- Input value is: [NaN, 2.1, 3.7, Inf] -->
+               <dim>4</dim> <!-- Input value is: [NaN, 2.1, 3.7, Inf] -->
            </port>
        </input>
        <output>
            <port id="1" precision="BOOL">
-               <dim>4</dim> < !-- Output value is: [False, True, True, False] -->
+               <dim>4</dim> <!-- Output value is: [False, True, True, False] -->
            </port>
        </output>
    </layer>

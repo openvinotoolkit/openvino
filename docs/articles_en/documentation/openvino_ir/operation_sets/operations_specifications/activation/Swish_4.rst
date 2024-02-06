@@ -5,7 +5,7 @@ Swish
 
 
 .. meta::
-  :description: Learn about Swish-4 - an element-wise, activation operation, which 
+  :description: Learn about Swish-4 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Swish-4*
@@ -55,7 +55,7 @@ Example: Second input ``beta`` provided
                 <dim>256</dim>
                 <dim>56</dim>
             </port>
-            <port id="1">  < !-- beta value: 2.0 -->
+            <port id="1">  <!-- beta value: 2.0 -->
             </port>
         </input>
         <output>

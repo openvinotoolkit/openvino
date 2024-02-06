@@ -5,7 +5,7 @@ PriorBoxClustered
 
 
 .. meta::
-  :description: Learn about PriorBoxClustered-1 - an object detection operation, 
+  :description: Learn about PriorBoxClustered-1 - an object detection operation,
                 which can be performed on two 1D input tensors.
 
 **Versioned name**: *PriorBoxClustered-1*
@@ -94,7 +94,7 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 
 * *step (step_w, step_h)*
 
-  * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height). 
+  * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height).
   * **Range of values**: floating-point positive number
   * **Type**: ``float``
   * **Default value**: 0.0
@@ -139,10 +139,10 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
        <data clip="false" height="44.0,10.0,30.0,19.0,94.0,32.0,61.0,53.0,17.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2" width="86.0,13.0,57.0,39.0,68.0,34.0,142.0,50.0,23.0"/>
        <input>
            <port id="0">
-               <dim>2</dim>        < !-- [10, 19] -->
+               <dim>2</dim>        <!-- [10, 19] -->
            </port>
            <port id="1">
-               <dim>2</dim>        < !-- [180, 320] -->
+               <dim>2</dim>        <!-- [180, 320] -->
            </port>
        </input>
        <output>

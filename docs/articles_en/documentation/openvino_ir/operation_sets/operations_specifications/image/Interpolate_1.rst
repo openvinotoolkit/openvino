@@ -5,7 +5,7 @@ Interpolate
 
 
 .. meta::
-  :description: Learn about I420toRGB-8 - an image processing operation, which 
+  :description: Learn about I420toRGB-8 - an image processing operation, which
                 can be performed on two required tensors.
 
 **Versioned name**: *Interpolate-1*
@@ -91,7 +91,7 @@ This is a scalar that specifies padding for each spatial dimension.
                <dim>80</dim>
            </port>
            <port id="1">
-               <dim>2</dim>  < !--The values in this input are [50, 60] -->
+               <dim>2</dim>  <!--The values in this input are [50, 60] -->
            </port>
        </input>
        <output>

@@ -5,7 +5,7 @@ Convert
 
 
 .. meta::
-  :description: Learn about Convert-1 - an element-wise, type conversion 
+  :description: Learn about Convert-1 - an element-wise, type conversion
                 operation, which can be performed on a single input tensor.
 
 **Versioned name**: *Convert-1*
@@ -23,7 +23,7 @@ Conversion of negative signed integer to unsigned integer value happens in accor
 The result of unsupported conversions is undefined. Output elements are represented as follows:
 
 .. math::
-   
+
    o_{i} = Convert(a_{i})
 
 where ``a`` corresponds to the input tensor.
@@ -52,17 +52,17 @@ where ``a`` corresponds to the input tensor.
 **Example**
 
 .. code-block:: cpp
-   
+
    <layer ... type="Convert">
        <data destination_type="f32"/>
        <input>
-           <port id="0">        < !-- type: i32 -->
+           <port id="0">        <!-- type: i32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>
        </input>
        <output>
-           <port id="1">        < !-- result type: f32 -->
+           <port id="1">        <!-- result type: f32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>

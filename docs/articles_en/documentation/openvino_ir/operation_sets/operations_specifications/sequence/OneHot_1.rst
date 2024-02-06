@@ -5,7 +5,7 @@ OneHot
 
 
 .. meta::
-  :description: Learn about OneHot-1 - a sequence processing operation, which 
+  :description: Learn about OneHot-1 - a sequence processing operation, which
                 can be performed on four required input tensors.
 
 **Versioned name**: *OneHot-1*
@@ -64,18 +64,18 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
     <layer ... type="OneHot" ...>
         <data axis="-1"/>
         <input>
-            <port id="0">    < !-- indices value: [0, 3, 1, 2] -->
+            <port id="0">    <!-- indices value: [0, 3, 1, 2] -->
                 <dim>4</dim>
             </port>
-            <port id="1">    < !-- depth value: 3 -->
+            <port id="1">    <!-- depth value: 3 -->
             </port>
-            <port id="2">    < !-- on_value 1 -->
+            <port id="2">    <!-- on_value 1 -->
             </port>
-            <port id="3">    < !-- off_value 2 -->
+            <port id="3">    <!-- off_value 2 -->
             </port>
         </input>
         <output>
-            <port id="0">    < !-- output value # [[1, 2, 2], [2, 2, 2], [2, 1, 2], [2, 2, 1]] -->
+            <port id="0">    <!-- output value # [[1, 2, 2], [2, 2, 2], [2, 1, 2], [2, 2, 1]] -->
                 <dim>4</dim>
                 <dim>3</dim>
             </port>
@@ -90,20 +90,20 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
     <layer ... type="OneHot" ...>
         <data axis="1"/>
         <input>
-            <port id="0">    < !-- indices value: [[0, 3, 1], [1, 2, 4]] -->
+            <port id="0">    <!-- indices value: [[0, 3, 1], [1, 2, 4]] -->
                 <dim>2</dim>
                 <dim>3</dim>
             </port>
-            <port id="1">    < !-- depth value: 3 -->
+            <port id="1">    <!-- depth value: 3 -->
             </port>
-            <port id="2">    < !-- on_value 1 -->
+            <port id="2">    <!-- on_value 1 -->
             </port>
-            <port id="3">    < !-- off_value 0 -->
+            <port id="3">    <!-- off_value 0 -->
             </port>
         </input>
         <output>
-            <port id="0">    < !-- output value: [[[1, 0, 0], [0, 0, 1], [0, 0, 0]], -->
-                <dim>2</dim> < !--                [[0, 0, 0], [1, 0, 0], [0, 1, 0]]] -->
+            <port id="0">    <!-- output value: [[[1, 0, 0], [0, 0, 1], [0, 0, 0]], -->
+                <dim>2</dim> <!--                [[0, 0, 0], [1, 0, 0], [0, 1, 0]]] -->
                 <dim>3</dim>
                 <dim>3</dim>
             </port>

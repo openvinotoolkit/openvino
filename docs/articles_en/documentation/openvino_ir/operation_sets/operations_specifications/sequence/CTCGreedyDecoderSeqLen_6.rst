@@ -5,7 +5,7 @@ CTCGreedyDecoderSeqLen
 
 
 .. meta::
-  :description: Learn about CTCGreedyDecoderSeqLen-6 - a sequence processing 
+  :description: Learn about CTCGreedyDecoderSeqLen-6 - a sequence processing
                 operation, which can be performed on two required input tensors.
 
 **Versioned name**: *CTCGreedyDecoderSeqLen-6*
@@ -77,7 +77,7 @@ The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_C
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="CTCGreedyDecoderSeqLen" version="opset6">
        <data merge_repeated="true" classes_index_type="i64" sequence_length_type="i64"/>
        <input>
@@ -89,7 +89,7 @@ The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_C
            <port id="1">
                <dim>8</dim>
            </port>
-           <port id="2"/>  < !-- blank_index = 120 -->
+           <port id="2"/>  <!-- blank_index = 120 -->
        </input>
        <output>
            <port id="0" precision="I64">
