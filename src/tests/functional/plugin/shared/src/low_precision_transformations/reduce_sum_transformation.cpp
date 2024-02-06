@@ -30,8 +30,6 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceSumTransformation::SetUp() {
-    abs_threshold = 4.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

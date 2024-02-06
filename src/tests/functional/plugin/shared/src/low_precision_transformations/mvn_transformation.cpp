@@ -36,7 +36,6 @@ std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNT
 }
 
 void MVNTransformation::SetUp() {
-    abs_threshold = 0.1;
     ov::PartialShape shape;
     ov::element::Type precision;
     ov::AxisSet reductionAxes;
