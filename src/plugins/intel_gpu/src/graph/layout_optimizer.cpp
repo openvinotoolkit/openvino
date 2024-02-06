@@ -1917,15 +1917,6 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
-            // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
-            if (node.is_type<convolution>() && src_fmt == format::bfyx) {
-                auto& conv = node.as<convolution>();
-                if (conv.get_input_layouts()[0].feature() <= 8 && conv.activations_zero_points_term() &&
-                    conv.get_input_layouts()[0].data_type == data_types::u8 && conv.get_output_layout().data_type == data_types::u8) {
-                    dst_fmt = format::b_fs_yx_fsv32;
-                }
-            }
-
             // In conv-permute pattern, sets the output format of conv to byxf so that permute can be optimized.
             // ex) oneDNN convolution -> (byxf) -> permute -> (bfyx) -> output
             //     output layout of convolution: byxf [b:1, f:128, y:2, x:2]
