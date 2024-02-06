@@ -24,12 +24,10 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 # compile options
 
 if(ENABLE_INTEL_GPU)
-    message(WARNING "${TARGET_NAME} is building with GPU support")
     # Look for OpenCL libraries
     find_package(OpenCL QUIET)
     if(OpenCL_FOUND)
         # Pass macro
-        message(WARNING "${TARGET_NAME} is building with OPENCL support")
         target_compile_definitions(${TARGET_NAME} PUBLIC PY_ENABLE_OPENCL)
     else()
         message(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} cannot be built with OpenCL integration. Install OpenCL.")
@@ -45,7 +43,6 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(OpenCL_FOUND AND libva_FOUND AND libva_drm_FOUND)
-        message(WARNING "${TARGET_NAME} is building with LIBVA support")
         # Pass macro
         target_compile_definitions(${TARGET_NAME} PUBLIC PY_ENABLE_LIBVA)
         # GCC flags for VADisplayWrapper constructors
