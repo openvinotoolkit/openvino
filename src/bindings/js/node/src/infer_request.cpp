@@ -198,7 +198,7 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-// 128760
+// 131123
 #ifndef _WIN32
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();

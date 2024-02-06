@@ -9,13 +9,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector unsqueeze(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes", {});
     return {std::make_shared<v0::Unsqueeze>(data, axes_node)};
 }
@@ -23,15 +23,13 @@ ov::OutputVector unsqueeze(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector unsqueeze(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     return {std::make_shared<v0::Unsqueeze>(inputs.at(0), inputs.at(1))};
 }
 
 }  // namespace set_13
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

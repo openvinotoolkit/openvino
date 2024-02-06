@@ -5,7 +5,7 @@ Squeeze
 
 
 .. meta::
-  :description: Learn about Squeeze-1 - a shape manipulation operation, which 
+  :description: Learn about Squeeze-1 - a shape manipulation operation, which
                 can be performed on one required and one optional input tensor.
 
 **Versioned name**: *Squeeze-1*
@@ -55,7 +55,7 @@ Squeeze
         </input>
         <input>
             <port id="1">
-                <dim>2</dim>  < !-- value [0, 2] -->
+                <dim>2</dim>  <!-- value [0, 2] -->
             </port>
         </input>
         <output>
@@ -79,7 +79,7 @@ Squeeze
         </input>
         <input>
             <port id="1">
-                <dim>1</dim>  < !-- value is [0] -->
+                <dim>1</dim>  <!-- value is [0] -->
             </port>
         </input>
         <output>

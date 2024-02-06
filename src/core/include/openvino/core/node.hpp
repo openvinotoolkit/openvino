@@ -21,7 +21,6 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"

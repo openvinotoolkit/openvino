@@ -78,5 +78,28 @@ protected:
     void SetUp() override;
 };
 
+typedef std::tuple<std::vector<InputShape>,  // Input shapes
+                   ov::Shape,                // Indices shape
+                   std::tuple<int, int>,     // Gather axis and batch
+                   ov::element::Type,        // Model type
+                   std::string,              // Device name
+                   std::vector<int64_t>,     // indices data
+                   std::vector<std::string>  // String data
+                   >
+    GatherStringParamsTuple;
+
+class GatherStringWithIndicesDataLayerTest : public testing::WithParamInterface<GatherStringParamsTuple>,
+                                             virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherStringParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
+
+private:
+    std::vector<std::string> string_data;
+};
+
 }  // namespace test
 }  // namespace ov
