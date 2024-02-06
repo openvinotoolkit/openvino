@@ -15,7 +15,6 @@
 #include "blob_factory.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace FuncTestUtils {
