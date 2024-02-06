@@ -44,16 +44,7 @@ public:
         std::vector<size_t> pads_end;
     };
 
-    enum class InterpolateMode {
-        NEAREST,
-        LINEAR,
-        CUBIC,
-        AREA,
-        nearest OPENVINO_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
-        linear OPENVINO_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
-        cubic OPENVINO_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC,
-        area OPENVINO_ENUM_DEPRECATED("Please use AREA instead") = AREA
-    };
+    enum class InterpolateMode { NEAREST, LINEAR, CUBIC, AREA };
 
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation

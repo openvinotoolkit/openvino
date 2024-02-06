@@ -461,10 +461,8 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
         std::stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") ||
-                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") ||
-                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtos = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = ov::util::getenv_bool("OV_VISUALIZE_TREE_IO");
         static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
         static const bool ovpvl = ov::util::getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");

@@ -10,7 +10,6 @@
 #include <set>
 #include <utility>
 
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov {

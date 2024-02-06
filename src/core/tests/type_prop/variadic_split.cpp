@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/shape_of.hpp"
