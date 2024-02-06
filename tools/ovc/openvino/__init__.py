@@ -58,7 +58,7 @@ try:
     from openvino._pyopenvino import ClContext
     from openvino._pyopenvino import ClImage2DTensor
 except ImportError:
-  pass
+    pass
 
 # libva related:
 try:
@@ -66,7 +66,7 @@ try:
     from openvino._pyopenvino import VAContext
     from openvino._pyopenvino import VASurfaceTensor
 except ImportError:
-  pass
+    pass
 
 # Set version for openvino package
 from openvino.runtime import get_version
