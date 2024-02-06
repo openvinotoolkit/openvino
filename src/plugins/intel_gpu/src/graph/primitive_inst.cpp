@@ -568,7 +568,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     auto current_shape = updated_layout.get_shape();
     std::pair<bool, ov::Shape> prealloc_info;
-    int32_t tmp_prealloc_count = _node->is_type<kv_cache>() ? kv_cache_inst::get_prealloc_iter_num() : -1;
+    int32_t tmp_prealloc_count = get_prealloc_iter_num();
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
         // If debug config is set, repsect the config most
         tmp_prealloc_count = -1;
