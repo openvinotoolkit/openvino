@@ -58,11 +58,14 @@ ov::Tensor CreateTensor(const ov::element::Type& element_type, const std::vector
 template <class T>
 ov::Tensor CreateTensor(const ov::Shape& shape, const ov::element::Type& element_type, const std::vector<T>& values) {
     ov::Tensor tensor{element_type, shape};
-    size_t size = sizeof(T) * values.size();
-    if (tensor.get_byte_size() < size)
-        size = tensor.get_byte_size();
-    std::memcpy(tensor.data(), values.data(), size);
-
+    if (element_type == ov::element::string) {
+        std::copy_n(values.data(), shape_size(shape), tensor.data<T>());
+    } else {
+        size_t size = sizeof(T) * values.size();
+        if (tensor.get_byte_size() < size)
+            size = tensor.get_byte_size();
+        std::memcpy(tensor.data(), values.data(), size);
+    }
     return tensor;
 }
 
