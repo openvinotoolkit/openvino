@@ -235,6 +235,11 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TR_Y", GetTransposedDims(params.output_order, true).at(6)),
             MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
         });
+
+        if (params.inputs[0].LogicalSize() != params.inputs[0].PhysicalSize())
+            jit.AddConstant(MakeJitConstant("INPUT0_HAS_PADDING", 1));
+        if (params.inputs[1].LogicalSize() != params.inputs[1].PhysicalSize())
+            jit.AddConstant(MakeJitConstant("INPUT1_HAS_PADDING", 1));
     }
 
     if (tuning_data.tile_k_size > tuning_data.simd_size) {
