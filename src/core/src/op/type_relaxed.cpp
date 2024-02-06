@@ -35,9 +35,7 @@ void convert_types(std::shared_ptr<v0::Parameter>& parameter,
     auto& tensor = output.get_tensor();
 
     if (lower_success || upper_success) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(new_type);  // deprecated piece
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::descriptor::set_element_type(tensor, new_type);
     }
     if (lower_success)
         tensor.set_lower_value(lower_tensor[0]);
@@ -115,9 +113,7 @@ void reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov
         const auto& etype =
             item.second.first ? item.second.first.get_element_type() : item.second.second.get_element_type();
         auto& tensor = inputs[item.first].get_tensor();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        tensor.set_element_type(etype);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::descriptor::set_element_type(tensor, etype);
         if (item.second.first)
             tensor.set_lower_value(item.second.first);
         if (item.second.second)
