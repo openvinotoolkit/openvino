@@ -2,7 +2,7 @@ import os
 import sys
 
 from e2e_oss.test_utils.test_utils import class_factory
-from e2e_oss.pipelines.pipeline_base_classes.tf_hub_case_class import TFHUB_eltwise_Base
+from e2e_oss.pipelines.production.tf_hub_case_class import TFHUB_eltwise_Base
 
 
 def get_models_list(file_name: str):
