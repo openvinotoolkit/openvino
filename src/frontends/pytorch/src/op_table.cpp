@@ -281,6 +281,14 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return std::make_shared<PagedAttentionPlaceholder>(inputs);
     }
+
+    bool has_evaluate() const override { return true; }
+
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override {
+        std::cerr << "[ INFO ] PagedAttentionPlaceholder\n";
+        outputs[0].set_shape(inputs[0].get_shape());
+        return true;
+    }
 };
 
 OutputVector page_attention_placeholder(const NodeContext& context) {
