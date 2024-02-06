@@ -62,14 +62,14 @@ def test_create_device_tensor_gpu():
     assert tensor.get_byte_size() == 24
     assert list(tensor.get_strides()) == [24, 12, 4]
     # Resize tensor:
-    tensor.set_shape([1,1,1])
+    tensor.set_shape([1, 1, 1])
     assert tensor.get_shape()
     assert tensor.get_size() == 1
-    assert tensor.get_byte_size() ==4
+    assert tensor.get_byte_size() == 4
     assert list(tensor.get_strides()) == [4, 4, 4]
     # Test RemoteTensor class NotImplemented methods:
     with pytest.raises(TypeError) as constructor_error:
-        _ = ov.RemoteTensor(np.ones((1,2,3)))
+        _ = ov.RemoteTensor(np.ones((1, 2, 3)))
     assert "No constructor defined!" in str(constructor_error.value)
 
     with pytest.raises(RuntimeError) as copy_to_error:
@@ -111,7 +111,7 @@ def test_cl_context():
         from openvino import ClContext
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for OpenCL."
+            "OpenVINO was built without support for OpenCL.",
         )
 
 
@@ -125,7 +125,7 @@ def test_cl_image_2d_tensor():
         from openvino import ClImage2DTensor
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for OpenCL."
+            "OpenVINO was built without support for OpenCL.",
         )
 
 
@@ -139,7 +139,7 @@ def test_va_wrapper():
         from openvino import VADisplayWrapper
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for libva."
+            "OpenVINO was built without support for libva.",
         )
     display = VADisplayWrapper(None)
     assert isinstance(display, VADisplayWrapper)
@@ -159,5 +159,5 @@ def test_va_context():
     except ImportError:
 
         pytest.skip(
-            "OpenVINO was built without support for libva."
+            "OpenVINO was built without support for libva.",
         )
