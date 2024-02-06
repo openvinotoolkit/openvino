@@ -24,7 +24,6 @@ std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParam
 }
 
 void SpaceToBatchTransformation::SetUp() {
-    abs_threshold = 1.1;
     ov::element::Type input_type;
     SpaceToBatchTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();

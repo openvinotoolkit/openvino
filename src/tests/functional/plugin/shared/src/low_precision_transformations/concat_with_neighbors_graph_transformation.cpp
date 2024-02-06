@@ -26,8 +26,6 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
 
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
     ov::element::Type ngPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -27,7 +27,6 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const t
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
-    abs_threshold = 1.8;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -33,9 +33,6 @@ std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestPar
 }
 
 void ConvolutionQDqTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 12.8;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -37,9 +37,6 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
 */
 
 void ConcatWithSplitTransformation::SetUp() {
-    abs_threshold = 0.1;
-    rel_threshold = 4.2;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;

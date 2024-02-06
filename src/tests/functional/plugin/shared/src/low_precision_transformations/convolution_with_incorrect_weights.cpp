@@ -36,9 +36,6 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const
 }
 
 void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 16.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

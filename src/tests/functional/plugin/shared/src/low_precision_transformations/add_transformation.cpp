@@ -51,8 +51,6 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
 }
 
 void AddTransformation::SetUp() {
-    abs_threshold = 1.1;
-    rel_threshold = 3;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     AddTestValues param;
