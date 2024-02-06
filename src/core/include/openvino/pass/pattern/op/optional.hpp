@@ -25,12 +25,12 @@ public:
     /// \param patterns The pattern to match a graph.
     Optional(
         const std::vector<DiscreteTypeInfo>& type_infos,
-        const Output<Node>& pattern,
+        const OutputVector& patterns = {},
         const pattern::op::ValuePredicate& pred =
             [](const Output<Node>& output) {
                 return true;
             })
-        : Pattern({pattern}, pred),
+        : Pattern(patterns, pred),
           optional_types(type_infos){};
 
     bool match_value(pattern::Matcher* matcher,
@@ -61,7 +61,7 @@ template <class... NodeTypes>
 std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
+    return std::make_shared<op::Optional>(optional_type_info_vec, OutputVector{input}, pred);
 }
 
 template <class... NodeTypes>
@@ -69,6 +69,13 @@ std::shared_ptr<Node> optional(const Output<Node>& input) {
     return optional<NodeTypes...>(input, [](const Output<Node>& output) {
         return true;
     });
+}
+
+template <class... NodeTypes>
+std::shared_ptr<Node> optional() {
+    std::vector<DiscreteTypeInfo> optional_type_info_vec;
+    collect_type_info<NodeTypes...>(optional_type_info_vec);
+    return std::make_shared<op::Optional>(optional_type_info_vec);
 }
 
 }  // namespace pattern

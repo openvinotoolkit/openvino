@@ -22,6 +22,8 @@ class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateNopBroadcast;
 class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
+class TRANSFORMATIONS_API NopStridedSlice;
+class TRANSFORMATIONS_API NopStridedSliceByShape;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -154,6 +156,28 @@ class ov::pass::NopSliceBeforeGatherElements : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("NopSliceBeforeGatherElements", "0");
     NopSliceBeforeGatherElements();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief NopStridedSlice eliminates Strided Slice in case
+ * tensors were not changed
+ */
+class ov::pass::NopStridedSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopStridedSlice", "0");
+    NopStridedSlice();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief NopStridedSlice eliminates Strided Slice in case
+ * tensors were not changed
+ */
+class ov::pass::NopStridedSliceByShape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopStridedSliceByShape", "0");
+    NopStridedSliceByShape();
 };
 
 /**
