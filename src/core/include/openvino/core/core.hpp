@@ -13,7 +13,6 @@
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/enum_names.hpp"

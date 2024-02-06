@@ -10,6 +10,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -17,26 +18,38 @@ namespace ov {
 namespace {
 
 std::string find_plugins_xml(const std::string& xml_file) {
-    if (xml_file.empty()) {
-        const auto ov_library_path = ov::util::get_ov_lib_path();
-
-        // plugins.xml can be found in either:
-
-        // 1. openvino-X.Y.Z relative to libopenvino.so folder
-        std::ostringstream str;
-        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-        const auto sub_folder = str.str();
-
-        // register plugins from default openvino-<openvino version>/plugins.xml config
-        auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, "plugins.xml"});
-        if (ov::util::file_exists(xmlConfigFileDefault))
-            return xmlConfigFileDefault;
-
-        // 2. in folder with libopenvino.so
-        xmlConfigFileDefault = ov::util::path_join({ov_library_path, "plugins.xml"});
-        if (ov::util::file_exists(xmlConfigFileDefault))
-            return xmlConfigFileDefault;
+    std::string xml_file_name = xml_file;
+    if (xml_file_name.empty()) {
+        // Default plugin xml file name, will search in OV folder.
+        xml_file_name = "plugins.xml";
+    } else {
+        // User can set any path for plugins xml file but need guarantee security issue if apply file path out of OV
+        // folder.
+        // If the xml file exists or file path contains file separator, return file path;
+        // Else search it in OV folder with no restriction on file name and extension.
+        if (ov::util::file_exists(xml_file_name) ||
+            xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
+            return xml_file_name;
+        }
     }
+    const auto ov_library_path = ov::util::get_ov_lib_path();
+
+    // plugins xml can be found in either:
+    // 1. openvino-X.Y.Z relative to libopenvino.so folder
+    std::ostringstream str;
+    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+    const auto sub_folder = str.str();
+
+    // register plugins from default openvino-<openvino version>/plugins.xml config
+    auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name});
+    if (ov::util::file_exists(xmlConfigFileDefault))
+        return xmlConfigFileDefault;
+
+    // 2. in folder with libopenvino.so
+    xmlConfigFileDefault = ov::util::path_join({ov_library_path, xml_file_name});
+    if (ov::util::file_exists(xmlConfigFileDefault))
+        return xmlConfigFileDefault;
+
     return xml_file;
 }
 
