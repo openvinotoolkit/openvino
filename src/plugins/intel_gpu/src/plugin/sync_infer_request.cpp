@@ -655,12 +655,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
-    OPENVINO_ASSERT(!(is_remote && convert_needed),
-                    "[GPU] Remote tensor element_type = ", element_type,
-                    " and device tensor = ", device_tensor_et,
-                    " don't match for ", name,
-                    ". Those are expected to be equal");
-
     if (is_remote) {
         if (convert_needed) {
             m_plugin_inputs[name] = { create_device_tensor(pshape,
