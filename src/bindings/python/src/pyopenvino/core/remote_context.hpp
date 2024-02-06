@@ -34,7 +34,7 @@ public:
 
     // Terminate the display and clean up:
     void release() {
-        PyErr_WarnEx(PyExc_DeprecationWarning,
+        PyErr_WarnEx(PyExc_RuntimeWarning,
                      "Release of VADisplay was not succesful! The display is referencing "
                      "the other pointer. Owner is responsible for memory release.",
                      2);
