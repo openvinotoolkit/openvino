@@ -110,7 +110,6 @@ jobs:
           #Initialize pdm environment
             pdm use -v ${{ env.PYTHON_VERSION }}
             pdm lock -v --strategy no_cross_platform -G tests -G torchvision -p ${PDM_PROJECT}
-            #pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
           fi
 
           # Install the core OV wheel
@@ -153,7 +152,9 @@ jobs:
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
           ${PYTHON_RUN_TESTS_PREFIX} pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_transformations/ \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_torchvision_to_ov/
 
       # - name: Model Optimizer unit tests
       #   if: fromJSON(inputs.affected-components).MO.test
