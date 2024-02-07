@@ -37,7 +37,7 @@ std::vector<T> GenInput(const ov::PartialShape& shape) {
     const size_t size = ov::shape_size<ov::Shape>(shape.get_shape());
     std::vector<T> result;
     for (size_t i = 0; i < size; i++)
-        result.push_back(i);
+        result.push_back(static_cast<T>(i));
     return result;
 }
 } // namespace helpers
