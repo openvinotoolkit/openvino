@@ -747,7 +747,11 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     }
     if (convert_needed) {
-        convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
+        if (is_remote) {
+            convert_and_copy(remote_ptr->get_memory(), device_tensor->get_memory(), stream);
+        } else {
+            convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
+        }
     }
 
     GPU_DEBUG_TRACE_DETAIL << name << " prepare input: " << memory->buffer_ptr() << std::endl;
