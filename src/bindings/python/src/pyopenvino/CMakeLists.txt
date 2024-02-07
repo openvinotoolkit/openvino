@@ -91,19 +91,9 @@ if(ENABLE_INTEL_GPU)
         endif()
         message(WARNING "libva is disabled or not found, ${PROJECT_NAME} cannot be built with libva integration. Install libva.")
     endif()
-
-    if(OpenCL_FOUND)
-        if(libva_FOUND)
-            target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations OpenCL::OpenCL PkgConfig::libva)
-        else()
-            # Only OpenCL was found
-            target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations OpenCL::OpenCL)
-        endif()
-    endif()
-else()
-    # Without relations to GPU devices
-    target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
 endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
