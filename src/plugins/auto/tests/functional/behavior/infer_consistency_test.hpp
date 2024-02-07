@@ -8,8 +8,8 @@
 
 #include "auto_func_test.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 namespace ov {
 namespace auto_plugin {
