@@ -54,5 +54,11 @@ class FuseTransposeAndReorderTest4 : public FuseTransposeAndReorderTest {
 protected:
     void create_model() override;
 };
+
+class FuseTransposeAndReorderTest5 : public FuseTransposeAndReorderTest {
+protected:
+    void create_model() override;
+};
+
 } // namespace test
 } // namespace ov

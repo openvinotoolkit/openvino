@@ -16,6 +16,7 @@ public:
 public:
     void ApplyCommonGraphOptimizations(Graph& graph);
     void ApplyImplSpecificGraphOptimizations(Graph& graph);
+    void ShareReorders(Graph &graph);
 
 private:
     void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
