@@ -63,6 +63,9 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
 inline std::string create_ie_output_name(const Output<const Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
+    if (prev_layer->get_output_size() != 1) {
+        out_name += "." + std::to_string(output.get_index());
+    }
     return out_name;
 }
 
