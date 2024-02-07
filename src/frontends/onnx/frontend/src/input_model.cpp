@@ -12,25 +12,22 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 #endif
 
 InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
+    : m_editor{std::make_shared<ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
 InputModel::InputModel(std::istream& model_stream,
                        const std::string& path,
                        const bool enable_mmap,
                        frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {
-}
+    : m_editor{std::make_shared<ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModel::InputModel(std::istream& model_stream,
@@ -69,8 +66,8 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
 
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
-        const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
-        onnx_editor::EditorNode node{node_index};
+        const auto node_index = m_editor->get_node_index(EditorNode{operation_name});
+        EditorNode node{node_index};
         node.m_node_name = operation_name;
         return std::make_shared<PlaceOp>(node, m_editor);
     }
@@ -237,7 +234,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return element::undefined;
+    return ov::element::undefined;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -340,8 +337,8 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    std::vector<onnx_editor::InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
-    std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
+    std::vector<InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
+    std::vector<OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
 
     m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
 }
@@ -442,9 +439,8 @@ void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const v
     }
 }
 
-std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
-    const std::vector<ov::frontend::Place::Ptr>& inputs) {
-    std::vector<onnx_editor::InputEdge> onnx_inputs;
+std::vector<InputEdge> InputModel::convert_place_to_input_edge(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    std::vector<InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdge>(input)) {
@@ -456,7 +452,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
             std::transform(std::begin(consumers),
                            std::end(consumers),
                            std::back_inserter(onnx_inputs),
-                           [](const onnx_editor::InputEdge& edge) {
+                           [](const InputEdge& edge) {
                                return edge;
                            });
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(input)) {
@@ -469,7 +465,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
                            std::end(op_inputs),
                            std::back_inserter(onnx_inputs),
                            [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::InputEdge{node_idx, port_idx++};
+                               return InputEdge{node_idx, port_idx++};
                            });
         }
     }
@@ -477,9 +473,8 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
     return onnx_inputs;
 }
 
-std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
-    const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    std::vector<onnx_editor::OutputEdge> onnx_outputs;
+std::vector<OutputEdge> InputModel::convert_place_to_output_edge(const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    std::vector<OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
         if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdge>(output)) {
@@ -501,7 +496,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
                            std::end(op_outputs),
                            std::back_inserter(onnx_outputs),
                            [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::OutputEdge{node_idx, port_idx++};
+                               return OutputEdge{node_idx, port_idx++};
                            });
         }
     }
@@ -516,7 +511,7 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
     const auto find_input_by_tensor_name = [&model_inputs](const std::string& name) {
         return std::find_if(std::begin(model_inputs),
                             std::end(model_inputs),
-                            [&name](const OutputVector::value_type& input) {
+                            [&name](const ov::OutputVector::value_type& input) {
                                 return input.get_names().count(name) > 0;
                             });
     };
@@ -536,7 +531,7 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
 
     const auto& inputs = model->inputs();
     const auto is_input_name = [&inputs](const std::string& name) {
-        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {
+        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const ov::OutputVector::value_type& input) {
                    return input.get_names().count(name) > 0;
                }) != std::end(inputs);
     };

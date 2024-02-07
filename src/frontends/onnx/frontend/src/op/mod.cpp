@@ -11,17 +11,17 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector mod(const Node& node) {
-    Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
-    Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
+ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
+    ov::Output<ov::Node> dividend{node.get_ov_inputs().at(0)};
+    ov::Output<ov::Node> divisor{node.get_ov_inputs().at(1)};
 
     std::int64_t fmod = node.get_attribute_value<std::int64_t>("fmod", 0);
-    OutputVector output;
+    ov::OutputVector output;
     if (fmod == 1) {
         output = {std::make_shared<v1::Mod>(dividend, divisor)};
     } else if (fmod == 0) {
@@ -36,10 +36,7 @@ OutputVector mod(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

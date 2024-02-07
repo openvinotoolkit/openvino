@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_parameter.hpp>
 #include <istream>
 #include <map>
 #include <openvino/core/any.hpp>

@@ -60,12 +60,15 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
@@ -217,7 +220,7 @@ jobs:
       - name: Check status of all jobs
         if: >-
           ${{
-            contains(needs.*.result, 'failure') || 
+            contains(needs.*.result, 'failure') ||
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1

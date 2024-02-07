@@ -13,7 +13,7 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
-    const element::Type inputPrecision,
+    const ov::element::Type inputPrecision,
     const PartialShape& inputShape,
     const builder::subgraph::DequantizationOperations& deqBefore,
     const std::int64_t axis,
@@ -24,10 +24,10 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
     const auto shuffleChannels = std::make_shared<ov::opset1::ShuffleChannels>(dequantization, axis, group);
     shuffleChannels->set_friendly_name("output");
 
-    const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(shuffleChannels) },
-        ParameterVector{ input },
-        "ShuffleChannelsFunction");
+    const auto function =
+        std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::opset1::Result>(shuffleChannels)},
+                                    ov::ParameterVector{input},
+                                    "ShuffleChannelsFunction");
 
     return function;
 }
@@ -44,10 +44,10 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getOriginal(
     const auto shuffleChannels = std::make_shared<ov::opset1::ShuffleChannels>(fakeQuantize, axis, group);
     shuffleChannels->set_friendly_name("output");
 
-    const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(shuffleChannels) },
-        ParameterVector{ input },
-        "ShuffleChannelsFunction");
+    const auto function =
+        std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::opset1::Result>(shuffleChannels)},
+                                    ov::ParameterVector{input},
+                                    "ShuffleChannelsFunction");
 
     return function;
 }
@@ -69,10 +69,10 @@ std::shared_ptr<ov::Model> ShuffleChannelsFunction::getReference(
     const auto dequantizationAfter = makeDequantization(shuffleChannels, deqAfter);
     dequantizationAfter->set_friendly_name("output");
 
-    const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(dequantizationAfter) },
-        ParameterVector{ input },
-        "ShuffleChannelsFunction");
+    const auto function =
+        std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::opset1::Result>(dequantizationAfter)},
+                                    ov::ParameterVector{input},
+                                    "ShuffleChannelsFunction");
 
     return function;
 }

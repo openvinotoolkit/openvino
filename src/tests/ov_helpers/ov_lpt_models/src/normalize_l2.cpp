@@ -106,9 +106,9 @@ std::shared_ptr<ov::Model> NormalizeL2Function::getReference(
 
     const auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{ axes.size() }, axes);
     const auto normalizeL2 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::NormalizeL2>>(
-        std::vector<ov::element::Type>{ element::f32, axesNode->output(0).get_element_type() },
-        std::vector<ov::element::Type>{dequantizationAfter.empty() ? precision : element::f32},
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, axesNode->output(0).get_element_type()},
+        std::vector<ov::element::Type>{dequantizationAfter.empty() ? precision : ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
         axesNode,
         1e-6,
         epsMode);

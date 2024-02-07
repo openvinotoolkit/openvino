@@ -275,14 +275,14 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
-    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
-    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
-    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
-    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
+    const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
+    const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+    const auto* scores = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+    const auto* im_info = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->getData());
-    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
-    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->getData());
+    auto* output_boxes = getDstDataAtPortAs<float>(OUTPUT_BOXES);
+    auto* output_scores = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+    auto* output_classes = getDstDataAtPortAs<int32_t>(OUTPUT_CLASSES);
 
     const float img_H = im_info[0];
     const float img_W = im_info[1];

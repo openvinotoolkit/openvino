@@ -77,7 +77,7 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -146,3 +146,15 @@ jobs:
               --form description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
               https://scan.coverity.com/builds?project=openvino
           popd
+
+      - name: Show Coverity configure logs
+        continue-on-error: true
+        run: cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
+
+      - name: Upload Coverity logs
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverity_logs
+          path: ${{ env.BUILD_DIR }}/cov-int/build-log.txt
+          if-no-files-found: 'error'

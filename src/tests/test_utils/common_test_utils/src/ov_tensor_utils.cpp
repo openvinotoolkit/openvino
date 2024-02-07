@@ -6,6 +6,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "precomp.hpp"
 
 namespace ov {
@@ -174,12 +175,12 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_normal_distribution(const ov::element::Type element_type,
-                                                               const ov::Shape& shape,
-                                                               const float mean,
-                                                               const float stddev,
-                                                               const int seed) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+ov::Tensor create_and_fill_tensor_normal_distribution(const ov::element::Type element_type,
+                                                      const ov::Shape& shape,
+                                                      const float mean,
+                                                      const float stddev,
+                                                      const int seed) {
+    auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X)                                                                              \
     case X:                                                                                  \
         fill_data_ptr_normal_random_float(tensor.data<element_type_traits<X>::value_type>(), \
@@ -218,12 +219,12 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(const ov::element
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type element_type,
-                                                             const ov::Shape& shape,
-                                                             const float min,
-                                                             const float max,
-                                                             const int seed) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type element_type,
+                                                    const ov::Shape& shape,
+                                                    const float min,
+                                                    const float max,
+                                                    const int seed) {
+    auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X)                                                                            \
     case X:                                                                                \
         fill_data_ptr_real_random_float(tensor.data<element_type_traits<X>::value_type>(), \
@@ -258,12 +259,12 @@ ov::runtime::Tensor create_and_fill_tensor_real_distribution(const ov::element::
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_type,
-                                                        const ov::Shape& shape,
-                                                        const uint32_t range,
-                                                        const int32_t start_from,
-                                                        const int32_t resolution) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_type,
+                                               const ov::Shape& shape,
+                                               const uint32_t range,
+                                               const int32_t start_from,
+                                               const int32_t resolution) {
+    auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X)                                                                       \
     case X:                                                                           \
         fill_data_ptr_consistently(tensor.data<element_type_traits<X>::value_type>(), \
@@ -470,6 +471,16 @@ void compare(const ov::Tensor& expected,
     }
 }
 
+void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_element_type(), ov::element::string);
+    ASSERT_EQ(actual.get_element_type(), ov::element::string);
+    EXPECT_EQ(expected.get_shape(), actual.get_shape());
+
+    const auto expected_const = ov::op::v0::Constant(expected);
+    const auto result_const = ov::op::v0::Constant(actual);
+    EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
+}
+
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold,
@@ -527,6 +538,9 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+    case ov::element::Type_t::string:
+        compare_str(expected, actual);
+        break;
     default:
         OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
     }

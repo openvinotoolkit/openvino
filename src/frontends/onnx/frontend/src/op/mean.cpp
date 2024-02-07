@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,23 +11,20 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector mean(const Node& node) {
+ov::OutputVector mean(const ov::frontend::onnx::Node& node) {
     auto sum = variadic::make_ng_variadic_op<v1::Add>(node).front();
-    auto count = v0::Constant::create(sum.get_element_type(), Shape{}, {node.get_ng_inputs().size()});
+    auto count = v0::Constant::create(sum.get_element_type(), ov::Shape{}, {node.get_ov_inputs().size()});
 
     return {std::make_shared<v1::Divide>(sum, count)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

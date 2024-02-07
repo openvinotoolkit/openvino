@@ -4,14 +4,14 @@
 
 #include "op/pad.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "ov_models/ov_builders/split.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
+#include "utils/split.hpp"
 
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
@@ -32,15 +32,15 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector pad(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
 
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "Data rank must be static for pad op");
     const auto data_rank_value = data_rank.get_length();
 
@@ -54,21 +54,21 @@ OutputVector pad(const Node& node) {
 
     return {std::make_shared<v12::Pad>(
         data,
-        std::make_shared<v0::Constant>(element::i64, ov::Shape{padding_below.size()}, padding_below),
-        std::make_shared<v0::Constant>(element::i64, ov::Shape{padding_above.size()}, padding_above),
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{padding_below.size()}, padding_below),
+        std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{padding_above.size()}, padding_above),
         std::make_shared<v0::Constant>(data.get_element_type(), ov::Shape{}, std::vector<double>{value}),
         pad_mode)};
 }
 
 }  // namespace set_1
 namespace set_11 {
-OutputVector pad(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
-    Output<ov::Node> values;
-    Output<ov::Node> padding_begin;
-    Output<ov::Node> padding_end;
+    ov::Output<ov::Node> values;
+    ov::Output<ov::Node> padding_begin;
+    ov::Output<ov::Node> padding_end;
 
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         values = reshape::interpret_as_scalar(inputs[2]);
@@ -84,10 +84,10 @@ OutputVector pad(const Node& node) {
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);
         std::vector<std::int64_t> padding_end_values(pads_vector.begin() + half_size, pads_vector.end());
 
-        padding_begin = v0::Constant::create(element::i64, ov::Shape{half_size}, padding_begin_values);
-        padding_end = v0::Constant::create(element::i64, ov::Shape{half_size}, padding_end_values);
+        padding_begin = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_begin_values);
+        padding_end = v0::Constant::create(ov::element::i64, ov::Shape{half_size}, padding_end_values);
     } else {
-        OutputVector padding = ov::op::util::split(pads, 2, 0);
+        ov::OutputVector padding = ov::op::util::make_split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);
@@ -100,10 +100,7 @@ OutputVector pad(const Node& node) {
 }
 
 }  // namespace set_11
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

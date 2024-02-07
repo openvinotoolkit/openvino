@@ -5,7 +5,6 @@
 #include <cpu_types.h>
 #include <edge.h>
 #include <gtest/gtest.h>
-#include <ie_common.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <memory_desc/dnnl_memory_desc.h>
 #include <node.h>
@@ -104,7 +103,7 @@ struct ReorderCPUTestParamSet {
 class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
-                    const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
+                           const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         Config conf;
         conf.rtCacheCapacity = 100;
         auto context = std::make_shared<GraphContext>(conf,
@@ -116,7 +115,7 @@ public:
                                                                       "Reorder_Input",
                                                                       "Parameter",
                                                                       context);
-        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", context);
+        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>(inputDesc, outputDesc, "Reorder", context);
         outputNode = std::make_shared<ov::intel_cpu::node::Input>(outputDesc.clone(),
                                                                        "Reorder_Output",
                                                                        "Result",
@@ -135,7 +134,6 @@ public:
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
-        reorderNode->setDescs(inputDesc, outputDesc);
         std::array<std::shared_ptr<ov::intel_cpu::Node>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();

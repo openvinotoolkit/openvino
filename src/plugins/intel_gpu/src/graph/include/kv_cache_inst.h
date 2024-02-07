@@ -36,9 +36,8 @@ public:
 
     static std::string to_string(const kv_cache_node& node);
 
-    static int32_t get_prealloc_iter_num() {
-        return 128;
-    }
+    // Distribute prealloc period to prevent memory peak
+    int32_t get_prealloc_iter_num() override;
 
     static void update_pad(layout& l, int64_t pad, int64_t sequence_axis_legacy) {
         const auto& dyn_pad_dims = l.data_padding.get_dynamic_pad_dims();
@@ -80,10 +79,11 @@ public:
         return max_pad;
     }
 
-    void post_realloc_optimization(const layout& allocated_layout);
-
     typed_primitive_inst(network& network, const kv_cache_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
+
+private:
+    size_t kv_cache_id = 0;
 };
 
 using kv_cache_inst = typed_primitive_inst<kv_cache>;

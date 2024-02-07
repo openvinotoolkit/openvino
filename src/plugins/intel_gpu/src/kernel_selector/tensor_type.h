@@ -109,7 +109,9 @@ enum WeightsLayout {
     is_os_yx_isv16_osv8,
     is_os_yx_isv16_osv4,
     is_os_yx_isv16_osv2,
+    os_is_zyx_isa8_osv16_isv2,  // aligned
     os_is_zyx_isv8_osv16_isv2,
+    os_is_yx_isa8_osv16_isv2,   // aligned
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
     os_zyxi_osv16,
@@ -189,6 +191,8 @@ enum WeightsLayout {
     os_is_yx_osv2_isv16,
     os_is_yx_osv2_isv32,
     os_is_yx_osv4_isv16,
+    os_is_yx_osv8_isv16,
+    os_is_yx_osv4_isv2,
     oizyx,
     iozyx,
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution

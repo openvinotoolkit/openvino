@@ -4,19 +4,20 @@
 
 #include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector experimental_detectron_topk_rois(const Node& node) {
+ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node& node) {
     using TopKROIs = v6::ExperimentalDetectronTopKROIs;
 
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     auto input_rois = inputs[0];
     auto rois_probs = inputs[1];
     auto max_rois = static_cast<std::size_t>(node.get_attribute_value<std::int64_t>("max_rois", 1000));
@@ -25,9 +26,7 @@ OutputVector experimental_detectron_topk_rois(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
