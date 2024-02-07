@@ -20,7 +20,7 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    auto input_id = ov::op::util::get_ie_output_name(op->get_input_source_output(0));
+    auto input_id = op->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
     if (input_id.empty()) {
         input_id = prev->get_friendly_name();
         if (prev->get_output_size() > 1) {

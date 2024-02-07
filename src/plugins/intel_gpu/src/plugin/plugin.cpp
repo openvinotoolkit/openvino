@@ -678,7 +678,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (ov::DimensionTracker::get_label(shape[s])) {
                         // batched dim for the input
-                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
+                        auto batched_input_id = params[input_id]->output(0).get_node_shared_ptr()->get_friendly_name();
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
                                       << "[" << s << "]" << std::endl;
                         batched_inputs.insert(std::make_pair(batched_input_id, s));
@@ -695,7 +695,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         try {
             std::map<std::string, ov::PartialShape> shapes;
             for (auto& param : cloned_model->get_parameters()) {
-                shapes[ov::op::util::get_ie_output_name(param->output(0))] = param->get_output_partial_shape(0);
+                shapes[param->output(0).get_node_shared_ptr()->get_friendly_name()] = param->get_output_partial_shape(0);
             }
             for (const auto& input : batched_inputs)
                 shapes[input.first][input.second] = base_batch_size;

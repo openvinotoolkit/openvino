@@ -63,7 +63,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         // we need to add operation names as tensor names for inputs and outputs
         {
             for (const auto& result : model->get_results()) {
-                auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+                auto res_name = result->input_value(0).get_node_shared_ptr()->get_friendly_name();
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",

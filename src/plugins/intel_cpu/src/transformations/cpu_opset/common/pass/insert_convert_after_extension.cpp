@@ -34,7 +34,7 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
 
                 auto& convertTensor = convert->output(0).get_tensor();
 
-                auto legacy_name = op::util::create_ie_output_name(output);
+                auto legacy_name = output.get_node_shared_ptr()->get_friendly_name();
                 descriptor::set_ov_tensor_legacy_name(convertTensor, legacy_name);
 
                 if (!output.get_names().empty()) {

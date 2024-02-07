@@ -114,7 +114,7 @@ void If::getSupportedDescriptors() {
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
+        const std::string inputID = prev.get_node_shared_ptr()->get_friendly_name();
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
@@ -127,7 +127,7 @@ void If::getSupportedDescriptors() {
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
         const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
+        const std::string inputID = prev.get_node_shared_ptr()->get_friendly_name();
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);

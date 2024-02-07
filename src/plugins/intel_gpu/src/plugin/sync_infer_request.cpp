@@ -48,10 +48,10 @@ inline std::string get_port_name(const ov::Output<const ov::Node>& port) {
     if (name.empty()) {
         bool is_input = ov::op::util::is_parameter(port.get_node());
         if (is_input) {
-            name = ov::op::util::get_ie_output_name(port);
+            name = port.get_node_shared_ptr()->get_friendly_name();
         } else {
             const auto node = port.get_node_shared_ptr();
-            name = ov::op::util::get_ie_output_name(node->input_value(0));
+            name = node->input_value(0).get_node_shared_ptr()->get_friendly_name();
         }
     }
     return name;

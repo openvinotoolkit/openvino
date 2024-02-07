@@ -297,7 +297,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 }
 
 void CNNNetworkNGraphImpl::addOutput(const ::ov::Output<::ov::Node>& output) {
-    auto dataName = ov::op::util::create_ie_output_name(output);
+    auto dataName = output.get_node_shared_ptr()->get_friendly_name();
     DataPtr data;
     if (_data.count(dataName))
         data = _data[dataName];

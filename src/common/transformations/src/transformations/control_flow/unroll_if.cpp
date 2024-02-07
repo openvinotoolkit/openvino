@@ -60,7 +60,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             ov::descriptor::set_ov_tensor_legacy_name(
                 in_value.get_tensor(),
-                op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
+                if_node->output(output_desc->m_output_index).get_node_shared_ptr()->get_friendly_name());
             OPENVINO_SUPPRESS_DEPRECATED_END
             for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
                 input.replace_source_output(result->get_input_source_output(0));

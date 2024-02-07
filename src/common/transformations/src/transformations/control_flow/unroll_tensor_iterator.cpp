@@ -122,7 +122,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     })) {
                     OPENVINO_SUPPRESS_DEPRECATED_START
                     ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
-                                                              ov::op::util::create_ie_output_name(ti_output));
+                                                              ti_output.get_node_shared_ptr()->get_friendly_name());
                     OPENVINO_SUPPRESS_DEPRECATED_END
                 }
             };

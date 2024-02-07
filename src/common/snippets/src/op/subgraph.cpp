@@ -258,7 +258,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
-    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
+    const std::string new_name = replacement_output_node.get_node_shared_ptr()->get_friendly_name();
     if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
         ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
     }

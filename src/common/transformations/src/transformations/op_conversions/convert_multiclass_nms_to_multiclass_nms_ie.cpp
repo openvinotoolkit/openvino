@@ -60,13 +60,13 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
+            output_1.get_node_shared_ptr()->set_friendly_name(nms->output(1).get_node_shared_ptr()->get_friendly_name());
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
+            output_2.get_node_shared_ptr()->set_friendly_name(nms->output(2).get_node_shared_ptr()->get_friendly_name());
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
