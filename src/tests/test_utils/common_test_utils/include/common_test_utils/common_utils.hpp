@@ -36,6 +36,21 @@ inline std::string vec2str(const std::vector<vecElementType>& vec) {
     }
     return std::string("()");
 }
+
+template <>
+inline std::string vec2str(const std::vector<int64_t>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<int64_t>(result, "."));
+        result << vec.back() << ")";
+        auto ret = result.str();
+        std::replace(ret.begin(), ret.end(), '-', '_');
+        return ret;
+    }
+    return std::string("()");
+}
+
 inline void replaceSubstringInString(std::string& str, const std::string& from, const std::string& to) {
     size_t pos;
     while ((pos = str.find(from)) != std::string::npos) {
