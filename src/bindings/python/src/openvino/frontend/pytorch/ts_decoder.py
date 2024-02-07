@@ -11,6 +11,7 @@ from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_g
 from openvino.runtime import opset11 as ops
 from openvino.frontend.pytorch import gptq
 from openvino.frontend.pytorch import patch_model
+from openvino.frontend.pytorch.module_extension import ModuleExtension
 
 import typing
 import torch
@@ -26,7 +27,16 @@ class no_jit_trace:
         self.state = None
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False, constant_cache=None, module_extensions=None):
+    def __init__(
+            self,
+            pt_module,
+            graph_element=None,
+            example_input=None,
+            alias_db=None,
+            shared_memory=True,
+            skip_freeze=False,
+            constant_cache=None,
+            module_extensions=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
@@ -87,11 +97,9 @@ class TorchScriptPythonDecoder (Decoder):
                     preserved_attributes.append(name)
         return preserved_attributes
 
-    def _patch_modules(self, model):
-        print('[ INFO ] _patch_modules', self.module_extensions)
+    def _patch_modules(self, model, orig_forward_name):
         def module_patcher(module, name):
             extension = None
-
             if module in self.module_extensions:
                 extension = self.module_extensions[module]
             elif module.__class__ in self.module_extensions:
@@ -100,7 +108,6 @@ class TorchScriptPythonDecoder (Decoder):
                 extension = self.module_extensions[name]
 
             if extension:
-                print('extension is identified')
                 class Trampoline(torch.autograd.Function):
                     target_extension = extension
                     original_module = module
@@ -108,11 +115,9 @@ class TorchScriptPythonDecoder (Decoder):
                     def forward(*args, **kwargs):
                         with no_jit_trace():
                             if extension.replacer:
-                                # if replacer code cannot be traced, it is a responsibility of the replacer to apply no_jit_trace
                                 results = extension.replacer(module, *args[1:], **kwargs)
                             else:
-                                # this code is know to be incompatible with tracer, so unconditionally disable tracing
-                                results = module._openvino_patch_orig_forward_v2(*args[1:], **kwargs)
+                                results = getattr(module, orig_forward_name)(*args[1:], **kwargs)
                             return results
                 def new_forward(*args, **kwargs):
                     if extension.wrapper is not None:
@@ -122,10 +127,10 @@ class TorchScriptPythonDecoder (Decoder):
                 module._openvino_patch_orig_forward_v2 = module.forward
                 module.forward = new_forward
 
-        patch_model.patch_model(model, module_patcher)
+        patch_model.patch_model(model, module_patcher, '_openvino_module_extension_patch_orig_forward')
 
-    def _unpatch_modules(self, model):
-        patch_model.unpatch_model(model)
+    def _unpatch_modules(self, model, orig_forward_name):
+        patch_model.unpatch_model(model, orig_forward_name)
 
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
         import torch
@@ -147,8 +152,10 @@ class TorchScriptPythonDecoder (Decoder):
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
+                # name of attribute in a patched module where the original forward method is kept
+                orig_forward_name = '_openvino_module_extension_patch_orig_forward'
                 if self.module_extensions:
-                    self._patch_modules(pt_module)
+                    self._patch_modules(pt_module, orig_forward_name)
 
                 gptq_patched = False
 
@@ -171,7 +178,7 @@ class TorchScriptPythonDecoder (Decoder):
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
                     if self.module_extensions:
-                        self._unpatch_modules(pt_module)
+                        self._unpatch_modules(pt_module, orig_forward_name)
 
             if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops
@@ -297,7 +304,6 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
-            print(f'[ INFO ] Found prim::PythonOp: {self.graph_element.attributeNames()}')
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
                     self.graph_element, torch.Node), "Graph element must be of type torch.Node."
@@ -321,14 +327,15 @@ class TorchScriptPythonDecoder (Decoder):
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
         if self.graph_element.kind() == "prim::PythonOp":
-            trampoline = self.graph_element.pyobj().__self__
-            print('[ INFO ] Going to override type:', trampoline)
-            target = trampoline.target_extension.extension(trampoline.original_module)
-            if callable(target):
-                print('[ ERROR ] Callable as a target of extension is not yet supported')
-            else:
-                print('[ INFO ] Target override:', target)
-                return target
+            if hasattr(self.graph_element, 'pyobj') and callable(self.graph_element.pyobj) and hasattr(self.graph_element.pyobj(), '__self__'):
+                trampoline = self.graph_element.pyobj().__self__
+                if hasattr(trampoline, 'target_extension') and isinstance(trampoline.target_extension, ModuleExtension):
+                    target = trampoline.target_extension.extension(trampoline.original_module)
+                    # TODO: Support target as a callable that will play a role of ConversionExtension for an entire module instead of a single op.
+                    # Without supporting target as a callable here, ConversionExtension functionality is still possible to implement
+                    # by combining two extensions: ModuleExtension that use temporary name as a target op and another extension of type ConversionExtension
+                    # that translates that particular temporary name to custom graph. But providing conversion code as a callable `target` is more convenient.
+                    return target
         return self.graph_element.kind()
 
     def get_schema(self) -> str:

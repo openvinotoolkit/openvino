@@ -265,37 +265,6 @@ OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_transpose_fx);
 
-class PagedAttentionPlaceholder : public ov::op::Op {
-public:
-    OPENVINO_OP("PagedAttentionPlaceholder");
-public:
-    PagedAttentionPlaceholder(const OutputVector& arguments)
-        : Op(arguments) {
-        validate_and_infer_types();
-    }
-
-    void validate_and_infer_types() override {
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-    }
-
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<PagedAttentionPlaceholder>(inputs);
-    }
-
-    bool has_evaluate() const override { return true; }
-
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override {
-        std::cerr << "[ INFO ] PagedAttentionPlaceholder\n";
-        outputs[0].set_shape(inputs[0].get_shape());
-        return true;
-    }
-};
-
-OutputVector page_attention_placeholder(const NodeContext& context) {
-    auto inputs = context.inputs();
-    return {context.mark_node(std::make_shared<PagedAttentionPlaceholder>(inputs))};
-}
-
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -679,7 +648,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
-        {"PagedAttentionPlaceholder", op::page_attention_placeholder},  // TODO: Check if there is any other way to handle this
     };
 };
 
