@@ -23,36 +23,6 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile options
 
-if(ENABLE_INTEL_GPU)
-    # Look for OpenCL libraries
-    find_package(OpenCL QUIET)
-    if(OpenCL_FOUND)
-        # Pass macro
-        target_compile_definitions(${TARGET_NAME} PUBLIC PY_ENABLE_OPENCL)
-    else()
-        message(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} cannot be built with OpenCL integration. Install OpenCL.")
-    endif()
-
-    # Look for VA libraries
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
-        pkg_search_module(libva_drm QUIET IMPORTED_TARGET libva-drm)
-    else()
-        message(ERROR "PkgConfig is disabled or not found. Install PkgConfig.")
-    endif()
-
-    if(OpenCL_FOUND AND libva_FOUND AND libva_drm_FOUND)
-        # Pass macro
-        target_compile_definitions(${TARGET_NAME} PUBLIC PY_ENABLE_LIBVA)
-    else()
-        if(NOT OpenCL_FOUND)
-            message(WARNING "libva support requires OpenCL to build ${TARGET_NAME}. Install OpenCL.")
-        endif()
-        message(WARNING "libva is disabled or not found, ${TARGET_NAME} cannot be built with libva integration. Install libva.")
-    endif()
-endif()
-
 if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -95,9 +65,36 @@ pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 if(ENABLE_INTEL_GPU)
+    # Look for OpenCL libraries
+    find_package(OpenCL QUIET)
     if(OpenCL_FOUND)
-        if(libva_FOUND AND libva_drm_FOUND)
-            target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations OpenCL::OpenCL PkgConfig::libva PkgConfig::libva_drm)
+        # Pass macro
+        target_compile_definitions(${PROJECT_NAME} PUBLIC PY_ENABLE_OPENCL)
+    else()
+        message(WARNING "OpenCL is disabled or not found, ${PROJECT_NAME} cannot be built with OpenCL integration. Install OpenCL.")
+    endif()
+
+    # Look for VA libraries
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+    else()
+        message(ERROR "PkgConfig is disabled or not found. Install PkgConfig.")
+    endif()
+
+    if(OpenCL_FOUND AND libva_FOUND)
+        # Pass macro
+        target_compile_definitions(${PROJECT_NAME} PUBLIC PY_ENABLE_LIBVA)
+    else()
+        if(NOT OpenCL_FOUND)
+            message(WARNING "libva support requires OpenCL to build ${PROJECT_NAME}. Install OpenCL.")
+        endif()
+        message(WARNING "libva is disabled or not found, ${PROJECT_NAME} cannot be built with libva integration. Install libva.")
+    endif()
+
+    if(OpenCL_FOUND)
+        if(libva_FOUND)
+            target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations OpenCL::OpenCL PkgConfig::libva)
         else()
             # Only OpenCL was found
             target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations OpenCL::OpenCL)
