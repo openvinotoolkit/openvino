@@ -1538,6 +1538,22 @@ inline uint get_g_os_is_yx_osv_isv(uint g, uint o, uint i, uint y, uint x,
         CAT(prefix, _SIZE_X),                                   \
         CAT(prefix, _SIZE_Y), 4, 16)
 
+#define GET_FILTER_OS_IS_YX_OSV8_ISV16_INDEX(prefix, o, i, y, x) \
+    get_g_os_is_yx_osv_isv(                                     \
+        0, o, i, y, x,                                          \
+        CAT(prefix, _IFM_NUM),                                  \
+        CAT(prefix, _OFM_NUM),                                  \
+        CAT(prefix, _SIZE_X),                                   \
+        CAT(prefix, _SIZE_Y), 8, 16)
+
+#define GET_FILTER_OS_IS_YX_OSV4_ISV2_INDEX(prefix, o, i, y, x) \
+    get_g_os_is_yx_osv_isv(                                     \
+        0, o, i, y, x,                                          \
+        CAT(prefix, _IFM_NUM),                                  \
+        CAT(prefix, _OFM_NUM),                                  \
+        CAT(prefix, _SIZE_X),                                   \
+        CAT(prefix, _SIZE_Y), 4, 2)
+
 #define GET_FILTER_OS_IS_YX_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
     get_g_os_is_yx_osv_isv(                                     \
         0, o, i, y, x,                                          \
