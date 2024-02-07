@@ -275,7 +275,10 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     } catch (std::exception& e) {
         exception = e.what();
         if (m_telemetry) {
-            m_telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(exception, "[PyTorch Frontend]"));
+            auto cropped_message = ov::util::filter_lines_by_prefix(exception, get_pytorch_prefix());
+            if (cropped_message.size()) {
+                m_telemetry->send_event("error_info", cropped_message);
+            }
         }
     } catch (...) {
         exception = "Unknown exception type.";

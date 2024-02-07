@@ -20,6 +20,10 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
+const std::string pytorch_prefix = "[PyTorch Frontend] ";
+
+const std::string& get_pytorch_prefix();
+
 /// \brief Macro to check whether a boolean condition holds.
 /// \param COND Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
@@ -28,7 +32,7 @@ namespace pytorch {
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #ifndef PYTORCH_OP_CONVERSION_CHECK
 #    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
-        OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), "[PyTorch Frontend] " __VA_ARGS__)
+        OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), get_pytorch_prefix(), __VA_ARGS__)
 #endif
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
