@@ -59,37 +59,41 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
         program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node){
-            if (node.has_fused_primitives() || node.is_output())
+            auto impl_params = node.get_kernel_impl_params();
+            if (node.is_output()
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
-            auto impl_params = node.get_kernel_impl_params();
             auto prim = impl_params->typed_desc<strided_slice>();
+            auto begin = prim->begin;
+            auto strides = prim->strides;
+            auto begin_mask = prim->begin_mask;
             if (prim->end_mask.empty()
                 || !prim->new_axis_mask.empty()
                 || !prim->shrink_axis_mask.empty()
-                || !prim->ellipsis_mask.empty()) {
+                || !prim->ellipsis_mask.empty()
+                || !(all_zeroes(begin) || all_ones(begin_mask))
+                || !all_ones(strides))
                 return;
-            }
 
-            auto begin = prim->begin;
-            auto strides = prim->strides;
-            if (all_zeroes(begin) && all_ones(strides)) {
-                auto end = prim->end;
-                auto end_mask = prim->end_mask;
-                auto in_ps = impl_params->get_input_layout(0).get_partial_shape();
-                bool is_valid = false;
-                for (size_t i = 0; i < end.size(); i++) {
-                    if (end_mask[i] == 1 || (in_ps[i].is_static() && end[i] == in_ps[i].get_length())) {
-                        is_valid = true;
-                    } else {
-                        is_valid = false;
-                    }
+            auto end = prim->end;
+            auto end_mask = prim->end_mask;
+            auto in_ps = impl_params->get_input_layout(0).get_partial_shape();
+            bool is_valid = false;
+            bool is_equal_size = (end.size() == end_mask.size());
+            for (size_t i = 0; i < end.size(); i++) {
+                if ((is_equal_size && end_mask[i] == 1) || (in_ps[i].is_static() && end[i] == in_ps[i].get_length())) {
+                    is_valid = true;
+                } else {
+                    is_valid = false;
                 }
-                if (!end.empty() && !is_valid)
-                    return;
-                node.can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
+            if (!end.empty() && !is_valid)
+                return;
+            node.can_be_optimized(true);
+            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
     }
 }

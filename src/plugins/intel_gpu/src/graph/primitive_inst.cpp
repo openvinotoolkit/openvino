@@ -1115,18 +1115,21 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     // Check pattern
     if (!get_node().is_type<strided_slice>()
         || is_output()
+        || !get_node().can_be_optimized()
         || _impl_params->has_fused_primitives()
-        || !get_node().can_be_optimized())
+        || (_impl_params->get_input_layout(0).format != _impl_params->get_output_layout().format)
+        || (_impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type))
         return;
 
     auto desc = _node->as<strided_slice>().get_primitive();
     auto begin = desc->begin;
     auto strides = desc->strides;
+    auto begin_mask = desc->begin_mask;
     if (desc->end_mask.empty()
         || !desc->new_axis_mask.empty()
         || !desc->shrink_axis_mask.empty()
         || !desc->ellipsis_mask.empty()
-        || !all_zeroes(begin)
+        || !(all_zeroes(begin) || all_ones(begin_mask))
         || !all_ones(strides))
         return;
 
@@ -1148,6 +1151,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     auto end_shape = _impl_params->get_input_layout(2).get_shape();
     auto end_rank = end_shape.size();
     bool is_valid = false;
+    bool is_equal_size = (end.size() == end_mask.size());
     if (end.empty()) {
         auto end_id = get_node().get_dependency(2).id();
         auto queue_type = get_network().get_stream().get_queue_type();
@@ -1157,7 +1161,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
             _network.get_stream().finish();
         mem_lock<int64_t, mem_lock_type::read> end_data(dep_memory_ptr(2), _network.get_stream());
         for (size_t i = 0; i < end_rank; ++i) {
-            if (end_mask[i] == 1 || (end_data[i] == input_pshape[i].get_length())) {
+            if ((is_equal_size && end_mask[i] == 1) || (end_data[i] == input_pshape[i].get_length())) {
                 is_valid = true;
             } else {
                 is_valid = false;
@@ -1165,7 +1169,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
         }
     } else {
         for (size_t i = 0; i < end.size(); ++i) {
-            if (end_mask[i] == 1 || (end[i] == input_pshape[i].get_length())) {
+            if ((is_equal_size && end_mask[i] == 1) || (end[i] == input_pshape[i].get_length())) {
                 is_valid = true;
             } else {
                 is_valid = false;
