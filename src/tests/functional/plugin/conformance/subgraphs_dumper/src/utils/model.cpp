@@ -76,5 +76,24 @@ get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_ch
     return;
 }
 
+bool is_same_sink_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
+                         const std::shared_ptr<ov::Model> &second_model) {
+    size_t fist_model_sinks = 0;
+    size_t second_model_sinks = 0;
+    for (auto& node : fist_model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node))
+            fist_model_sinks++;
+    }
+
+    for (auto& node : second_model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node))
+            second_model_sinks++;
+    }
+
+    return fist_model_sinks == second_model_sinks;
+}
+
 }  // namespace util
 }  // namespace ov
