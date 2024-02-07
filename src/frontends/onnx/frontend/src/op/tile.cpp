@@ -16,8 +16,8 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector tile(const ov::frontend::onnx::Node& node) {
-    auto input = node.get_ng_inputs().at(0);
-    auto repeats = node.get_ng_inputs().at(1);
+    auto input = node.get_ov_inputs().at(0);
+    auto repeats = node.get_ov_inputs().at(1);
 
     // Workaround for backends which require repeats to be i64.
     // Remove the following line when no longer needed.

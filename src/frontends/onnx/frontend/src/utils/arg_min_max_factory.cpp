@@ -24,7 +24,7 @@ namespace utils {
 
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
-      m_input_node{node.get_ng_inputs().at(0)},
+      m_input_node{node.get_ov_inputs().at(0)},
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 

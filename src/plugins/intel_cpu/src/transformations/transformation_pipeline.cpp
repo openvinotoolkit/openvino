@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -428,11 +429,27 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
             std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::ConvertLoopToLSTMSequence,
+        ov::pass::FuseReverseLSTMSequence,
+        ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
             return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
         ov::pass::LSTMCellDecomposition);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::LSTMCellFusion);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -700,7 +717,7 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    tokenization_config.concurrency = config.threadsPerStream;
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).

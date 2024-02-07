@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector cum_sum(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     auto data = inputs.at(0);
     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);
     bool reverse = node.get_attribute_value<std::int64_t>("reverse", 0);

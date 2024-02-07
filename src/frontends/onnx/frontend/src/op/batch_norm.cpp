@@ -20,7 +20,7 @@ namespace op {
 namespace set_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
@@ -56,7 +56,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 namespace set_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);

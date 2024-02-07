@@ -18,7 +18,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& A = inputs.at(0);
     const auto& B = inputs.at(1);

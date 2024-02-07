@@ -13,7 +13,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector equal(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v1::Equal>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    return {std::make_shared<ov::op::v1::Equal>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
 }  // namespace set_1
