@@ -347,13 +347,13 @@ def test_reshape_with_python_types(device):
     model.reshape(shape10)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
 
-    shape11 = [[2, 2], [1, 3, 224, 244], [10]]
+    shape11 = [[2, 4], [1, 3], [10, 12]]
     model.reshape(shape11)
-    check_shape(PartialShape([Dimension(2, 2), Dimension(1, 3, 224, 244), Dimension(10)]))
+    check_shape(PartialShape([Dimension(2, 4), Dimension(1, 3), Dimension(10, 12)]))
 
-    shape12 = [model.inputs[0].shape, [1, 22, 48], model.inputs[2].shape]
+    shape12 = [model.inputs[0].partial_shape[0], [1, 22], model.inputs[0].partial_shape[2]]
     model.reshape(shape12)
-    check_shape(PartialShape([Dimension(2, 2), Dimension(1, 22, 48), Dimension(10)]))
+    check_shape(PartialShape([Dimension(2, 4), Dimension(1, 22), Dimension(10, 12)]))
 
     # check exceptions
     shape10 = [1, 1, 1, 1]

@@ -448,27 +448,6 @@ void regclass_graph_Model(py::module m) {
             :type partial_shapes: Dict[keys, values]
         )");
 
-    model.def(
-        "reshape",
-        [](ov::Model& self, const py::list& input_shapes) {
-            std::vector<ov::PartialShape> new_shapes;
-            for (const auto& shape : input_shapes) {
-                new_shapes.push_back(Common::partial_shape_from_list(shape.cast<py::list>()));
-            }
-            py::gil_scoped_release release;
-            self.reshape(new_shapes);
-        },
-        py::arg("partial_shapes"),
-        R"(
-            Reshape model inputs.
-
-            GIL is released while running this function.
-
-            :param partial_shapes: List of new shapes for each input.
-            :type partial_shapes: list[list]
-            :return : void
-         )");
-
     model.def("get_output_size",
               &ov::Model::get_output_size,
               R"(
