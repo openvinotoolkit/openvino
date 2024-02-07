@@ -131,33 +131,35 @@ class BenchmarkAppPerformanceMode(Mode):
 
     def preliminaryCheck(self, list, cfg):
         # model path checking
-        cmdStr = cfg["appCmd"]
-        matcher = re.search(
-            "benchmark.*-m[\s*]([^\S]*)",
-            cmdStr,
-            flags=re.MULTILINE
-            )
-        if matcher is not None:
-            # pass if app is not openvino benchmark_app
-            try:
-                modelPath = excludeModelPath(cmdStr)
-                if not os.path.isfile(modelPath):
+        if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
+            cmdStr = cfg["appCmd"]
+            matcher = re.search(
+                "benchmark.*-m[\s*]([^\S]*)",
+                cmdStr,
+                flags=re.MULTILINE
+                )
+            if matcher is not None:
+                # pass if app is not openvino benchmark_app
+                try:
+                    modelPath = excludeModelPath(cmdStr)
+                    if not os.path.isfile(modelPath):
+                        raise PreliminaryAnalysisError(
+                            "path {modelPath} does not exist, check config".format(
+                                modelPath=modelPath
+                            ),
+                            PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
+                        )
+                except (IndexError, ValueError):
                     raise PreliminaryAnalysisError(
-                        "path {modelPath} does not exist, check config".format(
-                            modelPath=modelPath
+                        "commandline '{cmdStr}' is not correct, check config".format(
+                            cmdStr=cmdStr
                         ),
                         PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
                     )
-            except IndexError:
-                raise PreliminaryAnalysisError(
-                    "commandline '{cmdStr}' is not correct, check config".format(
-                        cmdStr=cmdStr
-                    ),
-                    PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
-                )
 
         # common if-degradation-exists check
         super().preliminaryCheck(list, cfg)
+
         # performance - specific check if results for borders are stable,
         isLeftStable = not cfg["preliminaryCheckCfg"]["leftCheck"] or\
             self.preliminaryStabilityCheck(list[0], cfg)

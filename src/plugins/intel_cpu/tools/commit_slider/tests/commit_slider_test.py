@@ -12,7 +12,7 @@ from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
-    BenchmarkAppUnstableDevData
+    BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData
 
 
 class CommitSliderTest(TestCase):
@@ -64,6 +64,24 @@ class CommitSliderTest(TestCase):
             "\"{}\" is unstable, \"{}\" is unstable".format(
                 lCommit, rCommit
         ))
+
+    @skip_commit_slider_devtest
+    def testBmWrongPath(self):
+        _, updatedData = getExpectedCommit(
+            BenchmarkAppWrongPathData())
+        _, reason = getActualCommit(updatedData)
+        lCommit, rCommit = getBordersByTestData(updatedData)
+        self.assertEqual(
+            reason,
+            "path /wrong/path.xml does not exist, check config"
+        )
+
+    @skip_commit_slider_devtest
+    def testBmPathFound(self):
+        expectedCommit, updatedData = getExpectedCommit(
+            BenchmarkAppPathFoundData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(expectedCommit, actualCommit)
 
     @skip_commit_slider_devtest
     def testBmStability(self):

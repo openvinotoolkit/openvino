@@ -61,7 +61,9 @@ class TestData():
         BmBinarySearch = 6,
         BmBinarySearchUnstable = 7,
         BmNoDegradation = 8,
-        BmUnstableDev = 9
+        BmUnstableDev = 9,
+        BmWrongPath = 10,
+        BmPathFound = 11
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -131,6 +133,32 @@ class BenchmarkAppUnstableDevData(TestData):
 
     def getTestName(self):
         return "BmUnstableDev"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class BenchmarkAppWrongPathData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmWrongPath
+
+    def getTestName(self):
+        return "BmWrongPath"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class BenchmarkAppPathFoundData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmPathFound
+
+    def getTestName(self):
+        return "BmPathFound"
 
     def __init__(self):
         from test_util import requireBinarySearchData

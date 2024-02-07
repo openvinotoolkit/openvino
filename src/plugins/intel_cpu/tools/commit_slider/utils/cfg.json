@@ -80,7 +80,8 @@
     "preliminaryCheckCfg": {
         "leftCheck": true,
         "rightCheck": false,
-        "tryCount": 5
+        "tryCount": 5,
+        "checkBenchmarkModelPath": true
     },
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."

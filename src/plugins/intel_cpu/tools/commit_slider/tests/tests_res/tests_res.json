@@ -74,7 +74,7 @@
         }
     },
     "BmUnstableDev": {
-        "repoName": "BmBinarySearchUnstable",
+        "repoName": "BmBinarySearchUnstableDev",
         "patchedFile": "tests_res/fbv_bm_unstable_dev_main.cpp",
         "testCfg": {
             "appCmd" : "{appCmd}",
@@ -85,8 +85,45 @@
             "preliminaryCheckCfg": {
                 "leftCheck": true,
                 "rightCheck": true,
-                "tryCount": 10
+                "tryCount": 10,
+                "checkBenchmarkModelPath": true
             },
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "bmPerf",
+                "traversal" : "firstFailedVersion",
+                "perfAppropriateDeviation" : 0.05
+            }
+        }
+    },
+    "BmWrongPath": {
+        "repoName": "benchmark",
+        "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
+        "testCfg": {
+            "appCmd" : "./benchmark_app -m /wrong/path.xml",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "bmPerf",
+                "traversal" : "firstFailedVersion",
+                "perfAppropriateDeviation" : 0.05
+            }
+        }
+    },
+    "BmPathFound": {
+        "repoName": "benchmark_app",
+        "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
+        "testCfg": {
+            "appCmd" : "./benchmark_app -m /etc/passwd",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
             "runConfig" : {
                 "commitList" : {
                     "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
