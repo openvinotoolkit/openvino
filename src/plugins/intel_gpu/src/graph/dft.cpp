@@ -57,20 +57,35 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
 
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::unordered_map<size_t, ov::Tensor> const_data;
+    ov::Tensor axes_tensor, signal_size_tensor;
 
     auto& memory_deps = impl_param.memory_deps;
 
-    if (memory_deps.count(1)) {
-        auto axes_mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> axes_lock(axes_mem, impl_param.get_stream());
-        auto axes_tensor = make_tensor(axes_mem->get_layout(), axes_lock.data());
+    // Consider axes and signal_size are constant case
+    if ((primitive->axes.size() > 0) &&
+        ((impl_param.input_layouts.size() == 2) || (primitive->signal_size.size() > 0))) {
+        auto axes_ptr = reinterpret_cast<uint8_t*>(const_cast<int64_t*>(primitive->axes.data()));
+        axes_tensor = ov::Tensor(ov::element::i64, ov::Shape({primitive->axes.size()}), axes_ptr, {});
         const_data.emplace(1, axes_tensor);
 
-        if (memory_deps.count(2)) {
-            auto signal_size_mem = memory_deps.at(2);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem, impl_param.get_stream());
-            auto signal_size_tensor = make_tensor(signal_size_mem->get_layout(), signal_size_lock.data());
+        if (primitive->signal_size.size() > 0) {
+            auto signal_size_ptr = reinterpret_cast<uint8_t*>(const_cast<int64_t*>(primitive->signal_size.data()));
+            signal_size_tensor = ov::Tensor(ov::element::i64, ov::Shape({primitive->signal_size.size()}), signal_size_ptr, {});
             const_data.emplace(2, signal_size_tensor);
+        }
+    } else {
+        if (memory_deps.count(1)) {
+            auto axes_mem = memory_deps.at(1);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> axes_lock(axes_mem, impl_param.get_stream());
+            axes_tensor = make_tensor(axes_mem->get_layout(), axes_lock.data());
+            const_data.emplace(1, axes_tensor);
+
+            if (memory_deps.count(2)) {
+                auto signal_size_mem = memory_deps.at(2);
+                cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem, impl_param.get_stream());
+                signal_size_tensor = make_tensor(signal_size_mem->get_layout(), signal_size_lock.data());
+                const_data.emplace(2, signal_size_tensor);
+            }
         }
     }
 

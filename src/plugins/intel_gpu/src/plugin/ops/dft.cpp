@@ -28,12 +28,29 @@ void createDft(ProgramBuilder& p,
     const auto layer_name = layer_type_name_ID(op);
     const auto& friendly_name = op->get_friendly_name();
 
-    if (p.use_new_shape_infer()) {
+    if (op->is_dynamic() && p.use_new_shape_infer()) {
+        std::vector<int64_t> axes;
+        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        if (axes_constant != nullptr) {
+            axes = axes_constant->cast_vector<int64_t>();
+            uint8_t axis_correction = static_cast<uint8_t>(op->get_input_partial_shape(0).size());
+            if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
+                --axis_correction;
+            }
+            ov::util::normalize_axes(op.get(), axis_correction, axes);
+        }
+
         if (op->get_input_size() == 3) {
-            const cldnn::dft prim(layer_name, inputs[0], inputs[1], inputs[2], direction, mode);
+            std::vector<int64_t> signal_size;
+            auto signal_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (signal_size_constant != nullptr) {
+                signal_size = signal_size_constant->cast_vector<int64_t>();
+            }
+
+            const cldnn::dft prim(layer_name, inputs[0], inputs[1], inputs[2], axes, signal_size, direction, mode);
             p.add_primitive(*op, prim);
         } else {
-            const cldnn::dft prim(layer_name, inputs[0], inputs[1], direction, mode);
+            const cldnn::dft prim(layer_name, inputs[0], inputs[1], axes, direction, mode);
             p.add_primitive(*op, prim);
         }
     } else {
