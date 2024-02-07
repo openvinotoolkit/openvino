@@ -390,7 +390,7 @@ def skip_if_onnx_frontend_is_disabled():
         pytest.skip()
 
 
-# Function to compare ng Functions (ops names, types and shapes).
+# Function to compare OV Models (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
 def compare_models(current, expected):  # noqa: C901 the function is too complex
     result = True
