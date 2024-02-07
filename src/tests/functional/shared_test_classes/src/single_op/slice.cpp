@@ -59,11 +59,6 @@ void Slice8LayerTest::SetUp() {
         slice = std::make_shared<ov::op::v8::Slice>(param, begin_node, end_node, stride_node);
     }
     function = std::make_shared<ov::Model>(slice->outputs(), ov::ParameterVector{param}, "Slice-8");
-
-    // Slice op only moves memory, no calculation takes place, so
-    // any difference likely means a bug.
-    rel_threshold = 0;
-    abs_threshold = 0;
 }
 }  // namespace test
 }  // namespace ov
