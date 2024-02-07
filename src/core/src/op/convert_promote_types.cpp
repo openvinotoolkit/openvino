@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/convert_align_types.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 
 #include "itt.hpp"
 #include "validation_util.hpp"
@@ -76,7 +76,7 @@ bool is_type_supported(const element::Type& type) {
 }
 element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
     const auto promote_unsafe = op->get_promote_unsafe();
-    const auto pytorch_scalar_align = op->get_pytorch_scalar_align();
+    const auto pytorch_scalar_promotion = op->get_pytorch_scalar_promotion();
     const auto u64_promotion_target = op->get_u64_integer_promotion_target();
     const auto& input_0_type = op->get_input_element_type(0);
     const auto& input_1_type = op->get_input_element_type(1);
@@ -118,7 +118,7 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
         const auto is_input_1_scalar = input_1_pshape.is_static() && is_scalar(input_1_pshape);
         const auto is_input_0_signed = input_0_type.is_signed();
         const auto is_input_1_signed = input_1_type.is_signed();
-        if (pytorch_scalar_align && (is_input_0_scalar != is_input_1_scalar)) {
+        if (pytorch_scalar_promotion && (is_input_0_scalar != is_input_1_scalar)) {
             // For pytorch mode, when number formats are same, promote to type of non-scalar input.
             if (promote_unsafe) {
                 return is_input_0_scalar ? input_1_type : input_0_type;
@@ -171,11 +171,11 @@ namespace v14 {
 ConvertPromoteTypes::ConvertPromoteTypes(const Output<Node>& input_0,
                                      const Output<Node>& input_1,
                                      const bool promote_unsafe,
-                                     const bool pytorch_scalar_align,
+                                     const bool pytorch_scalar_promotion,
                                      const element::Type& u64_integer_promotion_target)
     : Op({input_0, input_1}),
       m_promote_unsafe(promote_unsafe),
-      m_pytorch_scalar_align(pytorch_scalar_align),
+      m_pytorch_scalar_promotion(pytorch_scalar_promotion),
       m_u64_integer_promotion_target(u64_integer_promotion_target) {
     constructor_validate_and_infer_types();
 }
@@ -190,7 +190,7 @@ void ConvertPromoteTypes::validate_and_infer_types() {
 bool ConvertPromoteTypes::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v14_ConvertPromoteTypes_visit_attributes);
     visitor.on_attribute("promote_unsafe", m_promote_unsafe);
-    visitor.on_attribute("pytorch_scalar_align", m_pytorch_scalar_align);
+    visitor.on_attribute("pytorch_scalar_promotion", m_pytorch_scalar_promotion);
     visitor.on_attribute("u64_integer_promotion_target", m_u64_integer_promotion_target);
     return true;
 }
@@ -201,16 +201,16 @@ std::shared_ptr<Node> ConvertPromoteTypes::clone_with_new_inputs(const OutputVec
     return std::make_shared<ConvertPromoteTypes>(new_args.at(0),
                                                new_args.at(1),
                                                m_promote_unsafe,
-                                               m_pytorch_scalar_align,
+                                               m_pytorch_scalar_promotion,
                                                m_u64_integer_promotion_target);
 }
 
-bool ConvertPromoteTypes::get_pytorch_scalar_align() const {
-    return m_pytorch_scalar_align;
+bool ConvertPromoteTypes::get_pytorch_scalar_promotion() const {
+    return m_pytorch_scalar_promotion;
 }
 
-void ConvertPromoteTypes::set_pytorch_scalar_align(bool pytorch_scalar_align) {
-    m_pytorch_scalar_align = pytorch_scalar_align;
+void ConvertPromoteTypes::set_pytorch_scalar_promotion(bool pytorch_scalar_promotion) {
+    m_pytorch_scalar_promotion = pytorch_scalar_promotion;
 }
 
 bool ConvertPromoteTypes::get_promote_unsafe() const {

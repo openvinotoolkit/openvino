@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_convertaligntypes.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convert_align_types.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
@@ -16,7 +16,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
         return !pattern::type_matches_any({element::dynamic, element::undefined})(output);
     };
-    auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
+    auto convert_promote_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto convert_promote_types = std::dynamic_pointer_cast<ov::op::v14::ConvertPromoteTypes>(m.get_match_root());
@@ -35,6 +35,6 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(convert_align_types, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(convert_promote_types, matcher_name);
     this->register_matcher(m, callback);
 }

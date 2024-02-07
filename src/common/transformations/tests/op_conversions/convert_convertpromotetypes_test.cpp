@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_convertaligntypes.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convert_align_types.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 

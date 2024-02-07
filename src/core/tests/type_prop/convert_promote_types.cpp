@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/convert_align_types.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 
 #include <gtest/gtest.h>
 
@@ -15,7 +15,7 @@ struct ConvertPromoteTypesTestParams {
     ov::element::Type in0_type;
     ov::PartialShape in1_shape;
     ov::element::Type in1_type;
-    bool pytorch_scalar_align;
+    bool pytorch_scalar_promotion;
     bool promote_unsafe;
     ov::element::Type expected_type;
     ov::element::Type u64_integer;
@@ -28,7 +28,7 @@ TEST_F(ConvertPromoteTypesTest, default_ctor) {
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{});
     auto c = this->make_op();
     c->set_arguments(ov::OutputVector{in0, in1});
-    c->set_pytorch_scalar_align(true);
+    c->set_pytorch_scalar_promotion(true);
     c->set_promote_unsafe(true);
     c->set_u64_integer_promotion_target(ov::element::f64);
     c->validate_and_infer_types();
@@ -51,7 +51,7 @@ TEST_P(ConvertPromoteTypesTest, suite) {
 
     auto in0 = std::make_shared<ov::op::v0::Parameter>(params.in0_type, in0_shape);
     auto in1 = std::make_shared<ov::op::v0::Parameter>(params.in1_type, in1_shape);
-    auto c = this->make_op(in0, in1, params.pytorch_scalar_align, params.promote_unsafe, params.u64_integer);
+    auto c = this->make_op(in0, in1, params.pytorch_scalar_promotion, params.promote_unsafe, params.u64_integer);
     ASSERT_EQ(c->get_output_element_type(0), c->get_output_element_type(1));
     ASSERT_EQ(c->get_output_element_type(0), params.expected_type);
     ASSERT_EQ(c->get_output_partial_shape(0), (in0_shape));
