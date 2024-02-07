@@ -37,7 +37,9 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                                                                 maxpool_v8_node->get_rounding_type(),
                                                                 maxpool_v8_node->get_auto_pad());
 
-        maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
+        // TODO: remove usage of ov::op::util::create_ie_output_name and set friendly names
+        auto out_name = ov::op::util::create_ie_output_name(maxpool_v8_node->output(0));
+        maxpool_v1_node->set_friendly_name(out_name);
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
         ov::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
