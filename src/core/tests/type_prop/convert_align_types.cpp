@@ -10,7 +10,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/parameter.hpp"
 
-struct ConvertAlignTypesTestParams {
+struct ConvertPromoteTypesTestParams {
     ov::PartialShape in0_shape;
     ov::element::Type in0_type;
     ov::PartialShape in1_shape;
@@ -20,10 +20,10 @@ struct ConvertAlignTypesTestParams {
     ov::element::Type expected_type;
     ov::element::Type u64_integer;
 };
-class ConvertAlignTypesTest : public TypePropOpTest<ov::op::v14::ConvertAlignTypes>,
-                              public testing::WithParamInterface<ConvertAlignTypesTestParams> {};
+class ConvertPromoteTypesTest : public TypePropOpTest<ov::op::v14::ConvertPromoteTypes>,
+                              public testing::WithParamInterface<ConvertPromoteTypesTestParams> {};
 
-TEST_F(ConvertAlignTypesTest, default_ctor) {
+TEST_F(ConvertPromoteTypesTest, default_ctor) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{});
     auto c = this->make_op();
@@ -38,7 +38,7 @@ TEST_F(ConvertAlignTypesTest, default_ctor) {
     ASSERT_EQ(c->get_output_partial_shape(1), (ov::Shape{}));
 }
 
-TEST_P(ConvertAlignTypesTest, suite) {
+TEST_P(ConvertPromoteTypesTest, suite) {
     auto& params = this->GetParam();
     auto in0_shape = params.in0_shape;
     if (!in0_shape.is_dynamic()) {
@@ -61,11 +61,11 @@ TEST_P(ConvertAlignTypesTest, suite) {
 }
 
 INSTANTIATE_TEST_SUITE_P(type_prop,
-                         ConvertAlignTypesTest,
+                         ConvertPromoteTypesTest,
                          testing::Values(
                              // Test cases:
                              //  dynamic
-                             ConvertAlignTypesTestParams{{1, 2, 3, 4},
+                             ConvertPromoteTypesTestParams{{1, 2, 3, 4},
                                                          ov::element::dynamic,
                                                          {5, 6, 7},
                                                          ov::element::dynamic,
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          true,
                                                          ov::element::dynamic,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{5, 6, 7},
+                             ConvertPromoteTypesTestParams{{5, 6, 7},
                                                          ov::element::dynamic,
                                                          {1},
                                                          ov::element::f16,
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::dynamic,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1, 2, 3, 4},
+                             ConvertPromoteTypesTestParams{{1, 2, 3, 4},
                                                          ov::element::i64,
                                                          {1},
                                                          ov::element::dynamic,
@@ -89,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::dynamic,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::dynamic,
                                                          {1},
                                                          ov::element::f32,
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::dynamic,
                                                          ov::element::f32},
                              //  bool
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::boolean,
                                                          {1, 2, 3, 4},
                                                          ov::element::boolean,
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          true,
                                                          ov::element::boolean,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{ov::PartialShape().dynamic(),
+                             ConvertPromoteTypesTestParams{ov::PartialShape().dynamic(),
                                                          ov::element::boolean,
                                                          {-1, {1, 5}, -1, -1},
                                                          ov::element::u32,
@@ -114,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          true,
                                                          ov::element::u32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::i16,
                                                          {1},
                                                          ov::element::boolean,
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::i16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::boolean,
@@ -131,7 +131,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::f16,
                                                          ov::element::f32},
                              //  u and u
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u8,
                                                          {1},
                                                          ov::element::u8,
@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::u8,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u8,
                                                          {1},
                                                          ov::element::u4,
@@ -147,7 +147,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::u8,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u1,
                                                          {1},
                                                          ov::element::u4,
@@ -155,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::u4,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u1,
                                                          {1},
                                                          ov::element::u1,
@@ -164,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::u1,
                                                          ov::element::f32},
                              //  i and i
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::i8,
                                                          {1},
                                                          ov::element::i8,
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::i8,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::i4,
                                                          {1},
                                                          ov::element::i8,
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::i8,
                                                          ov::element::f32},
                              //  f and f
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f32,
                                                          {1},
                                                          ov::element::f32,
@@ -189,7 +189,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f8e4m3,
                                                          {1},
                                                          ov::element::f32,
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f64,
                                                          {1},
                                                          ov::element::f32,
@@ -206,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::f64,
                                                          ov::element::f32},
                              //  u and i
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u1,
                                                          {1},
                                                          ov::element::i4,
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::i4,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u16,
                                                          {1},
                                                          ov::element::i8,
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::i32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::i4,
                                                          {1},
                                                          ov::element::u32,
@@ -231,7 +231,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::i64,
                                                          ov::element::f32},
                              //  u and f
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u1,
                                                          {1},
                                                          ov::element::f8e5m2,
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::f8e5m2,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u16,
                                                          {1},
                                                          ov::element::f32,
@@ -247,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::u32,
@@ -256,7 +256,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          ov::element::f16,
                                                          ov::element::f32},
                              //  i and f
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::i16,
                                                          {1},
                                                          ov::element::f32,
@@ -264,7 +264,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::i32,
@@ -275,11 +275,11 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                          PrintToDummyParamName());
 
 INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
-                         ConvertAlignTypesTest,
+                         ConvertPromoteTypesTest,
                          testing::Values(
                              // All combinations for torch mode:
                              //  l scalar r tensor
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::i32,
                                                          ov::PartialShape().dynamic(),
                                                          ov::element::u8,
@@ -287,7 +287,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::u8,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::u32,
@@ -296,7 +296,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          ov::element::f16,
                                                          ov::element::f32},
                              //  l tensor r scalar
-                             ConvertAlignTypesTestParams{{-1},
+                             ConvertPromoteTypesTestParams{{-1},
                                                          ov::element::i32,
                                                          {},
                                                          ov::element::u8,
@@ -304,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::i32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{{1, 5}, 3},
+                             ConvertPromoteTypesTestParams{{{1, 5}, 3},
                                                          ov::element::f16,
                                                          {},
                                                          ov::element::u32,
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          ov::element::f16,
                                                          ov::element::f32},
                              //  l scalar r scalar
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::f16,
                                                          {},
                                                          ov::element::u64,
@@ -321,7 +321,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::f16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::u8,
                                                          {},
                                                          ov::element::i8,
@@ -330,7 +330,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          ov::element::i16,
                                                          ov::element::f32},
                              //  Allowed safe mode:
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::f32,
@@ -338,7 +338,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::u8,
                                                          {1},
                                                          ov::element::i16,
@@ -346,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::i16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::u8,
                                                          {1},
                                                          ov::element::u16,
@@ -354,7 +354,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                                                          true,
                                                          ov::element::u16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{},
+                             ConvertPromoteTypesTestParams{{},
                                                          ov::element::u8,
                                                          {1},
                                                          ov::element::f16,
@@ -365,10 +365,10 @@ INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
                          PrintToDummyParamName());
 
 INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
-                         ConvertAlignTypesTest,
+                         ConvertPromoteTypesTest,
                          testing::Values(
                              //  f8
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f8e4m3,
                                                          {1},
                                                          ov::element::f8e5m2,
@@ -376,7 +376,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::f16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f8e4m3,
                                                          {1},
                                                          ov::element::f8e4m3,
@@ -384,7 +384,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::f8e4m3,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f8e4m3,
                                                          {1},
                                                          ov::element::bf16,
@@ -392,7 +392,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::bf16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f8e4m3,
                                                          {1},
                                                          ov::element::i64,
@@ -401,7 +401,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          ov::element::f8e4m3,
                                                          ov::element::f32},
                              //  bf16
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::bf16,
                                                          {1},
                                                          ov::element::bf16,
@@ -409,7 +409,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::bf16,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::f16,
                                                          {1},
                                                          ov::element::bf16,
@@ -417,7 +417,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::bf16,
@@ -426,7 +426,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          ov::element::bf16,
                                                          ov::element::f32},
                              //  u64
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::i4,
@@ -434,7 +434,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::f32,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::f8e4m3,
@@ -442,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::f8e4m3,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::u32,
@@ -450,7 +450,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::u64,
                                                          ov::element::f32},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::i4,
@@ -458,7 +458,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::i64,
                                                          ov::element::i64},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::i4,
@@ -466,7 +466,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          false,
                                                          ov::element::i4,
                                                          ov::element::i4},
-                             ConvertAlignTypesTestParams{{1},
+                             ConvertPromoteTypesTestParams{{1},
                                                          ov::element::u64,
                                                          {1},
                                                          ov::element::i4,
@@ -476,7 +476,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
                                                          ov::element::u64}),
                          PrintToDummyParamName());
 
-TEST_F(ConvertAlignTypesTest, exception_u_i_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_u_i_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
     OV_EXPECT_THROW(
@@ -485,7 +485,7 @@ TEST_F(ConvertAlignTypesTest, exception_u_i_unsafe) {
         testing::HasSubstr("Unsigned integer input cannot be safely promoted into any supported signed integer."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_u64_int_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_u64_int_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u64, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
     OV_EXPECT_THROW(
@@ -494,7 +494,7 @@ TEST_F(ConvertAlignTypesTest, exception_u64_int_unsafe) {
         testing::HasSubstr("Unsigned integer input cannot be safely promoted into any supported signed integer."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_uint_float_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_uint_float_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, false),
@@ -502,7 +502,7 @@ TEST_F(ConvertAlignTypesTest, exception_uint_float_unsafe) {
                     testing::HasSubstr("Integer input cannot be safely promoted to floating-point."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_int_float_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_int_float_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, false),
@@ -510,7 +510,7 @@ TEST_F(ConvertAlignTypesTest, exception_int_float_unsafe) {
                     testing::HasSubstr("Integer input cannot be safely promoted to floating-point."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_torch_signed_unsigned_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_torch_signed_unsigned_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
@@ -518,7 +518,7 @@ TEST_F(ConvertAlignTypesTest, exception_torch_signed_unsigned_unsafe) {
                     testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_torch_unsigned_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_torch_unsigned_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::u64, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
@@ -526,7 +526,7 @@ TEST_F(ConvertAlignTypesTest, exception_torch_unsigned_unsafe) {
                     testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_torch_floating_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_torch_floating_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
@@ -534,18 +534,18 @@ TEST_F(ConvertAlignTypesTest, exception_torch_floating_unsafe) {
                     testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_bf16_f16_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_bf16_f16_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, false),
                     ov::Exception,
-                    testing::HasSubstr("Unsupported input element types for ConvertAlignTypes with given attributes."));
+                    testing::HasSubstr("Unsupported input element types for ConvertPromoteTypes with given attributes."));
 }
 
-TEST_F(ConvertAlignTypesTest, exception_f8e4m3_f8e5m2_unsafe) {
+TEST_F(ConvertPromoteTypesTest, exception_f8e4m3_f8e5m2_unsafe) {
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f8e4m3, ov::Shape{1});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f8e5m2, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, false),
                     ov::Exception,
-                    testing::HasSubstr("Unsupported input element types for ConvertAlignTypes with given attributes."));
+                    testing::HasSubstr("Unsupported input element types for ConvertPromoteTypes with given attributes."));
 }

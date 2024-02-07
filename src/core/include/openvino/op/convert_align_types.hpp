@@ -11,12 +11,12 @@ namespace op {
 namespace v14 {
 /// \brief Elementwise type alignment conversion operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ConvertAlignTypes : public Op {
+class OPENVINO_API ConvertPromoteTypes : public Op {
 public:
-    OPENVINO_OP("ConvertAlignTypes", "opset14", op::Op);
+    OPENVINO_OP("ConvertPromoteTypes", "opset14", op::Op);
 
     /// \brief Constructs a type alignment and conversion operation.
-    ConvertAlignTypes() = default;
+    ConvertPromoteTypes() = default;
     /// \brief Constructs a type alignment and conversion operation.
     /// \param input_0  Node with datatype to be aligned.
     /// \param input_1  Node with datatype to be aligned.
@@ -25,7 +25,7 @@ public:
     /// \param pytorch_scalar_align  Bool attribute whether to align scalars using PyTorch-like rules.
     /// \param u64_integer_promotion_target  Element type attribute to select alignment target for u64 and signed
     /// integers.
-    ConvertAlignTypes(const Output<Node>& input_0,
+    ConvertPromoteTypes(const Output<Node>& input_0,
                       const Output<Node>& input_1,
                       const bool promote_unsafe = false,
                       const bool pytorch_scalar_align = false,

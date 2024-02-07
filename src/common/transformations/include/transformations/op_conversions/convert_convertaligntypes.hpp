@@ -10,13 +10,13 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertConvertAlignTypes;
+class TRANSFORMATIONS_API ConvertConvertPromoteTypes;
 
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::ConvertConvertAlignTypes : public ov::pass::MatcherPass {
+class ov::pass::ConvertConvertPromoteTypes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertConvertAlignTypes", "0");
-    ConvertConvertAlignTypes();
+    OPENVINO_RTTI("ConvertConvertPromoteTypes", "0");
+    ConvertConvertPromoteTypes();
 };

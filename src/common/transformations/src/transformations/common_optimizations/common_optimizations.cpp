@@ -165,7 +165,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
-    ADD_MATCHER(decomp, ConvertConvertAlignTypes)
+    ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, GroupNormalizationDecomposition)

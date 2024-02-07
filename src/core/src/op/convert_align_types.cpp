@@ -74,7 +74,7 @@ bool is_type_supported(const element::Type& type) {
         return false;
     }
 }
-element::Type evaluate_common_type(const v14::ConvertAlignTypes* op) {
+element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
     const auto promote_unsafe = op->get_promote_unsafe();
     const auto pytorch_scalar_align = op->get_pytorch_scalar_align();
     const auto u64_promotion_target = op->get_u64_integer_promotion_target();
@@ -162,13 +162,13 @@ element::Type evaluate_common_type(const v14::ConvertAlignTypes* op) {
             }
         }
     }
-    NODE_VALIDATION_CHECK(op, false, "Unsupported input element types for ConvertAlignTypes with given attributes.");
+    NODE_VALIDATION_CHECK(op, false, "Unsupported input element types for ConvertPromoteTypes with given attributes.");
 }
 
 }  // namespace
 namespace v14 {
 
-ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& input_0,
+ConvertPromoteTypes::ConvertPromoteTypes(const Output<Node>& input_0,
                                      const Output<Node>& input_1,
                                      const bool promote_unsafe,
                                      const bool pytorch_scalar_align,
@@ -180,52 +180,52 @@ ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& input_0,
     constructor_validate_and_infer_types();
 }
 
-void ConvertAlignTypes::validate_and_infer_types() {
-    OV_OP_SCOPE(v14_ConvertAlignTypes_validate_and_infer_types);
+void ConvertPromoteTypes::validate_and_infer_types() {
+    OV_OP_SCOPE(v14_ConvertPromoteTypes_validate_and_infer_types);
     const auto common_type = evaluate_common_type(this);
     set_output_type(0, common_type, get_input_partial_shape(0));
     set_output_type(1, common_type, get_input_partial_shape(1));
 }
 
-bool ConvertAlignTypes::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v14_ConvertAlignTypes_visit_attributes);
+bool ConvertPromoteTypes::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v14_ConvertPromoteTypes_visit_attributes);
     visitor.on_attribute("promote_unsafe", m_promote_unsafe);
     visitor.on_attribute("pytorch_scalar_align", m_pytorch_scalar_align);
     visitor.on_attribute("u64_integer_promotion_target", m_u64_integer_promotion_target);
     return true;
 }
 
-std::shared_ptr<Node> ConvertAlignTypes::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v14_ConvertAlignTypes_clone_with_new_inputs);
+std::shared_ptr<Node> ConvertPromoteTypes::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v14_ConvertPromoteTypes_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<ConvertAlignTypes>(new_args.at(0),
+    return std::make_shared<ConvertPromoteTypes>(new_args.at(0),
                                                new_args.at(1),
                                                m_promote_unsafe,
                                                m_pytorch_scalar_align,
                                                m_u64_integer_promotion_target);
 }
 
-bool ConvertAlignTypes::get_pytorch_scalar_align() const {
+bool ConvertPromoteTypes::get_pytorch_scalar_align() const {
     return m_pytorch_scalar_align;
 }
 
-void ConvertAlignTypes::set_pytorch_scalar_align(bool pytorch_scalar_align) {
+void ConvertPromoteTypes::set_pytorch_scalar_align(bool pytorch_scalar_align) {
     m_pytorch_scalar_align = pytorch_scalar_align;
 }
 
-bool ConvertAlignTypes::get_promote_unsafe() const {
+bool ConvertPromoteTypes::get_promote_unsafe() const {
     return m_promote_unsafe;
 }
 
-void ConvertAlignTypes::set_promote_unsafe(bool promote_unsafe) {
+void ConvertPromoteTypes::set_promote_unsafe(bool promote_unsafe) {
     m_promote_unsafe = promote_unsafe;
 }
 
-const element::Type& ConvertAlignTypes::get_u64_integer_promotion_target() const {
+const element::Type& ConvertPromoteTypes::get_u64_integer_promotion_target() const {
     return m_u64_integer_promotion_target;
 }
 
-void ConvertAlignTypes::set_u64_integer_promotion_target(const element::Type& u64_integer_promotion_target) {
+void ConvertPromoteTypes::set_u64_integer_promotion_target(const element::Type& u64_integer_promotion_target) {
     m_u64_integer_promotion_target = u64_integer_promotion_target;
 }
 }  // namespace v14

@@ -10,16 +10,16 @@
 #include "openvino/op/convert_align_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::ConvertConvertAlignTypes::ConvertConvertAlignTypes() {
-    MATCHER_SCOPE(ConvertConvertAlignTypes);
+ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
+    MATCHER_SCOPE(ConvertConvertPromoteTypes);
 
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
         return !pattern::type_matches_any({element::dynamic, element::undefined})(output);
     };
-    auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertAlignTypes>(has_static_defined_type);
+    auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert_promote_types = std::dynamic_pointer_cast<ov::op::v14::ConvertAlignTypes>(m.get_match_root());
+        auto convert_promote_types = std::dynamic_pointer_cast<ov::op::v14::ConvertPromoteTypes>(m.get_match_root());
         if (!convert_promote_types) {
             return false;
         }

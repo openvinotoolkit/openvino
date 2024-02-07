@@ -12,7 +12,7 @@
 
 namespace {
 
-struct ConvertAlignTypesTestParams {
+struct ConvertPromoteTypesTestParams {
     ov::PartialShape lhs_shape;
     ov::element::Type lhs_type;
     ov::PartialShape rhs_shape;
@@ -20,8 +20,8 @@ struct ConvertAlignTypesTestParams {
     ov::element::Type expected_type;
 };
 
-class ConvertConvertAlignTypesTest : public TransformationTestsF,
-                                     public testing::WithParamInterface<ConvertAlignTypesTestParams> {
+class ConvertConvertPromoteTypesTest : public TransformationTestsF,
+                                     public testing::WithParamInterface<ConvertPromoteTypesTestParams> {
 private:
     void SetUp() override {
         TransformationTestsF::SetUp();
@@ -33,7 +33,7 @@ private:
         const auto& alignType = parameters.expected_type;
         model = transform(lhsShape, lhsType, rhsShape, rhsType);
         model_ref = reference(lhsShape, lhsType, rhsShape, rhsType, alignType);
-        manager.register_pass<ov::pass::ConvertConvertAlignTypes>();
+        manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
     }
 
 protected:
@@ -43,7 +43,7 @@ protected:
                                                 const ov::element::Type& rhsType) {
         const auto lhs = std::make_shared<ov::op::v0::Parameter>(lhsType, lhsShape);
         const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
-        const auto convert_align_types = std::make_shared<ov::op::v14::ConvertAlignTypes>(lhs, rhs, true);
+        const auto convert_align_types = std::make_shared<ov::op::v14::ConvertPromoteTypes>(lhs, rhs, true);
         return std::make_shared<ov::Model>(convert_align_types->outputs(), ov::ParameterVector{lhs, rhs}, "Actual");
     }
 
@@ -62,38 +62,38 @@ protected:
     }
 };
 INSTANTIATE_TEST_SUITE_P(
-    ConvertAlignTypesDecomposition,
-    ConvertConvertAlignTypesTest,
+    ConvertPromoteTypesDecomposition,
+    ConvertConvertPromoteTypesTest,
     testing::Values(
-        ConvertAlignTypesTestParams{ov::PartialShape::dynamic(),
+        ConvertPromoteTypesTestParams{ov::PartialShape::dynamic(),
                                     ov::element::f32,
                                     ov::PartialShape::dynamic(),
                                     ov::element::f32,
                                     ov::element::f32},
-        ConvertAlignTypesTestParams{ov::PartialShape::dynamic(),
+        ConvertPromoteTypesTestParams{ov::PartialShape::dynamic(),
                                     ov::element::u16,
                                     {5, 6, 7},
                                     ov::element::i16,
                                     ov::element::i32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4},
+        ConvertPromoteTypesTestParams{{1, 2, 3, 4},
                                     ov::element::u16,
                                     ov::PartialShape::dynamic(),
                                     ov::element::f32,
                                     ov::element::f32},
-        ConvertAlignTypesTestParams{{1, {3, 7}, -1, 4},
+        ConvertPromoteTypesTestParams{{1, {3, 7}, -1, 4},
                                     ov::element::f8e4m3,
                                     {0, 6, 7},
                                     ov::element::f8e5m2,
                                     ov::element::f16},
-        ConvertAlignTypesTestParams{{}, ov::element::bf16, {5, 6, 7}, ov::element::f16, ov::element::f32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, ov::element::u16, {}, ov::element::boolean, ov::element::u16},
-        ConvertAlignTypesTestParams{{}, ov::element::u16, {}, ov::element::u1, ov::element::u16},
-        ConvertAlignTypesTestParams{{-1}, ov::element::u64, {1}, ov::element::i16, ov::element::f32},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4},
+        ConvertPromoteTypesTestParams{{}, ov::element::bf16, {5, 6, 7}, ov::element::f16, ov::element::f32},
+        ConvertPromoteTypesTestParams{{1, 2, 3, 4}, ov::element::u16, {}, ov::element::boolean, ov::element::u16},
+        ConvertPromoteTypesTestParams{{}, ov::element::u16, {}, ov::element::u1, ov::element::u16},
+        ConvertPromoteTypesTestParams{{-1}, ov::element::u64, {1}, ov::element::i16, ov::element::f32},
+        ConvertPromoteTypesTestParams{{1, 2, 3, 4},
                                     ov::element::boolean,
                                     {5, 6, 7},
                                     ov::element::boolean,
                                     ov::element::boolean},
-        ConvertAlignTypesTestParams{{1, 2, 3, 4}, ov::element::i64, {5, 6, 7}, ov::element::f16, ov::element::f16}));
-TEST_P(ConvertConvertAlignTypesTest, CompareFunctions) {}
+        ConvertPromoteTypesTestParams{{1, 2, 3, 4}, ov::element::i64, {5, 6, 7}, ov::element::f16, ov::element::f16}));
+TEST_P(ConvertConvertPromoteTypesTest, CompareFunctions) {}
 }  // namespace
