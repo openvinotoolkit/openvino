@@ -50,3 +50,9 @@ namespace ov {
 using SupportedOpsMap = std::map<std::string, std::string>;
 
 }  // namespace ov
+
+#if defined(_WIN32) && !defined(__GNUC__)
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
+#else
+#    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
+#endif

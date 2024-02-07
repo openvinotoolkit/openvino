@@ -3,6 +3,9 @@
 //
 
 #include "blocked_memory_desc.h"
+
+#include <unordered_set>
+
 #include "utils/general_utils.h"
 
 namespace ov {

@@ -11,8 +11,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "precision_matcher.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 

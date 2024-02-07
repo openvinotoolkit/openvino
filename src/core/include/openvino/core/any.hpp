@@ -20,10 +20,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
-namespace InferenceEngine {
-class ExecutableNetwork;
-}  // namespace InferenceEngine
-
 namespace ov {
 class Plugin;
 /** @cond INTERNAL */
@@ -662,7 +658,6 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::proxy::CompiledModel;
     friend class ::ov::RemoteContext;

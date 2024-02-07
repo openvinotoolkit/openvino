@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>

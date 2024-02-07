@@ -1,7 +1,6 @@
 # OpenVINO Inference API
 
 OpenVINO Inference API contains two folders:
- * [ie](../include/ie/) - legacy API, this API is no longer being developed,
  * [openvino](../include/openvino/) - current public API, this part is described below.
 
 ## Components of Public OpenVINO Inference API

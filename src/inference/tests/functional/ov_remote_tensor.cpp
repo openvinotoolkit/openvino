@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cpp/ie_infer_request.hpp>
 #include <openvino/runtime/remote_tensor.hpp>
 
 using namespace ::testing;

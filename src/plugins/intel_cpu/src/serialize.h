@@ -5,7 +5,7 @@
 #include <functional>
 #include <iostream>
 
-#include "cpp/ie_cnn_network.h"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace intel_cpu {

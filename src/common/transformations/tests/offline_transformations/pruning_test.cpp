@@ -11,7 +11,6 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "inference_engine.hpp"
 #include "mask_attribute.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -5181,7 +5180,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
     m.run_passes(model);
 }
 
-INSTANTIATE_TEST_CASE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
 
 TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
     {

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_api.h>
 #include <common/utils.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_memory.h"

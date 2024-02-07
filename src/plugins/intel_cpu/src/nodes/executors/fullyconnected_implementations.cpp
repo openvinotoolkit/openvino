@@ -25,8 +25,6 @@
 #include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 

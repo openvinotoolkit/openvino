@@ -4,9 +4,8 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include "dev/converter_utils.hpp"
-#include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 

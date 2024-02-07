@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include "cpu_shape.h"
 
 #include <algorithm>
 #include <cassert>
+
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
