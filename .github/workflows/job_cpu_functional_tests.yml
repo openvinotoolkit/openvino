@@ -29,7 +29,6 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
-    if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries

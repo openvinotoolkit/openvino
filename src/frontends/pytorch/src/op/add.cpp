@@ -26,7 +26,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
         // aten::add.t(t[] a, t[] b) -> t[]
         // Case when two lists gets concatenated
-        FRONT_END_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
+        PYTORCH_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
     if (inplace) {
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())

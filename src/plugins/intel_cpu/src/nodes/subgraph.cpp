@@ -31,6 +31,7 @@
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <array>

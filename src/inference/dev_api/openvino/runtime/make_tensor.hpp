@@ -13,12 +13,6 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
-namespace InferenceEngine {
-
-class Blob;
-
-}  // namespace InferenceEngine
-
 namespace ov {
 
 /**

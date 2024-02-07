@@ -6,8 +6,8 @@
 
 #include <gmock/gmock.h>
 
-#include "ie_icore.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/icore.hpp"
 
 namespace ov {
 

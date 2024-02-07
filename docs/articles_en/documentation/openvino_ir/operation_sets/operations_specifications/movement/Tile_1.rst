@@ -5,7 +5,7 @@ Tile
 
 
 .. meta::
-  :description: Learn about Tile-1 - a data movement operation, which can be 
+  :description: Learn about Tile-1 - a data movement operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *Tile-1*
@@ -39,10 +39,10 @@ No attributes available.
 
 *Tile* operation extends input tensor and filling in output tensor by the following rules:
 
-.. math:: 
+.. math::
 
    out_i=input_i[inner_dim*t]
-   
+
 .. math::
 
    t \in \left ( 0, \quad tiles \right )
@@ -62,7 +62,7 @@ No attributes available.
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  < !-- [1, 2, 3] -->
+                <dim>3</dim>  <!-- [1, 2, 3] -->
             </port>
         </input>
         <output>
@@ -81,13 +81,13 @@ No attributes available.
 
     <layer ... type="Tile">
         <input>
-            <port id="0">  < !-- will be promoted to shape (1, 2, 3, 4) -->
+            <port id="0">  <!-- will be promoted to shape (1, 2, 3, 4) -->
                 <dim>2</dim>
                 <dim>3</dim>
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>4</dim>  < !-- [5, 1, 2, 3] -->
+                <dim>4</dim>  <!-- [5, 1, 2, 3] -->
             </port>
         </input>
         <output>
@@ -114,7 +114,7 @@ No attributes available.
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  < !-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
+                <dim>3</dim>  <!-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
             </port>
         </input>
         <output>

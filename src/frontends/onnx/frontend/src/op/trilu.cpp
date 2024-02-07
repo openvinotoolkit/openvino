@@ -1,11 +1,11 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/trilu.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -20,14 +20,14 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector trilu(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
 
     CHECK_VALID_NODE(node, num_inputs > 0 && num_inputs <= 2, "Trilu expects <= 2 input tensors. Got: ", num_inputs);
@@ -43,8 +43,8 @@ ov::OutputVector trilu(const Node& node) {
     }
 
     const auto shape = std::make_shared<v3::ShapeOf>(input);
-    const auto zero = v0::Constant::create(ov::element::i64, Shape{}, {0});
-    const auto one = v0::Constant::create(ov::element::i64, Shape{}, {1});
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
     // to choose appropiate values from the input
@@ -74,8 +74,8 @@ ov::OutputVector trilu(const Node& node) {
     // fetch last two dimensions of input shape
     // M = shape[-1]
     // N = shape[-2]
-    const auto M = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, Shape{}, {-1}), zero);
-    const auto N = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, Shape{}, {-2}), zero);
+    const auto M = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, ov::Shape{}, {-1}), zero);
+    const auto N = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, ov::Shape{}, {-2}), zero);
 
     // create 2D tensor with shape [1, M] and values [[0, 1, ..., M - 1]]
     const auto horizontal_range =
@@ -98,11 +98,12 @@ ov::OutputVector trilu(const Node& node) {
         mask = std::make_shared<v1::LessEqual>(horizontal_range, vertical_range);
     }
 
-    return {std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), Shape{}, {0}))};
+    return {
+        std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), ov::Shape{}, {0}))};
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
