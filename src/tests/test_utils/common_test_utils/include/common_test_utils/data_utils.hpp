@@ -11,7 +11,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "gtest/gtest.h"
-#include "ie_blob.h"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -45,51 +44,22 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
 }
 
 /**
- * Fill blob with value data blob. Broadcast semantic is included.
+ * Fill tensor with value data. Broadcast semantic is included.
  * Broadcasting with alignment through last dimension.
  *
- * @param blob tensor to fill in
+ * @param tensor tensor to fill in
  * @param values src tensor which should be broadcast
  */
-OPENVINO_SUPPRESS_DEPRECATED_START
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Blob::Ptr& values);
-OPENVINO_SUPPRESS_DEPRECATED_END
 void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values);
 
 /**
  * Wrapper on top of fill_data_with_broadcast with simplified signature
  *
- * @param blob the destination blob to fill in
+ * @param tensor tensor to fill in
  * @param axis Axis to apply values
  * @param values data to broadcast
  */
-OPENVINO_SUPPRESS_DEPRECATED_START
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std::vector<float> values);
-OPENVINO_SUPPRESS_DEPRECATED_END
 void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values);
-/**
- * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
- *
- * NB! Limitation: the nwe one blob will no have ownership of data buffer. The original blob should be alive
- *     while view is in use.
- *
- * @param tensor original source tensor
- * @param new_shape new one shape for view blob
- * @return new one blob view
- */
-OPENVINO_SUPPRESS_DEPRECATED_START
-InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr& blob,
-                                             InferenceEngine::SizeVector new_shape);
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-/**
- * Calculate size of buffer required for provided tensor descriptor.
- * @param tdesc provided tensor descriptor
- * @return size in bytes
- */
-OPENVINO_SUPPRESS_DEPRECATED_START
-size_t byte_size(const InferenceEngine::TensorDesc& tdesc);
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc);
 
@@ -138,27 +108,6 @@ inline void fill_roi_raw_ptr(T* data,
             data[i + 4] = static_cast<T>(max_y);
     }
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-template <InferenceEngine::Precision::ePrecision PRC>
-inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
-                          const uint32_t range,
-                          const int height,
-                          const int width,
-                          const float omega,
-                          const bool is_roi_max_mode,
-                          const int seed = 1,
-                          void (*propGenerator)(InferenceEngine::Blob::Ptr&) = nullptr) {
-    if (propGenerator != nullptr) {
-        propGenerator(blob);
-        return;
-    }
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* data = blob->buffer().as<T*>();
-    fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void fill_psroi(ov::Tensor& tensor,
                 int batchSize,
@@ -308,82 +257,6 @@ void fill_tensor_random(ov::Tensor& tensor,
                         const int32_t k = 1,
                         const int seed = 1);
 
-/** @brief Fill blob with random data.
- *
- * @param blob Target blob
- * @param range Values range
- * @param start_from Value from which range should start
- * @param k Resolution of floating point numbers.
- * - With k = 1 every random number will be basically integer number.
- * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
- * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
- */
-OPENVINO_SUPPRESS_DEPRECATED_START
-template <InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_random(InferenceEngine::Blob::Ptr& blob,
-                             const uint32_t range = 10,
-                             int32_t start_from = 0,
-                             const int32_t k = 1,
-                             const int seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-    if (PRC == InferenceEngine::Precision::U4 || PRC == InferenceEngine::Precision::I4 ||
-        PRC == InferenceEngine::Precision::BIN) {
-        fill_data_random(rawBlobDataPtr, blob->byteSize(), range, start_from, k, seed);
-    } else {
-        fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
-    }
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-/** @brief Fill blob with a sorted sequence of unique elements randomly generated.
- *
- *  This function generates and fills a blob of a certain precision, with a
- *  sorted sequence of unique elements.
- *
- * @param blob Target blob
- * @param range Values range
- * @param start_from Value from which range should start
- * @param k Resolution of floating point numbers.
- * - With k = 1 every random number will be basically integer number.
- * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
- * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
- */
-OPENVINO_SUPPRESS_DEPRECATED_START
-template <InferenceEngine::Precision::ePrecision PRC>
-void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
-                                        uint64_t range,
-                                        int64_t start_from = 0,
-                                        const int64_t k = 1,
-                                        const int32_t seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-
-    if (start_from < 0 && !std::is_signed<T>::value) {
-        start_from = 0;
-    }
-
-    if (range < blob->size()) {
-        range = blob->size() * 2;
-    }
-
-    std::mt19937 generator(seed);
-    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
-
-    std::set<T> elems;
-    while (elems.size() != blob->size()) {
-        auto value = static_cast<float>(dist(generator));
-        value /= static_cast<float>(k);
-        if (PRC == InferenceEngine::Precision::FP16) {
-            elems.insert(static_cast<T>(ov::float16(value).to_bits()));
-        } else {
-            elems.insert(static_cast<T>(value));
-        }
-    }
-    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 template <typename T>
 void inline fill_data_ptr_consistently(T* data,
                                        size_t size,
@@ -402,45 +275,6 @@ void inline fill_data_ptr_consistently(T* data,
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-template <InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_consistently(InferenceEngine::Blob::Ptr& blob,
-                                   const uint32_t range = 10,
-                                   int32_t start_from = 0,
-                                   const int32_t k = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-    if (start_from < 0 && !std::is_signed<T>::value) {
-        start_from = 0;
-    }
-    fill_data_ptr_consistently(rawBlobDataPtr, blob->size(), range, start_from, k);
-}
-
-template <InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_random_float(InferenceEngine::Blob::Ptr& blob,
-                                   const uint32_t range,
-                                   int32_t start_from,
-                                   const int32_t k,
-                                   const int seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-    for (size_t i = 0; i < blob->size(); i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        if (PRC == InferenceEngine::Precision::FP16) {
-            rawBlobDataPtr[i] = static_cast<T>(ov::float16(value).to_bits());
-        } else if (PRC == InferenceEngine::Precision::BF16) {
-            rawBlobDataPtr[i] = static_cast<T>(ov::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
-    }
-}
-
 template <typename T>
 void inline fill_data_ptr_normal_random_float(T* data,
                                               size_t size,
@@ -451,69 +285,13 @@ void inline fill_data_ptr_normal_random_float(T* data,
     std::normal_distribution<> normal_d{mean, stddev};
     for (size_t i = 0; i < size; i++) {
         auto value = static_cast<float>(normal_d(random));
-        if (typeid(T) ==
-            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+        if (typeid(T) == typeid(typename ov::fundamental_type_for<ov::element::f16>)) {
             data[i] = static_cast<T>(ov::float16(value).to_bits());
         } else {
             data[i] = static_cast<T>(value);
         }
     }
 }
-
-template <InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr& blob,
-                                          const float mean,
-                                          const float stddev,
-                                          const int seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-    fill_data_ptr_normal_random_float<T>(rawBlobDataPtr, blob->size(), mean, stddev, seed);
-}
-
-template <InferenceEngine::Precision::ePrecision PRC, typename T>
-void inline fill_data_float_array(InferenceEngine::Blob::Ptr& blob, const T values[], const size_t size) {
-    using Type = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-
-    auto* rawBlobDataPtr = blob->buffer().as<T*>();
-    for (size_t i = 0; i < std::min(size, blob->size()); i++) {
-        auto value = values[i];
-        if (typeid(Type) ==
-            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<Type>(ov::float16(value).to_bits());
-
-        } else {
-            rawBlobDataPtr[i] = static_cast<Type>(value);
-        }
-    }
-}
-
-template <>
-void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr& blob,
-                                                               const uint32_t range,
-                                                               int32_t start_from,
-                                                               const int32_t k,
-                                                               const int seed) {
-    fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k, seed);
-}
-
-template <>
-void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr& blob,
-                                                               const uint32_t range,
-                                                               int32_t start_from,
-                                                               const int32_t k,
-                                                               const int seed) {
-    fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k, seed);
-}
-
-template <>
-void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::Blob::Ptr& blob,
-                                                               const uint32_t range,
-                                                               int32_t start_from,
-                                                               const int32_t k,
-                                                               const int seed) {
-    fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void fill_random_string(std::string* dst,
                         const size_t size,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 namespace ov {
