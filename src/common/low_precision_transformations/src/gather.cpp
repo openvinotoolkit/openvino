@@ -119,7 +119,7 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions), false);
+    moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
     return true;
 }
 

@@ -68,7 +68,7 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions), false);
+    moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
     return true;
 }
 

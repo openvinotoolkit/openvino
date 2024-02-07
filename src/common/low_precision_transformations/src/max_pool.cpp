@@ -57,7 +57,7 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::
     }
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), false);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
     return true;
 }
 

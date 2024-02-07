@@ -42,7 +42,7 @@ bool ReluTransformation::transform(TransformationContext& context, ov::pass::pat
 
     relu = NetworkHelper::separateInStandaloneBranch(relu, defaultPrecisions);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, defaultPrecisions, 0);
-    moveDequantizationAfter(context, relu, dequantization, false, false);
+    moveDequantizationAfter(context, relu, dequantization);
     return true;
 }
 

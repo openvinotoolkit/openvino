@@ -1450,7 +1450,7 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<ov::opset1
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter(
     const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
-    const bool updatePrecision,
+    const bool updateOutputPrecision,
     const bool moveSubtract,
     const std::vector<ov::element::Type>& defaultPrecisions) {
     assert(
@@ -1466,6 +1466,10 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     // we must have dequantization multiply
     assert(dequantization.multiply != nullptr);
 
+    OPENVINO_ASSERT(operation->get_output_size() == 1,
+        "moveDequantizationAfter doesn't suppport dequantization propagation for layers with several outputs. (",
+        operation, " has ", operation->get_output_size(), " outputs)");
+
     OutputVector inputs = operation->input_values();
     const size_t dequantizationIndex = getChildInputIndex(dequantization.multiply, operation);
     inputs[dequantizationIndex] = (!moveSubtract && dequantization.subtract != nullptr) ?
@@ -1477,10 +1481,12 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     ov::copy_runtime_info(operation, newOperation);
 
     if (const auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(newOperation)) {
-        op->set_overridden_output_type(updatePrecision ?
+        op->set_overridden_output_type(updateOutputPrecision ?
             newOperation->get_input_element_type(0) :
             dequantization.multiplyConstant->get_element_type());
         newOperation->validate_and_infer_types();
+    } else {
+        OPENVINO_ASSERT(updateOutputPrecision, "moveDequantizationAfter can't save old output precision since layer is not TypeRelaxed: ", newOperation);
     }
 
     std::shared_ptr<Node> parent = newOperation;
@@ -1545,7 +1551,6 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefore(
     const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
-    const bool updatePrecision,
     const bool moveSubtract) {
     assert(
         (NetworkHelper::getDequantizationBelow(operation).subtractConstant == nullptr) ||
@@ -1642,11 +1647,8 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
         THROW_TRANSFORMATION_EXCEPTION << "dequantization operations must end with multiply";
     }
     replace_node(dequantization.multiply, newOperation);
-
     if (const auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(newOperation)) {
-        op->set_overridden_output_type(updatePrecision ?
-            newOperation->get_input_element_type(0) :
-            dequantization.multiplyConstant->get_element_type());
+        op->set_overridden_output_type(dequantization.multiplyConstant->get_element_type());
         newOperation->validate_and_infer_types();
     }
 

@@ -71,7 +71,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
     replace_node(dequantization.multiplyConstant, shuffledMulConst);
     dequantization.multiplyConstant = shuffledMulConst;
 
-    moveDequantizationAfter(context, shuffleChannels, dequantization, false);
+    moveDequantizationAfter(context, shuffleChannels, dequantization);
     return true;
 }
 
