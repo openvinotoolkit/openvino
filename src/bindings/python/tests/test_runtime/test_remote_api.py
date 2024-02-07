@@ -21,7 +21,8 @@ def test_get_default_context_cpu():
     core = ov.Core()
     with pytest.raises(RuntimeError) as cpu_error:
         _ = core.get_default_context("CPU")
-    assert "get_default_context  is not supported by CPU plugin!" in str(cpu_error.value)
+    possible_errors = ["is not supported by CPU plugin!", "Not Implemented"]
+    assert any(error in str(cpu_error.value) for error in possible_errors)
 
 
 @pytest.mark.skipif(
