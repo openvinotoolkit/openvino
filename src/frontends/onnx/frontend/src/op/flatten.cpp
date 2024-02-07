@@ -5,8 +5,8 @@
 #include "op/flatten.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "utils/reshape.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
