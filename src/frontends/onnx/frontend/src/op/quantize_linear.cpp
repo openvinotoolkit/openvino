@@ -11,16 +11,15 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/reshape.hpp"
 #include "validation_util.hpp"
 
 using namespace ov::op;
 using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 namespace {
@@ -28,7 +27,7 @@ ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
-        return std::make_shared<v0::Constant>(ov::element::u8, Shape{1}, std::uint8_t(0));
+        return std::make_shared<v0::Constant>(ov::element::u8, ov::Shape{1}, std::uint8_t(0));
     }
 }
 
@@ -71,20 +70,20 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
     // should be aligned
     switch (destination_type) {
     case ov::element::i8:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -128);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 127);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -128);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 127);
         break;
     case ov::element::u8:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 255);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 255);
         break;
     case ov::element::i16:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, -32768);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 32767);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -32768);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 32767);
         break;
     case ov::element::u16:
-        output_low = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, Shape{1}, 65535);
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 65535);
         break;
     default:
         OPENVINO_THROW("Unsupported element type for QuantizeLinear");
@@ -140,8 +139,8 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }  // namespace detail
 
 namespace set_1 {
-ov::OutputVector quantize_linear(const Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
     auto y_zero_point = detail::get_zero_point(inputs);
@@ -161,7 +160,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_zero_point,
                                  int64_t axis,
                                  Node node) {
-    namespace detail = ngraph::onnx_import::op::detail;
+    namespace detail = ov::frontend::onnx::op::detail;
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
@@ -183,7 +182,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                          " must match the number of respective input data axis size: ",
                          x_shape[axis]);
 
-        Shape target_shape(x_shape.rank().get_length(), 1);
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
         y_scale = ov::op::util::reshape(y_scale, target_shape);
@@ -198,7 +197,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                          " must match the number of respective input data axis size: ",
                          x_shape[axis]);
 
-        Shape target_shape(x_shape.rank().get_length(), 1);
+        ov::Shape target_shape(x_shape.rank().get_length(), 1);
         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
         y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
@@ -208,8 +207,8 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 }
 }  // namespace
 
-ov::OutputVector quantize_linear(const Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The QuantizeLinear op expects 2 required and one optional "
@@ -229,10 +228,7 @@ ov::OutputVector quantize_linear(const Node& node) {
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

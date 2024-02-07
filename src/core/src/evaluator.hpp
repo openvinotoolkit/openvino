@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 namespace ov {

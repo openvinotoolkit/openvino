@@ -702,6 +702,10 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BOOL";
     case ::ov::element::Type_t::nf4:
         return "NF4";
+    case ::ov::element::Type_t::f8e4m3:
+        return "F8E4M3";
+    case ::ov::element::Type_t::f8e5m2:
+        return "F8E5M2";
     case ::ov::element::Type_t::string:
         return "STRING";
     default:
