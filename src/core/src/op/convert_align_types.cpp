@@ -11,123 +11,160 @@ namespace ov {
 namespace op {
 namespace {
 
-std::unordered_map<size_t, element::Type> bit_to_int{
-    {4, element::i4},
-    {8, element::i8},
-    {16, element::i16},
-    {32, element::i32},
-    {64, element::i64},
-};
-
-element::Type infer_types(const v14::ConvertAlignTypes* op) {
-    const auto input_0 = op->input(0);
-    const auto input_1 = op->input(1);
+element::Type bitwidth_to_int(size_t bitwidth) {
+    switch (bitwidth) {
+    case 4:
+        return element::i4;
+    case 8:
+        return element::i8;
+    case 16:
+        return element::i16;
+    case 32:
+        return element::i32;
+    case 64:
+        return element::i64;
+    default:
+        OPENVINO_THROW("Unsupported bitwidth for integer datatype: ", bitwidth);
+    };
+}
+bool is_float8(const element::Type& type) {
+    // Check for f8 special cases to handle
+    switch (type) {
+    case element::f8e4m3:
+    case element::f8e5m2:
+        return true;
+    default:
+        return false;
+    }
+}
+bool is_float16(const element::Type& type) {
+    // Check for f16 special cases to handle
+    switch (type) {
+    case element::bf16:
+    case element::f16:
+        return true;
+    default:
+        return false;
+    }
+}
+bool is_type_supported(const element::Type& type) {
+    // Types supported by ConvertPromoteTypes. When adding new type, ensure that existing rules will support it.
+    switch (type) {
+    case element::dynamic:
+    case element::boolean:
+    case element::f16:
+    case element::f32:
+    case element::f64:
+    case element::i4:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u1:
+    case element::u4:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+    case element::f8e4m3:
+    case element::f8e5m2:
+    case element::bf16:
+        return true;
+    default:
+        return false;
+    }
+}
+element::Type evaluate_common_type(const v14::ConvertAlignTypes* op) {
     const auto promote_unsafe = op->get_promote_unsafe();
     const auto pytorch_scalar_align = op->get_pytorch_scalar_align();
     const auto u64_promotion_target = op->get_u64_integer_promotion_target();
-    const auto supported_types = {element::dynamic,
-                                  element::boolean,
-                                  element::f16,
-                                  element::f32,
-                                  element::f64,
-                                  element::i4,
-                                  element::i8,
-                                  element::i16,
-                                  element::i32,
-                                  element::i64,
-                                  element::u1,
-                                  element::u4,
-                                  element::u8,
-                                  element::u16,
-                                  element::u32,
-                                  element::u64,
-                                  element::f8e4m3,
-                                  element::f8e5m2,
-                                  element::bf16};
-    const auto& input_0_type = input_0.get_element_type();
-    const auto& input_1_type = input_1.get_element_type();
-    NODE_VALIDATION_CHECK(
-        op,
-        std::find(supported_types.begin(), supported_types.end(), input_0_type) != supported_types.end());
-    NODE_VALIDATION_CHECK(
-        op,
-        std::find(supported_types.begin(), supported_types.end(), input_1_type) != supported_types.end());
+    const auto& input_0_type = op->get_input_element_type(0);
+    const auto& input_1_type = op->get_input_element_type(1);
+    NODE_VALIDATION_CHECK(op, is_type_supported(input_0_type) && is_type_supported(input_1_type));
+
+    // Fast evaluate for trivial cases.
     if (input_0_type.is_dynamic() || input_1_type.is_dynamic()) {
         return element::dynamic;
-    }
-    if (input_0_type == input_1_type)
+    } else if (input_0_type == input_1_type)
         return input_0_type;
-    if (input_0_type == element::boolean)
+    else if (input_0_type == element::boolean)
         return input_1_type;
-    if (input_1_type == element::boolean)
+    else if (input_1_type == element::boolean)
         return input_0_type;
-    const auto& input_0_rank = input_0.get_partial_shape().rank();
-    const auto& input_1_rank = input_1.get_partial_shape().rank();
-    const bool is_input_0_scalar = input_0_rank.is_static() ? input_0_rank.get_length() == 0 : false;
-    const bool is_input_1_scalar = input_1_rank.is_static() ? input_1_rank.get_length() == 0 : false;
-    const bool is_input_0_signed = input_0_type.is_signed();
-    const bool is_input_1_signed = input_1_type.is_signed();
-    const bool is_input_0_real = input_0_type.is_real();
-    const bool is_input_1_real = input_1_type.is_real();
+
+    const auto is_input_0_real = input_0_type.is_real();
+    const auto is_input_1_real = input_1_type.is_real();
     const size_t input_0_bitwidth = input_0_type.bitwidth();
     const size_t input_1_bitwidth = input_1_type.bitwidth();
 
-    if (pytorch_scalar_align && (is_input_0_scalar != is_input_1_scalar) && (is_input_0_real == is_input_1_real)) {
-        if (promote_unsafe) {
-            return is_input_0_scalar ? input_1_type : input_0_type;
-        }
-        const auto target = is_input_0_scalar ? input_1_type : input_0_type;
-        const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
-        if ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
-            (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth())) {
-            return target;
-        }
-        NODE_VALIDATION_CHECK(op, false, " Scalar input cannot be PyTorch-like aligned using safe promotion rules.");
-    }
     if (is_input_0_real != is_input_1_real) {
+        // Floating and integer mixed, align to floating
         if (promote_unsafe) {
             return is_input_0_real ? input_0_type : input_1_type;
         }
+        // Ensure that floating-point bitwidth is at least double than integer for safe conversion.
         const auto real = is_input_0_real ? input_0_type : input_1_type;
         const auto integer = is_input_0_real ? input_1_type : input_0_type;
-        if (real.bitwidth() >= integer.bitwidth() * 2) {
-            return real;
-        }
-        NODE_VALIDATION_CHECK(op, false, "Integer input cannot be safely promoted to floating-point.");
-    }
-    if ((is_input_0_real == is_input_1_real) && (is_input_0_signed != is_input_1_signed)) {
-        const auto uint_bitwidth = is_input_0_signed ? input_1_bitwidth : input_0_bitwidth;
-        const auto int_bitwidth = is_input_0_signed ? input_0_bitwidth : input_1_bitwidth;
-        if (uint_bitwidth <= 32 && (promote_unsafe || uint_bitwidth * 2 <= int_bitwidth)) {
-            return bit_to_int.at(std::max({uint_bitwidth * 2, int_bitwidth}));
-        } else if (promote_unsafe) {
-            return u64_promotion_target;
-        } else {
+        NODE_VALIDATION_CHECK(op,
+                              (real.bitwidth() >= integer.bitwidth() * 2),
+                              "Integer input cannot be safely promoted to floating-point.");
+        return real;
+
+    } else if (is_input_0_real == is_input_1_real) {
+        // Type formats are the same (both are either floating or integer).
+        const auto& input_0_pshape = op->get_input_partial_shape(0);
+        const auto& input_1_pshape = op->get_input_partial_shape(1);
+        const auto is_input_0_scalar = input_0_pshape.is_static() && is_scalar(input_0_pshape);
+        const auto is_input_1_scalar = input_1_pshape.is_static() && is_scalar(input_1_pshape);
+        const auto is_input_0_signed = input_0_type.is_signed();
+        const auto is_input_1_signed = input_1_type.is_signed();
+        if (pytorch_scalar_align && (is_input_0_scalar != is_input_1_scalar)) {
+            // For pytorch mode, when number formats are same, promote to type of non-scalar input.
+            if (promote_unsafe) {
+                return is_input_0_scalar ? input_1_type : input_0_type;
+            }
+            // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
+            const auto target = is_input_0_scalar ? input_1_type : input_0_type;
+            const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
             NODE_VALIDATION_CHECK(
                 op,
-                false,
+                ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
+                 (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth())),
+                "Scalar input cannot be PyTorch-like aligned using safe promotion rules.");
+            return target;
+        } else if ((is_input_0_signed != is_input_1_signed)) {
+            // Signed and unsigned integers are mixed, convert to signed integer with bitwidth able to hold all unsigned
+            // data. Exception for u64 + integer - either convert to type from `u64_promotion_target` or fail in safe
+            // mode.
+            const auto uint_bitwidth = is_input_0_signed ? input_1_bitwidth : input_0_bitwidth;
+            const auto int_bitwidth = is_input_0_signed ? input_0_bitwidth : input_1_bitwidth;
+            if (uint_bitwidth <= 32 && (promote_unsafe || uint_bitwidth * 2 <= int_bitwidth)) {
+                return bitwidth_to_int(std::max({uint_bitwidth * 2, int_bitwidth}));
+            }
+            NODE_VALIDATION_CHECK(
+                op,
+                promote_unsafe,
                 "Unsigned integer input cannot be safely promoted into any supported signed integer.");
-        }
-    }
-    if ((is_input_0_real == is_input_1_real) && (input_0_bitwidth != input_1_bitwidth)) {
-        return input_0_bitwidth >= input_1_bitwidth ? input_0_type : input_1_type;
-    }
-    if (promote_unsafe && (is_input_0_real == is_input_1_real) && (input_0_bitwidth == input_1_bitwidth)) {
-        const auto input_0_string = input_0_type.to_string();
-        const auto input_1_string = input_1_type.to_string();
-        // f8e4m3 and f8e5m2
-        const std::set<std::string> float8_types{"f8e4m3", "f8e5m2"};
-        if (float8_types.count(input_0_string) && float8_types.count(input_1_string)) {
-            return element::f16;
-        }
-        // bf16 and f16
-        const std::set<std::string> float16_types{"f16", "bf16"};
-        if (float16_types.count(input_0_string) && float16_types.count(input_1_string)) {
-            return element::f32;
+            return u64_promotion_target;
+        } else if ((input_0_bitwidth != input_1_bitwidth)) {
+            // Both types have same format and sign but mixed bitwidth, promote to one with greater bitwidth.
+            return input_0_bitwidth >= input_1_bitwidth ? input_0_type : input_1_type;
+        } else if (promote_unsafe && (input_0_bitwidth == input_1_bitwidth)) {
+            // Both types have same format, sign and bitwidth. Those are treated like special cases and rules need to be
+            // provided manually.
+            if (is_float8(input_0_type) && is_float8(input_1_type)) {
+                // f8e4m3 and f8e5m2
+                return element::f16;
+            }
+            if (is_float16(input_0_type) && is_float16(input_1_type)) {
+                // bf16 and f16
+                return element::f32;
+            }
         }
     }
     NODE_VALIDATION_CHECK(op, false, "Unsupported input element types for ConvertAlignTypes with given attributes.");
 }
+
 }  // namespace
 namespace v14 {
 
@@ -145,9 +182,9 @@ ConvertAlignTypes::ConvertAlignTypes(const Output<Node>& input_0,
 
 void ConvertAlignTypes::validate_and_infer_types() {
     OV_OP_SCOPE(v14_ConvertAlignTypes_validate_and_infer_types);
-    const auto aligned_type = infer_types(this);
-    set_output_type(0, aligned_type, get_input_partial_shape(0));
-    set_output_type(1, aligned_type, get_input_partial_shape(1));
+    const auto common_type = evaluate_common_type(this);
+    set_output_type(0, common_type, get_input_partial_shape(0));
+    set_output_type(1, common_type, get_input_partial_shape(1));
 }
 
 bool ConvertAlignTypes::visit_attributes(AttributeVisitor& visitor) {

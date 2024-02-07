@@ -271,7 +271,12 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          true,
                                                          false,
                                                          ov::element::f16,
-                                                         ov::element::f32},
+                                                         ov::element::f32}),
+                         PrintToDummyParamName());
+
+INSTANTIATE_TEST_SUITE_P(type_prop_pytorch_mode,
+                         ConvertAlignTypesTest,
+                         testing::Values(
                              // All combinations for torch mode:
                              //  l scalar r tensor
                              ConvertAlignTypesTestParams{{},
@@ -356,8 +361,12 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                          false,
                                                          false,
                                                          ov::element::f16,
-                                                         ov::element::f32},
-                             // Special cases:
+                                                         ov::element::f32}),
+                         PrintToDummyParamName());
+
+INSTANTIATE_TEST_SUITE_P(type_prop_special_cases,
+                         ConvertAlignTypesTest,
+                         testing::Values(
                              //  f8
                              ConvertAlignTypesTestParams{{1},
                                                          ov::element::f8e4m3,

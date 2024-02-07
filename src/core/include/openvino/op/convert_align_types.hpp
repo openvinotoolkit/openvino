@@ -20,9 +20,9 @@ public:
     /// \brief Constructs a type alignment and conversion operation.
     /// \param input_0  Node with datatype to be aligned.
     /// \param input_1  Node with datatype to be aligned.
-    /// \param promote_unsafe  Bool attribute wether to allow for promotions that might result in bit-widening,
+    /// \param promote_unsafe  Bool attribute whether to allow promotions that might result in bit-widening,
     /// precision loss and undefined behaviors.
-    /// \param pytorch_scalar_align  Bool attribute wether to align scalars using  PyTorch-like rules.
+    /// \param pytorch_scalar_align  Bool attribute whether to align scalars using PyTorch-like rules.
     /// \param u64_integer_promotion_target  Element type attribute to select alignment target for u64 and signed
     /// integers.
     ConvertAlignTypes(const Output<Node>& input_0,

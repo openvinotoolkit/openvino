@@ -19,18 +19,19 @@ ov::pass::ConvertConvertAlignTypes::ConvertConvertAlignTypes() {
     auto convert_align_types = pattern::wrap_type<ov::op::v14::ConvertAlignTypes>(has_static_defined_type);
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert = std::dynamic_pointer_cast<ov::op::v14::ConvertAlignTypes>(m.get_match_root());
-        if (!convert) {
+        auto convert_promote_types = std::dynamic_pointer_cast<ov::op::v14::ConvertAlignTypes>(m.get_match_root());
+        if (!convert_promote_types) {
             return false;
         }
-        const element::Type& dest_type = convert->get_output_element_type(0);
+        const element::Type& dest_type = convert_promote_types->get_output_element_type(0);
+        const auto friendly_name = convert_promote_types->get_friendly_name();
         NodeRegistry node_registry;
-        const auto out0 = node_registry.make<ov::op::v0::Convert>(convert->input_value(0), dest_type);
-        const auto out1 = node_registry.make<ov::op::v0::Convert>(convert->input_value(1), dest_type);
-        out0->set_friendly_name(convert->get_friendly_name() + ".0");
-        out1->set_friendly_name(convert->get_friendly_name() + ".1");
-        copy_runtime_info(convert, node_registry.get());
-        replace_node(convert, {out0, out1});
+        const auto out0 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(0), dest_type);
+        const auto out1 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(1), dest_type);
+        out0->set_friendly_name(friendly_name + ".0");
+        out1->set_friendly_name(friendly_name + ".1");
+        copy_runtime_info(convert_promote_types, node_registry.get());
+        replace_node(convert_promote_types, {out0, out1});
         return true;
     };
 
