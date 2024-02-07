@@ -60,13 +60,13 @@ OutputVector translate_im2col(const NodeContext& context) {
     num_inputs_check(context, 5, 5);
     auto input = context.get_input(0);
     auto kernel_size = context.const_input<std::vector<int64_t>>(1);
-    FRONT_END_OP_CONVERSION_CHECK(kernel_size.size() == 2, "kernel size should contains 2 elements");
+    PYTORCH_OP_CONVERSION_CHECK(kernel_size.size() == 2, "kernel size should contains 2 elements");
     auto dilation = context.const_input<std::vector<int64_t>>(2);
-    FRONT_END_OP_CONVERSION_CHECK(kernel_size.size() == 2, "dilation should contains 2 elements");
+    PYTORCH_OP_CONVERSION_CHECK(kernel_size.size() == 2, "dilation should contains 2 elements");
     auto padding = context.const_input<std::vector<int64_t>>(3);
-    FRONT_END_OP_CONVERSION_CHECK(kernel_size.size() == 2, "padding should contains 2 elements");
+    PYTORCH_OP_CONVERSION_CHECK(kernel_size.size() == 2, "padding should contains 2 elements");
     auto stride = context.const_input<std::vector<int64_t>>(4);
-    FRONT_END_OP_CONVERSION_CHECK(kernel_size.size() == 2, "stride should contains 2 elements");
+    PYTORCH_OP_CONVERSION_CHECK(kernel_size.size() == 2, "stride should contains 2 elements");
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto zero_f = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));

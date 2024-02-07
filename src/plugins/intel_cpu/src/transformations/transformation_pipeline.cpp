@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -428,11 +429,27 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
             std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::ConvertLoopToLSTMSequence,
+        ov::pass::FuseReverseLSTMSequence,
+        ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
             return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
         ov::pass::LSTMCellDecomposition);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::LSTMCellFusion);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -465,9 +482,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_SET_CALLBACK_X64(manager,
-        [](const_node_ptr &node) -> bool {
+        [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
+            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
+            // Matching the pattern is a little complicated, so we just check if there is any state nodes.
+            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) && model->get_variables().size() > 0;
         },
         ov::pass::ScaledDotProductAttentionDecomposition);
 

@@ -25,6 +25,10 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     }
 }
 
+const std::string& get_pytorch_prefix() {
+    return pytorch_prefix;
+}
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 int bias_input_idx,
