@@ -208,6 +208,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 119648
         R"(.*smoke_LPT/InterpolateTransformation.*)",
         // Issue: 129931
+#if 0
         R"(smoke_FQLayerDQBias_4D_dynamic/FQLayerDQBias.*)",
         R"(smoke_FQLayerDQBias_4D_static/FQLayerDQBias.*)",
         R"(smoke_LPT/ConvolutionTransformation.*)",
@@ -220,6 +221,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_LPT/MatMulWithOptimizedConstantFq.*)",
         R"(smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.*)",
         R"(smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.*)",
+#endif
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"
