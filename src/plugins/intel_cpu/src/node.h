@@ -452,6 +452,7 @@ public:
 
     virtual void selectOptimalPrimitiveDescriptor();
     virtual void initOptimalPrimitiveDescriptor();
+    void resolveInPlaceDirection();
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class
@@ -625,6 +626,9 @@ public:
                                        NameFromType(getType()));
         return false;
     }
+    const bool keepOrigPrecision() const {
+        return keepOriginalPrecision;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -654,6 +658,7 @@ protected:
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
+    bool keepOriginalPrecision  = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 

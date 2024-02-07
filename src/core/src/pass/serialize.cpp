@@ -22,13 +22,13 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {
@@ -512,6 +512,55 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
+        } else if (ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
+            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+                auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+                auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+                size_t new_size = 0;
+                size_t inter_size = 0;
+                // write a header of packed string tensor
+                std::shared_ptr<uint8_t> header_ptr = nullptr;
+                size_t header_size = 0;
+                if (a1) {
+                    a1->get_header(header_ptr, header_size);
+                } else {
+                    a2->get_header(header_ptr, header_size);
+                }
+
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                header_size,
+                                                                &inter_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
+                new_size += inter_size;
+
+                // write raw strings part
+                size_t num_elements = 0;
+                if (a1) {
+                    num_elements = a1->get()->get_num_elements();
+                } else {
+                    num_elements = a2->get()->get_num_elements();
+                }
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    const char* raw_string_ptr;
+                    size_t raw_string_size;
+                    if (a1) {
+                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    } else {
+                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    }
+
+                    m_constant_write_handler.write(raw_string_ptr,
+                                                   raw_string_size,
+                                                   &inter_size,
+                                                   m_compress_to_fp16,
+                                                   m_output_element_type);
+                    new_size += inter_size;
+                }
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
@@ -702,6 +751,10 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BOOL";
     case ::ov::element::Type_t::nf4:
         return "NF4";
+    case ::ov::element::Type_t::f8e4m3:
+        return "F8E4M3";
+    case ::ov::element::Type_t::f8e5m2:
+        return "F8E5M2";
     case ::ov::element::Type_t::string:
         return "STRING";
     default:

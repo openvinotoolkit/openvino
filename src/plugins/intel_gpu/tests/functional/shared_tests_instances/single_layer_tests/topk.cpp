@@ -5,8 +5,8 @@
 #include "single_op_tests/topk.hpp"
 
 namespace {
-using ov::test::TopKLayerTest;
 using ov::test::TopK11LayerTest;
+using ov::test::TopKLayerTest;
 
 std::vector<ov::Shape> shapes = {{10, 10, 10}};
 

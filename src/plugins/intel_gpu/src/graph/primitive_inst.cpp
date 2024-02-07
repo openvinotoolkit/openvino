@@ -568,7 +568,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     auto current_shape = updated_layout.get_shape();
     std::pair<bool, ov::Shape> prealloc_info;
-    int32_t tmp_prealloc_count = _node->is_type<kv_cache>() ? kv_cache_inst::get_prealloc_iter_num() : -1;
+    int32_t tmp_prealloc_count = get_prealloc_iter_num();
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
         // If debug config is set, repsect the config most
         tmp_prealloc_count = -1;
@@ -608,13 +608,15 @@ event::ptr primitive_inst::realloc_if_needed() {
         auto desc = _node->as<kv_cache>().get_primitive();
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         auto present_layout = _impl_params->output_layouts[0];
-        const auto& sequence_axis = desc->concat_axis;
+        auto present_layout_rank = present_layout.get_partial_shape().size();
+        const auto sequence_axis = desc->concat_axis >= 0 ? desc->concat_axis
+                                                          : present_layout_rank + desc->concat_axis;
         auto sequence_axis_legacy =
-            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout.get_partial_shape().size());
+            kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout_rank);
         GPU_DEBUG_TRACE_DETAIL << id() << " is kv_cache => set the variable with newly allocated output memory"
                                << std::endl;
         bool axis_is_outer_most = true;
-        for (int64_t dim = 0; dim < sequence_axis; ++dim) {
+        for (size_t dim = 0; dim < sequence_axis; ++dim) {
             if (present_layout.get_shape()[dim] > 1) {
                 axis_is_outer_most = false;
                 break;

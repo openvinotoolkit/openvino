@@ -12,6 +12,7 @@
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gather.h"
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
@@ -69,6 +70,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
     FuseFCAndWeightsDecompression(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndWeightsDecompression");
+    FuseGatherAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
@@ -504,6 +509,103 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             reshapeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
         fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
+    }
+}
+
+void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8};
+    auto expectedNode = [](NodePtr node, Type expectedType) {
+        return node->getType() == expectedType && node->getChildEdges().size() == 1;
+    };
+
+    auto& graphNodes = graph.GetNodes();
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto gatherNode = dynamic_cast<node::Gather*>(graphNodes[i].get());
+        if (gatherNode == nullptr)
+            continue;
+
+        // Multiply
+        const auto multiplyNode = gatherNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
+            !multiplyNode->isConstant())
+            continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndWeightsDecompression);
+        const auto multiplyConstNode = multiplyNode->getParentEdgeAt(1)->getParent();
+        if (!expectedNode(multiplyConstNode, Type::Input))
+            continue;
+
+        const auto mulParent = multiplyNode->getParentEdgeAt(0)->getParent();
+        NodePtr subtractNode = mulParent;
+        if (!expectedNode(subtractNode, Type::Eltwise))
+            continue;
+        auto subtractConstNode = subtractNode->getParentEdgeAt(1)->getParent();
+        if (!expectedNode(subtractConstNode, Type::Input))
+            continue;
+
+        auto convertNode = subtractNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(convertNode, Type::Convert))
+            continue;
+        const auto weightsNode = convertNode->getParentEdgeAt(0)->getParent();
+        if (!expectedNode(weightsNode, Type::Input))
+            continue;
+
+        // Precision limitations
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
+            continue;
+
+        // Shape limitations
+        const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
+        if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
+            continue;
+
+        // Get decompressionConstShape
+        VectorDims decompressionConstShape;
+        const auto gatherInputWeightsShape = gatherNode->getInputShapeAtPort(0);
+        if (gatherInputWeightsShape.getRank() != 2u || weightsShape.getRank() != 2u)
+            continue;
+        // Should be [vocab_size, 1]
+        decompressionConstShape = VectorDims{gatherInputWeightsShape.getDims()[0], 1};
+
+        auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
+            if (shape_to_check.size() != decompressionConstShape.size())
+                return false;
+            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin());
+        };
+        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+        if (!check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims()))
+            continue;
+
+        // Fusion processing
+        auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
+        if (!multiplyInputNode) {
+            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
+        }
+        gatherNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
+
+        auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
+        if (!subtractInputNode) {
+            OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
+        }
+        gatherNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
+
+        gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
+        gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
+
+        gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
+        auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
+        graph.RemoveEdge(subtractConstEdge);
+
+        auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
+        graph.RemoveEdge(multiplyConstEdge);
+
+        graph.DropNode(convertNode);
+        graph.DropNode(subtractNode);
+        graph.DropNode(multiplyNode);
+
+        const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
+        gatherNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
     }
 }
 
@@ -2110,6 +2212,69 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
     }
 }
 
+void GraphOptimizer::ShareReorders(Graph& graph) {
+    auto getSuitableReorder = [](NodePtr node) -> Reorder* {
+        if (node->getType() != Type::Reorder)
+            return nullptr;
+        Reorder* reorder = dynamic_cast<Reorder*>(node.get());
+        if (reorder == nullptr)
+            OPENVINO_THROW("Cannot get reorder layer ", node->getName());
+
+        // inplace children cannot be safely shared with each other
+        auto reorderConsumers = reorder->getChildEdgesAtPort(0);
+        if (std::any_of(reorderConsumers.begin(), reorderConsumers.end(), [](EdgePtr e) {
+                return e->inPlace(Edge::LOOK_DOWN);
+            }))
+            return nullptr;
+        return reorder;
+    };
+
+    std::set<NodePtr> dropped;
+    for (const auto& node : graph.GetNodes()) {
+        if (dropped.find(node) != dropped.end())
+            continue;
+
+        Reorder* reorder = getSuitableReorder(node);
+        if (!reorder)
+            continue;
+
+        // find shareable sibling
+        auto dataEdge = reorder->getParentEdgeAt(0);
+        auto parentNode = dataEdge->getParent();
+        auto parentPort = dataEdge->getInputNum();
+        for (auto& edge : parentNode->getChildEdgesAtPort(parentPort)) {
+            auto siblingNode = edge->getChild();
+            if (siblingNode == node)
+                continue;
+            Reorder* siblingReorder = getSuitableReorder(siblingNode);
+            if (!siblingReorder)
+                continue;
+            if (!reorder->getOutput().isCompatible(siblingReorder->getOutput()))
+                continue;
+
+            DEBUG_LOG(node->getName(), " is shared by ", siblingNode->getName());
+
+            // siblingReorder can share output with current reorder
+            for (auto pwEdge : siblingReorder->getParentEdges()) {
+                auto pEdge = pwEdge.lock();
+                if (pEdge)
+                    graph.RemoveEdge(pEdge);
+            }
+
+            for (auto pwEdge : siblingReorder->getChildEdges()) {
+                auto pEdge = pwEdge.lock();
+                if (pEdge) {
+                    graph.RemoveEdge(pEdge);
+                    if (pEdge->getInputNum() == 0)
+                        graph.CreateEdge(node, pEdge->getChild(), 0, pEdge->getOutputNum());
+                }
+            }
+
+            dropped.insert(siblingNode);
+        }
+    }
+}
+
 void GraphOptimizer::DropDoubleReorders(Graph &graph) {
     std::set<NodePtr> processed;
 
@@ -2410,7 +2575,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
     auto isSuitableChildNode = [](NodePtr node) {
         return node->getType() == Type::Reorder
-                && node->getChildEdges().size() == 1
                 && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
@@ -2487,92 +2651,127 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
     //          As in the first case, we also replace Transpose+Reorder pattern with a new Reorder.
     //          Additionally, we insert another Reorder that performs the conversion from the input precision (inPrec)
     //          to the output precision (outPrec)
-    auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& parentNode, std::shared_ptr<Node>& childNode) {
-        auto parentParentNode = parentNode->getParentEdgeAt(0)->getParent();
-        auto parentParentConstNode = parentNode->getParentEdgeAt(1)->getParent();
-        auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
+    auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& trans_node, std::shared_ptr<Node>& reorder_node) {
+        // parentParentNode ===> trans_node ===> reorder_node ===> cc0, cc1, ...
+        //      is transfomed into
+        // parentParentNode ===> reorder_nop ===> [reorder_convert] ==> cc0, cc1, ...
+        auto parentParentNode = trans_node->getParentEdgeAt(0)->getParent();
+        auto parentParenPort = trans_node->getParentEdgeAt(0)->getInputNum();
+        auto parentParentConstNode = trans_node->getParentEdgeAt(1)->getParent();
 
-        auto remEdge = parentNode->getParentEdgeAt(1);
+        auto remEdge = trans_node->getParentEdgeAt(1);
         graph.RemoveEdge(remEdge);
 
         // to prevent inPlace conflict we must check that the memory reference is unidirectional or
         // inPlace memory is not used
-        const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
-        const auto& childEdges = childNode->getChildEdgesAtPort(0);
+        const auto parentInPlace = trans_node->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+        const auto& childEdges = reorder_node->getChildEdgesAtPort(0);
+
         const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(),
             [](const EdgePtr& edge){ return edge->inPlace(Edge::LOOK_DOWN); });
 
         bool isOptimized = !(parentInPlace && childInPlace);
 
-        graph.DropNode(parentNode);
-        graph.DropNode(childNode);
+        // hold references to all children before dropping reorder_node
+        std::vector<std::pair<NodePtr, int>> reorderChildren;
+        for (auto ccEdge : childEdges)
+            reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
 
-        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
-        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        // detach trans_node and reorder_node from graph by remove all of their edges
+        // they will be removed in future graph.RemoveDroppedNodes() call
+        auto detachNode = [&](std::shared_ptr<Node>& node) {
+            std::vector<EdgeWeakPtr> edges;
+            edges = node->getParentEdges();
+            for (auto& edge : edges)
+                graph.RemoveEdge(edge.lock());
+            edges = node->getChildEdges();
+            for (auto& edge : edges)
+                graph.RemoveEdge(edge.lock());
+        };
+        detachNode(trans_node);
+        detachNode(reorder_node);
 
-        auto inPrec = inDesc->getPrecision();
-        auto outPrec = outDesc->getPrecision();
-
-        auto reorderInDesc = inDesc;
-        auto reorderOutDesc = outDesc->cloneWithNewPrecision(inPrec);
+        auto reorderInDesc = trans_node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+        auto finalDesc = reorder_node->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        auto reorderOutDesc = finalDesc->cloneWithNewPrecision(reorderInDesc->getPrecision());
 
         std::string reorderlayerName = parentParentNode->getName() + "_" +
                 Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
 
-        DEBUG_LOG("mergeTransposeAndReorder ", parentNode->getName(), " and ", childNode->getName(), " -> ", reorderlayerName);
-
-        EdgePtr edge;
-        for (auto &childEdge : parentParentNode->getChildEdges()) {
-            if (childEdge.lock()->getChild() == childChildNode) {
-                edge = childEdge.lock();
-                break;
-            }
-        }
-        if (!edge) {
-            OPENVINO_THROW("Transpose node '", parentNode->getName(), "' has invalid edges.");
-        }
+        DEBUG_LOG("mergeTransposeAndReorder ", trans_node->getName(), " and ", reorder_node->getName(), " -> ", reorderlayerName);
 
         std::vector<int> srcPerm;
-        auto configReorder = [&]() {
-            // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
-            // cannot be optimized
-            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
-            // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
-            auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
-            if (transposeNode == nullptr) {
-                OPENVINO_THROW("[CPU] parent node of type:",
-                               parentNode->getTypeStr(),
-                               " with name: ",
-                               parentNode->getName(),
-                               " is not a transpose node");
+        // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
+        // cannot be optimized
+        // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
+        // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
+        auto* transposeNode = dynamic_cast<Transpose*>(trans_node.get());
+        if (transposeNode == nullptr) {
+            OPENVINO_THROW("[CPU] parent node of type:",
+                            trans_node->getTypeStr(),
+                            " with name: ",
+                            trans_node->getName(),
+                            " is not a transpose node");
+        }
+        const auto& inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+        const auto& outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
+        if (!isOptimized || inOrder.size() > outOrder.size()) {
+            isOptimized = false;
+            // inDesc should be permuted before calling reorder
+            auto & ord = transposeNode->getOrder();
+            srcPerm = std::vector<int>(ord.size());
+            for (size_t i = 0; i < ord.size(); i++) {
+                srcPerm[ord[i]] = i;
             }
-            auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
-            auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
-            if (!isOptimized || inOrder.size() > outOrder.size()) {
-                isOptimized = false;
-                // inDesc should be permuted before calling reorder
-                auto & ord = transposeNode->getOrder();
-                srcPerm = std::vector<int>(ord.size());
-                for (size_t i = 0; i < ord.size(); i++) {
-                    srcPerm[ord[i]] = i;
-                }
-            }
-        };
+        }
+        auto reorder_layout =
+            std::make_shared<node::Reorder>(*reorderInDesc, *reorderOutDesc, reorderlayerName, graph.getGraphContext());
+        reorder_layout->setOptimized(isOptimized);
+        reorder_layout->setSrcPermutation(srcPerm);
 
-        configReorder();
-
-        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, isOptimized, srcPerm);
+        graph.CreateEdge(parentParentNode, reorder_layout, parentParenPort, 0);
 
         // case 2
-        if (inPrec != outPrec) {
-            auto reorderInDesc2 = reorderOutDesc;
-            auto reorderOutDesc2 = outDesc;
-
-            std::string reorderLayerName2 = reorderNode->getName() + "_" +
-                                    Reorder::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
-
-            graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
+        auto reorder_last = reorder_layout;
+        if (reorderOutDesc->getPrecision() != finalDesc->getPrecision()) {
+            std::string reorderLayerName2 = reorder_layout->getName() + "_" +
+                                            Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_x_" +
+                                            reorderChildren[0].first->getName();
+            reorder_last = std::make_shared<node::Reorder>(*reorderOutDesc,
+                                                           *finalDesc,
+                                                           reorderLayerName2,
+                                                           graph.getGraphContext());
+            reorder_last->setOptimized(false);
+            reorder_last->setSrcPermutation(srcPerm);
+            graph.CreateEdge(reorder_layout, reorder_last, 0, 0);
         }
+
+        for (auto& cc : reorderChildren)
+            graph.CreateEdge(reorder_last, cc.first, 0, cc.second);
+
+        // initialize and add nodes into graph
+        std::vector<NodePtr> new_nodes;
+        new_nodes.push_back(reorder_layout);
+        if (reorder_last != reorder_layout) {
+            new_nodes.push_back(reorder_last);
+        }
+        for (auto& node : new_nodes)
+            graph.AddNode(node);
+
+        // multiple nodes must be initialized in specific order
+        for (auto& node : new_nodes)
+            node->init();
+        for (auto& node : new_nodes) {
+            node->getSupportedDescriptors();
+            node->initSupportedPrimitiveDescriptors();
+            node->filterSupportedPrimitiveDescriptors();
+        }
+        for (auto& node : new_nodes)
+            node->selectOptimalPrimitiveDescriptor();
+        for (auto& node : new_nodes)
+            node->resolveInPlaceDirection();
+        for (auto& node : new_nodes)
+            node->initOptimalPrimitiveDescriptor();
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
