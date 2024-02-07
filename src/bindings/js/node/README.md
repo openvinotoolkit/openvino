@@ -29,7 +29,7 @@
 - Build bindings:
   `cmake --build . --config Release --verbose -j4`
 - Install binaries for openvinojs-node package:
-  `make --jobs=$(nproc --all) install`
+  `cmake --install .`
 - Go to npm package folder `cd ../src/bindings/js/node`
 - Now you can install dependencies packages and transpile ts to js code. Run `npm install`
 - Run tests `npm run test` to make sure that **openvinojs-node** built successfully
