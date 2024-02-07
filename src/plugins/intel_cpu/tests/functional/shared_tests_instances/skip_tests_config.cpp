@@ -373,6 +373,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(55\.12\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
         // Issue: 130471
         retVector.emplace_back(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)");
+        // Issue: 131475
+        retVector.emplace_back(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_fp16()) {
