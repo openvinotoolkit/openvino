@@ -12,7 +12,6 @@
 #include <string>
 #include <utility>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "description_buffer.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/common.hpp"

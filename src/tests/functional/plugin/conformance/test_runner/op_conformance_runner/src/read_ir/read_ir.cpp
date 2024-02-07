@@ -301,7 +301,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         std::ifstream ref_data_ifstream(path_to_ref_tensor, std::ifstream::binary);
         ref_data_ifstream.open(path_to_ref_tensor, std::ios::binary);
         if (!ref_data_ifstream.is_open())
-            IE_THROW() << "Weights file " << path_to_ref_tensor << " cannot be opened!";
+            OPENVINO_THROW("Weights file ", path_to_ref_tensor, " cannot be opened!");
 
         size_t buf_size = 0;
         for (const auto& output : functionRefs->outputs()) {

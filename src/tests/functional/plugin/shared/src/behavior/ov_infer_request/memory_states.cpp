@@ -4,9 +4,7 @@
 
 #include "behavior/ov_infer_request/memory_states.hpp"
 
-#include "base/behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
