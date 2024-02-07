@@ -36,7 +36,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
-#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
@@ -97,7 +96,6 @@ const std::shared_ptr<Node> propagate_through_ops =
                        ov::op::v8::Slice,
                        ov::op::v1::VariadicSplit,
                        ov::op::v1::Split,
-                       op::util::GatherBase,
                        ov::op::v0::Concat,
                        ov::op::v0::Convert,  // through Convert can go only to Constants
                        ov::op::v0::Constant,
@@ -389,7 +387,6 @@ public:
                                                                                         ov::op::v8::Slice,
                                                                                         ov::op::v1::VariadicSplit,
                                                                                         ov::op::v1::Split,
-                                                                                        op::util::GatherBase,
                                                                                         ov::op::v0::Concat,
                                                                                         ov::op::v0::Tile>();
 
