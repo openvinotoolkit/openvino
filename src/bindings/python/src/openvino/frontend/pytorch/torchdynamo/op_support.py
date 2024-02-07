@@ -13,9 +13,9 @@ from torch._ops import OpOverload
 from torch.fx.node import Node, _get_qualified_name
 from torch.fx.passes.operator_support import OperatorSupport
 from torch.fx.passes.tools_common import CALLABLE_NODE_OPS
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_disabled_ops
 
 import typing as t
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class OperatorSupport(OperatorSupport):
     Operator support for OpenVINO backend.
     """
 
-    def __init__(self):
+    def __init__(self, options):
         support_dict = {
             "_operator.getitem": None,
             "torch.ops.aten._adaptive_avg_pool2d.default": None,
@@ -126,6 +126,9 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.where.self": None,
             "torch.ops.aten.zeros_like.default": None,
         }
+
+        for op in _get_disabled_ops(options):
+            del support_dict[op]
 
         super().__init__(support_dict)
 
