@@ -895,8 +895,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
                      bool deterministic) {
-    // If determinism is not required, do not include names into xml
-    // model name is not critial for hash computing
+    // If determinism is not required, include auto-generated names into xml
+    // model name is not critical for hash computing
     if (!deterministic) {
         netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
@@ -941,7 +941,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
-        layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
+
+        // If determinism is not required, include auto-generated names into xml
+        // layer name is not critical for hash computing
+        if (!deterministic) {
+            layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
+        }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
             layer.append_attribute("version").set_value(get_opset_name(node).c_str());
