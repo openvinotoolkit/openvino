@@ -2,7 +2,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const os = require('node:os');
 const { addon: ov } = require('..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
@@ -79,38 +78,35 @@ describe('InferRequest', () => {
     });
   });
 
-  // 131123
-  if (os.platform() !== 'win32') {
-    it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
-      inferRequestAsync.inferAsync({ data: tensor }).then(result => {
-        assert.ok(result['fc_out'] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);}
-      );
-    });
+  it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
+    inferRequestAsync.inferAsync({ data: tensor }).then(result => {
+      assert.ok(result['fc_out'] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);}
+    );
+  });
 
-    it('Test inferAsync(inputData: Tensor[])', () => {
-      inferRequestAsync.inferAsync([ tensor ]).then(result => {
-        assert.ok(result['fc_out'] instanceof ov.Tensor);
-        assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, 10);
-      });
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequestAsync.inferAsync([ tensor ]).then(result => {
+      assert.ok(result['fc_out'] instanceof ov.Tensor);
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
+  });
 
-    it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
-      assert.throws(
-        () => inferRequestAsync.inferAsync(['string']).then(),
-        /Cannot create a tensor from the passed Napi::Value./
-      );
-    });
+  it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+    assert.throws(
+      () => inferRequestAsync.inferAsync(['string']).then(),
+      /Cannot create a tensor from the passed Napi::Value./
+    );
+  });
 
-    it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
-      assert.throws(
-        () => inferRequestAsync.inferAsync({data: 'string'}).then(),
-        /Cannot create a tensor from the passed Napi::Value./
-      );
-    });
-  }
+  it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+    assert.throws(
+      () => inferRequestAsync.inferAsync({data: 'string'}).then(),
+      /Cannot create a tensor from the passed Napi::Value./
+    );
+  });
 
   it('Test setInputTensor(tensor)', () => {
     inferRequest.setInputTensor(tensor);
