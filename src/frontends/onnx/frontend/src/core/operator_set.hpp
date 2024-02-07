@@ -13,7 +13,7 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-/// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
+/// \brief      Function which transforms single ONNX operator to OV sub-graph.
 
 using Operator = std::function<OutputVector(const Node&)>;
 
