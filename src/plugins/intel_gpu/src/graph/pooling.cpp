@@ -7,10 +7,10 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "max_pool_shape_inference.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "pooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::intel_gpu;
 

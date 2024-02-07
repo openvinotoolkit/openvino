@@ -2,30 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/remarks.hpp"
-#include "snippets/itt.hpp"
+#include <cassert>
+#include <climits>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <vector>
 
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "snippets/remarks.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "validation_util.hpp"
-
-#include <memory>
-#include <vector>
-#include <cassert>
-#include <string>
-#include <numeric>
-#include <climits>
-
 
 namespace ov {
 namespace snippets {

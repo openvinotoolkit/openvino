@@ -5,7 +5,7 @@
 #include "openvino/op/normalize_l2.hpp"
 
 #include "itt.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 

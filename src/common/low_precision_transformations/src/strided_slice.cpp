@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/strided_slice.hpp"
-
 #include <memory>
 
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/strided_slice.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {

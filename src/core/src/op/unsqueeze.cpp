@@ -10,8 +10,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "unsqueeze_shape_inference.hpp"
-#include "validation_util.hpp"
 
 ov::op::v0::Unsqueeze::Unsqueeze(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& axes)
     : Op({data, axes}) {

@@ -10,9 +10,9 @@
 #include "itt.hpp"
 #include "nms_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 // ------------------------------ V1 ------------------------------

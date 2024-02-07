@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include <algorithm>
 #include <numeric>

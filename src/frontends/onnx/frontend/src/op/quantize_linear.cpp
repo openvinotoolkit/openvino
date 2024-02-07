@@ -5,6 +5,7 @@
 #include "op/quantize_linear.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -12,7 +13,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/reshape.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 using ov::Shape;

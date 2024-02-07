@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
@@ -23,7 +24,6 @@
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;

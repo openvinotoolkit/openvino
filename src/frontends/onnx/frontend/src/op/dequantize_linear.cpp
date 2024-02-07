@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "core/null_node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,7 +16,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 

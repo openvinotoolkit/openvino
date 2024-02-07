@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/constant.hpp"
-#include "validation_util.hpp"
-
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
 namespace ov {
 namespace intel_gpu {

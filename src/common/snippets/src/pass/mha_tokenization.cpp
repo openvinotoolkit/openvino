@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/mha_tokenization.hpp"
-
-
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
-
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {

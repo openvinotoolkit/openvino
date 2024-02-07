@@ -9,8 +9,8 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/softmax.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
