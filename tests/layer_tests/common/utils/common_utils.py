@@ -48,15 +48,26 @@ def generate_ir(coverage=False, **kwargs):
 
 
 def generate_ir_python_api(coverage=False, **kwargs):
-    from openvino.runtime import serialize
-    from openvino.tools.mo import convert_model
-
     out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
 
-    # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
-    ov_model = convert_model(**kwargs)
-    serialize(ov_model, out_dir)
+    if getattr(kwargs, 'use_legacy_frontend', False):
+        from openvino.runtime import serialize
+        from openvino.tools.mo import convert_model
+        # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
+        ov_model = convert_model(**kwargs)    
+        serialize(ov_model, out_dir)
+    else:
+        from openvino.runtime import save_model
+        from openvino.tools.ovc import convert_model
+        
+        compress_to_fp16 = getattr(kwargs, 'compress_to_fp16', True)
+        import inspect
+        for key in list(kwargs.keys()):
+            if key not in inspect.signature(convert_model).parameters.keys():
+                kwargs.pop(key)
 
+        ov_model = convert_model(**kwargs)    
+        save_model(ov_model, out_dir, compress_to_fp16)
     return 0, ""
 
 
