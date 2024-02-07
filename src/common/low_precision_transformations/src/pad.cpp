@@ -163,7 +163,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     const auto convertedZero = ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, { padConstantValue });
     pad->set_argument(3, convertedZero);
 
-    moveDequantizationAfter(context, pad, dequantization, true);
+    moveDequantizationAfter(context, pad, dequantization);
 
     return true;
 }

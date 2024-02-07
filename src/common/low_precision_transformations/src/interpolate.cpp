@@ -60,7 +60,7 @@ bool InterpolateTransformation::transform(TransformationContext &context, ov::pa
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
-    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions), true);
+    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
     return true;
 }
 

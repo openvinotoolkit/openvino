@@ -50,7 +50,7 @@ bool SpaceToBatchTransformation::transform(TransformationContext& context, ov::p
     }
 
     const std::shared_ptr<Node> op = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions), false);
+    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
     return true;
 }
 
