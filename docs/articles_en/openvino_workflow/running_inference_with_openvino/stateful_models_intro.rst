@@ -19,11 +19,15 @@ execution.
 .. image:: _static/images/stateful_model_example.svg
    :alt: example comparison between stateless and stateful model implementations
    :align: center
-   :scale: 70%
+   :scale: 90 %
 
+What is more, when a model includes TensorIterator or Loop operations, turning it to stateful
+makes it possible to retrieve intermediate values from each execution iteration (thanks to the
+LowLatency transformation). Otherwise, the whole set of their executions needs to finish
+before the data becomes available.
 
-Text generation is a good usage example, as multiple inference calls are required to
-make a complete output sentence, each run producing a single output token. Information
+Text generation is a good usage example of stateful models, as it requires multiple inference
+calls to output a complete sentence, each run producing a single output token. Information
 from one run is passed to the next inference as a context, which may be handled by a stateful
 model natively. Potential benefits for this, as well as other scenarios, may be:
 
@@ -112,7 +116,7 @@ states.
 .. image:: _static/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
-   :scale: 70%
+   :scale: 80 %
 
 | **Resetting states**
 | Whenever it is necessary to set the initial value of a state or reset it, an initializing

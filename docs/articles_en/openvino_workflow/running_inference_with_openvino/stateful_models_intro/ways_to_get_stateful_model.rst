@@ -4,26 +4,20 @@ Obtaining a Stateful OpenVINO Model
 ====================================
 
 If the original framework does not offer a dedicated API for working with states, the
-resulting OpenVINO IR model is not stateful by default. This means it will not contain
+resulting OpenVINO IR model will not be stateful by default. This means it will not contain
 either a state or the :doc:`Assign <openvino_docs_ops_infrastructure_Assign_6>` and
-:doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_6>` operations. It also
-means you will not be able to receive intermediate values from each iteration with
-low latency.
+:doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_6>` operations. You can still
+make such models stateful (:doc:`see benefits <openvino_docs_OV_UG_stateful_models_intro>`),
+and you have three ways to do it:
 
-For example, if the original ONNX model contains RNN operations, the OpenVINO IR will
-contain TensorIterator and Loop operations. The values will be obtained only after the
-execution of the whole TensorIterator primitive. Intermediate values from each iteration
-will not be available.
-
-To make such models stateful, you have three options:
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
   refer to the :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace,
-* :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace these
-  pairs automatically.
-
+* :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
+  and Result pairs connected to hidden and cell state inputs of LSTM/RNN/GRU operations
+  or Loop/TensorIterator operations.
 
 
 .. _ov_ug_make_stateful:
@@ -35,9 +29,11 @@ The MakeStateful transformation changes the structure of the model by replacing 
 user-defined pairs of Parameter and Results with the Assign and ReadValue operations:
 
 .. image:: _static/images/make_stateful_simple.svg
+   :alt: diagram of MakeStateful Transformation
+   :scale: 90 %
    :align: center
 
-**Only strict syntax is supported**. As shown in the example above, the transformation call
+**Only strict syntax is supported**. As shown in the example below, the transformation call
 must be enclosed in double quotes "MakeStateful[...]", tensor names - in single quotes
 without spaces 'tensor_name_1'.
 
@@ -49,6 +45,7 @@ Parameter/Result tensor names. If there are no tensor names,
 **Examples:**
 
 .. image:: _static/images/make_stateful_detailed.png
+   :alt: detailed diagram of MakeStateful Transformation
    :align: center
 
 
@@ -95,6 +92,7 @@ and replacing pairs of Parameter and Results with the Assign and ReadValue opera
 as illustrated by the following example:
 
 .. image:: _static/images/applying_low_latency_2.svg
+   :alt: diagram of LowLatency Transformation
    :align: center
 
 After applying the transformation, ReadValue operations can receive other operations as
@@ -164,6 +162,7 @@ Applying LowLatency2 Transformation
 
 
    .. image:: _static/images/llt2_use_const_initializer.svg
+      :alt: diagram of constant subgraph initialization
       :align: center
 
    **State naming rule:**  the name of a state is a concatenation of names: original
@@ -184,6 +183,7 @@ Applying LowLatency2 Transformation
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
    .. image:: _static/images/low_latency_limitation_2.svg
+      :alt: diagram showing low latency limitation
       :scale: 70 %
       :align: center
 
