@@ -35,7 +35,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         return {context.mark_node(fw_node)};
     }
     auto first_node = list_elems.front().get_node_shared_ptr();
-    FRONT_END_OP_CONVERSION_CHECK(
+    PYTORCH_OP_CONVERSION_CHECK(
         list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
@@ -86,7 +86,7 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     auto axis = context.const_input<int64_t>(1);
-    FRONT_END_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
+    PYTORCH_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
     return {quantize(context,
                      translate_cat_common(context, list_elems, axis, false)[0],
                      context.get_input(2),

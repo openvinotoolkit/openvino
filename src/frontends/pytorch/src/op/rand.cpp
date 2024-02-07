@@ -56,8 +56,8 @@ OutputVector translate_rand(const NodeContext& context) {
     auto dtype = element::f32;
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         out_id = 2;
     }
     // aten::rand.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
@@ -75,8 +75,8 @@ OutputVector translate_rand(const NodeContext& context) {
     Output<Node> convert_like_out;
     size_t dtype_id = 1;
     if (context.get_input_size() == 6) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::rand conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::rand conversion with generator does not supported");
         dtype_id = 2;
     }
     if (!context.input_is_none(dtype_id)) {
@@ -92,7 +92,7 @@ OutputVector translate_rand(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
@@ -130,7 +130,7 @@ OutputVector translate_rand_like(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
@@ -150,8 +150,8 @@ OutputVector translate_randn(const NodeContext& context) {
     auto dtype = element::f32;
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         out_id = 2;
     }
     // aten::randn.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
@@ -165,8 +165,8 @@ OutputVector translate_randn(const NodeContext& context) {
     }
     size_t dtype_id = 1;
     if (context.get_input_size() == 6) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         dtype_id = 2;
     }
     // aten::randn(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
@@ -186,7 +186,7 @@ OutputVector translate_randn(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
@@ -226,7 +226,7 @@ OutputVector translate_randn_like(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
@@ -256,7 +256,7 @@ OutputVector translate_randint(const NodeContext& context) {
             convert_like_out = fw_node->input_value(0);
             dtype_applied = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
@@ -331,7 +331,7 @@ OutputVector translate_normal(const NodeContext& context) {
                 convert_like_out = fw_node->input_value(0);
                 dtype_applied = false;
             } else {
-                FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+                PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
             }
         }
         auto res = make_random_normal(context, sizes, dtype, std, mean);
@@ -340,9 +340,9 @@ OutputVector translate_normal(const NodeContext& context) {
         }
         return res;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Unsupported number of inputs to aten::normal operation: ",
-                                      context.get_input_size());
+        PYTORCH_OP_CONVERSION_CHECK(false,
+                                    "Unsupported number of inputs to aten::normal operation: ",
+                                    context.get_input_size());
     }
 }
 

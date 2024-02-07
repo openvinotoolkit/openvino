@@ -44,7 +44,7 @@ OutputVector translate_linspace(const NodeContext& context) {
             out_tensor = fw_node->input_value(0);
             apply_dtype = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     } else if (!context.input_is_none(3) && context.get_input_size() == 4) {
         // Case where dtype is inherited from out tensor.

@@ -40,7 +40,7 @@ OutputVector translate_slice_common(const NodeContext& context, const size_t num
         step_idx = 3;
         dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Slice must have either 4 or 5 inputs.");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Slice must have either 4 or 5 inputs.");
     }
     // TODO: support default start/end with negative step
     ov::Output<ov::Node> start;

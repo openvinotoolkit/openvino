@@ -54,7 +54,7 @@ OutputVector translate_to(const NodeContext& context) {
             return {context.get_input(0)};
         }
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
 
     // We ignore both non_blocking and copy inputs since non_blocking argument is used

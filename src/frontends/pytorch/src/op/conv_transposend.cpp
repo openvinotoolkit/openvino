@@ -24,7 +24,7 @@ OutputVector translate_conv_transposend(const NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
     auto dilations = context.const_input<Strides>(7);
     auto groups = context.const_input<int64_t>(6);
-    FRONT_END_OP_CONVERSION_CHECK(groups > 0, "Number of groups for convolution_transpose should be >= 1");
+    PYTORCH_OP_CONVERSION_CHECK(groups > 0, "Number of groups for convolution_transpose should be >= 1");
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {

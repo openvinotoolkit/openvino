@@ -91,10 +91,10 @@ OutputVector translate_pad_common(const NodeContext& context,
         {"replicate", PadMode::EDGE},
     };
     auto ov_mode = pt_to_ov_pad.find(mode);
-    FRONT_END_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
-                                  "aten::pad conversion doesn't support [ ",
-                                  mode,
-                                  " ] padding mode");
+    PYTORCH_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
+                                "aten::pad conversion doesn't support [ ",
+                                mode,
+                                " ] padding mode");
     return {context.mark_node(std::make_shared<v1::Pad>(data, pads_begins, pads_ends, pad_value_, ov_mode->second))};
 }
 }  // namespace

@@ -22,7 +22,7 @@ OutputVector translate_list_construct(const NodeContext& context) {
     for (size_t i = 0; i < context.get_input_size(); i++) {
         auto input = context.get_input_from_visible_context(i);
         auto c_node = std::dynamic_pointer_cast<v0::Constant>(input.get_node_shared_ptr());
-        FRONT_END_OP_CONVERSION_CHECK(c_node, "Translation for prim::ListConstruct support only constant inputs");
+        PYTORCH_OP_CONVERSION_CHECK(c_node, "Translation for prim::ListConstruct support only constant inputs");
         if (c_node->get_shape().size() == 0) {
             c_node = std::make_shared<v0::Constant>(c_node->get_element_type(), Shape{1}, c_node->get_data_ptr());
             consts.push_back(c_node);

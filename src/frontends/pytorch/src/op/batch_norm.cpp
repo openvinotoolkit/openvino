@@ -139,8 +139,8 @@ OutputVector translate_batch_norm_legit_no_stats_fx(const NodeContext& context) 
         bias = context.get_input(2);
     }
     auto training = context.const_input<bool>(3);
-    FRONT_END_OP_CONVERSION_CHECK(training,
-                                  "aten._native_batch_norm_legit.no_stats can only be used when training=True.");
+    PYTORCH_OP_CONVERSION_CHECK(training,
+                                "aten._native_batch_norm_legit.no_stats can only be used when training=True.");
     // index 4 momentum is used during training only
     auto eps = context.const_input<float>(5);
     auto output = make_batch_norm(context, context.get_input(0), weight, bias, {}, {}, eps);
