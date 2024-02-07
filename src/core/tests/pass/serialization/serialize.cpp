@@ -99,7 +99,8 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
                     std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
                     std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin"),
-                    std::make_tuple("string_parameter.xml", "string_parameter.bin")));
+                    std::make_tuple("string_parameter.xml", "string_parameter.bin"),
+                    std::make_tuple("const_string.xml", "const_string.bin")));
 
 #ifdef ENABLE_OV_ONNX_FRONTEND
 
