@@ -368,10 +368,32 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
-        // Filling in a fresh constant
-        allocate_buffer(false);
+        if (m_element_type == ov::element::string) {
+            // string objects initialization is required
+            allocate_buffer(true);
+        } else {
+            // Filling in a fresh constant
+            allocate_buffer(false);
+        }
     }
-    visitor.on_attribute("value", m_data);
+
+    if (m_element_type == ov::element::string) {
+        if (auto string_aligned_buffer = std::dynamic_pointer_cast<ov::StringAlignedBuffer>(m_data)) {
+            visitor.on_attribute("value", string_aligned_buffer);
+        } else if (auto shared_string_tensor = std::dynamic_pointer_cast<ov::SharedBuffer<ov::Tensor>>(m_data)) {
+            auto shared_string_buffer =
+                std::make_shared<ov::SharedStringAlignedBuffer>(static_cast<char*>(shared_string_tensor->get_ptr()),
+                                                                shared_string_tensor->size());
+            visitor.on_attribute("value", shared_string_buffer);
+        } else {
+            // deserialization case when buffer does not exist yet
+            std::shared_ptr<ov::StringAlignedBuffer> string_aligned_buffer;
+            visitor.on_attribute("value", string_aligned_buffer);
+            m_data = string_aligned_buffer;
+        }
+    } else {
+        visitor.on_attribute("value", m_data);
+    }
     update_identical_flags(false, false);
     return true;
 }
