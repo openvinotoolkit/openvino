@@ -28,7 +28,6 @@
 
 #include <dnnl_types.h>
 #include <dnnl_debug.h>
-#include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "nodes/common/cpu_convert.h"

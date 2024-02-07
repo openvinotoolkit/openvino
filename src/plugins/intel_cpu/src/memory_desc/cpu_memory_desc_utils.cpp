@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_ngraph_utils.hpp>
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <cpu_memory.h>
 #include <vector>
-#include <blob_factory.hpp>
 #include <cpu_memory.h>
 #include <dnnl_types.h>
 #include <numeric>

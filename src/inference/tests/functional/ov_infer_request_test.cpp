@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cpp/ie_infer_request.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/infer_request.hpp>

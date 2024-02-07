@@ -4,9 +4,6 @@
 
 #include "openvino/runtime/allocator.hpp"
 
-#include "blob_allocator.hpp"
-#include "ie_allocator.hpp"
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 
 namespace ov {
