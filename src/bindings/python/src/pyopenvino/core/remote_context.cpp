@@ -8,14 +8,14 @@
 
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/remote_context.hpp>
-#include <openvino/runtime/tensor.hpp>
 #include <openvino/core/type/element_type.hpp>
+#include <openvino/runtime/tensor.hpp>
 
 #ifdef PY_ENABLE_OPENCL
-#include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+    #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #endif  // PY_ENABLE_OPENCL
 #ifdef PY_ENABLE_LIBVA
-#include <openvino/runtime/intel_gpu/ocl/va.hpp>
+    #include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif  // PY_ENABLE_LIBVA
 
 #include "common.hpp"
@@ -28,11 +28,9 @@ void regclass_RemoteContext(py::module m) {
 
     cls.def("get_device_name", &ov::RemoteContext::get_device_name);
 
-    cls.def(
-        "get_params",
-        [](ov::RemoteContext& self) {
-            return self.get_params();
-        });
+    cls.def("get_params", [](ov::RemoteContext& self) {
+        return self.get_params();
+    });
 
     // This returns ov::RemoteTensor
     // TODO: think about renaming suggestion? create_tensor -> create_remote/device_tensor
@@ -51,12 +49,9 @@ void regclass_RemoteContext(py::module m) {
         py::arg("properties"));
 
     // This returns ov::Tensor
-    // TODO: think about renaming suggestion? Or keeping it with rename of above?
     cls.def(
         "create_host_tensor",
-        [](ov::RemoteContext& self,
-           const ov::element::Type& type,
-           const ov::Shape& shape) {
+        [](ov::RemoteContext& self, const ov::element::Type& type, const ov::Shape& shape) {
             return self.create_host_tensor(type, shape);
         },
         py::arg("type"),
@@ -67,7 +62,9 @@ void regclass_RemoteContext(py::module m) {
 // IMO these can inherit flatten "openvino.gpu" space instead of ocl one. TBD
 #ifdef PY_ENABLE_OPENCL
 void regclass_ClContext(py::module m) {
-    py::class_<ov::intel_gpu::ocl::ClContext, ov::RemoteContext, std::shared_ptr<ov::intel_gpu::ocl::ClContext>> cls(m, "ClContext");
+    py::class_<ov::intel_gpu::ocl::ClContext, ov::RemoteContext, std::shared_ptr<ov::intel_gpu::ocl::ClContext>> cls(
+        m,
+        "ClContext");
 }
 #endif  // PY_ENABLE_OPENCL
 
