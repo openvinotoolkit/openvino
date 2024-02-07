@@ -163,6 +163,24 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
         x = _mm256_add_ps(x, y);              // x: 01234567 x x x x x x x
     }
+    inline void hmax(__m256& x) {
+        __m256 y;                             // x:  0 1 2 3   4 5 6 7
+        y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
+        x = _mm256_max_ps(x, y);              // X:  01 12 23 30  45 56 67 74
+        y = _mm256_permute_ps(x, 0x4e);       // y:  23 30 01 12  67 74 45 56
+        x = _mm256_max_ps(x, y);              // x: 0123 x x x   4567 x x x
+        y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
+        x = _mm256_max_ps(x, y);              // x: 01234567 x x x x x x x
+    }
+    inline void hmin(__m256& x) {
+        __m256 y;                             // x:  0 1 2 3   4 5 6 7
+        y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
+        x = _mm256_min_ps(x, y);              // X:  01 12 23 30  45 56 67 74
+        y = _mm256_permute_ps(x, 0x4e);       // y:  23 30 01 12  67 74 45 56
+        x = _mm256_min_ps(x, y);              // x: 0123 x x x   4567 x x x
+        y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
+        x = _mm256_min_ps(x, y);              // x: 01234567 x x x x x x x
+    }
 #endif
 
 }  // namespace XARCH
