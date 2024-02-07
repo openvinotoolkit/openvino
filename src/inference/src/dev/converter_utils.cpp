@@ -440,10 +440,13 @@ public:
             old_info.cpu_uSec = info.cpu_time.count();
             old_info.execution_index = static_cast<unsigned>(i);
             old_info.realTime_uSec = info.real_time.count();
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wstringop-truncation"
             strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
             old_info.exec_type[sizeof(old_info.exec_type) - 1] = '\0';
             strncpy(old_info.layer_type, info.node_type.c_str(), sizeof(old_info.layer_type));
             old_info.layer_type[sizeof(old_info.layer_type) - 1] = '\0';
+            #pragma GCC diagnostic pop
             switch (info.status) {
             case ov::ProfilingInfo::Status::EXECUTED:
                 old_info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
