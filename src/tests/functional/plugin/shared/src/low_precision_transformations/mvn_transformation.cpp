@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/mvn.hpp"
@@ -36,7 +34,6 @@ std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNT
 }
 
 void MVNTransformation::SetUp() {
-    abs_threshold = 0.1;
     ov::PartialShape shape;
     ov::element::Type precision;
     ov::AxisSet reductionAxes;

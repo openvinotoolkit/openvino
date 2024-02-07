@@ -48,8 +48,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/inference/include/ie"
-                                                  "${OpenVINO_SOURCE_DIR}/src/inference/include"
+target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/inference/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/inference/dev_api"
                                                   "${OpenVINO_SOURCE_DIR}/src/core/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/bindings/c/include"

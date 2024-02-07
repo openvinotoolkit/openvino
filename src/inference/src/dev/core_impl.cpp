@@ -8,9 +8,6 @@
 
 #include "check_network_batchable.hpp"
 #include "compilation_context.hpp"
-#include "dev/converter_utils.hpp"
-#include "dev/icompiled_model_wrapper.hpp"
-#include "dev/iplugin_wrapper.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -56,7 +53,6 @@ template <typename F>
 void allowNotImplemented(F&& f) {
     try {
         f();
-    } catch (const InferenceEngine::NotImplemented&) {
     } catch (const ov::NotImplemented&) {
     }
 }
@@ -586,8 +582,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
-            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin_impl))
-                wrapper->set_shared_object(so);
             plugin = Plugin{plugin_impl, so};
         }
 
@@ -692,7 +686,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
                 add_extensions_unsafe(ext);
-            } catch (const InferenceEngine::GeneralError&) {
+            } catch (const ov::Exception&) {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
@@ -700,15 +694,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
-    } catch (const InferenceEngine::Exception& ex) {
-        OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::from_file_path(desc.libraryLocation),
-                       " for device ",
-                       deviceName,
-                       "\n",
-                       "Please, check your environment\n",
-                       ex.what(),
-                       "\n");
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
                        ov::util::from_file_path(desc.libraryLocation),
@@ -851,9 +836,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
-    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
 
     return compiled_model;
 }
@@ -864,9 +846,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
-    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
 
     return compiled_model;
 }
@@ -907,10 +886,8 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         if (is_hidden_device(deviceName))
             continue;
         try {
-            const ov::Any p = GetMetric(deviceName, propertyName);
+            const ov::Any p = get_property(deviceName, propertyName, {});
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (const InferenceEngine::Exception&) {
-            // plugin is not created by e.g. invalid env
         } catch (const ov::Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
@@ -1376,8 +1353,6 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     try {
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-    } catch (const InferenceEngine::NotImplemented&) {
-        return false;
     } catch (const ov::NotImplemented&) {
         return false;
     }
@@ -1459,9 +1434,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             update_config[ov::loaded_from_cache.name()] = true;
             compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                      : plugin.import_model(networkStream, update_config);
-            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-                wrapper->get_executable_network()->loadedFromCache();
-            }
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
