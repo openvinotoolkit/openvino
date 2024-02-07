@@ -96,7 +96,8 @@ std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const 
         if (type == "CUSTOM") {
             type = operator_code->custom_code()->str();
         }
-        return std::make_shared<DecoderFlatBuffer>(node, type, std::to_string(node_index), input_info, output_info);
+        auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
+        return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
     } else {
         auto tensor_id = m_nodes[node_index].as<int32_t>();
         auto tensor = (*tensors)[tensor_id];
