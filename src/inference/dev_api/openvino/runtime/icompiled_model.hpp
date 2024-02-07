@@ -15,6 +15,7 @@
 
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"

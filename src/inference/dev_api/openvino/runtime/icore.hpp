@@ -24,6 +24,9 @@ class Plugin;
 
 }
 
+class ICompiledModel;
+class IRemoteContext;
+
 /**
  * @interface ICore
  * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.

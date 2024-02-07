@@ -14,20 +14,19 @@
 #include "transformations/utils/utils.hpp"
 
 namespace {
-
-ov::element::Type toLegacyType(const ov::element::Type& ngraph_type, bool input) {
+ov::element::Type to_legacy_type(const ov::element::Type& legacy_type, bool input) {
     if (input) {
-        return ngraph_type == ov::element::f16 ? ov::element::f32 : ngraph_type;
+        return legacy_type == ov::element::f16 ? ov::element::f32 : legacy_type;
     } else {
-        if (ngraph_type == ov::element::i64 || ngraph_type == ov::element::u64 || ngraph_type == ov::element::i32 ||
-            ngraph_type == ov::element::u32) {
+        if (legacy_type == ov::element::i64 || legacy_type == ov::element::u64 || legacy_type == ov::element::i32 ||
+            legacy_type == ov::element::u32) {
             return ov::element::i32;
-        } else if (ngraph_type != ov::element::f32) {
+        } else if (legacy_type != ov::element::f32) {
             return ov::element::f32;
         }
     }
 
-    return ngraph_type;
+    return legacy_type;
 }
 
 void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = false) {
@@ -41,7 +40,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         for (size_t i = 0; i < inputs.size(); ++i) {
             if (!frontendMode) {
                 const auto ov_type = inputs[i].get_element_type();
-                const auto legacy_type = toLegacyType(ov_type, true);
+                const auto legacy_type = to_legacy_type(ov_type, true);
                 prepost.input(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : inputs[i].get_names()) {
@@ -56,7 +55,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         for (size_t i = 0; i < outputs.size(); ++i) {
             if (!frontendMode) {
                 const auto ov_type = outputs[i].get_element_type();
-                const auto legacy_type = toLegacyType(ov_type, false);
+                const auto legacy_type = to_legacy_type(ov_type, false);
                 prepost.output(i).tensor().set_element_type(legacy_type);
             }
             for (const auto& name : outputs[i].get_names()) {

@@ -451,6 +451,7 @@ public:
 
     virtual void selectOptimalPrimitiveDescriptor();
     virtual void initOptimalPrimitiveDescriptor();
+    void resolveInPlaceDirection();
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class

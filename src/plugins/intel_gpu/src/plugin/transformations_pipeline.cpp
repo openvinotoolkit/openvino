@@ -56,6 +56,7 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -450,6 +451,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
+        pass_config->set_callback<ov::pass::LSTMCellFusion>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                return !isCellPrimitiveSupported(node);
+            });
+
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,
@@ -459,6 +465,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     });
         }
 
+        pass_config->set_callback<ov::pass::ConvertLoopToLSTMSequence,
+                                  ov::pass::FuseReverseLSTMSequence,
+                                  ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence>(
+                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                    return !isSequencePrimitiveSupported(node);
+                });
 
         pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {

@@ -7,6 +7,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <openvino/opsets/opset9.hpp>
 
@@ -33,6 +34,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
 }
 
 TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto original_model = MakeMatMulModel();
     ov::Core core;
     std::string device_name;

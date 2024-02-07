@@ -33,9 +33,6 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
 }
 
 void ConcatTransformation::SetUp() {
-    abs_threshold = 0.1;
-    rel_threshold = 4.2;
-
     ov::PartialShape inputShape;
     ov::element::Type precision;
     ConcatTransformationTestValues testValues;

@@ -4,10 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <cpu_memory.h>
-#include <memory_desc/cpu_blocked_memory_desc.h>
-#include <thread>
 #include <atomic>
+#include <thread>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
 

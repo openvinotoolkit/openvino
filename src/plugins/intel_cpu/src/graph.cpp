@@ -234,6 +234,11 @@ void Graph::InitGraph(bool optimize) {
 
     ResolveEdgeConflicts();
 
+    optimizer.ShareReorders(*this);
+    RemoveDroppedNodes();
+
+    ResolveComplexInplaceConflicts();
+
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
@@ -308,7 +313,7 @@ void Graph::ResolveInplaceDirections() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
 
     for (auto& node : graphNodes) {
-        resolveInPlaceDirection(node);
+        node->resolveInPlaceDirection();
     }
 }
 
@@ -423,6 +428,22 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     return dnnl_success == status;
 }
 
+void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames) {
+    std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                    node::Reorder::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                    edge->getChild()->getName();
+    std::string layerName = basicLayerName;
+    int idx = 0;
+    while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+        idx++;
+        layerName = basicLayerName + "_" + std::to_string(idx);
+    }
+    uniqueLayerNames.insert(layerName);
+
+    // optimized flag indicate that just desc update w/o actual physical memory movement.
+    InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+}
+
 void Graph::ResolveEdgeConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveEdgeConflicts");
 
@@ -432,22 +453,6 @@ void Graph::ResolveEdgeConflicts() {
     for (auto node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
-
-    auto insertReorder = [&](EdgePtr& edge, bool isOptimized) {
-        std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                     node::Reorder::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                     edge->getChild()->getName();
-        std::string layerName = basicLayerName;
-        int idx = 0;
-        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
-            idx++;
-            layerName = basicLayerName + "_" + std::to_string(idx);
-        }
-        uniqueLayerNames.insert(layerName);
-
-        // optimized flag indicate that just desc update w/o actual physical memory movement.
-        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
-    };
 
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
@@ -484,14 +489,31 @@ void Graph::ResolveEdgeConflicts() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
+                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized, uniqueLayerNames);
             }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
-            insertReorder(edge, true);
+            insertReorder(edge, true, uniqueLayerNames);
             updateEdge(i);
         }
     }
+}
+
+void Graph::ResolveComplexInplaceConflicts() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
+
+    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+
+    std::unordered_set<std::string> uniqueLayerNames;
+    for (auto node : graphNodes) {
+        uniqueLayerNames.insert(node->getName());
+    }
+
+    auto updateEdge = [&](ptrdiff_t& i) {
+        graphEdges.erase(graphEdges.begin() + i);
+        i--;
+        numberOfEdges--;
+    };
 
     // secondary pass to eliminate complex inplace conflicts
     auto needReorder = [](const EdgePtr& edge) -> bool {
@@ -518,13 +540,10 @@ void Graph::ResolveEdgeConflicts() {
         return false;
     };
 
-    numberOfEdges = graphEdges.size(); //update the total number
-
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         if (needReorder(edge)) {
-            constexpr bool optimizedReorder = false;
-            insertReorder(edge, optimizedReorder);
+            insertReorder(edge, false, uniqueLayerNames);
             updateEdge(i);
         }
     }
@@ -1552,10 +1571,9 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->initSupportedPrimitiveDescriptors();
         node->filterSupportedPrimitiveDescriptors();
         node->selectOptimalPrimitiveDescriptor();
-        resolveInPlaceDirection(node);
+        node->resolveInPlaceDirection();
         node->initOptimalPrimitiveDescriptor();
     }
-
     return true;
 }
 
@@ -1704,125 +1722,6 @@ void Graph::EnforceInferencePrecision() {
 
 std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
-}
-
-void Graph::resolveInPlaceDirection(const NodePtr& node) const {
-    enum InplaceDirectionType {UP, DOWN, CYCLIC, NONE};
-    enum PortType {INPUT, OUTPUT};
-
-    auto inPlaceDirection = [](const NodePtr& node, PortType portType, int portNum) -> InplaceDirectionType {
-        if (PortType::INPUT == portType) {
-            auto inPlaceInpPort = node->inPlaceInputPort(portNum);
-            if (inPlaceInpPort >= 0) {
-                auto inPlaceOutPort = node->inPlaceOutPort(inPlaceInpPort);
-                if (inPlaceOutPort == inPlaceInpPort) {
-                    return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceOutPort < 0) {
-                    return InplaceDirectionType::DOWN;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
-                }
-            }
-            // the requested port has a negative inPlace tag, let's check whether it is referenced from the output
-            auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
-            for (auto& portConf : config.outConfs) {
-                if (portConf.inPlace() == portNum) {
-                    return InplaceDirectionType::UP;
-                }
-            }
-        } else if (PortType::OUTPUT == portType) {
-            auto inPlaceOutPort = node->inPlaceOutPort(portNum);
-            if (inPlaceOutPort >= 0) {
-                auto inPlaceInpPort = node->inPlaceInputPort(inPlaceOutPort);
-                if (inPlaceOutPort == inPlaceInpPort) {
-                    return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceInpPort < 0) {
-                    return InplaceDirectionType::UP;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
-                }
-            }
-            // the requested port has a negative inPlace tag, let's check whether it is referenced from the input
-            auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
-            for (auto& portConf : config.inConfs) {
-                if (portConf.inPlace() == portNum) {
-                    return InplaceDirectionType::DOWN;
-                }
-            }
-        }
-        return InplaceDirectionType::NONE;
-    };
-
-    auto& inpEdges = node->getParentEdges();
-    for (auto& wEdge : inpEdges) {
-        if (auto pEdge = wEdge.lock()) {
-            auto inpPort = pEdge->getOutputNum();
-            auto inPlaceInpPort = node->inPlaceInputPort(inpPort);
-            if (inPlaceInpPort < 0 || inPlaceDirection(node, PortType::INPUT, inpPort) != InplaceDirectionType::CYCLIC) {
-                continue;
-            }
-            // inPlace memory cyclic dependency detected, need to resolve
-            // let's check the parent node first
-            auto pParent = pEdge->getParent();
-            auto parentInPlaceDirection = inPlaceDirection(pParent, PortType::OUTPUT, pEdge->getInputNum());
-            if (parentInPlaceDirection == InplaceDirectionType::UP) {
-                auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                config.inConfs[inpPort].inPlace(-1);
-                node->initDescriptor(config);
-            } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                //search if siblings already have downstream direction
-                auto downstreamPeers = [&] {
-                    for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
-                        auto peerNode = peerEdge->getChild();
-                        if (peerNode == node) continue;
-                        if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) == InplaceDirectionType::DOWN) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }();
-                if (downstreamPeers) {
-                    // when there is an downstream peer we have to resolve upstream inplace for the node
-                    // to avoid inplace conflict
-                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                    config.inConfs[inpPort].inPlace(-1);
-                    node->initDescriptor(config);
-                } else {
-                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                    config.outConfs[inPlaceInpPort].inPlace(-1);
-                    node->initDescriptor(config);
-                }
-            } else {
-                // the parent node does not use inPlace memory, let's check children
-                std::function<InplaceDirectionType(const NodePtr& node, int portIdx)> searchNonCyclicDirection;
-                searchNonCyclicDirection = [&](const NodePtr& node, int portIdx) -> InplaceDirectionType {
-                    auto childEdges = node->getChildEdgesAtPort(portIdx);
-                    for (auto& edge : childEdges) {
-                        auto pChild = edge->getChild();
-                        auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
-                        if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
-                            return result;
-                        } else if (InplaceDirectionType::CYCLIC == result) {
-                            return searchNonCyclicDirection(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
-                        }
-                    }
-                    return InplaceDirectionType::NONE;
-                };
-                auto result = searchNonCyclicDirection(node, inPlaceInpPort);
-                if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
-                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                    config.inConfs[inpPort].inPlace(-1);
-                    node->initDescriptor(config);
-                } else if (InplaceDirectionType::DOWN == result) {
-                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                    config.outConfs[inPlaceInpPort].inPlace(-1);
-                    node->initDescriptor(config);
-                } else {
-                    OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
-                }
-            }
-        }
-    }
 }
 
 void Graph::SearchInternalStateNodes() {

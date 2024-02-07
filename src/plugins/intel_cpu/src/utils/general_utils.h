@@ -6,10 +6,10 @@
 
 #include "cpu_shape.h"
 
-#include "openvino/core/type/element_type.hpp"
-
 #include <algorithm>
 #include <cassert>
+
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

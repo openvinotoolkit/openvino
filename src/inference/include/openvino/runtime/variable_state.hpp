@@ -19,7 +19,6 @@ namespace ov {
 
 class InferRequest;
 class IVariableState;
-class IInferRequestInternalWrapper;
 
 /**
  * @brief VariableState class

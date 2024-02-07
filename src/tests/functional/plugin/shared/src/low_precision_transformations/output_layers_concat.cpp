@@ -43,8 +43,6 @@ std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<Lay
 */
 
 void OutputLayersConcat::SetUp() {
-    abs_threshold = 4.1;
-
     ov::Shape inputShape1;
     ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

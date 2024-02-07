@@ -35,7 +35,6 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    abs_threshold = 0.6;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -34,8 +34,6 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 }
 
 void RecurrentCellTransformation::SetUp() {
-    abs_threshold = 0.01;
-
     ov::element::Type precision;
     std::vector<ov::PartialShape> activations_shapes;
     std::vector<ov::Shape> weights_shapes;

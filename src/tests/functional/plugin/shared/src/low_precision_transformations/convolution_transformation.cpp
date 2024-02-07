@@ -34,9 +34,6 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void ConvolutionTransformation::SetUp() {
-    rel_threshold = 1.0e+10;
-    abs_threshold = 1.4;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

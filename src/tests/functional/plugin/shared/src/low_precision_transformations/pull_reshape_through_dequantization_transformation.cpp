@@ -39,8 +39,6 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 }
 
 void PullReshapeThroughDequantizationTransformation::SetUp() {
-    abs_threshold = 1.0e-3;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

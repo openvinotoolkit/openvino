@@ -24,6 +24,8 @@
 
 namespace ov {
 
+class ICompiledModel;
+
 /**
  * @defgroup ov_dev_api OpenVINO Plugin API
  * @brief Defines Inference Engine Plugin API which can be used in plugin development

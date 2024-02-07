@@ -41,9 +41,6 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 }
 
 void NormalizeL2Transformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
-
     std::pair<ov::PartialShape, ov::Shape> shapes;
     ov::element::Type precision;
     std::vector<uint64_t> axes;
