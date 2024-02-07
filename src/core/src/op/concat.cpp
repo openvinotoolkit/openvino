@@ -63,7 +63,7 @@ void evaluate_concat(const Concat* node, TensorVector& outputs, const TensorVect
     std::vector<const T*> arg_bufs(inputs_count);
     auto arg_buf = arg_bufs.begin();
     for (auto& input : inputs) {
-        *arg_buf = input.data<T>();
+        *arg_buf = static_cast<const T*>(input.data());
         ++arg_buf;
         const auto& input_shape = input.get_shape();
         arg_shapes.emplace_back(input_shape);
@@ -73,7 +73,7 @@ void evaluate_concat(const Concat* node, TensorVector& outputs, const TensorVect
     const auto& out_shape = shape_infer(node, input_shapes).front().to_shape();
     outputs.front().set_shape(out_shape);
     reference::concat(arg_bufs,
-                      outputs.front().data<T>(),
+                      static_cast<T*>(outputs.front().data()),
                       arg_shapes,
                       out_shape,
                       ov::util::normalize(node->get_axis(), out_shape.size()),
