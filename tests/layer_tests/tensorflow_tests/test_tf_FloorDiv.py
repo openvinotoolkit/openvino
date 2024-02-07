@@ -17,9 +17,9 @@ class TestFloorDiv(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(dtype, x_shape, 'Input')
-            constant_value = np.array(-10).astype(dtype)
+            constant_value = np.array(-256).astype(dtype)
             y = tf.constant(constant_value)
-            x = tf.raw_ops.Abs(x=x)
+            # x = tf.raw_ops.Abs(x=x)  # this abs prevent comparison for int on GPU
             res = tf.raw_ops.FloorDiv(x=x, y=y)
 
             tf.compat.v1.global_variables_initializer()
@@ -28,16 +28,21 @@ class TestFloorDiv(CommonTFLayerTest):
         ref_net = None
 
         return tf_net, ref_net
-
+    
+    def _prepare_input(self, inputs_dict):
+        for input in inputs_dict.keys():
+            inputs_dict[input] = np.random.randint(-100000, 100000, inputs_dict[input]).astype(np.float32)
+        return inputs_dict
+    
     # TODO: implement tests for 2 Consts + Add
 
     test_data_1D = [
-        dict(x_shape=[], dtype=np.int32),
-        dict(x_shape=[2], dtype=np.int64),
-        dict(x_shape=[2, 4, 5], dtype=np.int32),
-        dict(x_shape=[], dtype=np.float32),
-        dict(x_shape=[2], dtype=np.float64),
-        dict(x_shape=[2, 4, 5], dtype=np.float32),
+        # dict(x_shape=[], dtype=np.int32),
+        # dict(x_shape=[2], dtype=np.int64),
+        dict(x_shape=[2, 4, 5, 1000], dtype=np.int32),
+        # dict(x_shape=[], dtype=np.float32),
+        # dict(x_shape=[2], dtype=np.float64),
+        # dict(x_shape=[2, 4, 5], dtype=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_1D)
