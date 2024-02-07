@@ -62,6 +62,15 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
         // we need to add operation names as tensor names for inputs and outputs
         {
+            for (const auto& result : model->get_results()) {
+                auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+                OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
+                                    result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                                "Model operation names have collisions with tensor names.",
+                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                leaf_names.emplace(res_name, nullptr);
+                result->output(0).get_tensor().add_names({res_name});
+            }
             for (const auto& param : model->get_parameters()) {
                 auto param_name = param->get_friendly_name();
                 OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
