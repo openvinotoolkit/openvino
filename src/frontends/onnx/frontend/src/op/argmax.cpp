@@ -5,7 +5,6 @@
 #include "op/argmax.hpp"
 
 #include "exceptions.hpp"
-#include "onnx_import/core/node.hpp"
 #include "utils/arg_min_max_factory.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -13,7 +12,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector argmax(const Node& node) {
+ov::OutputVector argmax(const Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }
@@ -21,7 +20,7 @@ OutputVector argmax(const Node& node) {
 }  // namespace set_1
 
 namespace set_12 {
-OutputVector argmax(const Node& node) {
+ov::OutputVector argmax(const Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_max()};
 }

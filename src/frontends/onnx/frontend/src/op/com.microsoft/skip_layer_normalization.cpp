@@ -16,7 +16,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector skip_layer_normalization(const Node& node) {
+ov::OutputVector skip_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
     FRONT_END_GENERAL_CHECK(num_nodes >= 3 && num_nodes <= 5,
@@ -31,7 +31,7 @@ OutputVector skip_layer_normalization(const Node& node) {
     float eps = node.get_attribute_value<float>("epsilon");
     // reduce over hidden_size
     int hidden_size_dim = 2;
-    const auto reduction_axes = v0::Constant::create(element::i32, Shape{1}, {hidden_size_dim});
+    const auto reduction_axes = v0::Constant::create(ov::element::i32, Shape{1}, {hidden_size_dim});
     std::shared_ptr<ov::Node> result =
         std::make_shared<v6::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
     // multiply by gamma

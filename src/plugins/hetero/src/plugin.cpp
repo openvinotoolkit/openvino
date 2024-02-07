@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "ie/ie_plugin_config.hpp"
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -72,7 +72,7 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it)
-            device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
+            device_properties[device_name] = get_core()->get_supported_property(device_name, properties, false);
     }
     return device_properties;
 }
@@ -97,6 +97,15 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     ov::SupportedOpsMap supported_ops_final;
     std::map<std::string, ov::SupportedOpsMap> query_results;
     ov::hetero::SubgraphsMappingInfo mapping_info;
+    ResultVector new_outputs;
+    for (auto& param : model->get_parameters()) {
+        if (param->get_users().size() == 0) {
+            auto result = std::make_shared<ov::op::v0::Result>(param);
+            ov::copy_runtime_info(param->shared_from_this(), result);
+            new_outputs.push_back(result);
+        }
+    }
+    model->add_results(new_outputs);
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
@@ -129,11 +138,6 @@ void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& properties) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
-
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::supported_properties,
                                                     ov::device::full_name,
@@ -144,25 +148,9 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         std::vector<ov::PropertyName> rw_properties{ov::device::priorities};
         return rw_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
 
     Configuration full_config{properties, m_cfg};
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return to_string_vector(metrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(full_config.get_supported());
-    } else if (ov::supported_properties == name) {
+    if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
@@ -176,8 +164,6 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{get_device_name()};
-    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        return true;
     } else if (ov::internal::caching_properties == name) {
         return decltype(ov::internal::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
@@ -187,7 +173,6 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else {
         return full_config.get(name);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_priorities) const {

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <ngraph/op/util/attr_types.hpp>
+
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ov_models/builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"

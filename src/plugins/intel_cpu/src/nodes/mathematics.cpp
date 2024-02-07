@@ -68,9 +68,9 @@ void Math::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Math::execute(dnnl::stream strm) {
-    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
+    const float *src_data = getSrcDataAtPortAs<const float>(0);
+    float* dst_data = getDstDataAtPortAs<float>(0);
 
     switch (getAlgorithm()) {
         case Algorithm::MathAbs:
@@ -159,6 +159,8 @@ void Math::execute(dnnl::stream strm) {
                     dst_data[i] = 1.0f;
                 else if (src_data[i] < 0.0f)
                     dst_data[i] = -1.0f;
+                else if (std::isnan(src_data[i]))
+                    dst_data[i] = src_data[i];
                 else
                     dst_data[i] = 0.0f;
             });

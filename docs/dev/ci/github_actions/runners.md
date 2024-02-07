@@ -86,7 +86,7 @@ CXX_Unit_Tests:
 As the C++ tests could not utilize the large number of cores for parallel execution as the build tools in the `Build` job could, 
 it would be pointless to use the `aks-linux-16-cores-32gb` group for them.
 
-The advice is to use runners with more cores/RAM size for the tasks that could load them.
+The advice is to use runners with more cores/RAM size for the tasks that **could load them**.
 
 It is possible to experiment with different configurations before deciding, i.e.,
 run a job on runners from different groups and observe the gains; if they are significant, e.g., 60 minutes on a 4-core runner vs. 15 minutes on a 16-core runner, 

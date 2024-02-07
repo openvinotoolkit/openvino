@@ -4,9 +4,21 @@
 
 #include "op/trilu.hpp"
 
-#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -14,7 +26,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector trilu(const Node& node) {
+ov::OutputVector trilu(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto num_inputs = inputs.size();
 
@@ -30,9 +42,9 @@ OutputVector trilu(const Node& node) {
         CHECK_VALID_NODE(node, inputs[1].get_partial_shape().compatible({}), "Trilu second input must be a scalar");
     }
 
-    const auto shape = std::make_shared<default_opset::ShapeOf>(input);
-    const auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
-    const auto one = default_opset::Constant::create(element::i64, Shape{}, {1});
+    const auto shape = std::make_shared<v3::ShapeOf>(input);
+    const auto zero = v0::Constant::create(ov::element::i64, Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
     // to choose appropiate values from the input
@@ -62,41 +74,31 @@ OutputVector trilu(const Node& node) {
     // fetch last two dimensions of input shape
     // M = shape[-1]
     // N = shape[-2]
-    const auto M = std::make_shared<default_opset::Gather>(shape,
-                                                           default_opset::Constant::create(element::i32, Shape{}, {-1}),
-                                                           zero);
-    const auto N = std::make_shared<default_opset::Gather>(shape,
-                                                           default_opset::Constant::create(element::i32, Shape{}, {-2}),
-                                                           zero);
+    const auto M = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, Shape{}, {-1}), zero);
+    const auto N = std::make_shared<v8::Gather>(shape, v0::Constant::create(ov::element::i32, Shape{}, {-2}), zero);
 
     // create 2D tensor with shape [1, M] and values [[0, 1, ..., M - 1]]
     const auto horizontal_range =
-        std::make_shared<default_opset::Unsqueeze>(std::make_shared<default_opset::Range>(zero, M, one, element::i64),
-                                                   zero);
+        std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(zero, M, one, ov::element::i64), zero);
     // create 2D tensor with shape [N, 1] and values [[k], [k + 1], ..., [N + k - 1]]
-    std::shared_ptr<ngraph::Node> vertical_range;
+    std::shared_ptr<ov::Node> vertical_range;
     if (is_k_available) {
-        vertical_range = std::make_shared<default_opset::Range>(inputs[1],
-                                                                std::make_shared<default_opset::Add>(N, inputs[1]),
-                                                                one,
-                                                                element::i64);
+        vertical_range =
+            std::make_shared<v4::Range>(inputs[1], std::make_shared<v1::Add>(N, inputs[1]), one, ov::element::i64);
     } else {
-        vertical_range = std::make_shared<default_opset::Range>(zero, N, one, element::i64);
+        vertical_range = std::make_shared<v4::Range>(zero, N, one, ov::element::i64);
     }
-    vertical_range = std::make_shared<default_opset::Unsqueeze>(vertical_range, one);
+    vertical_range = std::make_shared<v0::Unsqueeze>(vertical_range, one);
 
     const bool upper = node.get_attribute_value<int64_t>("upper", 1) == 1;
-    std::shared_ptr<ngraph::Node> mask;
+    std::shared_ptr<ov::Node> mask;
     if (upper) {
-        mask = std::make_shared<default_opset::GreaterEqual>(horizontal_range, vertical_range);
+        mask = std::make_shared<v1::GreaterEqual>(horizontal_range, vertical_range);
     } else {
-        mask = std::make_shared<default_opset::LessEqual>(horizontal_range, vertical_range);
+        mask = std::make_shared<v1::LessEqual>(horizontal_range, vertical_range);
     }
 
-    return {std::make_shared<default_opset::Select>(
-        mask,
-        input,
-        default_opset::Constant::create(input.get_element_type(), Shape{}, {0}))};
+    return {std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), Shape{}, {0}))};
 }
 
 }  // namespace set_1

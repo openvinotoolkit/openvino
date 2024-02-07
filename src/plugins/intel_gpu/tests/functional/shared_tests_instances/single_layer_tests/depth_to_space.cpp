@@ -4,8 +4,9 @@
 
 #include <vector>
 
-#include "single_op_tests/depth_to_space.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "single_op_tests/depth_to_space.hpp"
 
 namespace {
 using ov::test::DepthToSpaceLayerTest;

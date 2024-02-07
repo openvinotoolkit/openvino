@@ -62,11 +62,11 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 }
 
 bool Reshape::needShapeInfer() const {
-    const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
+    const auto& mem = getParentEdgeAt(1)->getMemory();
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.getData());
+    const int32_t *sndInput = mem.getDataAs<const int32_t>();
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -127,8 +127,8 @@ void Reshape::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reshape::execute(dnnl::stream strm) {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
 
     auto srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
     auto dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());

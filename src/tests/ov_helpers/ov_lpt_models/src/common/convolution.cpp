@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/common/convolution.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -26,4 +26,4 @@ bool Convolution::empty() const {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

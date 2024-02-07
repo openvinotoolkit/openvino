@@ -4,22 +4,21 @@
 
 #include "ov_lpt_models/mvn.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> MVNFunction::getOriginal(
-    const element::Type precision,
+    const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const AxisSet& reductionAxes,
+    const ov::AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     auto deqStructure = dequantization;
@@ -29,12 +28,13 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
     if (opset_version == 2) {
         mvn = std::make_shared<ov::op::v0::MVN>(dequantizationOp, reductionAxes, normalizeVariance);
     } else if (opset_version == 6) {
-        mvn = std::make_shared<ov::op::v6::MVN>(
-                dequantizationOp,
-                std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
-                normalizeVariance,
-                1e-9,
-                ov::op::MVNEpsMode::INSIDE_SQRT);
+        mvn = std::make_shared<ov::op::v6::MVN>(dequantizationOp,
+                                                std::make_shared<ov::opset1::Constant>(ov::element::i64,
+                                                                                       Shape{reductionAxes.size()},
+                                                                                       reductionAxes.to_vector()),
+                                                normalizeVariance,
+                                                1e-9,
+                                                ov::op::MVNEpsMode::INSIDE_SQRT);
     }
     mvn->set_friendly_name("output");
     auto& rtInfo = mvn->get_rt_info();
@@ -47,7 +47,7 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
 std::shared_ptr<ov::Model> MVNFunction::getOriginal(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const AxisSet& reductionAxes,
+    const ov::AxisSet& reductionAxes,
     const bool& normalizeVariance) {
     float k = 50.f;
 
@@ -62,14 +62,14 @@ std::shared_ptr<ov::Model> MVNFunction::getOriginal(
 }
 
 std::shared_ptr<ov::Model> MVNFunction::getReference(
-    const element::Type precision,
+    const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const AxisSet& reductionAxes,
+    const ov::AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -80,15 +80,17 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
     if (opset_version == 2) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MVN>>(
             ov::op::v0::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
-            dequantizationAfter.empty() ? precision : element::f32);
+            dequantizationAfter.empty() ? precision : ov::element::f32);
     } else if (opset_version == 6) {
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
             ov::op::v6::MVN(dequantizationOpBefore,
-                std::make_shared<ov::opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
-                normalizeVariance,
-                1e-9,
-                ov::op::MVNEpsMode::INSIDE_SQRT),
-            dequantizationAfter.empty() ? precision : element::f32);
+                            std::make_shared<ov::opset1::Constant>(ov::element::i64,
+                                                                   Shape{reductionAxes.size()},
+                                                                   reductionAxes.to_vector()),
+                            normalizeVariance,
+                            1e-9,
+                            ov::op::MVNEpsMode::INSIDE_SQRT),
+            dequantizationAfter.empty() ? precision : ov::element::f32);
     }
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = "mvn";
@@ -104,4 +106,4 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

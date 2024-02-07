@@ -10,7 +10,6 @@ Legacy Features and Components
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
    Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
-   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Open Model ZOO <model_zoo>
 
 
@@ -46,14 +45,6 @@ offering.
     solution, the OpenVINO Converter (launched with OpenVINO 2023.1).
 |   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
 |   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
-
-| **OpenVINO Deployment Manager**
-|   *New solution:* the tool is no longer needed
-|   *Old solution:* discontinuation planned for OpenVINO 2024.0
-|
-|   It is recommended to explore alternative deployment solutions available in OpenVINO.
-|   :doc:`See how to deploy locally <openvino_deployment_guide>`
-
 
 
 | **Open Model ZOO**
@@ -102,21 +93,21 @@ offering.
 |   Compile tool is now deprecated. If you need to compile a model for inference on
     a specific device, use the following script:
 
-       .. tab-set::
+    .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
+       .. tab-item:: Python
+          :sync: py
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.py
-               :language: python
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.py
+             :language: python
+             :fragment: [export_compiled_model]
 
-         .. tab-item:: C++
-            :sync: cpp
+       .. tab-item:: C++
+          :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-               :language: cpp
-               :fragment: [export_compiled_model]
+          .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+             :language: cpp
+             :fragment: [export_compiled_model]
 
 |   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
 |   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`

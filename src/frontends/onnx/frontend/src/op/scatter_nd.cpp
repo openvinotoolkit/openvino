@@ -7,18 +7,18 @@
 
 #include "op/scatter_nd.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector scatter_nd(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
+ov::OutputVector scatter_nd(const Node& node) {
+    ov::OutputVector ng_inputs{node.get_ng_inputs()};
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);
     auto updates = ng_inputs.at(2);
@@ -30,7 +30,7 @@ OutputVector scatter_nd(const Node& node) {
                          reduction);
     }
 
-    return {std::make_shared<default_opset::ScatterNDUpdate>(data, indices, updates)};
+    return {std::make_shared<v3::ScatterNDUpdate>(data, indices, updates)};
 }
 
 }  // namespace set_1

@@ -4,11 +4,11 @@
 
 #include "op/upsample.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+
+using namespace ov::op;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -38,18 +38,16 @@ void check_mode_support(const onnx_import::Node& node, const std::string& mode, 
     }
 }
 
-default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& mode) {
+v11::Interpolate::InterpolateAttrs get_attributes(const std::string& mode) {
     const auto interpolate_mode = mode == "linear" || mode == "bilinear"
-                                      ? default_opset::Interpolate::InterpolateMode::LINEAR_ONNX
-                                      : default_opset::Interpolate::InterpolateMode::NEAREST;
+                                      ? v11::Interpolate::InterpolateMode::LINEAR_ONNX
+                                      : v11::Interpolate::InterpolateMode::NEAREST;
 
-    auto attrs = default_opset::Interpolate::InterpolateAttrs(interpolate_mode,
-                                                              default_opset::Interpolate::ShapeCalcMode::SCALES,
-                                                              {0},
-                                                              {0});
+    auto attrs =
+        v11::Interpolate::InterpolateAttrs(interpolate_mode, v11::Interpolate::ShapeCalcMode::SCALES, {0}, {0});
 
-    if (attrs.mode == default_opset::Interpolate::InterpolateMode::LINEAR_ONNX) {
-        attrs.coordinate_transformation_mode = default_opset::Interpolate::CoordinateTransformMode::ASYMMETRIC;
+    if (attrs.mode == v11::Interpolate::InterpolateMode::LINEAR_ONNX) {
+        attrs.coordinate_transformation_mode = v11::Interpolate::CoordinateTransformMode::ASYMMETRIC;
     }
 
     return attrs;
@@ -57,7 +55,7 @@ default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& m
 }  // namespace
 
 namespace set_1 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto height_scale = node.get_attribute_value<float>("height_scale");
     const auto width_scale = node.get_attribute_value<float>("width_scale");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
@@ -75,15 +73,15 @@ OutputVector upsample(const onnx_import::Node& node) {
     scales[rank_size - 1] = width_scale;
     scales[rank_size - 2] = height_scale;
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = v0::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
 
-    return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
+    return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
 }  // namespace set_1
 
 namespace set_7 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_7);
@@ -96,20 +94,20 @@ OutputVector upsample(const onnx_import::Node& node) {
                      "Input tensor's rank is required to be the same as number of "
                      "elements of 'scales' attribute.");
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = v0::Constant::create(ov::element::f32, Shape({scales.size()}), scales);
 
-    return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
+    return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
 }  // namespace set_7
 
 namespace set_9 {
-OutputVector upsample(const onnx_import::Node& node) {
+ov::OutputVector upsample(const onnx_import::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
 
     const auto& inputs = node.get_ng_inputs();
-    return std::make_shared<default_opset::Interpolate>(inputs.at(0), inputs.at(1), get_attributes(mode))->outputs();
+    return std::make_shared<v11::Interpolate>(inputs.at(0), inputs.at(1), get_attributes(mode))->outputs();
 }
 
 }  // namespace set_9

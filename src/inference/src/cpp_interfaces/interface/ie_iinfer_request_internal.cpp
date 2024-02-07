@@ -11,12 +11,11 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
-#include "debug.h"
-#include "ie_algorithm.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -139,7 +138,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         auto& devBlob = _deviceInputs[name];
 
         size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                               ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
+                               ? ov::util::product(foundInput->getTensorDesc().getDims())
                                : 1;
         if (!isInputDynamic && dataSize != inputSize) {
             IE_THROW() << "Input tensor size is not equal network input size (" << dataSize << "!=" << inputSize
@@ -149,7 +148,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         devBlob = userBlob;
     } else {
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                                ? details::product(foundOutput->getTensorDesc().getDims())
+                                ? ov::util::product(foundOutput->getTensorDesc().getDims())
                                 : 1;
         if (!isOutputDynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
@@ -279,7 +278,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             const auto input = findInputByNodeName(name);
             isDynamic = input && input->get_output_partial_shape(0).is_dynamic();
             dims = foundInputPair->second->getTensorDesc().getDims();
-            refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
+            refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? ov::util::product(dims) : 1;
         } else {
             auto foundOutputPair = std::find_if(std::begin(_networkOutputs),
                                                 std::end(_networkOutputs),
@@ -291,7 +290,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             }
             const auto output = findOutputByNodeName(name);
             isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
-            ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
+            ov::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
             if (output && output->get_output_partial_shape(0).compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
             } else {
@@ -299,10 +298,10 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                 // need to immediately throw here
                 dims = foundOutputPair->second->getTensorDesc().getDims();
             }
-            refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
+            refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? ov::util::product(dims) : 1;
         }
     } else {
-        refSize = details::product(refDims);
+        refSize = ov::util::product(refDims);
     }
 
     if (!isDynamic && refSize != blob->size()) {
