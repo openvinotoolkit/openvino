@@ -34,10 +34,9 @@ data_types ToDataType<int64_t>()  { return data_types::i64; }
 // Generates buffer of the length of shape_size(shape).
 template<typename T>
 std::vector<T> GenInput(const ov::PartialShape& shape) {
-    const size_t size = ov::shape_size<ov::Shape>(shape.get_shape());
-    std::vector<T> result;
-    for (size_t i = 0; i < size; i++)
-        result.push_back(static_cast<T>(i));
+    const size_t size = ov::shape_size(shape.get_shape());
+    std::vector<T> result(size);
+    std::iota(result.begin(), result.end(), T{0});
     return result;
 }
 } // namespace helpers

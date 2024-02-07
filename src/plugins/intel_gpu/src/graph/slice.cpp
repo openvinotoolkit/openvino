@@ -16,8 +16,7 @@ slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}
 
 layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {
-    auto l = calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
-    return l;
+    return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
 template<typename ShapeType>
@@ -25,7 +24,7 @@ inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, co
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};
     std::unordered_map<size_t, ov::Tensor> const_data;
     for (std::size_t i = 1; i < impl_param.input_layouts.size(); i++) {
-        auto shape_len = shape_size(impl_param.input_layouts[i].get<ShapeType>().to_shape());
+        const auto shape_len = shape_size(impl_param.input_layouts[i].get<ShapeType>().to_shape());
         const ov::PartialShape input_shape{static_cast<ov::Dimension::value_type>(shape_len)};
         input_shapes.push_back(input_shape);
         auto gpu_mem = impl_param.memory_deps.at(i);

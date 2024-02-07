@@ -60,7 +60,7 @@ void Slice8LayerTest::SetUp() {
     }
     function = std::make_shared<ov::Model>(slice->outputs(), ov::ParameterVector{param}, "Slice-8");
 
-    // [PK]: Slice op only moves memory, no calculation takes places, so
+    // Slice op only moves memory, no calculation takes place, so
     // any difference likely means a bug.
     rel_threshold = 0;
     abs_threshold = 0;
