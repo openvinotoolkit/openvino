@@ -406,14 +406,14 @@ ostream& operator<<(ostream& out, const Node* node) {
 }  // namespace ov
 
 std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) const {
-    if (depth == 0) {
-        out << get_friendly_name();
-    } else {
-        auto version = get_type_info().version_id;
-        if (version)
-            out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
-        else
-            out << get_type_info().name << " " << get_friendly_name() << " (";
+    auto version = get_type_info().version_id;
+    if (version)
+        out << version << "::" << get_type_info().name << " " << get_friendly_name();
+    else
+        out << get_type_info().name << " " << get_friendly_name();
+
+    if (depth > 0) {
+        out << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;

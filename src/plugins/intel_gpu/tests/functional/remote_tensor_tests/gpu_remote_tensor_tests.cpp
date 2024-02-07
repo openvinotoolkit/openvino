@@ -9,6 +9,7 @@
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
@@ -1891,9 +1892,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2022,9 +2023,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2145,9 +2146,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2304,9 +2305,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, out_tensor_new.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(out_tensor_new.data()) + i * output_tensor_regular.get_size(),
-                                                static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+        ov::test::utils::compare_raw_data(static_cast<float*>(out_tensor_new.data()) + i * output_tensor_regular.get_size(),
+                                          static_cast<float*>(output_tensor_regular.data()),
+                                          output_tensor_regular.get_size(), thr);
     }
 }
 
