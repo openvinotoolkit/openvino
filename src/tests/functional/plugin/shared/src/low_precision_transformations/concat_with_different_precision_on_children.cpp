@@ -31,8 +31,6 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const tes
 }
 
 void ConcatWithDifferentChildrenTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     ConcatWithDifferentChildrenTransformationParam param;
