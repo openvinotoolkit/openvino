@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 namespace {
 bool convert_divide(std::shared_ptr<ov::Node> node) {

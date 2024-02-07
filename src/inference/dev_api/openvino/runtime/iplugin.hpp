@@ -22,14 +22,9 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/pp.hpp"
 
-namespace InferenceEngine {
-
-class IPluginWrapper;
-class IExtension;
-
-}  // namespace InferenceEngine
-
 namespace ov {
+
+class ICompiledModel;
 
 /**
  * @defgroup ov_dev_api OpenVINO Plugin API
@@ -229,8 +224,6 @@ protected:
     IPlugin();
 
 private:
-    friend ::InferenceEngine::IPluginWrapper;
-
     std::string m_plugin_name;                                           //!< A device name that plugins enables
     std::weak_ptr<ov::ICore> m_core;                                     //!< A pointer to ICore interface
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
