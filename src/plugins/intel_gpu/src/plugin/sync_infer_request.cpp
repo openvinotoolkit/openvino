@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/usm_host_tensor.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "intel_gpu/primitives/kv_cache.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
+#include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -592,7 +592,7 @@ void SyncInferRequest::allocate_states() {
     }
 }
 
-void SyncInferRequest::prepare_state(const std::string& name, const std::shared_ptr<GPUVariableState>& variable) {
+void SyncInferRequest::prepare_state(const std::string& name, const std::shared_ptr<VariableStateBase>& variable) {
     m_graph->get_network()->set_variable(name, variable);
 }
 

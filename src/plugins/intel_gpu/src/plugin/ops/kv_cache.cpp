@@ -6,7 +6,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {

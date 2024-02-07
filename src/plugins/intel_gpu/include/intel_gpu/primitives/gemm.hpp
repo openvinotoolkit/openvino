@@ -209,6 +209,8 @@ struct gemm : public primitive_base<gemm> {
         ob << weight_rank;
         ob << indirect_a;
         ob << indirect_b;
+        ob << beam_table.pid;
+        ob << beam_table.idx;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -224,6 +226,8 @@ struct gemm : public primitive_base<gemm> {
         ib >> weight_rank;
         ib >> indirect_a;
         ib >> indirect_b;
+        ib >> beam_table.pid;
+        ib >> beam_table.idx;
     }
 
     std::vector<input_info> get_dependencies() const override {

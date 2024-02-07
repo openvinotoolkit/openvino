@@ -5,8 +5,8 @@
 #include "intel_gpu/op/kv_cache.hpp"
 #include "concat_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace intel_gpu {

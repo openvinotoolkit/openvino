@@ -3,7 +3,6 @@
 //
 
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -19,7 +18,7 @@ namespace ov {
 namespace intel_gpu {
 
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
-    : GPUVariableState{info.m_id, context}
+    : VariableStateBase{info.m_id, context}
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
@@ -38,10 +37,6 @@ cldnn::memory::ptr VariableState::get_memory() const {
 
 const cldnn::layout& VariableState::get_layout() const {
     return m_layout;
-}
-
-bool VariableState::is_set() const {
-    return m_is_set;
 }
 
 void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -9,14 +9,16 @@
 namespace ov {
 namespace intel_gpu {
 
-class MultiTensorState : public GPUVariableState {
+class MultiTensorState : public VariableStateBase {
 public:
     MultiTensorState(const std::vector<VariableStateInfo>& infos, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
 
 protected:
-    std::vector<std::shared_ptr<VariableState>> m_states = {};
+    std::vector<std::shared_ptr<VariableState>> m_hidden_states = {};
 };
 
+// This is multi-tensor state for Indirect KV-Cache + Gemm pattern
+// Internally it stores KV Cache state + Beam Table state
 class VariableStateIndirectKVCache : public MultiTensorState {
 public:
     VariableStateIndirectKVCache(const VariableStateInfo& info,
@@ -30,18 +32,13 @@ public:
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
     ov::SoPtr<ov::ITensor> get_state() const override;
 
-    cldnn::memory::ptr get_beam_table_mem() const;
-    VariableState::Ptr get_kv_cache_state() const;
-    VariableState::Ptr get_beam_table_state() const;
-
-
     cldnn::memory::ptr get_memory() const override;
     const cldnn::layout& get_layout() const override;
-    bool is_set() const override;
     void set_layout(const cldnn::layout& new_layout) override;
     void set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) override;
     size_t get_actual_mem_size() const override;
 
+    VariableState::Ptr get_beam_table_state() const;
     ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape);
 
 private:

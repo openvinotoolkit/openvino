@@ -280,9 +280,9 @@ class KVCacheTests: public ::testing::Test {
             properties.insert(ov::cache_dir(cacheDirName));
         }
 
-        const size_t n_heads = 4;
-        const size_t n_features = 2;
-        const size_t context_size = 40;
+        const size_t n_heads = 32;
+        const size_t n_features = 10;
+        const size_t context_size = 20;
 
         ov::element::Type element_type = model_element_type;
 
@@ -409,8 +409,6 @@ class KVCacheTests: public ::testing::Test {
 
                 infer_request.infer();
 
-                std::cerr << "Compare prefill for repeat " << num_repeats << std::endl;
-
                 compare_tensors({ ref_results[1] }, {matmul_out});
 
                 cache_size += context_size;
@@ -437,13 +435,11 @@ class KVCacheTests: public ::testing::Test {
 
                 infer_request.infer();
 
-                std::cerr << "Compare generate for repeat " << num_repeats << " iteration " << i << std::endl;
                 compare_tensors({ ref_results[1] }, {matmul_out});
             }
 
             auto state = infer_request.query_state()[0].get_state();
             ASSERT_EQ(state.get_element_type(), element_type);
-            std::cerr << "Compare final kv cache state for repeat " << num_repeats << std::endl;
             compare_tensors({ ref_kv_cache }, {state});
 
             infer_request.reset_state();

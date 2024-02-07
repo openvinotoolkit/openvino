@@ -6,7 +6,7 @@
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "milti_state_primitive.hpp"
+#include "multi_stage_primitive.hpp"
 
 #include "kv_cache_inst.h"
 #include "concatenation/concatenation_kernel_selector.h"
@@ -75,9 +75,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
-            auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
-            auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[beam_table_stage].kernelName);
-            bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[beam_table_stage]);
+            if (_kernels_data.size() == 2) {
+                auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
+                auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[beam_table_stage].kernelName);
+                bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[beam_table_stage]);
+            }
         }
     }
     void set_arguments_impl(kv_cache_inst& instance) override {}
@@ -131,7 +133,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[idx_final], params, args, tmp_events, needs_completion_event);
-            stream.enqueue_barrier();
             if (_kernels_data[stage].needs_sub_kernels_sync) {
                 tmp_events = {ev};
             }
@@ -166,20 +167,21 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
 
                 // Alloc prev mem too as it will be needed in the future
+                // That also simplifies arguments setting a little bit as we don't need to handle an optional past state
                 if (!beam_table_prev) {
                     beam_table_prev = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
                 }
             }
 
             auto impl_param = *instance.get_impl_params();
-            auto bt_kernel_params = get_bt_update_kernel_params(impl_param, variable.is_set());
+            auto bt_kernel_params = get_bt_update_kernel_params(impl_param, beam_table_state->is_set());
             (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params.first, _kernels_data[beam_table_stage]);
 
             instance.set_output_memory(beam_table_new, false, 1);
             beam_table_state->set_memory(beam_table_new, instance.get_impl_params()->output_layouts[1]);
 
-            stream.enqueue_barrier();
             execute_stage(events, instance, res_events, beam_table_stage);
+            beam_table_state->set();
         }
 
         variable.set();
@@ -289,7 +291,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& bt_update_kernel_selector = bt_kernel_selector_t::Instance();
             kernels_data.push_back(bt_update_kernel_selector.get_best_kernel(bt_update_kernel_params.first, bt_update_kernel_params.second));
         }
-        return make_unique<kv_cache_impl>(kernels_data);
+        return cldnn::make_unique<kv_cache_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

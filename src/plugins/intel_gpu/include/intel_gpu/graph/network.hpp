@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #include "intel_gpu/graph/topology.hpp"
@@ -215,9 +214,9 @@ public:
         return *_memory_pool;
     }
 
-    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::GPUVariableState>& variable);
+    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable);
     bool has_variable(const std::string &variable_id) const;
-    ov::intel_gpu::GPUVariableState& get_variable(const std::string &variable_id) const;
+    ov::intel_gpu::VariableStateBase& get_variable(const std::string &variable_id) const;
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;

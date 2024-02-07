@@ -46,7 +46,11 @@ IndirectKVCache::IndirectKVCache() {
 
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_input = wrap_type<ov::intel_gpu::op::ReadValue>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    auto axis_const = wrap_type<ov::op::v0::Constant>(
+        ov::op::util::constant_predicate<int64_t>([](const std::vector<int64_t>& value) -> bool {
+            return value.size() == 1 && value[0] == 0;
+        }));
+    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, axis_const});
     auto kv_cache = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input()});
     auto matmul_0 = wrap_type<ov::intel_gpu::op::Gemm>({kv_cache, any_input()});
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});

@@ -28,24 +28,24 @@ struct VariableStateInfo {
     std::set<const cldnn::primitive*> m_primitives;
 };
 
-class GPUVariableState : public ov::IVariableState {
+class VariableStateBase : public ov::IVariableState {
 public:
-    GPUVariableState(const std::string& id, std::shared_ptr<RemoteContextImpl> context) : ov::IVariableState(id), m_context(context) {}
+    VariableStateBase(const std::string& id, std::shared_ptr<RemoteContextImpl> context) : ov::IVariableState(id), m_context(context) {}
     virtual cldnn::memory::ptr get_memory() const = 0;
     virtual const cldnn::layout& get_layout() const = 0;
-    virtual bool is_set() const = 0;
     virtual void set_layout(const cldnn::layout& new_layout) = 0;
     virtual void set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) = 0;
     virtual size_t get_actual_mem_size() const = 0;
 
     void set() { m_is_set = true; }
+    bool is_set() const { return m_is_set; }
 
 protected:
     bool m_is_set = false;
     std::shared_ptr<RemoteContextImpl> m_context;
 };
 
-class VariableState : public GPUVariableState {
+class VariableState : public VariableStateBase {
 public:
     VariableState(const VariableStateInfo& info, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
     using Ptr = std::shared_ptr<VariableState>;
@@ -56,7 +56,6 @@ public:
 
     cldnn::memory::ptr get_memory() const override;
     const cldnn::layout& get_layout() const override;
-    bool is_set() const override;
 
     void set_layout(const cldnn::layout& new_layout) override;
     void set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) override;
@@ -82,7 +81,7 @@ protected:
     void update_device_buffer();
 };
 
-using VariablesMap = std::unordered_map<std::string, std::shared_ptr<GPUVariableState>>;
+using VariablesMap = std::unordered_map<std::string, std::shared_ptr<VariableStateBase>>;
 using VariablesInfoMap = std::unordered_map<std::string, VariableStateInfo>;
 
 }  // namespace intel_gpu

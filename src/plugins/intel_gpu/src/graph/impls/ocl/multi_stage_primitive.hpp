@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,7 @@ namespace cldnn {
 namespace ocl {
 
 /*
-Base class for all GPU implementation of specified primitive type.
-For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.
+Base class for GPU implementations which require multiple kernel selectors to be used and multiple kernel scheduled.
 */
 template <class PType>
 struct multi_stage_primitive : public typed_primitive_impl<PType> {
