@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>
@@ -38,8 +37,6 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
 
 
 void MatMulTransformation::SetUp() {
-    abs_threshold = 2.7;
-    rel_threshold = 3.2;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     MatMulTransformationTestValues testValues;

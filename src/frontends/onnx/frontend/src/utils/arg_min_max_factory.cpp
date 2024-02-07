@@ -4,6 +4,7 @@
 
 #include "utils/arg_min_max_factory.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -12,7 +13,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -24,7 +24,7 @@ namespace utils {
 
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
-      m_input_node{node.get_ng_inputs().at(0)},
+      m_input_node{node.get_ov_inputs().at(0)},
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 

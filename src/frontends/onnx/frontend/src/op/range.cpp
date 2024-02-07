@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector range(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     CHECK_VALID_NODE(node, inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
 
     ov::Output<ov::Node> start{inputs[0]};

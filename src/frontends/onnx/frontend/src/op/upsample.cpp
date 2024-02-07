@@ -61,7 +61,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_1);
 
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
 
     static const std::string expectation{"Input tensor is required to be 4D."};
     const auto rank = data.get_partial_shape().rank();
@@ -86,7 +86,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_7);
 
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
 
     const auto rank = data.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
@@ -106,7 +106,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
 
-    const auto& inputs = node.get_ng_inputs();
+    const auto& inputs = node.get_ov_inputs();
     return std::make_shared<v11::Interpolate>(inputs.at(0), inputs.at(1), get_attributes(mode))->outputs();
 }
 
