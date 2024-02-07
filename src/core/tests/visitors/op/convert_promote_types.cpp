@@ -10,7 +10,7 @@
 
 using ov::test::NodeBuilder;
 
-TEST(attributes, convert_align_types_op_default) {
+TEST(attributes, convert_promote_types_op_default) {
     NodeBuilder::opset().insert<ov::op::v14::ConvertPromoteTypes>();
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{2, 4});
@@ -27,7 +27,7 @@ TEST(attributes, convert_align_types_op_default) {
     EXPECT_EQ(g_convert->get_u64_integer_promotion_target(), ov::element::f32);
 }
 
-TEST(attributes, convert_align_types_constructor) {
+TEST(attributes, convert_promote_types_constructor) {
     NodeBuilder::opset().insert<ov::op::v14::ConvertPromoteTypes>();
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 4});
@@ -35,10 +35,10 @@ TEST(attributes, convert_align_types_constructor) {
     const bool promote_unsafe = true;
 
     const auto convert = std::make_shared<ov::op::v14::ConvertPromoteTypes>(in0,
-                                                                          in1,
-                                                                          pytorch_scalar_promotion,
-                                                                          promote_unsafe,
-                                                                          ov::element::i64);
+                                                                            in1,
+                                                                            pytorch_scalar_promotion,
+                                                                            promote_unsafe,
+                                                                            ov::element::i64);
     NodeBuilder builder(convert, {in0, in1});
 
     const auto expected_attr_count = 3;
@@ -50,7 +50,7 @@ TEST(attributes, convert_align_types_constructor) {
     EXPECT_EQ(g_convert->get_u64_integer_promotion_target(), ov::element::i64);
 }
 
-TEST(attributes, convert_align_types_op_setters) {
+TEST(attributes, convert_promote_types_op_setters) {
     NodeBuilder::opset().insert<ov::op::v14::ConvertPromoteTypes>();
     auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{2, 4});

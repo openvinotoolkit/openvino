@@ -169,10 +169,10 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
 namespace v14 {
 
 ConvertPromoteTypes::ConvertPromoteTypes(const Output<Node>& input_0,
-                                     const Output<Node>& input_1,
-                                     const bool promote_unsafe,
-                                     const bool pytorch_scalar_promotion,
-                                     const element::Type& u64_integer_promotion_target)
+                                         const Output<Node>& input_1,
+                                         const bool promote_unsafe,
+                                         const bool pytorch_scalar_promotion,
+                                         const element::Type& u64_integer_promotion_target)
     : Op({input_0, input_1}),
       m_promote_unsafe(promote_unsafe),
       m_pytorch_scalar_promotion(pytorch_scalar_promotion),
@@ -199,10 +199,10 @@ std::shared_ptr<Node> ConvertPromoteTypes::clone_with_new_inputs(const OutputVec
     OV_OP_SCOPE(v14_ConvertPromoteTypes_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ConvertPromoteTypes>(new_args.at(0),
-                                               new_args.at(1),
-                                               m_promote_unsafe,
-                                               m_pytorch_scalar_promotion,
-                                               m_u64_integer_promotion_target);
+                                                 new_args.at(1),
+                                                 m_promote_unsafe,
+                                                 m_pytorch_scalar_promotion,
+                                                 m_u64_integer_promotion_target);
 }
 
 bool ConvertPromoteTypes::get_pytorch_scalar_promotion() const {
