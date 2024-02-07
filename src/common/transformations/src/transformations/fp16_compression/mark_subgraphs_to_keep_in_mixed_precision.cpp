@@ -13,6 +13,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
@@ -423,13 +424,17 @@ public:
     }
 };
 
-/* FloorDiv operation
- */
+/* FloorDiv should be kept in fp32 precision for better accuracy
+   when it accepts large values (> fp16_max).
+*/
 class MarkFloorDiv : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("MarkFloorDiv", "0");
     MarkFloorDiv() {
         MATCHER_SCOPE(MarkFloorDiv);
+        // FloorDiv is repesented either as:
+        // Floor(Div(input_1, input_2))
+        // Floor(Mul(input_1, inversed_const_input_2)), if input_2 is constant
         auto div_mul_pattern = pattern::wrap_type<ov::op::v1::Divide, ov::op::v1::Multiply>();
         auto floor_pattern = pattern::wrap_type<ov::op::v0::Floor>({div_mul_pattern});
 
@@ -439,7 +444,7 @@ public:
                 return false;
             disable_fp16_compression(node);
             disable_fp16_compression(node->input_value(0).get_node_shared_ptr());
-            
+
             return true;
         };
 
@@ -456,10 +461,8 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
-    
-    // mark FloorDiv operation
+
     REGISTER_PASS(manager, MarkFloorDiv)
-    
 
     // both Up and Down propagations are needed.
     // Why both of them are needed is explained in comments in passes declarations.

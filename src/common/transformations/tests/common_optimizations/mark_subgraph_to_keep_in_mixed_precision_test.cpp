@@ -1269,3 +1269,82 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
+
+TEST(TransformationTests, keep_floor_div_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 1000});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1000});
+
+        auto div_1 = make_shared<Divide>(input_1, input_2);
+        auto floor_1 = make_shared<Floor>(div_1);
+
+        model = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 1000});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1000});
+
+        auto div_1 = make_shared<Divide>(input_1, input_2);
+        auto floor_1 = make_shared<Floor>(div_1);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(div_1);
+        disable_fp16_compression(floor_1);
+
+        model_ref = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, keep_floor_div_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 100});
+        auto const_input_2 = Constant::create(element::f32, Shape{100}, {100000});
+
+        auto mul_1 = make_shared<Multiply>(input_1, const_input_2);
+        auto floor_1 = make_shared<Floor>(mul_1);
+
+        model = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 100});
+        auto const_input_2 = Constant::create(element::f32, Shape{100}, {100000});
+
+        auto mul_1 = make_shared<Multiply>(input_1, const_input_2);
+        auto floor_1 = make_shared<Floor>(mul_1);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(mul_1);
+        disable_fp16_compression(floor_1);
+        disable_fp16_compression(const_input_2);
+
+        model_ref = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}

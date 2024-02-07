@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestFloorDiv(CommonTFLayerTest):
@@ -19,7 +18,6 @@ class TestFloorDiv(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(dtype, x_shape, 'Input')
             constant_value = np.array(-256).astype(dtype)
             y = tf.constant(constant_value)
-            # x = tf.raw_ops.Abs(x=x)  # this abs prevent comparison for int on GPU
             res = tf.raw_ops.FloorDiv(x=x, y=y)
 
             tf.compat.v1.global_variables_initializer()
@@ -37,12 +35,13 @@ class TestFloorDiv(CommonTFLayerTest):
     # TODO: implement tests for 2 Consts + Add
 
     test_data_1D = [
-        # dict(x_shape=[], dtype=np.int32),
-        # dict(x_shape=[2], dtype=np.int64),
-        dict(x_shape=[2, 4, 5, 1000], dtype=np.int32),
-        # dict(x_shape=[], dtype=np.float32),
-        # dict(x_shape=[2], dtype=np.float64),
-        # dict(x_shape=[2, 4, 5], dtype=np.float32),
+        dict(x_shape=[], dtype=np.int32),
+        dict(x_shape=[2], dtype=np.int64),
+        dict(x_shape=[2, 4, 5], dtype=np.int32),
+        dict(x_shape=[2, 1000], dtype=np.int32),
+        dict(x_shape=[], dtype=np.float32),
+        dict(x_shape=[2], dtype=np.float64),
+        dict(x_shape=[2, 4, 5], dtype=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_1D)
