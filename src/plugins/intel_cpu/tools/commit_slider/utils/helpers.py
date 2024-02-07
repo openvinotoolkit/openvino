@@ -16,6 +16,9 @@ from argparse import ArgumentParser
 def getMeaningfullCommitTail(commit):
     return commit[:7]
 
+def excludeModelPath(cmdStr):
+    args = cmdStr.split()
+    return args[args.index("-m") + 1]
 
 def getParams():
     parser = ArgumentParser()
@@ -478,7 +481,7 @@ class PreliminaryAnalysisError(Exception):
         return self.message
 
     class PreliminaryErrType(Enum):
-        WRONG_PATH = 0
+        WRONG_COMMANDLINE = 0
         NO_DEGRADATION = 1
         UNSTABLE_APPLICATION = 2
 

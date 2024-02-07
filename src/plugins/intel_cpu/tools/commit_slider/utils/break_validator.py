@@ -120,7 +120,7 @@ class BmValidationError(Exception):
         LOW_GAP = 2,
         # real gap is less, than expected
         LOW_LOCAL_GAP = 3
-        # gap between pre-break and break lower, than expected
+        # gap between pre-break and break is lower, than expected
     def __init__(self, message, errType):
         self.message = message
         self.errType = errType
