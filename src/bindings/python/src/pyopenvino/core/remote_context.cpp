@@ -7,15 +7,15 @@
 #include <pybind11/stl.h>
 
 #include <openvino/core/any.hpp>
-#include <openvino/runtime/remote_context.hpp>
 #include <openvino/core/type/element_type.hpp>
+#include <openvino/runtime/remote_context.hpp>
 #include <openvino/runtime/tensor.hpp>
 
 #ifdef PY_ENABLE_OPENCL
-    #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #endif  // PY_ENABLE_OPENCL
 #ifdef PY_ENABLE_LIBVA
-    #include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif  // PY_ENABLE_LIBVA
 
 #include "common.hpp"
@@ -74,19 +74,20 @@ void regclass_VADisplayWrapper(py::module m) {
 
     // Use of the pointer obtained from external library to wrap around:
     cls.def(py::init([](VADisplay device) {
-        return VADisplayWrapper(device);
-    }),
-    py::arg("device"));
+                return VADisplayWrapper(device);
+            }),
+            py::arg("device"));
 
-    cls.def(
-        "release",
-        [](VADisplayWrapper& self) {
-            self.release();
-        });
+    cls.def("release", [](VADisplayWrapper& self) {
+        self.release();
+    });
 }
 
 void regclass_VAContext(py::module m) {
-    py::class_<ov::intel_gpu::ocl::VAContext, ov::intel_gpu::ocl::ClContext, std::shared_ptr<ov::intel_gpu::ocl::VAContext>> cls(m, "VAContext");
+    py::class_<ov::intel_gpu::ocl::VAContext,
+               ov::intel_gpu::ocl::ClContext,
+               std::shared_ptr<ov::intel_gpu::ocl::VAContext>>
+        cls(m, "VAContext");
 
     cls.def(py::init([](ov::Core& core, /* VADisplay */ VADisplayWrapper& display, int target_tile_id) {
                 return ov::intel_gpu::ocl::VAContext(core, display.get_display_ptr(), target_tile_id);
