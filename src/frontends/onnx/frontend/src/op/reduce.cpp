@@ -105,11 +105,29 @@ std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
 }
 }  // namespace
 
+namespace set_18 {
+    ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+}
+} // namespace set_18
+
+
 namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
 }
+
+ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+}
 }  // namespace set_13
+
+
+namespace set_11 {
+    ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+}
+} // namespace set_11
 
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
