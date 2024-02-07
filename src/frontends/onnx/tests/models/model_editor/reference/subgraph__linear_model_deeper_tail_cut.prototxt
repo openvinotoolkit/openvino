@@ -1,5 +1,5 @@
 ir_version: 7
-producer_name: "test_data_generator"
+producer_name: "OpenVINO ONNX Frontend"
 doc_string: "This model contains the first few nodes of the ONNX Inception V1 model"
 graph {
   name: "Inception V1 fragment"

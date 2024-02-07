@@ -42,7 +42,7 @@ def test_simple_graph():
         ],
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, [1])],
     )
-    model = make_model(graph, producer_name="ngraph ONNX Importer")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
     graph_model_function = import_onnx_model(model)
 
