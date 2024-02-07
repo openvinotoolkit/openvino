@@ -4,12 +4,16 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 
+<<<<<<< HEAD
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "template/properties.hpp"
+=======
+#include "openvino/op/tensor_iterator.hpp"
+>>>>>>> 02ab26af3e (Remove legacy ngraph builders)
 
 namespace ov {
 namespace pass {
@@ -150,6 +154,17 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
     }
 
     return outputs;
+}
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func) {
+    const auto& ops = func->get_ops();
+    for (const auto& node : ops) {
+        const auto& ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(node);
+        if (ti) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace utils
