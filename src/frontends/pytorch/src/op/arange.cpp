@@ -60,7 +60,7 @@ OutputVector translate_arange(const NodeContext& context) {
         dtype_port = 3;
         dtype_applied = true;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
+        PYTORCH_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
     if (dtype_port >= 0 && !context.input_is_none(dtype_port)) {
         if (std::dynamic_pointer_cast<v0::Constant>(
@@ -72,7 +72,7 @@ OutputVector translate_arange(const NodeContext& context) {
             out_tensor = fw_node->input_value(0);
             dtype_applied = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto range = context.mark_node(std::make_shared<v4::Range>(start, end, step, dtype));
@@ -130,7 +130,7 @@ OutputVector translate_arange_fx(const NodeContext& context) {
         dtype_port = 3;
         dtype_applied = true;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
+        PYTORCH_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
     if (dtype_port >= 0 && !context.input_is_none(dtype_port)) {
         if (std::dynamic_pointer_cast<v0::Constant>(
@@ -142,7 +142,7 @@ OutputVector translate_arange_fx(const NodeContext& context) {
             out_tensor = fw_node->input_value(0);
             dtype_applied = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto r_end = context.mark_node(std::make_shared<v0::Convert>(end, dtype));

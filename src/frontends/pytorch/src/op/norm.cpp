@@ -53,8 +53,8 @@ Output<Node> norm_vector(const NodeContext& context,
         res = context.mark_node(std::make_shared<v1::ReduceMin>(abs, dim, keep_dim));
     } else if (p == 0) {
         auto input_rank = input_tensor.get_partial_shape().rank();
-        FRONT_END_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() == 1,
-                                      "ord=0 supported only for vector norm");
+        PYTORCH_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() == 1,
+                                    "ord=0 supported only for vector norm");
         auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
         zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input_tensor));
         auto cond = context.mark_node(std::make_shared<v1::NotEqual>(input_tensor, zero));
@@ -100,7 +100,7 @@ Output<Node> norm_matrix(const NodeContext& context,
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, first_dim, true));
         res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, second_dim, true));
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ord ", p, " for matrix norm");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p, " for matrix norm");
     }
     if (!keep_dim) {
         res = context.mark_node(std::make_shared<v0::Squeeze>(res, dim));
@@ -139,7 +139,7 @@ OutputVector translate_norm(const NodeContext& context) {
         if (p_str == "fro") {
             res = frobenius_norm(context, input_tensor, dim, keep_dim);
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
+            PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
         }
     } else {
         auto p = context.const_input<float>(1);
@@ -230,7 +230,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
         if (p_str == "fro") {
             result = frobenius_norm(context, x, dim, keep_dim);
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
+            PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
         }
     } else {
         auto p = context.const_input<float>(1);
@@ -272,8 +272,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
         } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
             result = norm_vector(context, x, dim, 2, keep_dim);
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false,
-                                          "linalg norm for tensor rank > 2 without ord specification unsupported");
+            PYTORCH_OP_CONVERSION_CHECK(false, "linalg norm for tensor rank > 2 without ord specification unsupported");
         }
     } else {
         // ord defines the  norm that is computed can be string or number
@@ -283,7 +282,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
             if (p_str == "fro") {
                 result = frobenius_norm(context, x, dim, keep_dim);
             } else {
-                FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
+                PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
             }
         } else {
             auto p = context.const_input<float>(1);
