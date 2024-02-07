@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
@@ -33,9 +31,6 @@ std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::Te
 }
 
 void GroupConvolutionQDqTransformation::SetUp() {
-    abs_threshold = 153.7;
-
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
