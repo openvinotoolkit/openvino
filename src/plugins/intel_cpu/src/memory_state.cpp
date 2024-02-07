@@ -260,8 +260,8 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                         external.m_dt,
                         element::f32,
                         S);
-            attn_quant_u8(internal.ptr<uint8_t>(b, h, m),
-                          buffers[ithr].ptr<float>(),
+            attn_quant_u8(buffers[ithr].ptr<float>(),
+                          internal.ptr<uint8_t>(b, h, m),
                           S,
                           m_scale_zp.at<float>({b, h, m, size_t{0}}),
                           m_scale_zp.at<float>({b, h, m, size_t{1}}));

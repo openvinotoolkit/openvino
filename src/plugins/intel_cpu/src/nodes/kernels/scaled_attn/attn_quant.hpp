@@ -15,16 +15,16 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-void attn_quantkv(const ov::intel_cpu::PlainTensor& k_input,
-                  const ov::intel_cpu::PlainTensor& v_input,
-                  const ov::intel_cpu::PlainTensor& past_k_output,
-                  const ov::intel_cpu::PlainTensor& past_v_output,
-                  const ov::intel_cpu::PlainTensor& past_k_scale_zp,
-                  const ov::intel_cpu::PlainTensor& past_v_scale_zp);
+void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
+                  const ov::intel_cpu::PlainTensor& v_src,
+                  const ov::intel_cpu::PlainTensor& k_dst,
+                  const ov::intel_cpu::PlainTensor& v_dst,
+                  const ov::intel_cpu::PlainTensor& k_scale_zp,
+                  const ov::intel_cpu::PlainTensor& v_scale_zp);
 
-void attn_quant_u8(uint8_t* a, float* b, size_t n, float& scale, float& zp);
+void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp);
 
-void attn_dequant_u8(uint8_t* a, float* b, size_t n, float scale, float zp);
+void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp);
 
 }  // namespace XARCH
 }  // namespace Cpu

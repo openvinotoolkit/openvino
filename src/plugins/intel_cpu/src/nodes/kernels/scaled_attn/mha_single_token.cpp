@@ -71,7 +71,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
 #if defined(HAVE_AVX512F)
     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
     auto v_zp = _mm512_set1_ps(*zp);
-    for (; i + 4 * vec_len_f32_avx512 <= S; i += 4* vec_len_f32_avx512) {
+    for (; i + 4 * vec_len_f32_avx512 <= S; i += 4 * vec_len_f32_avx512) {
         auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i));
         auto v1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512));
         auto v2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx512 * 2));
@@ -143,7 +143,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
 #elif defined(HAVE_AVX2)
     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
     auto v_zp = _mm256_set1_ps(*zp);
-    for (; i + 4 * vec_len_f32_avx2 <= S; i += 4* vec_len_f32_avx2) {
+    for (; i + 4 * vec_len_f32_avx2 <= S; i += 4 * vec_len_f32_avx2) {
         auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i));
         auto v1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2));
         auto v2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i + vec_len_f32_avx2 * 2));

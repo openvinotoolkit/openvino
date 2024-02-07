@@ -467,8 +467,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_X64(manager,
         [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
+            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
             // Matching the pattern is a little complicated, so we just check if there is any state nodes.
-            // To avoid sdpa regressions for timm models, ticket 129488.
             return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) && model->get_variables().size() > 0;
         },
         ov::pass::ScaledDotProductAttentionDecomposition);
