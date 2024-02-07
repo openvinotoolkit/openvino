@@ -15,8 +15,8 @@ namespace op {
 OutputVector translate_sum(const NodeContext& context) {
     // aten::sum.dim_IntList(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
     // aten::sum(Tensor self, *, ScalarType? dtype=None) -> Tensor
-    // aten::sum.IntList_out(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) ->
-    // Tensor(a!) aten::sum.out(Tensor self, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
+    // aten::sum.IntList_out(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out)
+    // aten::sum.out(Tensor self, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
     // aten::sum.int(int[] self) -> int
     // aten::sum.float(float[] self) -> float
     // aten::sum.bool(bool[] self) -> int

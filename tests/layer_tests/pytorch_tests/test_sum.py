@@ -17,7 +17,7 @@ class TestSum(PytorchLayerTest):
             return (input, )
         if out_dtype is None:
             out_dtype = input_dtype if input_dtype not in ["uint8", "bool"] else "int64"
-        out = np.zeros((1, 3, 224, 224), dtype=out_dtype)
+        out = np.zeros((1, 3, 5, 5), dtype=out_dtype)
         return input, out
 
     def create_model(self, axes, keep_dims, out, dtype, input_dtype):
@@ -89,15 +89,15 @@ class TestSum(PytorchLayerTest):
 
         return aten_sum(input_torch_dtype, axes, keep_dims, torch_dtype, out), ref_net, "aten::sum"
 
-    @pytest.mark.parametrize("axes,keep_dim",
+    @pytest.mark.parametrize("axes,keep_dims",
                              [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
     @pytest.mark.parametrize("dtype", [None, "float32", "int64"])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("input_dtype", ["float32", "uint8", "bool", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sum(self, axes, keep_dim, out, dtype, input_dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(axes, keep_dim, out, dtype, input_dtype),
+    def test_sum(self, axes, keep_dims, out, dtype, input_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(axes, keep_dims, out, dtype, input_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out, "input_dtype": input_dtype, "out_dtype": dtype}
                    )
