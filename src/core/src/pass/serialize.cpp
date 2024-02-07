@@ -735,11 +735,6 @@ std::string generate_unique_name(const std::unordered_set<std::string>& unique_n
     }
 }
 
-template <typename T>
-bool is_name_auto_generated(const T& n) {
-    return n.get_friendly_name() == n.get_name();
-}
-
 // TODO: remove when CNNNetwork will be supporting not-unique names
 std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, const ov::Node* n) {
     std::string name = n->get_friendly_name();
@@ -873,7 +868,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      int64_t version,
                      bool deterministic) {
     // If determinism is not required, include auto-generated names into xml
-    if (!deterministic || !is_name_auto_generated(model)) {
+    // model name is not critical for hash computing
+    if (!deterministic) {
         netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
     netXml.append_attribute("version").set_value(static_cast<long long>(version));
@@ -918,7 +914,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         // If determinism is not required, include auto-generated names into xml
-        if (!deterministic || !is_name_auto_generated(*node)) {
+        // layer name is not critical for hash computing
+        if (!deterministic) {
             layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
         }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
