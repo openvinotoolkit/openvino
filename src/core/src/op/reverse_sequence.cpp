@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "reverse_sequence_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 op::v0::ReverseSequence::ReverseSequence(const Output<Node>& arg,

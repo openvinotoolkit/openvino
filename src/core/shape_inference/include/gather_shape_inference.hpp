@@ -3,9 +3,9 @@
 //
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

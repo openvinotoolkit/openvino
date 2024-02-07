@@ -9,6 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "validation_util.hpp"
 
 using namespace std;
 using namespace testing;

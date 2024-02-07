@@ -4,6 +4,7 @@
 
 #include "compress_quantize_weights.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -18,7 +19,6 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_quantize.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ov::Node>& fq,
                                         std::shared_ptr<ov::Node>& convert_to_low_precision,

@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -12,7 +13,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 

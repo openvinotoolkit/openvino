@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/unique.hpp"
+#include "openvino/op/unique.hpp"
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/unique.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "validation_util.hpp"
+#include "openvino/reference/unique.hpp"
 
 namespace ov {
 namespace {

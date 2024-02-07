@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -15,7 +16,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::symbol::util;
 

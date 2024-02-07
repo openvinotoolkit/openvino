@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/set_softmax_ports.hpp"
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-
-#include "openvino/op/softmax.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "validation_util.hpp"
-
+#include "snippets/pass/set_softmax_ports.hpp"
 
 ov::snippets::pass::SetSoftmaxPorts::SetSoftmaxPorts() {
     MATCHER_SCOPE(SetSoftmaxPorts);

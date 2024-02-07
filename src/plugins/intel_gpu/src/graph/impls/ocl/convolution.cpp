@@ -8,8 +8,8 @@
 #include "convolution_shape_inference.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "kernel_base.h"
+#include "openvino/core/validation_util.hpp"
 #include "primitive_base.hpp"
-#include "validation_util.hpp"
 
 namespace cldnn {
 namespace ocl {

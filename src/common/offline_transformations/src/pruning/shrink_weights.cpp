@@ -6,12 +6,12 @@
 
 #include "mask_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
-#include "validation_util.hpp"
 
 template <typename T>
 static std::string vec_to_str(const std::vector<T> m) {

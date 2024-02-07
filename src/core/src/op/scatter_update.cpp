@@ -9,10 +9,10 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/scatter_update.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

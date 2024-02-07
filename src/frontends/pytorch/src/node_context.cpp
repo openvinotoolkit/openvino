@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/constant.hpp"
@@ -11,7 +12,6 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace frontend {

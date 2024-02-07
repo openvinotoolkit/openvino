@@ -2,23 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/validate.hpp"
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/validate.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
-
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/softmax.hpp"
-#include "validation_util.hpp"
-
 
 namespace ov {
 namespace snippets {

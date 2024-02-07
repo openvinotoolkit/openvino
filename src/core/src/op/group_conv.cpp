@@ -8,8 +8,8 @@
 #include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-#include "validation_util.hpp"
 
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution

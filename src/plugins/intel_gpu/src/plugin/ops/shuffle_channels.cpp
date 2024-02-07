@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/shuffle_channels.hpp"
-#include "validation_util.hpp"
-
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 
 namespace ov {
 namespace intel_gpu {

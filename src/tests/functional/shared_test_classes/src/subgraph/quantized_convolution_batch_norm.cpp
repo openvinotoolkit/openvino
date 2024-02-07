@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "validation_util.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 
 namespace ov {
 namespace test {

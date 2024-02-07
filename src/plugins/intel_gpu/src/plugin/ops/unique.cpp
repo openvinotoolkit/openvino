@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/unique.hpp"
-#include "openvino/op/constant.hpp"
-#include "validation_util.hpp"
-
-#include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/unique.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unique.hpp"
 
 namespace ov {
 namespace intel_gpu {

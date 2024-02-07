@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "primitive_base.hpp"
-#include "validation_util.hpp"
-
-#include "swiglu_inst.h"
-#include "swiglu/swiglu_kernel_selector.h"
 #include "swiglu/swiglu_kernel_ref.h"
+#include "swiglu/swiglu_kernel_selector.h"
+#include "swiglu_inst.h"
 
 namespace cldnn {
 namespace ocl {

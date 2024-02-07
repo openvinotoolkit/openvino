@@ -6,10 +6,10 @@
 
 #include "core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reverse_sequence.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 

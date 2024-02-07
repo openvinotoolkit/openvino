@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"
@@ -20,7 +21,6 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
-#include "validation_util.hpp"
 
 bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_ptr<ov::Node>& node,
                                                               const std::vector<size_t>& input_idxs) {

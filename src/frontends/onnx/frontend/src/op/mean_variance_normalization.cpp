@@ -4,9 +4,9 @@
 
 #include "op/mean_variance_normalization.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 

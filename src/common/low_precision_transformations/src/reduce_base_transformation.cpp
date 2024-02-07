@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/reduce_base_transformation.hpp"
-
 #include <memory>
 
 #include "low_precision/network_helper.hpp"
-#include "validation_util.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace pass {

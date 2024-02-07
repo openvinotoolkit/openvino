@@ -10,6 +10,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -37,7 +38,6 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/util.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace std;
 using namespace ov;

@@ -8,6 +8,7 @@
 
 #include "ir_deserializer.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,

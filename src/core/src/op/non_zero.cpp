@@ -9,8 +9,8 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/non_zero.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

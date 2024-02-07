@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);

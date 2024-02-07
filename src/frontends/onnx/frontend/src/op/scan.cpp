@@ -7,12 +7,12 @@
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 

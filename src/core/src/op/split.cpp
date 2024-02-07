@@ -8,9 +8,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/split.hpp"
 #include "split_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
