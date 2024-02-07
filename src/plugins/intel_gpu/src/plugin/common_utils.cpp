@@ -138,6 +138,16 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, cons
     return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, src->get_layout());
 }
 
+void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream) {
+    const bool blocking = true;
+
+    cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> src_lock(src, stream);
+    std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
+
+    const void* src_ptr = src_lock.data();
+    dst->copy_from(stream, src_ptr, blocking);
+}
+
 void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_element_type();
