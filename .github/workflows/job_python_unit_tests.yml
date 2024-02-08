@@ -61,7 +61,7 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
           echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -vv' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt' || 'pdm install --frozen-lockfile -v -G tests' }}" >> "$GITHUB_ENV"
 
@@ -109,7 +109,7 @@ jobs:
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           #Initialize pdm environment
             pdm use -v ${{ env.PYTHON_VERSION }}
-            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -p ${PDM_PROJECT}
+            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}
           fi
 
           # Install the core OV wheel
@@ -134,8 +134,7 @@ jobs:
           # For torchvision to OpenVINO preprocessing converter
           # pdm add -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            pdm install --frozen-lockfile --no-self -v -G tests -p ${PDM_PROJECT}
-            pdm install --frozen-lockfile --no-self -v -G torchvision -p ${PDM_PROJECT}
+            pdm install --frozen-lockfile --no-self -v -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}
           fi
 
           # TODO: replace with Python API tests requirements and add to test pkg
@@ -154,35 +153,35 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
-      # - name: Model Optimizer unit tests
-      #   if: fromJSON(inputs.affected-components).MO.test
-      #   run: |
-      #     skip_filter=''
-      #     if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
-      #       # required for MxNet
-      #       apt-get install -y libgomp1 libquadmath0
-      #     else
-      #       # Skips under Ticket: 122666
-      #       skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
-      #     fi
+      - name: Model Optimizer unit tests
+        if: fromJSON(inputs.affected-components).MO.test
+        run: |
+          skip_filter=''
+          if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
+            # required for MxNet
+            apt-get install -y libgomp1 libquadmath0
+          else
+            # Skips under Ticket: 122666
+            skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
+          fi
           
-      #     python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-      #         --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-      #         "$skip_filter"
+          ${PYTHON_RUN_TESTS_PREFIX} pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
+              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
+              "$skip_filter"
 
-      # - name: Python ONNX operators tests
-      #   if: (fromJSON(inputs.affected-components).Python_API.test ||
-      #        fromJSON(inputs.affected-components).ONNX_FE.test) && 
-      #        runner.arch != 'ARM64' # Ticket: 123325
-      #   run: |
-      #     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-      #     python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
-      #       --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-      #       --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
+      - name: Python ONNX operators tests
+        if: (fromJSON(inputs.affected-components).Python_API.test ||
+             fromJSON(inputs.affected-components).ONNX_FE.test) && 
+             runner.arch != 'ARM64' # Ticket: 123325
+        run: |
+          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          ${PYTHON_RUN_TESTS_PREFIX} pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
-      # - name: OVC unit tests
-      #   if: fromJSON(inputs.affected-components).MO.test
-      #   run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+      - name: OVC unit tests
+        if: fromJSON(inputs.affected-components).MO.test
+        run: ${PYTHON_RUN_TESTS_PREFIX} pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       # - name: Install Python Layer tests dependencies
       #   run: |
