@@ -5,6 +5,7 @@
 #include "preprocess_impls.hpp"
 
 #include "layout_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 namespace preprocess {

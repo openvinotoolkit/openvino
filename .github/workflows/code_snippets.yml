@@ -44,4 +44,4 @@ jobs:
         id: cpu-cores
 
       - name: Build snippets
-        run:  cmake --build build --target ie_docs_snippets --parallel ${{ steps.cpu-cores.outputs.count }}
+        run:  cmake --build build --target openvino_docs_snippets --parallel ${{ steps.cpu-cores.outputs.count }}
