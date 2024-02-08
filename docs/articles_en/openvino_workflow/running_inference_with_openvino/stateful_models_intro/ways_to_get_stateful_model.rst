@@ -14,7 +14,7 @@ and you have three ways to do it:
   applicable to a selection of models (not covered by this article, for a usage guide
   refer to the :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
-  Parameter and Result to replace,
+  Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
   and Result pairs connected to hidden and cell state inputs of LSTM/RNN/GRU operations
   or Loop/TensorIterator operations.
