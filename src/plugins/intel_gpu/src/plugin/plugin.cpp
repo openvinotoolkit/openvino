@@ -158,6 +158,15 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
+Plugin::~Plugin() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // To prevent hanging during oneDNN's primitive cache desctruction,
+    // trigger earlier cache cleanup by setting its capacity to 0.
+    // Related ticket: 106154.
+    dnnl::set_primitive_cache_capacity(0);
+#endif
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
