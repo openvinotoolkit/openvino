@@ -1464,7 +1464,10 @@ TEST_F(TransformationTestsF, NopStridedSlice) {
                                                          PartialShape{ov::Dimension(), 4, ov::Dimension(), 64});
         auto relu = std::make_shared<op::v0::Relu>(input);
         auto begin_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{0, 0});
-        auto end_const = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<int>{0, -1});
+        auto end_const =
+            std::make_shared<op::v0::Constant>(ov::element::i64,
+                                               ov::Shape{2},
+                                               std::vector<int64_t>{0, std::numeric_limits<int64_t>::max()});
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(relu,
@@ -1494,7 +1497,10 @@ TEST_F(TransformationTestsF, NopStridedSliceWithoutStrides) {
                                                          PartialShape{ov::Dimension(), 4, ov::Dimension(), 64});
         auto relu = std::make_shared<op::v0::Relu>(input);
         auto begin_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{0, 0});
-        auto end_const = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<int>{0, -1});
+        auto end_const =
+            std::make_shared<op::v0::Constant>(ov::element::i64,
+                                               ov::Shape{2},
+                                               std::vector<int64_t>{0, std::numeric_limits<int64_t>::max()});
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(relu,
                                                                         begin_const,
                                                                         end_const,
@@ -1520,7 +1526,10 @@ TEST_F(TransformationTestsF, NopStridedSliceByShape) {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, Shape{1, 4, 8, 64});
         auto relu = std::make_shared<op::v0::Relu>(input);
         auto begin_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{0, 0});
-        auto end_const = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, std::numeric_limits<int64_t>::max()});
+        auto end_const =
+            std::make_shared<op::v0::Constant>(ov::element::i64,
+                                               ov::Shape{2},
+                                               std::vector<int64_t>{0, std::numeric_limits<int64_t>::max()});
         auto optional_stride_const =
             std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(relu,

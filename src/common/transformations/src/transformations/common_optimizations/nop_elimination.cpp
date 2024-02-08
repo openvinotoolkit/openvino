@@ -830,8 +830,6 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
     register_matcher(m, matcher_pass_callback);
 }
 
-
-
 ov::pass::NopStridedSlice::NopStridedSlice() {
     MATCHER_SCOPE(NopStridedSlice);
 
@@ -847,19 +845,23 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
             return false;
         }
         auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
-
+        // check that all values of the mask is equal 0
         auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
-            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) { return value != 0; });
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
             if (mask_to_check.empty() || it == mask_to_check.end()) {
                 return true;
             }
             return false;
         };
+        // check that we won't do change dimention rank
         if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
             !check_mask(strided_slice_node->get_new_axis_mask()) ||
             !check_mask(strided_slice_node->get_ellipsis_mask())) {
             return false;
         }
+        // check that that we will take all values
         if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
@@ -867,11 +869,10 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
         if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
             const auto& values = begin_constant_node->cast_vector<int64_t>();
             auto begin_mask = strided_slice_node->get_begin_mask();
-            const auto dim_size = begin_mask.size();
-            if (values.size() != dim_size) {
-                return false;
-            }
+            const auto dim_size = std::min(begin_mask.size(), values.size());
             for (size_t i = 0; i < dim_size; ++i) {
+                // if mask == 1 then ignore the begin_mask_value else check
+                // if values[i] == 0 then take whole tensor else take part of a tensor
                 if (!begin_mask[i] && values[i]) {
                     return false;
                 }
@@ -884,13 +885,11 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
         if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
             const auto& values = end_constant_node->cast_vector<int64_t>();
             auto end_mask = strided_slice_node->get_end_mask();
-            const auto dim_size = end_mask.size();
-            if (values.size() != dim_size) {
-                return false;
-            }
+            const auto dim_size = std::min(end_mask.size(), values.size());
             for (size_t i = 0; i < dim_size; ++i) {
-                if (!end_mask[i] &&
-                    values[i] != std::numeric_limits<int64_t>::max()) {
+                // if mask == 1 then ignore the begin_mask_value else check
+                // if values[i] == max then take whole tensor else take part of a tensor
+                if (!end_mask[i] && values[i] != std::numeric_limits<int64_t>::max()) {
                     return false;
                 }
             }
@@ -921,11 +920,20 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
             return false;
         }
         auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
-        if (!strided_slice_node->get_shrink_axis_mask().empty() || !strided_slice_node->get_new_axis_mask().empty() ||
-            !strided_slice_node->get_ellipsis_mask().empty()) {
+        // check that all values of the mask is equal 0
+        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
+            if (mask_to_check.empty() || it == mask_to_check.end()) {
+                return true;
+            }
             return false;
-        }
-        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        };
+        // check that we won't do change dimention rank
+        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
+            !check_mask(strided_slice_node->get_new_axis_mask()) ||
+            !check_mask(strided_slice_node->get_ellipsis_mask())) {
             return false;
         }
         if (strided_slice_node->get_input_partial_shape(0).is_static() &&
