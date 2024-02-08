@@ -278,6 +278,9 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
+    if (!one_of(getInputShapeAtPort(0).getRank(), 3ul, 4ul, 5ul)) {
+        return false;
+    }
 
     if (!withGroups && deconvAttrs.stride.back() > 3)
         return false;
@@ -512,7 +515,10 @@ void Deconvolution::getSupportedDescriptors() {
         //  WA: if int8 deconvolution is supported, we create internal weights blob in IO format
         std::swap(int8WeightDims[withGroups + 0], int8WeightDims[withGroups + 1]);
         internalBlobs.push_back(createWeiBlobAsIO(int8WeightDims));
-        auto format = getInputShapeAtPort(0).getRank() == 5 ? dnnl::memory::format_tag::ndhwc : dnnl::memory::format_tag::nhwc;
+        const auto& rank = getInputShapeAtPort(0).getRank();
+        auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
+                      : rank == 4 ? dnnl::memory::format_tag::nhwc
+                                  : dnnl::memory::format_tag::ntc;
         MemoryDescPtr in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
         createDescriptor({in_candidate}, {out_candidate});
