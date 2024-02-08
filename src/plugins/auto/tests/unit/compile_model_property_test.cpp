@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "include/auto_unit_test.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -165,40 +166,45 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     if (device.find("MULTI") != std::string::npos)
         plugin->set_device_name("MULTI");
 
+    const auto cpu_failed = std::string{"Mock CPU Load Failed"};
+    const auto gpu_failed = std::string{"Mock GPU Load Failed"};
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{"Mock GPU Load Failed"}));
+        .WillByDefault(ov::Throw(gpu_failed));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{"Mock CPU Load Failed"}));
+        .WillByDefault(ov::Throw(cpu_failed));
+
+    const auto auto_failed = std::string{"[AUTO] compile model failed"};
+    const auto multi_failed = std::string{"[MULTI] compile model failed"};
     if (device == "AUTO") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(cpu_failed), HasSubstr(gpu_failed)));
     } else if (device == "AUTO:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, CPU:Mock CPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(cpu_failed)));
     } else if (device == "AUTO:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(auto_failed), HasSubstr(gpu_failed)));
     } else if (device == "MULTI") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(cpu_failed), HasSubstr(gpu_failed)));
     } else if (device == "MULTI:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, CPU:Mock CPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(cpu_failed)));
     } else if (device == "MULTI:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
-                                  ov::Exception,
-                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed");
+        OV_EXPECT_THROW(plugin->compile_model(model, config),
+                        ov::Exception,
+                        AllOf(HasSubstr(multi_failed), HasSubstr(gpu_failed)));
     }
 }
 
@@ -278,9 +284,9 @@ public:
                     .WillByDefault(RETURN_MOCK_VALUE(value));
             } else {
                 ON_CALL(*mockIExeNet.get(), get_property(StrEq(property.first)))
-                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+                    .WillByDefault(ov::Throw("unsupported property"));
                 ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(property.first)))
-                    .WillByDefault(Throw(ov::Exception{"unsupported property"}));
+                    .WillByDefault(ov::Throw("unsupported property"));
             }
         }
         ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::supported_properties.name())))
