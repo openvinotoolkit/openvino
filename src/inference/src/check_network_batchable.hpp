@@ -5,7 +5,7 @@
 
 #include <memory>
 
-#include "cnn_network_ngraph_impl.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace details {

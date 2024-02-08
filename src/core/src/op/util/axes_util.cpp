@@ -4,8 +4,8 @@
 
 #include "openvino/op/util/axes_util.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
