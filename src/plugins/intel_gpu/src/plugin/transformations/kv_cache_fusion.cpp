@@ -22,6 +22,8 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace ov {
 namespace intel_gpu {
