@@ -367,7 +367,7 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     install(FILES pyproject.toml
-            DESTINATION tests/pyopenvino/tests
+            DESTINATION tests/pyopenvino
             COMPONENT tests
             EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt

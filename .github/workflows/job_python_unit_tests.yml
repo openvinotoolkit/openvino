@@ -36,7 +36,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      PDM_PROJECT: ${{ github.workspace }}/install/tests/pyopenvino/tests
+      PDM_PROJECT: ${{ github.workspace }}/install/tests/pyopenvino
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
@@ -150,11 +150,9 @@ jobs:
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          ${PYTHON_RUN_TESTS_PREFIX} pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+          ${PYTHON_RUN_TESTS_PREFIX} pytest -sv ${INSTALL_TEST_DIR}/pyopenvino/tests \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_transformations/ \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_torchvision_to_ov/
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       # - name: Model Optimizer unit tests
       #   if: fromJSON(inputs.affected-components).MO.test
