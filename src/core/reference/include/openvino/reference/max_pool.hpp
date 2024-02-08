@@ -137,7 +137,8 @@ void max_pool_2d(const Values_t* data,
                     const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[kernel_H],
                                                       kernel_col * kernel_dilations[kernel_W]};
 
-                    // ignore the elements in the padding area
+                    // ignore the elements in the padding area if rounding_type is set to FLOOR
+                    //if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape) && rounding_type == op::RoundingType::FLOOR) {
                     if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
                         // index of the flattened tensor element under the current row & column of the kernel
                         const size_t data_elem_index =

@@ -174,7 +174,6 @@ _OPENVINO_OP_REG(DetectionOutput, ov::op::v8)
 _OPENVINO_OP_REG(I420toBGR, ov::op::v8)
 _OPENVINO_OP_REG(I420toRGB, ov::op::v8)
 _OPENVINO_OP_REG(MatrixNms, ov::op::v8)
-_OPENVINO_OP_REG(MaxPool, ov::op::v8)
 _OPENVINO_OP_REG(NV12toBGR, ov::op::v8)
 _OPENVINO_OP_REG(NV12toRGB, ov::op::v8)
 _OPENVINO_OP_REG(RandomUniform, ov::op::v8)
@@ -219,3 +218,4 @@ _OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)
 _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
+_OPENVINO_OP_REG(MaxPool, ov::op::v14)
