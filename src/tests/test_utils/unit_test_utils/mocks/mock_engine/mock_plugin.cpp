@@ -12,7 +12,6 @@
 #include <string>
 #include <utility>
 
-#include "description_buffer.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icore.hpp"

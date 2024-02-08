@@ -257,10 +257,10 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                                                                   output_shape);
     } else {
         stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
-                                                                  inputs[0],
-                                                                  inputs[1],
-                                                                  inputs[2],
-                                                                  inputs[3],
+                                                                  inputs,
+                                                                  begin,
+                                                                  end,
+                                                                  strides,
                                                                   op->get_begin_mask(),
                                                                   op->get_end_mask(),
                                                                   op->get_new_axis_mask(),

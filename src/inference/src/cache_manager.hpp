@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine Cache Manager class C++ API
+ * @brief This is a header file for the OpenVINO Cache Manager class C++ API
  *
- * @file ie_cache_manager.hpp
+ * @file cache_manager.hpp
  */
 #pragma once
 
@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 
-#include "ie_api.h"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -36,38 +35,38 @@ public:
      */
     using StreamWriter = std::function<void(std::ostream&)>;
     /**
-     * @brief Callback when Inference Engine intends to write network to cache
+     * @brief Callback when OpenVINO intends to write model to cache
      *
      * Client needs to call create std::ostream object and call writer(ostream)
-     * Otherwise, network will not be cached
+     * Otherwise, model will not be cached
      *
-     * @param id Id of cache (hash of the network)
+     * @param id Id of cache (hash of the model)
      * @param writer Lambda function to be called when stream is created
      */
     virtual void write_cache_entry(const std::string& id, StreamWriter writer) = 0;
 
     /**
      * @brief Function passing created input stream
-     *
      */
     using StreamReader = std::function<void(std::istream&)>;
+
     /**
-     * @brief Callback when Inference Engine intends to read network from cache
+     * @brief Callback when OpenVINO intends to read model from cache
      *
      * Client needs to call create std::istream object and call reader(istream)
-     * Otherwise, network will not be read from cache and will be loaded as usual
+     * Otherwise, model will not be read from cache and will be loaded as usual
      *
-     * @param id Id of cache (hash of the network)
+     * @param id Id of cache (hash of the model)
      * @param reader Lambda function to be called when input stream is created
      */
     virtual void read_cache_entry(const std::string& id, StreamReader reader) = 0;
 
     /**
-     * @brief Callback when Inference Engine intends to remove cache entry
+     * @brief Callback when OpenVINO intends to remove cache entry
      *
      * Client needs to perform appropriate cleanup (e.g. delete a cache file)
      *
-     * @param id Id of cache (hash of the network)
+     * @param id Id of cache (hash of the model)
      */
     virtual void remove_cache_entry(const std::string& id) = 0;
 };
