@@ -41,7 +41,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
     } else if (dims == 3) {
         spatial_axes = {2, 3, 4};
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported number of dimensions in upsample");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported number of dimensions in upsample");
     }
     auto target_axes = std::make_shared<v0::Constant>(element::i32, Shape{spatial_axes.size()}, spatial_axes);
     auto scales =
@@ -50,7 +50,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
         context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{dims}, std::vector<int>(dims, 1)));
     Output<Node> scales_sizes;
     if (context.input_is_none(1)) {
-        FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(scale_id), "Scale or Output size should be provided");
+        PYTORCH_OP_CONVERSION_CHECK(!context.input_is_none(scale_id), "Scale or Output size should be provided");
         auto spatial_scales = context.get_input(scale_id);
         if (context.get_input_type(1).is<type::List>()) {
             spatial_scales = concat_list_construct(spatial_scales);

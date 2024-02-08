@@ -8,6 +8,7 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "utils/plain_tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -128,6 +129,13 @@ public:
         m_hidden_state_max_size = max_size;
     }
 
+    PlainTensor& get_scale_zp() {
+        return m_scale_zp;
+    }
+    void set_scale_zp(const PlainTensor& t) {
+        m_scale_zp = t;
+    }
+
 private:
     //ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
@@ -142,6 +150,9 @@ private:
 
     // this desc stores the internal prc and axis permutation
     BlockedMemoryDescPtr m_dense_internal_desc;
+
+    // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
+    PlainTensor m_scale_zp;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
