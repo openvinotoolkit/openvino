@@ -4,10 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/util/file_util.hpp>
-
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ::testing;

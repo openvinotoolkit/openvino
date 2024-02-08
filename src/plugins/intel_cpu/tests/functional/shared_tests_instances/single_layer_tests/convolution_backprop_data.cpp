@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddi
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         ::testing::Values(std::vector<size_t>({31, 1})),

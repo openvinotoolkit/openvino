@@ -122,7 +122,7 @@ const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov
 const std::vector<ov::AnyMap> testing_property_for_enable_cpu_pinning = {{ov::hint::enable_cpu_pinning(true)},
                                                                          {ov::hint::enable_cpu_pinning(false)}};
 
-INSTANTIATE_TEST_CASE_P(smoke_ExportImportTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
                         ExportOptimalNumStreams,
                         ::testing::Combine(::testing::Values(std::string("CPU")),
                                            ::testing::Values(testing_property_for_streams,

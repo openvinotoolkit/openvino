@@ -101,8 +101,6 @@ struct Config {
 
     std::map<std::string, std::string> _config;
 
-    bool isLegacyApi = false;
-
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;
 

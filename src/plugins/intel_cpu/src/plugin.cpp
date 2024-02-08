@@ -315,7 +315,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, snippetsMode, conf);
 
     transformations.UpToLpt();
 
@@ -324,16 +324,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     transformations.PostLpt();
     transformations.Snippets();
-
-    // need to check that all outputs have static shapes
-    // checking that all inputs have static shapes is performed in the common part
-    if (is_legacy_api()) {
-        for (const auto& res : cloned_model->get_results()) {
-            if (res->get_input_partial_shape(0).is_dynamic()) {
-                OPENVINO_THROW("CPU plug-in can't load a model with dynamic output shapes via legacy API.");
-            }
-        }
-    }
 
     transformations.CpuSpecificOpSet();
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
@@ -376,10 +366,6 @@ void Engine::set_property(const ov::AnyMap &config) {
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
-}
-
-bool Engine::is_legacy_api() const {
-    return !get_core()->is_new_api();
 }
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -587,7 +573,6 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             Transformations transformation(model,
                                            enableLPT,
                                            conf.inferencePrecision,
-                                           is_legacy_api(),
                                            snippetsMode,
                                            engConfig);
             transformation.UpToLpt();

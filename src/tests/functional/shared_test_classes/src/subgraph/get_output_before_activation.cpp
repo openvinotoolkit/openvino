@@ -83,12 +83,5 @@ void OutputBeforeActivation::SetUp() {
     function = std::make_shared<ov::Model>(outputs, input_parameter, "output_before_activation");
 }
 
-// void OutputBeforeActivation::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-//     ov::test::SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
-// }
-// InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo& info) const {
-//     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
-// }
-
 }  // namespace test
 }  // namespace ov

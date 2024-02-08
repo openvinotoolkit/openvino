@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/tensor.hpp"
+
 #include <numeric>
 
 #include "openvino/core/except.hpp"
@@ -12,7 +14,6 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 

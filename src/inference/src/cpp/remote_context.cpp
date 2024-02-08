@@ -6,7 +6,6 @@
 
 #include <exception>
 
-#include "any_copy.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"

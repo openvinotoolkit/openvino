@@ -17,14 +17,8 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
-#ifdef __GNUC__
-// on RHEL 8.2 deprecation inside the macro does not work
-OPENVINO_SUPPRESS_DEPRECATED_START
-#endif
-
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
-    OPENVINO_SUPPRESS_DEPRECATED_START                                      \
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ov::Busy&) {                                             \
@@ -35,8 +29,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
         OPENVINO_THROW("Unexpected exception");                             \
-    }                                                                       \
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    }
 
 namespace {
 
@@ -244,7 +237,6 @@ void InferRequest::start_async() {
 
 void InferRequest::wait() {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
-    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         _impl->wait();
     } catch (const ov::Cancelled&) {
@@ -254,12 +246,10 @@ void InferRequest::wait() {
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
-    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
     } catch (const ov::Cancelled&) {
@@ -269,7 +259,6 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {

@@ -22,6 +22,11 @@
 #include <mutex>
 #include <set>
 
+#if defined(_WIN32) && !defined(__GNUC__)
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
+#else
+#    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
+#endif
 
 // Forward declarations for cldnn part
 namespace cldnn {

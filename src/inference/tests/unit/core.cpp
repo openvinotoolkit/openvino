@@ -405,7 +405,7 @@ public:
 
 // Tested function: apply_auto_batch
 TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
-    ov::CoreImpl core(true);
+    ov::CoreImpl core;
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
     ov::Output<ov::Node> intermediate = input->output(0);
     for (size_t i = 0; i < 100; ++i)
