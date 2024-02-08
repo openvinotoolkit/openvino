@@ -130,15 +130,23 @@ void Reshape::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 
-    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
-    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());
-
-    if (dstPtr != srcPtr) {
-        cpu_memcpy(dstPtr, srcPtr, dstMemPtr->getSize());
+    if (srcMemPtr->getDesc().getPrecision() == element::string) {
+        auto srcPtr = srcMemPtr->getDataAs<StringMemory::OvString>();
+        auto dstPtr = dstMemPtr->getDataAs<StringMemory::OvString>();
+        std::copy(srcPtr, srcPtr + dstMemPtr->getShape().getElementsCount(), dstPtr);
+    } else {
+        auto srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
+        auto dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());
+        if (dstPtr != srcPtr) {
+            cpu_memcpy(dstPtr, srcPtr, dstMemPtr->getSize());
+        }
     }
 }
 
 bool Reshape::isExecutable() const {
+    if (getSrcMemoryAtPort(0)->getDesc().getPrecision() == element::string) {
+        return true;  // Disable inplace for string type
+    }
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
