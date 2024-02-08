@@ -48,26 +48,36 @@ def generate_ir(coverage=False, **kwargs):
 
 
 def generate_ir_python_api(coverage=False, **kwargs):
+    from openvino.runtime import save_model
+    from openvino.tools import mo, ovc
+    
     out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+    compress_to_fp16 = getattr(kwargs, 'compress_to_fp16', True)
 
-    if getattr(kwargs, 'use_legacy_frontend', False):
-        from openvino.runtime import serialize
-        from openvino.tools.mo import convert_model
-        # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
-        ov_model = convert_model(**kwargs)    
-        serialize(ov_model, out_dir)
+    import inspect
+    acceptable_mo_arg_names = ['use_new_frontend', 'model_name', 'compress_to_fp16', 'output_dir']  # mo args that do not conflict with ovc
+    ovc_arg_names = inspect.signature(ovc.convert_model).parameters.keys()
+
+    # By default, run in ovc, but fallback to mo if there are args not present in ovc.convert_model.
+    # Also, if there are such arguments as 'model_name', 'out_dir', etc. they do not conflict with ovc, they should be just
+    # removed from kwargs and then ovc.convert_model can be run with updated ovc_kwargs.
+    use_ovc = True
+    
+    ovc_kwargs = kwargs.copy()
+    for key in kwargs.keys():
+        if key not in ovc_arg_names:
+            ovc_kwargs.pop(key)
+        if key not in ovc_arg_names and key not in acceptable_mo_arg_names:
+            use_ovc = False
+            break
+
+    if use_ovc:
+        ov_model = ovc.convert_model(**ovc_kwargs)    
     else:
-        from openvino.runtime import save_model
-        from openvino.tools.ovc import convert_model
-        
-        compress_to_fp16 = getattr(kwargs, 'compress_to_fp16', True)
-        import inspect
-        for key in list(kwargs.keys()):
-            if key not in inspect.signature(convert_model).parameters.keys():
-                kwargs.pop(key)
-
-        ov_model = convert_model(**kwargs)    
-        save_model(ov_model, out_dir, compress_to_fp16)
+        # TODO: Remove usage of legacy params from layer tests and switch completely to ovc.convert_model
+        ov_model = mo.convert_model(**kwargs)    
+    
+    save_model(ov_model, out_dir, compress_to_fp16)
     return 0, ""
 
 

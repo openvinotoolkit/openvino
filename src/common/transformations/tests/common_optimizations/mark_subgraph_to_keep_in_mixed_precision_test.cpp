@@ -1348,3 +1348,38 @@ TEST(TransformationTests, keep_floor_div_2) {
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
+
+TEST(TransformationTests, keep_floor_div_3) {
+    // negative test: when inputs to Mul are dynamic it should not be marked: ASSERT_FALSE
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 100});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 100});
+
+        auto mul_1 = make_shared<Multiply>(input_1, input_2);
+        auto floor_1 = make_shared<Floor>(mul_1);
+
+        model = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 100});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 100});
+
+        auto mul_1 = make_shared<Multiply>(input_1, input_2);
+        auto floor_1 = make_shared<Floor>(mul_1);
+        disable_fp16_compression(mul_1);
+        disable_fp16_compression(floor_1);
+
+        model_ref = make_shared<Model>(NodeVector{floor_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    FunctionsComparator::Result result = func_comparator(model, model_ref);
+    ASSERT_FALSE(result.valid) << result.message;
+}

@@ -431,9 +431,15 @@ public:
         MATCHER_SCOPE(MarkFloorDiv);
         // FloorDiv is repesented either as:
         // Floor(Div(input_1, input_2))
-        // Floor(Mul(input_1, inversed_const_input_2)), if input_2 is constant
-        auto div_mul_pattern = pattern::wrap_type<ov::op::v1::Divide, ov::op::v1::Multiply>();
-        auto floor_pattern = pattern::wrap_type<ov::op::v0::Floor>({div_mul_pattern});
+        // Floor(Mul(input_1, inversed_input_2)), if input_2 is constant
+
+        auto input_1 = pattern::any_input();
+        auto input_2 = pattern::any_input();
+        auto div_pattern = pattern::wrap_type<ov::op::v1::Divide>({input_1, input_2});
+        auto mul_pattern =
+            pattern::wrap_type<ov::op::v1::Multiply>({input_1, pattern::wrap_type<ov::op::v0::Constant>()});
+        auto div_or_mul = std::make_shared<pattern::op::Or>(OutputVector{div_pattern, mul_pattern});
+        auto floor_pattern = pattern::wrap_type<ov::op::v0::Floor>({div_or_mul});
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();

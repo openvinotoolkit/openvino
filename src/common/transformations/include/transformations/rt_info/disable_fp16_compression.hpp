@@ -39,7 +39,7 @@ public:
     }
 
     bool is_copyable() const override {
-        return true;
+        return false;
     }
 };
 
