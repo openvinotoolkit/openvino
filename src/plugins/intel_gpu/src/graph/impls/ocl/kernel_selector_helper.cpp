@@ -1399,7 +1399,6 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 
-    params.meaningfulKernelsNames = false;
     params.allowStaticInputReordering = config.get_property(ov::intel_gpu::optimize_data) || config.get_property(ov::intel_gpu::allow_static_input_reorder);
     params.allowInputReordering = false;
 }

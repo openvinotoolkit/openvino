@@ -29,7 +29,7 @@ std::string deconvolution_params::to_string() const {
 }
 
 bool DeconvolutionKernelBase::Validate(const Params& p) const {
-    if (p.GetType() != KernelType::DECONVOLUTION ) {
+    if (p.GetType() != KernelType::DECONVOLUTION) {
         return false;
     }
 
