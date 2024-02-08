@@ -465,7 +465,7 @@ This option defines if each LPT transformation updates precision or not. The opt
 Typical customization use cases
 +++++++++++++++++++++++++++++++
 
-Plugin specific customization can be implemented via OpenVINO transformation callbacks. For example: asymmetric quantization support can be easily customizable via ``LayerTransformation::isAsymmetricQuantization`` and ``WeightableLayerTransformation::isAsymmetricOnWeights`` methods usage in callbacks. For example:
+Plugin specific customization can be implemented via transformation callbacks. For example: asymmetric quantization support can be easily customizable via ``LayerTransformation::isAsymmetricQuantization`` and ``WeightableLayerTransformation::isAsymmetricOnWeights`` methods usage in callbacks. For example:
 
 .. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp

@@ -28,7 +28,7 @@ public:
 } // ov
 
 int main() {
-std::shared_ptr<ov::Model> ovLptFunc;
+std::shared_ptr<ov::Model> model;
 ov::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 //! [lpt_common]
