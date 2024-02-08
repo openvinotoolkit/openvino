@@ -363,11 +363,11 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
 
 TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
     // Topology:
+    //
     // (4d)___conv___(4d)___rdft___(5d)
     //            \__(4d)___eltw___(4d)
 
     tests::random_generator rg(GET_SUITE_NAME);
-
     auto& engine = get_test_engine();
     auto in_layout1 = layout{ ov::PartialShape{1, 240, 96, 96}, data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout2 = layout{ ov::PartialShape{1, 120, 96, 96}, data_types::f16, format::bfyx };
@@ -396,10 +396,7 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
     ASSERT_NE(program, nullptr);
 
     auto& dft_node = program->get_node("rdft");
-
-    size_t exp_dim(4);
-    size_t act_dim = format::dimension(dft_node.get_input_layouts()[0].format);
-    ASSERT_EQ(exp_dim, act_dim);
+    ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
 }
 
 // TODO Not yet implemented

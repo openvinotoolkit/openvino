@@ -1852,7 +1852,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<loop>()) {
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<dft>()) {
-        if (node.as<dft>().get_primitive()->mode == dft_mode::real) {
+        if (node.as<dft>().get_primitive()->mode == dft_mode::real &&
+            node.as<dft>().get_primitive()->direction == dft_direction::forward) {
             node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
         }
     }
