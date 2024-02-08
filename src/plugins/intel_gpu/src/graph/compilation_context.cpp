@@ -22,19 +22,13 @@ public:
         if (_stop_compilation)
             return;
 
-        auto promise = std::make_shared<std::promise<void>>();
-
         std::lock_guard<std::mutex> lock(_mutex);
-        futures.emplace_back(promise->get_future());
 
         if (_task_keys.find(key) == _task_keys.end()) {
             if (_task_executor != nullptr) {
-                _task_keys.insert(key);
-                _task_executor->run([task, promise] {
-                    task();
-                    promise->set_value();
-                });
-            }
+            	_task_keys.insert(key);
+                _task_executor->run(task);
+	    }
         }
     }
 
@@ -63,13 +57,6 @@ public:
 
         _stop_compilation = true;
 
-        // Flush all remaining tasks.
-        for (auto&& future : futures) {
-            if (future.valid()) {
-                future.wait();
-            }
-        }
-
         {
             std::lock_guard<std::mutex> lock(_mutex);
             if (_task_executor != nullptr)
@@ -79,9 +66,7 @@ public:
     }
 
     void wait_all() override {
-        for (auto&& future : futures) {
-            future.wait();
-        }
+        cancel();
     }
 
 private:
