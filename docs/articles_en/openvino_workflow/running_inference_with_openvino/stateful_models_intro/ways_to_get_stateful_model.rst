@@ -165,10 +165,10 @@ Applying LowLatency2 Transformation
       :alt: diagram of constant subgraph initialization
       :align: center
 
-   **State naming rule:**  the name of a state is a concatenation of names: original
-   TensorIterator operation, parameter of the body, and additional suffix "variable_" + id
-   (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict
-   the name of the inserted state after the transformation has been applied. For example:
+   **State naming rule:**  the name of a state is a concatenation of several names: the original
+   TensorIterator operation, the parameter of the body, and an additional suffix "variable_" + id
+   (zero-based indexing, new indexing for each TensorIterator). You can use these rules to predict
+   the name of the inserted state after applying the transformation. For example:
 
    .. tab-set::
 
