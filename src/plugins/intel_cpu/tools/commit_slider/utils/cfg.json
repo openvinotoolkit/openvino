@@ -13,7 +13,8 @@
     },
     "utilMap" : {
         "map_builder" : "printMap",
-        "log_parser" : "logParser"
+        "log_parser" : "logParser",
+        "break_validator": "breakValidator"
     },
     "extendBuildCommand" : false,
     "commandList" : [
@@ -76,6 +77,12 @@
     "printCSV" : true,
     "usePrevRunCache" : false,
     "verboseOutput": false,
+    "preliminaryCheckCfg": {
+        "leftCheck": true,
+        "rightCheck": false,
+        "tryCount": 5,
+        "checkBenchmarkModelPath": true
+    },
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     },
