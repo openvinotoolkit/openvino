@@ -11,13 +11,13 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 namespace op {

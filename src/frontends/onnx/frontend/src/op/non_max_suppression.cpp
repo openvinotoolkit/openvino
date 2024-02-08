@@ -22,7 +22,7 @@ ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
     // TODO: this op will not be tested until at least
     //       a reference implementation is added
 
-    const auto ng_inputs = node.get_ng_inputs();
+    const auto ng_inputs = node.get_ov_inputs();
     const ov::Output<ov::Node> boxes = ng_inputs.at(0);
     const ov::Output<ov::Node> scores = ng_inputs.at(1);
 

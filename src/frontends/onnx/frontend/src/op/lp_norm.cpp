@@ -5,10 +5,10 @@
 #include "op/lp_norm.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "utils/norm.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -18,12 +18,10 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> data{node.get_ng_inputs().at(0)};
+    const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const auto data_shape = data.get_partial_shape();
     const auto data_rank = data_shape.rank();
-
     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
-
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
     const size_t normalize_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
 

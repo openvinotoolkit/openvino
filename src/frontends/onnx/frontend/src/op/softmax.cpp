@@ -29,7 +29,7 @@ std::shared_ptr<ov::Node> onnx_softmax(const ov::Output<ov::Node> data, const in
 namespace op {
 namespace set_1 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
@@ -52,7 +52,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 }  // namespace set_1
 namespace set_11 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
@@ -75,7 +75,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 }  // namespace set_11
 namespace set_13 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+    const auto data = node.get_ov_inputs().at(0);
 
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
 

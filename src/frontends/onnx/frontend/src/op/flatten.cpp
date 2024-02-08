@@ -5,8 +5,8 @@
 #include "op/flatten.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "utils/reshape.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto data = inputs.at(0);
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     const auto data_rank = data.get_partial_shape().rank();

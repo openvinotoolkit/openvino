@@ -5,7 +5,7 @@ SpaceToBatch
 
 
 .. meta::
-  :description: Learn about SpaceToBatch-2 - a data movement operation, 
+  :description: Learn about SpaceToBatch-2 - a data movement operation,
                 which can be performed on four required input tensors.
 
 **Versioned name**: *SpaceToBatch-2*
@@ -79,30 +79,30 @@ No attributes available.
 
     <layer type="SpaceToBatch" ...>
         <input>
-            <port id="0">       < !-- data -->
-                <dim>2</dim>    < !-- batch -->
-                <dim>6</dim>    < !-- spatial dimension 1 -->
-                <dim>10</dim>   < !-- spatial dimension 2 -->
-                <dim>3</dim>    < !-- spatial dimension 3 -->
-                <dim>3</dim>    < !-- spatial dimension 4 -->
+            <port id="0">       <!-- data -->
+                <dim>2</dim>    <!-- batch -->
+                <dim>6</dim>    <!-- spatial dimension 1 -->
+                <dim>10</dim>   <!-- spatial dimension 2 -->
+                <dim>3</dim>    <!-- spatial dimension 3 -->
+                <dim>3</dim>    <!-- spatial dimension 4 -->
             </port>
-            <port id="1">       < !-- block_shape value: [1, 2, 4, 3, 1] -->
+            <port id="1">       <!-- block_shape value: [1, 2, 4, 3, 1] -->
                 <dim>5</dim>
             </port>
-            <port id="2">       < !-- pads_begin value: [0, 0, 1, 0, 0] -->
+            <port id="2">       <!-- pads_begin value: [0, 0, 1, 0, 0] -->
                 <dim>5</dim>
             </port>
-            <port id="3">       < !-- pads_end value: [0, 0, 1, 0, 0] -->
+            <port id="3">       <!-- pads_end value: [0, 0, 1, 0, 0] -->
                 <dim>5</dim>
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>48</dim>   < !-- data.shape[0] * block_shape.shape[0] * block_shape.shape[1] *... * block_shape.shape[4] -->
-                <dim>3</dim>    < !-- (data.shape[1] + pads_begin[1] + pads_end[1]) / block_shape.shape[1]  -->
-                <dim>3</dim>    < !-- (data.shape[2] + pads_begin[2] + pads_end[2]) / block_shape.shape[2] -->
-                <dim>1</dim>    < !-- (data.shape[3] + pads_begin[3] + pads_end[3]) / block_shape.shape[3] -->
-                <dim>3</dim>    < !-- (data.shape[4] + pads_begin[4] + pads_end[4]) / block_shape.shape[4] -->
+                <dim>48</dim>   <!-- data.shape[0] * block_shape.shape[0] * block_shape.shape[1] *... * block_shape.shape[4] -->
+                <dim>3</dim>    <!-- (data.shape[1] + pads_begin[1] + pads_end[1]) / block_shape.shape[1]  -->
+                <dim>3</dim>    <!-- (data.shape[2] + pads_begin[2] + pads_end[2]) / block_shape.shape[2] -->
+                <dim>1</dim>    <!-- (data.shape[3] + pads_begin[3] + pads_end[3]) / block_shape.shape[3] -->
+                <dim>3</dim>    <!-- (data.shape[4] + pads_begin[4] + pads_end[4]) / block_shape.shape[4] -->
             </port>
         </output>
     </layer>

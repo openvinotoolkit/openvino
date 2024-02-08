@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
     ov::OutputVector valid_inputs;
     std::copy_if(inputs.begin(), inputs.end(), std::back_inserter(valid_inputs), [](ov::Output<ov::Node>& in) -> bool {

@@ -3,8 +3,8 @@
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/descriptor_tensor.hpp"
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
@@ -16,13 +16,6 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
       m_partial_shape(pshape),
       m_shape_changed(true) {
     set_names(names);
-}
-
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
-    : m_element_type(element_type),
-      m_partial_shape(pshape),
-      m_shape_changed(true) {
-    m_name_it = m_names.cend();
 }
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
