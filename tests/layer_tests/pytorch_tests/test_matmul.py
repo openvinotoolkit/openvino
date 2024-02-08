@@ -12,7 +12,7 @@ class TestMVOperation(PytorchLayerTest):
     def create_model(self, matrix, vector):
         class CustomMVOperation(torch.nn.Module):
             def forward(self, matrix, vector):
-                return matrix * vector  # Element-wise multiplication as per the provided code
+                return torch.mv(matrix, vector)  # Using torch.mv for matrix-vector multiplication
 
         model_class = CustomMVOperation()
         ref_net = None
@@ -23,6 +23,8 @@ class TestMVOperation(PytorchLayerTest):
     @pytest.mark.parametrize("matrix, vector", [
         (np.array([[1, 2], [3, 4]]), np.array([5, 6])),
         (np.array([[0, 0], [0, 0]]), np.array([1, 2])),
+        (np.array([[1, 2, 3], [4, 5, 6]]), np.array([0, 1, 0])),
+        (np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), np.array([2, 3, 4])),
         # Add more test cases as needed
     ])
     def test_mv_operation(self, matrix, vector, ie_device, precision, ir_version):
