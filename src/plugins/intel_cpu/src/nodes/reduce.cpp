@@ -2033,10 +2033,10 @@ void Reduce::prepareParams() {
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
@@ -2045,7 +2045,7 @@ void Reduce::prepareParams() {
         return;
     }
 
-    src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
+    src_dims = getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
     if (jit_mode && jit_beyond_5D) {
         reduce_axes = update_src_dims();
@@ -2053,7 +2053,7 @@ void Reduce::prepareParams() {
         reduce_axes = raw_axes;
     }
 
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
     const VectorDims &dst_dims = dstMemPtr->getDesc().getShape().getDims();
     dst_size = dstMemPtr->getSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
@@ -2104,8 +2104,8 @@ void Reduce::createPrimitive() {
     if (!isExecutable()) {
         return;
     }
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2201,11 +2201,11 @@ void Reduce::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reduce::execute(dnnl::stream strm) {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->getData());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
+    const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
 
     if (jit_mode) {
         if (is_hybrid_layout) {
@@ -2215,10 +2215,10 @@ void Reduce::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
         std::vector<MemoryPtr> dstMemory;
-        dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+        dstMemory.push_back(getDstMemoryAtPort(0));
 
         aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
     } else {
@@ -2247,8 +2247,8 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr) {
 
     if (is_hybrid_layout) {
         uint8_t *proc_ptr = out_ptr;
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        out_ptr = dstMemPtr->getDataAs<uint8_t>();
         if (layout == ReduceLayoutType::reduce_nspc) {
             nspc2ncsp(proc_ptr, out_ptr);
         } else {

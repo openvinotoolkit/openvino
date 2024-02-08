@@ -264,15 +264,15 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
-    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-    auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
+    auto updateMemPtr = getSrcMemoryAtPort(UPDATE_ID);
 
-    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
-    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
-    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->getData());
-    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->getData());
+    uint8_t *dstPtr = dstMemPtr->getDataAs<uint8_t>();
+    uint8_t *srcPtr = srcMemPtr->getDataAs<uint8_t>();
+    uint8_t *indicesPtr = indicesMemPtr->getDataAs<uint8_t>();
+    uint8_t *updatePtr = updateMemPtr->getDataAs<uint8_t>();
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
@@ -302,8 +302,8 @@ void ScatterUpdate::execute(dnnl::stream strm) {
 
     int axis = 0;
     if (axisRelaxed) {
-        auto axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
-        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->getData());
+        auto axisMemPtr = getSrcMemoryAtPort(AXIS_ID);
+        uint8_t *axisPtr = axisMemPtr->getDataAs<uint8_t>();
         if (axisSize == 4) {
             auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;

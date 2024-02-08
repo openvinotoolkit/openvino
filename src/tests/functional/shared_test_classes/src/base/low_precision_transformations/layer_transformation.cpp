@@ -7,14 +7,7 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-
 #include "ov_models/pass/convert_prc.hpp"
-
-using namespace InferenceEngine;
-using namespace ngraph;
 
 namespace LayerTestsUtils {
 ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
@@ -36,7 +29,7 @@ ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNG
 LayerTransformation::LayerTransformation() {
     rel_threshold = 1.1;
     abs_threshold = 1.0e-4;
-    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
+    configuration["LP_TRANSFORMS_MODE"] = true;
 }
 
 std::pair<float, float> LayerTransformation::get_quantization_interval(ov::element::Type precision) {
@@ -125,6 +118,39 @@ std::string LayerTransformation::get_runtime_precision_by_fused_name(const std::
         return has_layer(nameIt->second.as<std::string>(), layerName);
     };
     return find_node_by_runtime_precision(compiledModel, is_node_f);
+}
+
+bool LayerTransformation::check_execution_order(const std::vector<std::string>& orderedOpsTypes) {
+    if (orderedOpsTypes.empty()) {
+        return true;
+    }
+
+    size_t comparisonIndex = 0;
+    const std::shared_ptr<const ov::Model>& execFunction = compiledModel.get_runtime_model();
+    for (const auto& op : execFunction->get_ordered_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+        OPENVINO_ASSERT(typeIt != rtInfo.end(), "layerType is not found");
+
+        const auto layerType = typeIt->second.as<std::string>();
+        if (orderedOpsTypes[comparisonIndex] == layerType) {
+            // if comparisonIndex == 0 then start comparision
+            // if comparisonIndex != 0 then comparision has been started, check next operation type in sequence
+            comparisonIndex++;
+
+            if (comparisonIndex >= orderedOpsTypes.size()) {
+                // all operation types in sequence were checked, comparision is ended
+                return true;
+            }
+        } else if (comparisonIndex != 0) {
+            // if comparision has been started and operation type is not equal then exit
+            return false;
+        }
+    }
+
+    // actually we can be here only if operation sequence too long
+    // (execution graph doesn't have some operations from operations sequence)
+    return comparisonIndex == orderedOpsTypes.size();
 }
 
 std::map<std::string, ov::Node::RTMap> LayerTransformation::get_runtime_info() {

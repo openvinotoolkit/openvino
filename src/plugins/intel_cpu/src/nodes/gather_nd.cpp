@@ -9,7 +9,6 @@
 #include "openvino/core/parallel.hpp"
 #include "gather_nd.h"
 #include <openvino/opsets/opset8.hpp>
-#include <precision_utils.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 
@@ -82,9 +81,9 @@ void GatherND::initSupportedPrimitiveDescriptors() {
 }
 
 void GatherND::prepareParams() {
-    auto srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
-    auto idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(GATHERND_DATA);
+    auto idxMemPtr = getSrcMemoryAtPort(GATHERND_INDEXES);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR(" has not allocated input memory of 'data'.");
     if (!idxMemPtr || !idxMemPtr->isAllocated())
@@ -129,9 +128,9 @@ void GatherND::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR("has not compiled executor.");
 
-    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(),
-                  getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr(),
-                  getChildEdgeAt(0)->getMemoryPtr());
+    execPtr->exec(getSrcMemoryAtPort(GATHERND_DATA),
+                  getSrcMemoryAtPort(GATHERND_INDEXES),
+                  getDstMemoryAtPort(0));
 }
 
 void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
@@ -148,9 +147,9 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPt
 }
 
 void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
+    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -185,9 +184,9 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const 
 
 template <typename dataType>
 void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
-    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->getData());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
-    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->getData());
+    const dataType* srcData = srcMemPtr->getDataAs<const dataType>();
+    const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
+    dataType* dstData = dstMemPtr->getDataAs<dataType>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
