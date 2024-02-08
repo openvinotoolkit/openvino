@@ -139,13 +139,17 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, cons
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream) {
-    const bool blocking = true;
+    const bool blocking = false;
+    auto src_et = src->get_layout().data_type;
+    auto dst_et = dst->get_layout().data_type;
 
     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> src_lock(src, stream);
-    std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
-
     const void* src_ptr = src_lock.data();
-    dst->copy_from(stream, src_ptr, blocking);
+
+    size_t size = ov::shape_size(src->get_layout().get_shape());
+    ov::Tensor tmp_tensor(dst_et, src->get_layout().get_shape());
+    ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, src->get_layout());
+    dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
 void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
