@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,6 @@
 
 #include <memory>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "iplugin_wrapper.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
@@ -32,11 +30,7 @@ ov::Plugin::Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_pt
 }
 
 void ov::Plugin::set_name(const std::string& deviceName) {
-    OV_PLUGIN_CALL_STATEMENT({
-        m_ptr->set_device_name(deviceName);
-        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
-            wrapper->set_device_name(deviceName);
-    });
+    OV_PLUGIN_CALL_STATEMENT({ m_ptr->set_device_name(deviceName); });
 }
 
 const std::string& ov::Plugin::get_name() const {
@@ -44,11 +38,7 @@ const std::string& ov::Plugin::get_name() const {
 }
 
 void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
-    OV_PLUGIN_CALL_STATEMENT({
-        m_ptr->set_core(core);
-        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
-            wrapper->set_core(core);
-    });
+    OV_PLUGIN_CALL_STATEMENT({ m_ptr->set_core(core); });
 }
 
 const ov::Version ov::Plugin::get_version() const {

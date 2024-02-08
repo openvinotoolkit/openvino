@@ -5,8 +5,8 @@
 #include "op/loop.hpp"
 
 #include "core/graph.hpp"
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -16,9 +16,9 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
@@ -39,8 +39,8 @@ bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Nod
 }
 }  // namespace
 
-ov::OutputVector loop(const Node& node) {
-    const auto& ng_inputs = node.get_ng_inputs();
+ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
+    const auto& ng_inputs = node.get_ov_inputs();
 
     const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
@@ -175,6 +175,6 @@ ov::OutputVector loop(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

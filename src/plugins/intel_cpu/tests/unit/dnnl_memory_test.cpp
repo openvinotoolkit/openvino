@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
 #include <gtest/gtest.h>
 
-#include <cpu_memory.h>
-#include <mutex>
+#include <atomic>
 #include <thread>
-#include <condition_variable>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
 

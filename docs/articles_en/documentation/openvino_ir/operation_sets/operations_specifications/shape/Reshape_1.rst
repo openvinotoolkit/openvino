@@ -5,7 +5,7 @@ Reshape
 
 
 .. meta::
-  :description: Learn about Reshape-1 - a shape manipulation operation, which 
+  :description: Learn about Reshape-1 - a shape manipulation operation, which
                 can be performed on two required input tensors.
 
 **Versioned name**: *Reshape-1*
@@ -65,7 +65,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>0</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   < !--The tensor contains 2 elements: 0, 4 -->
+                <dim>2</dim>   <!--The tensor contains 2 elements: 0, 4 -->
             </port>
         </input>
         <output>
@@ -92,7 +92,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>3</dim>   < !--The tensor contains 3 elements: 0, -1, 4 -->
+                <dim>3</dim>   <!--The tensor contains 3 elements: 0, -1, 4 -->
             </port>
         </input>
         <output>
@@ -119,7 +119,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>3</dim>
             </port>
             <port id="1">
-                <dim>4</dim>   < !--The tensor contains 4 elements: 0, 0, 1, -1 -->
+                <dim>4</dim>   <!--The tensor contains 4 elements: 0, 0, 1, -1 -->
             </port>
         </input>
         <output>
@@ -147,7 +147,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>1</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   < !--The tensor contains 2 elements: -1, 0 -->
+                <dim>2</dim>   <!--The tensor contains 2 elements: -1, 0 -->
             </port>
         </input>
         <output>
@@ -173,7 +173,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>1</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   < !--The tensor contains 2 elements: 0, -1 -->
+                <dim>2</dim>   <!--The tensor contains 2 elements: 0, -1 -->
             </port>
         </input>
         <output>

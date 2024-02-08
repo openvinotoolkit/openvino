@@ -5,7 +5,6 @@
 #pragma once
 
 #include "embedding_shape_infer_utils.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "utils.hpp"
 

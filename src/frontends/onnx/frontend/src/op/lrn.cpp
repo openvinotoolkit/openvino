@@ -8,13 +8,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector lrn(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1e-4);
     double beta = node.get_attribute_value<double>("beta", 0.75);
     double bias = node.get_attribute_value<double>("bias", 1);
@@ -24,10 +24,7 @@ ov::OutputVector lrn(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
