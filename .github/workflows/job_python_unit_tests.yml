@@ -63,7 +63,7 @@ jobs:
           echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
           echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -vv' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt' || 'pdm install --frozen-lockfile -v -G tests' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt' || 'pdm install --frozen-lockfile --no-self -v -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -131,14 +131,10 @@ jobs:
         run: |
           # To enable pytest parallel features
           ${PYTHON_INSTALL_PREFIX} pytest-xdist[psutil]
-          # For torchvision to OpenVINO preprocessing converter
-          # pdm add -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            pdm install --frozen-lockfile --no-self -v -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}
-          fi
 
+          # For torchvision to OpenVINO preprocessing converter
           # TODO: replace with Python API tests requirements and add to test pkg
-          # ${PYTHON_INSTALL_PYTHON_REQS}
+          ${PYTHON_INSTALL_PYTHON_REQS}
 
       #
       # Tests

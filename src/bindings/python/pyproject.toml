@@ -92,6 +92,7 @@ tests = [
     "types-pkg_resources",
     "wheel >= 0.38.1",
 ]
+
 tests_mo = [
     "mxnet~=1.2.0; sys_platform == 'win32'",
     "mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'",
