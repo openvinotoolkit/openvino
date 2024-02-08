@@ -144,9 +144,6 @@ void Reshape::execute(dnnl::stream strm) {
 }
 
 bool Reshape::isExecutable() const {
-    if (getSrcMemoryAtPort(0)->getDesc().getPrecision() == element::string) {
-        return true;  // Disable inplace for string type
-    }
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
