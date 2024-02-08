@@ -25,10 +25,6 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace InferenceEngine {
-class IExtension;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 /**

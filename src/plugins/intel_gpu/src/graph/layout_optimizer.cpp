@@ -34,6 +34,7 @@
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
 #include "loop_inst.h"
+#include "dft_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -1850,6 +1851,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         node.set_preferred_input_fmt(0, format::get_default_format(node.as<gather>().get_primitive()->input_rank));
     } else if (node.is_type<loop>()) {
         expected = format::get_default_format(node.get_output_layout().get_rank());
+    } else if (node.is_type<dft>()) {
+        if (node.as<dft>().get_primitive()->mode == dft_mode::real &&
+            node.as<dft>().get_primitive()->direction == dft_direction::forward) {
+            node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
+        }
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {

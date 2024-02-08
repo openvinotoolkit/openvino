@@ -37,8 +37,7 @@ ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime lib
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              openvino::shape_inference
@@ -87,13 +86,18 @@ ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
+if(BUILD_SHARED_LIBS)
+    set(archive_comp CORE_DEV)
+else()
+    set(archive_comp CORE)
+endif()
+
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
-        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_${archive_comp}} ${OV_CPACK_COMP_${archive_comp}_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR}
-                             ${OV_CPACK_INCLUDEDIR}/ie)
+        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
 
 # OpenVINO runtime library dev
 
@@ -145,7 +149,7 @@ if(ENABLE_PLUGINS_XML)
             ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 
     if(ENABLE_TESTS)
-        # for InferenceEngineUnitTest
+        # for ov_inference_unit_tests
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
                 DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
