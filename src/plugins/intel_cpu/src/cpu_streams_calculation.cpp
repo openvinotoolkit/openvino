@@ -11,6 +11,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 #include <algorithm>
 #include <cstdio>
