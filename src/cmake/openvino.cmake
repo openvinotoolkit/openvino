@@ -143,7 +143,7 @@ if(ENABLE_PLUGINS_XML)
             ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 
     if(ENABLE_TESTS)
-        # for InferenceEngineUnitTest
+        # for ov_inference_unit_tests
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
                 DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()

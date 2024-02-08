@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #include <functional>
-#include <iostream>
+#include <ostream>
+#include <memory>
+#include <string>
 
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {

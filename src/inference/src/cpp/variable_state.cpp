@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/variable_state.hpp"
+
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/runtime/variable_state.hpp"
-
-namespace ov {
 
 #define OV_VARIABLE_CALL_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized."); \
@@ -18,6 +17,8 @@ namespace ov {
     } catch (...) {                                                          \
         OPENVINO_THROW("Unexpected exception");                              \
     }
+
+namespace ov {
 
 VariableState::~VariableState() {
     _impl = {};

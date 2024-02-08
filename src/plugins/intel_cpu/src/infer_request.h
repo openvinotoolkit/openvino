@@ -111,8 +111,6 @@ private:
     Graph* m_graph = nullptr;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_external_ptr;
 
-    bool m_is_legacy_api = false;
-
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;

@@ -50,7 +50,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
-    m_cfg.isLegacyApi = !core->is_new_api();
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue

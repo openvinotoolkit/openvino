@@ -204,7 +204,7 @@ const std::vector<std::vector<int64_t>> repeats5D = {
         {2, 3, 1, 1, 1}
 };
 
-INSTANTIATE_TEST_CASE_P(DynamicShape4D, TileLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DynamicShape4D, TileLayerGPUTest,
                                 ::testing::Combine(
                                         ::testing::ValuesIn(dynamic_input_shapes4D),
                                         ::testing::ValuesIn(repeats4D),
@@ -213,7 +213,7 @@ INSTANTIATE_TEST_CASE_P(DynamicShape4D, TileLayerGPUTest,
                                         ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DynamicShape5D, TileLayerGPUTest,
                                 ::testing::Combine(
                                         ::testing::ValuesIn(dynamic_input_shapes5D),
                                         ::testing::ValuesIn(repeats5D),

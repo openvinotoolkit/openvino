@@ -528,7 +528,7 @@ const auto gatherWithIndicesParams = testing::Combine(
         testing::ValuesIn(indicesData)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
         Gather8withIndicesDataLayerTest,
         gatherWithIndicesParams,
         Gather8withIndicesDataLayerTest::getTestCaseName
@@ -553,7 +553,7 @@ const auto gatherWithNagativeIndicesParams1 = testing::Combine(
         testing::ValuesIn(nagativeSingleindicesData)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather8NagativeIndice1,
+INSTANTIATE_TEST_SUITE_P(smoke_Gather8NagativeIndice1,
         Gather8withIndicesDataLayerTest,
         gatherWithNagativeIndicesParams1,
         Gather8withIndicesDataLayerTest::getTestCaseName
@@ -572,7 +572,7 @@ const auto gatherWithNagativeIndicesParams2 = testing::Combine(
         testing::ValuesIn(nagativeSingleindicesData)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather8NagativeIndice2,
+INSTANTIATE_TEST_SUITE_P(smoke_Gather8NagativeIndice2,
         Gather8withIndicesDataLayerTest,
         gatherWithNagativeIndicesParams2,
         Gather8withIndicesDataLayerTest::getTestCaseName

@@ -44,8 +44,6 @@ public:
     };
 
 private:
-    bool is_legacy_api() const;
-
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
     void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;

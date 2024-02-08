@@ -48,9 +48,9 @@ const auto numpyBroadcast1DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D, BroadcastLayerTest, numpyBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast1D, BroadcastLayerTest, numpyBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PrecTransformation, BroadcastLayerTest,
         ::testing::Combine(
             ::testing::Values(targetShapesNumpy1D[0]),
             ::testing::Values(ov::AxisSet{}), //not used in numpy mode
@@ -81,7 +81,7 @@ const auto numpyBroadcast2DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D, BroadcastLayerTest, numpyBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast2D, BroadcastLayerTest, numpyBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
 
 // 3D
 std::vector<std::vector<size_t>> targetShapesNumpy3D = {
@@ -104,7 +104,7 @@ const auto numpyBroadcast3DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D, BroadcastLayerTest, numpyBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast3D, BroadcastLayerTest, numpyBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ov::Shape>> evaluate_shapes_static = {
         {{ 1, 2, 1, 4, 1, 6, 1, 8, 1, 10 }}
@@ -120,7 +120,7 @@ const auto numpyBroadcastEvaluateParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcastEvaluate,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcastEvaluate,
                         BroadcastLayerTest,
                         numpyBroadcastEvaluateParams,
                         BroadcastLayerTest::getTestCaseName);
@@ -148,7 +148,7 @@ const auto bidirectionalBroadcastParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast, BroadcastLayerTest, bidirectionalBroadcastParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestBidirectionalBroadcast, BroadcastLayerTest, bidirectionalBroadcastParams, BroadcastLayerTest::getTestCaseName);
 
 // EXPLICIT MODE ///////////////////////////////////////
 // 1D
@@ -168,7 +168,7 @@ const auto explicitBroadcast1DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast1D, BroadcastLayerTest, explicitBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast1D, BroadcastLayerTest, explicitBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
 
 const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[2]),
@@ -215,7 +215,7 @@ const auto explicitBroadcast2DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D, BroadcastLayerTest, explicitBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast2D, BroadcastLayerTest, explicitBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
 
 // 3D
 std::vector<std::vector<ov::Shape>> input_shapes_explicit_3d_static = {
@@ -233,7 +233,7 @@ const auto explicitBroadcast3DInputParams = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast3D, BroadcastLayerTest, explicitBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast3D, BroadcastLayerTest, explicitBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
 // END EXPLICIT MODE ///////////////////////////////////
 
 }  // namespace
