@@ -249,7 +249,7 @@ std::string FrontEnd::get_name() const {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
-    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.register_pass<pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 
