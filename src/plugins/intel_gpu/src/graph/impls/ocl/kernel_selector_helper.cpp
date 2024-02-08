@@ -1509,12 +1509,4 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
     }
 }
 
-void set_optional_params(const program& program, kernel_selector::optional_params& params) {
-    params.meaningfulKernelsNames = false;
-    params.allowStaticInputReordering = program.get_config().get_property(ov::intel_gpu::optimize_data) ||
-                                        program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
-    params.allowInputReordering = false;
-    params.allowOutputReordering = false;
-}
-
 }  // namespace cldnn

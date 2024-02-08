@@ -15,8 +15,8 @@ public:
     using Parent = FullyConnectedKernelBase;
     FullyConnected_fb_io_ref() : FullyConnectedKernelBase("fully_connected_gpu_fb_io_ref") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -26,6 +26,6 @@ protected:
                  FusedOpType::ELTWISE };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

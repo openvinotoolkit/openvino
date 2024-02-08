@@ -66,11 +66,10 @@ public:
 std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
                                             const std::string& layerID,
                                             const Params& params,
-                                            const optional_params& options,
                                             const size_t partID) const {
     std::string kernelID = layerID;
 
-    if (kernelID.empty() || !options.meaningfulKernelsNames) {
+    if (kernelID.empty() || !params.meaningfulKernelsNames) {
         kernelID = templateName;
     }
 

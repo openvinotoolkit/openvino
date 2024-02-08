@@ -15,10 +15,10 @@ public:
 
     FullyConnectedKernelMMAD() : Parent("fully_connected_gpu_MMAD") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
     struct FullyConnectedTuningData {
         const size_t pack_size = 4;
@@ -38,7 +38,7 @@ protected:
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
 };
 }  // namespace kernel_selector

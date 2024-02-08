@@ -62,13 +62,12 @@ ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const 
     return dispatchData;
 }
 
-KernelsPriority ActivationKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ActivationKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
-bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ACTIVATION ||
-        o.GetType() != KernelType::ACTIVATION) {
+bool ActivationKernelOpt::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ACTIVATION) {
         return false;
     }
 
@@ -156,7 +155,7 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
     return jit;
 }
 
-KernelsData ActivationKernelOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ActivationKernelOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector
