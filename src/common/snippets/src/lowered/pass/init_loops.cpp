@@ -56,10 +56,8 @@ void InitLoops::init_is_incremented(const LinearIR::LoopManager::LoopInfoPtr& lo
 
 void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
     const auto work_amount = loop_info->get_work_amount();
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
 
-    for (auto& loop_entry : loop_entries) {
+    auto init_entry_port_increment = [&work_amount](LoopPort& loop_entry) {
         loop_entry.ptr_increment = 0;
         if (loop_entry.is_incremented) {
             const auto& port = loop_entry.expr_port;
@@ -73,9 +71,8 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
                 loop_entry.ptr_increment = get_input_stride(dim, source.get_descriptor_ptr()->get_layout(), shape);
             }
         }
-    }
-
-    for (auto& loop_exit : loop_exits) {
+    };
+    auto init_exit_port_increment = [&work_amount](LoopPort& loop_exit) {
         loop_exit.ptr_increment = 0;
         if (loop_exit.is_incremented) {
             const auto& port = loop_exit.expr_port;
@@ -89,38 +86,35 @@ void InitLoops::init_ptr_increments(const LinearIR::LoopManager::LoopInfoPtr& lo
                 loop_exit.ptr_increment = get_output_stride(dim, shape);
             }
         }
-    }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+    };
+
+    loop_info->update_entry_points(init_entry_port_increment);
+    loop_info->update_exit_points(init_exit_port_increment);
 }
 
 void InitLoops::init_finalization_offsets(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
     const auto work_amount = loop_info->get_work_amount();
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
-    for (auto& loop_entry : loop_entries) {
-        loop_entry.finalization_offset = -1 * loop_entry.ptr_increment * work_amount;
-    }
-    for (auto& loop_exit : loop_exits) {
-        loop_exit.finalization_offset = -1 * loop_exit.ptr_increment * work_amount;
-    }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+
+    auto init_port_finalization_offset = [&work_amount](LoopPort& loop_port) {
+        loop_port.finalization_offset = -1 * loop_port.ptr_increment * work_amount;
+    };
+
+    loop_info->update_entry_points(init_port_finalization_offset);
+    loop_info->update_exit_points(init_port_finalization_offset);
 }
 
 void InitLoops::init_element_type_sizes(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
-    for (auto& loop_entry : loop_entries) {
+    auto init_entry_port_data_size = [](LoopPort& loop_entry) {
         const auto& port = loop_entry.expr_port;
         loop_entry.data_size = static_cast<int64_t>(port->get_expr()->get_node()->get_input_element_type(port->get_index()).size());
-    }
-    for (auto& loop_exit : loop_exits) {
+    };
+    auto init_exit_port_data_size = [](LoopPort& loop_exit) {
         const auto& port = loop_exit.expr_port;
         loop_exit.data_size = static_cast<int64_t>(port->get_expr()->get_node()->get_output_element_type(port->get_index()).size());
-    }
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+    };
+
+    loop_info->update_entry_points(init_entry_port_data_size);
+    loop_info->update_exit_points(init_exit_port_data_size);
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {

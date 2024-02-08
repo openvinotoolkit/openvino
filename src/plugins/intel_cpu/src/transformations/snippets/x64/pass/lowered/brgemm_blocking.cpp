@@ -160,15 +160,15 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                     if (work_amount <= increment)
                         return false;
 
-                    auto new_loop_range = snippets::lowered::pass::InsertTailLoop::copy_loop(linear_ir, loop_id);
-                    const auto firt_iter_loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(std::prev(new_loop_range.end())->get()->get_node());
+                    const auto loop_begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
+                    const auto new_loop_begin_pos = snippets::lowered::pass::InsertTailLoop::insert_copy_loop(linear_ir, loop_id, loop_begin_it);
+                    const auto new_loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(new_loop_begin_pos->get()->get_node());
+                    OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
+                    const auto firt_iter_loop_end = new_loop_begin->get_loop_end();
                     auto first_iter_loop_info = loop_manager->get_loop_info(firt_iter_loop_end->get_id());
                     firt_iter_loop_end->set_work_amount(increment);
                     first_iter_loop_info->set_work_amount(increment);
                     firt_iter_loop_end->set_finalization_offsets(std::vector<int64_t>(loop_end->get_finalization_offsets().size(), 0));
-
-                    const auto loop_begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
-                    linear_ir.insert(loop_begin_it, new_loop_range.begin(), new_loop_range.end());
 
                     const auto new_work_amount = work_amount - increment;
                     loop_info->set_work_amount(new_work_amount);

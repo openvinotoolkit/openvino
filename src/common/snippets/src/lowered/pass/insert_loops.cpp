@@ -34,8 +34,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     const auto work_amount = loop_info->get_work_amount();
     const auto work_amount_increment = loop_info->get_increment();
 
-    LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
+    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
 
     const auto in_out_num = loop_entries.size() + loop_exits.size();
     std::vector<bool> is_incremented;
@@ -59,10 +58,10 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     init_params(loop_entries);
     init_params(loop_exits);
 
-    const auto outer_loop_ids = get_outer_loop_ids(*loop_begin_pos, loop_id);
+    const auto outer_loop_ids = get_outer_loop_ids(*loop_bounds.first, loop_id);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
-    const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_begin_pos);
+    const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
 
     const auto& loop_end = std::make_shared<op::LoopEnd>(
             loop_begin->output(0), work_amount, work_amount_increment, is_incremented, ptr_increments,
@@ -70,7 +69,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     loop_end->has_outer_loop = has_outer_loop;
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
-    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_end_pos);
+    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir) {
