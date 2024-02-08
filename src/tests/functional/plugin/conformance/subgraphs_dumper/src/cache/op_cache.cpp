@@ -24,11 +24,14 @@ void OpCache::update_cache(const std::shared_ptr<ov::Model>& model,
     for (const auto& op : model->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
-            // ReadValue and Assign have to be handled in pair
-            // Will be handled as part of 48838
-            std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+            std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+            continue;
+        } else if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
             std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+            std::cout << "[ INFO ][ OP CACHE ] ReadValueBase/AssignBase model : " << model_path <<
+                " " << model->get_friendly_name() << std::endl;
+            continue;
+        } else {
             continue;
         }
         if (extract_body) {

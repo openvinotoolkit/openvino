@@ -65,10 +65,10 @@ int main(int argc, char *argv[]) {
         std::cout << "[ INFO ] OpCache is enabled!" << std::endl;
         caches.push_back(OpCache::get());
     }
-    if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
-        std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
-        caches.push_back(GraphCache::get(FLAGS_device));
-    }
+    // if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+    //     std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
+    //     caches.push_back(GraphCache::get(FLAGS_device));
+    // }
 
     for (auto& cache : caches) {
         cache->set_serialization_dir(FLAGS_output_folder);
