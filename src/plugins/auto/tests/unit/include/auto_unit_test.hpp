@@ -98,4 +98,8 @@ public:
 };
 }  // namespace tests
 }  // namespace mock_auto_plugin
+
+ACTION_P(Throw, what) {
+    OPENVINO_THROW(what);
+}
 }  // namespace ov
