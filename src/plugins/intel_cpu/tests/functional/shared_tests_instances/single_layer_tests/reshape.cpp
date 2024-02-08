@@ -12,7 +12,8 @@ using ov::test::ReshapeLayerTest;
 namespace {
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
-        ov::element::f16
+        ov::element::f16,
+        ov::element::string
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
@@ -21,6 +22,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
                 ::testing::ValuesIn(model_types),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<int64_t>({10, 0, 100})),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ReshapeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck_2D_to_1D, ReshapeLayerTest,
+        ::testing::Combine(
+                ::testing::Values(false),
+                ::testing::ValuesIn(model_types),
+                ::testing::Values(std::vector<size_t>({2, 4})),
+                ::testing::Values(std::vector<int64_t>({8})),
                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ReshapeLayerTest::getTestCaseName);
 
