@@ -52,7 +52,6 @@ class Environment:
     env = {}
 
 
-
 def get_tests(cmd_params, use_device=True, use_batch=False):
     # Several keys:
     #         use_device
@@ -326,13 +325,7 @@ class SamplesCommonTestClass():
 
     @classmethod
     def setup_class(cls):
-        getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
-        assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
-        assert os.path.exists(Environment.env['models_path']), \
-            "Path for public models {} is not exist!".format(Environment.env['models_path'])
-        assert os.path.exists(Environment.env['test_data']), \
-            "Path for test data {} is not exist!".format(Environment.env['test_data'])
-        cls.output_dir = Environment.env['out_directory']
+        pass
 
     def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
         """
@@ -356,9 +349,6 @@ class SamplesCommonTestClass():
                                       sample_type=sample_type)
         else:
             self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
-
-        if not os.path.exists(self.output_dir):
-            os.mkdir(self.output_dir)
 
         if 'bitstream' in param_cp:
             del param_cp['bitstream']
@@ -426,11 +416,9 @@ class SamplesCommonTestClass():
 
     def setup_method(self):
         """
-        Clean up IRs and npy files from self.output_dir if exist
+        Clean up IRs and npy files if exist
         And skip several test for performance
         :return: """
-        if os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
         filenames = glob.glob('out*.bmp')
         [os.remove(fn) for fn in filenames]
         # Skip samples that are not for performance:
@@ -440,10 +428,7 @@ class SamplesCommonTestClass():
 
     def teardown_method(self):
         """
-        Clean up IRs and npy files from self.output_dir if exist
+        Clean up IRs and npy files if exist
         :return: """
-        is_save = getattr(self, 'save', None) 
-        if not is_save and os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
         filenames = glob.glob('out*.bmp')
         [os.remove(fn) for fn in filenames]

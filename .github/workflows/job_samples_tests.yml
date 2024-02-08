@@ -105,8 +105,15 @@ jobs:
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
-      - name: Install Python benchmark_app
+      - name: Install Python benchmark_app on Linux
+        if: runner.os == 'Linux'
         run: python3 -m pip install $INSTALL_DIR/tools/openvino-*.whl
+
+      - name: Install Python benchmark_app on Windows
+        if: runner.os == 'Windows'
+        run: |
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
 
       #
       # Tests
