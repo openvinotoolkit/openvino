@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/data.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -73,16 +74,23 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
 
     /* check incoming CNN layer and setup required variables */
     {
-        const auto in_dims0 = op->get_input_shape(0);
-        const auto out_dims0 = op->get_output_shape(0);
+        const auto in0_pshape = op->get_input_partial_shape(0);
+        const auto out0_pshape = op->get_output_partial_shape(0);
 
-        OPENVINO_ASSERT((op->get_input_shape(0).size() == 2 &&
-            op->get_input_shape(1).size() == 2 &&
-            op->get_input_shape(2).size() == 2), "Wrong input shapes for LSTMCell op ", op->get_friendly_name());
+        if (in0_pshape[in0_pshape.size() - 1].is_static())
+            lstm_input_size = in0_pshape[in0_pshape.size() - 1].get_length();
+        else
+            lstm_input_size = -1;
 
-        lstm_input_size = static_cast<int>(in_dims0.back());
-        lstm_batch_size = static_cast<int>(in_dims0.at(in_dims0.size()-2));
-        lstm_hidden_size = static_cast<int>(out_dims0.back());
+        if (in0_pshape[in0_pshape.size() - 2].is_static())
+            lstm_batch_size = in0_pshape[in0_pshape.size() - 2].get_length();
+        else
+            lstm_batch_size = -1;
+
+        if (out0_pshape[out0_pshape.size() - 1].is_static())
+            lstm_hidden_size = out0_pshape[out0_pshape.size() - 1].get_length();
+        else
+            lstm_hidden_size = -1;
     }
 
     std::vector<cldnn::activation_func> activations;
@@ -102,23 +110,49 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
         p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, cldnn::input_info(lstm_fc_id), inputs[2].pid, clip, 0, activations,
                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
 
-        auto outSz = op->get_output_partial_shape(0).to_shape();
+        auto outSz = op->get_output_partial_shape(0);
         std::vector<int64_t> outSzPt;
-        for (auto i : outSz) {
-            outSzPt.push_back(i);
+        for (auto pshape : outSz) {
+            if (pshape.is_static())
+                outSzPt.push_back(pshape.get_length());
+            else
+                outSzPt.push_back(-1);
         }
 
+        cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::split;
+        size_t num_splits = 2;
         cldnn::tensor hiddenSz = cldnn::tensor{ lstm_batch_size, 1, lstm_hidden_size, 1 };
 
         cldnn::primitive_id outputHiddenCropID = layerName + "_hc";
         cldnn::primitive_id outputHiddenID = layerName + ".out0";
-        p.add_primitive(*op, cldnn::crop(outputHiddenCropID, cldnn::input_info(lstm_elt_id), hiddenSz, cldnn::tensor{0, 0, 0, 0}));
+        cldnn::primitive_id outputDataID = layerName + "_data";
+
+        cldnn::layout constLayout = cldnn::layout({}, cldnn::data_types::i64, cldnn::format::bfyx);
+        cldnn::memory::ptr data_mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
+        cldnn::mem_lock<char> lock{data_mem, stream};
+        auto buf = lock.data();
+        const size_t axis = 1;
+        std::memcpy(&buf[0], &axis, constLayout.bytes_count());
+        p.add_primitive(*op,  cldnn::data(outputDataID, data_mem));
+
+        p.add_primitive(*op,
+                        cldnn::crop(outputHiddenCropID,
+                        {cldnn::input_info(lstm_elt_id), cldnn::input_info(outputDataID)},
+                        hiddenSz,
+                        cldnn::tensor{0, 0, 0, 0},
+                        op_mode, 0, num_splits));
         p.add_primitive(*op, cldnn::reshape(outputHiddenID, cldnn::input_info(outputHiddenCropID),
                         false, outSzPt, op->get_output_partial_shape(0)), {layerName});
 
         cldnn::primitive_id outputCellCropID = layerName + "_cc";
         cldnn::primitive_id outputCellID = layerName + ".out1";
-        p.add_primitive(*op, cldnn::crop(outputCellCropID, cldnn::input_info(lstm_elt_id), hiddenSz, cldnn::tensor{0, 1, 0, 0}));
+        p.add_primitive(*op,
+                        cldnn::crop(outputCellCropID,
+                        {cldnn::input_info(lstm_elt_id), cldnn::input_info(outputDataID)},
+                        hiddenSz,
+                        cldnn::tensor{0, 1, 0, 0},
+                        op_mode, 1, num_splits));
         p.add_primitive(*op, cldnn::reshape(outputCellID, cldnn::input_info(outputCellCropID),
                         false, outSzPt, op->get_output_partial_shape(1)));
     } else {
