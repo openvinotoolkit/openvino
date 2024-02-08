@@ -140,6 +140,9 @@ class SamplesCommonTestClass():
 
     @classmethod
     def made_executable_path(cls, path1, path2, sample_type='C++'):
+        if hasattr(cls, 'executable_path'):
+            return
+
         executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
             else os.path.join(path1, path2)
         is_windows = sys.platform.startswith('win')

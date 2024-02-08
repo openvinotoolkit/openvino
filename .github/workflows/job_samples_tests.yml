@@ -105,7 +105,7 @@ jobs:
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
-      - name: Install Python benchmark_app on Linux
+      - name: Install Python benchmark_app
         run: python3 -m pip install $INSTALL_DIR/tools/openvino-*.whl
 
       #

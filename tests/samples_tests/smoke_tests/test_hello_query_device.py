@@ -10,9 +10,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
-import re
 import sys
 import logging as log
 from common.samples_common_test_class import get_tests

@@ -13,7 +13,6 @@
 import os
 import sys
 import re
-import numpy as np
 import logging as log
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
@@ -50,10 +49,11 @@ def parse_hello_reshape_ssd(stdout):
         elif 'element, prob' in line:
             if re.match("^.*prob\\s+=.*\\d,\\s+\\(.*\\d,.*\\d\)-\\(.*\\d,.*\\d\\)", line) is None:
                 is_ok = False
-                log.error('Wrong output line: {}, while the test expects the following format: '
-                          'Example: [33,59] element, prob = 0.963015,    (189,110)-(309,306)'.format(line))
+                log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
+                          '(Example: [33,59] element, prob = 0.963015, bbox = (189.776,110.933)-(309.288,306.952), '
+                          'batch id = 0)'.format(line))
         elif 'was saved' in line:
-            path_result = os.path.join(os.getcwd(), line.split(' ')[-1].strip())
+            path_result = line.split(' ')[-1].strip()
             if not os.path.isfile(path_result):
                 log.error("Image after infer was not found: {}".format(path_result))
                 is_ok = False
