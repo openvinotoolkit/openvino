@@ -5,8 +5,7 @@
 #include "reshape.hpp"
 #include <vector>
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

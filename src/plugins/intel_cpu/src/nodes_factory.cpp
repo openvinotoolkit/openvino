@@ -38,7 +38,6 @@
 #include "nodes/gather_nd.h"
 #include "nodes/gather_tree.h"
 #include "nodes/generate_proposals.h"
-#include "nodes/generic.h"
 #include "nodes/grid_sample.hpp"
 #include "nodes/grn.h"
 #include "nodes/if.h"
@@ -104,7 +103,6 @@ namespace intel_cpu {
 
 Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     using namespace node;
-    INTEL_CPU_NODE(Generic, Type::Generic);
     INTEL_CPU_NODE(CumSum, Type::CumSum);
     INTEL_CPU_NODE(Convolution, Type::Convolution);
     INTEL_CPU_NODE(BinaryConvolution, Type::BinaryConvolution);

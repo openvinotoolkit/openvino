@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
@@ -237,5 +237,40 @@ TEST(VariablesTest, smoke_canSetStateTensor) {
     ASSERT_EQ(default_state_tensor.get_shape(), virable_shape);
 
     ASSERT_NO_THROW(request.infer());
+}
+
+TEST(VariablesTest, smoke_set_get_state_with_convert) {
+    auto build_model = [](ov::element::Type type, const ov::PartialShape& shape) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        const ov::op::util::VariableInfo variable_info { shape, type, "v0" };
+        auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
+        auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+        auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
+        auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        return std::make_shared<ov::Model>(ov::ResultVector { res }, ov::SinkVector { assign }, ov::ParameterVector{param}, "StateTestModel");
+    };
+
+    auto ov = ov::Core();
+    const ov::Shape virable_shape = {1, 3, 2, 4};
+    const ov::Shape input_shape = {1, 3, 2, 4};
+    const ov::element::Type et = ov::element::f32;
+    auto model = build_model(et, input_shape);
+    auto compiled_model = ov.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+    auto request = compiled_model.create_infer_request();
+
+    auto variables = request.query_state();
+    ASSERT_EQ(variables.size(), 1);
+    auto variable = variables.front();
+    ASSERT_EQ(variable.get_name(), "v0");
+    auto state_tensor = variable.get_state();
+    ASSERT_EQ(state_tensor.get_shape(), virable_shape);
+    ASSERT_EQ(state_tensor.get_element_type(), et);
+
+    auto tensor_to_set = ov::test::utils::create_and_fill_tensor(et, state_tensor.get_shape());
+    variable.set_state(tensor_to_set);
+    state_tensor = variable.get_state();
+
+    ov::test::utils::compare(tensor_to_set, state_tensor, 1e-5f, 1e-5f);
 }
 } // namespace

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "decompose_integer_divide.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 
 namespace ov {

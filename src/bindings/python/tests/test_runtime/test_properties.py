@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -17,6 +17,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
+from openvino.runtime import properties
 
 
 ###
@@ -31,6 +32,7 @@ def test_properties_ro_base():
 def test_properties_rw_base():
     assert ov.properties.cache_dir == "CACHE_DIR"
     assert props.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
+    assert properties.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
 
     with pytest.raises(TypeError) as e:
         props.cache_dir(6)
@@ -50,6 +52,13 @@ def test_properties_rw_base():
                 (props.Affinity.CORE, "Affinity.CORE", 0),
                 (props.Affinity.NUMA, "Affinity.NUMA", 1),
                 (props.Affinity.HYBRID_AWARE, "Affinity.HYBRID_AWARE", 2),
+            ),
+        ),
+        (
+            props.CacheMode,
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
+                (props.CacheMode.OPTIMIZE_SPEED, "CacheMode.OPTIMIZE_SPEED", 1),
             ),
         ),
         (
@@ -207,6 +216,14 @@ def test_properties_ro(ov_property_ro, expected_value):
             (("./test_cache", "./test_cache"),),
         ),
         (
+            props.cache_mode,
+            "CACHE_MODE",
+            (
+                (props.CacheMode.OPTIMIZE_SIZE, props.CacheMode.OPTIMIZE_SIZE),
+                (props.CacheMode.OPTIMIZE_SPEED, props.CacheMode.OPTIMIZE_SPEED),
+            ),
+        ),
+        (
             props.auto_batch_timeout,
             "AUTO_BATCH_TIMEOUT",
             (
@@ -245,7 +262,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.performance_mode,
             "PERFORMANCE_HINT",
-            ((hints.PerformanceMode.THROUGHPUT, hints.PerformanceMode.THROUGHPUT),),
+            ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
         ),
         (
             hints.enable_cpu_pinning,
@@ -460,6 +477,7 @@ def test_properties_hint_model():
 
     model = generate_add_model()
 
+    assert properties.hint.model() == "MODEL_PTR"
     assert hints.model == "MODEL_PTR"
 
     property_tuple = hints.model(model)

@@ -5,7 +5,6 @@
 #include "utils.hpp"
 
 #include "eltwise_shape_inference.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "evaluator.hpp"
 #include "itt.hpp"
 #include "layout_utils.hpp"
-#include "ngraph/evaluator.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -486,61 +487,6 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace {
-ov::Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
-    const auto& et = t->get_element_type();
-    const auto& p_shape = t->get_partial_shape();
-
-    if (et.is_dynamic() || et == ov::element::undefined) {
-        return {};
-    } else if (p_shape.is_static()) {
-        return {et, p_shape.to_shape(), t->get_data_ptr()};
-    } else {
-        return {et, ov::Shape{0}};
-    }
-}
-
-ov::TensorVector wrap_tensors(const std::vector<ngraph::HostTensorPtr>& tensors) {
-    ov::TensorVector out;
-    out.reserve(tensors.size());
-    for (const auto& ht : tensors) {
-        out.push_back(wrap_tensor(ht));
-    }
-    return out;
-}
-
-void update_output_host_tensors(const std::vector<ngraph::HostTensorPtr>& output_values,
-                                const ov::TensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size() == outputs.size());
-    for (size_t i = 0; i < output_values.size(); ++i) {
-        auto& ht = output_values[i];
-        auto& t = outputs[i];
-        if (ht->get_partial_shape().is_dynamic()) {
-            ht->set_element_type(t.get_element_type());
-            ht->set_shape(t.get_shape());
-            std::memcpy(ht->get_data_ptr(), t.data(), t.get_byte_size());
-        }
-    }
-}
-}  // namespace
-
-bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
-    ov::EvaluationContext evaluation_context;
-    return evaluate(output_tensors, input_tensors, evaluation_context);
-}
-
-bool ov::Model::evaluate(const HostTensorVector& output_tensors,
-                         const HostTensorVector& input_tensors,
-                         EvaluationContext& evaluation_context) const {
-    auto outputs = wrap_tensors(output_tensors);
-    auto inputs = wrap_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, evaluation_context);
-    update_output_host_tensors(output_tensors, outputs);
-    return sts;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
     return evaluate(output_tensors, input_tensors, evaluation_context);
@@ -576,8 +522,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
         outputs.push_back(m_sink);
     }
     // evaluate nodes
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::Evaluator<ov::Tensor> evaluator({}, value_map);
+    Evaluator<Tensor> evaluator({}, value_map);
     evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const ov::TensorVector& input_tensors) -> ov::TensorVector {
@@ -606,7 +551,6 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
     for (const auto& value : outputs) {
         evaluator.evaluate(value);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensors.at(i) = output_tensor_map[result];
@@ -1001,9 +945,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
 }
 
 std::shared_ptr<ov::Model> ov::Model::clone() const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::clone_model(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
+    return ov::clone_ov_model(*this, node_map);
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {

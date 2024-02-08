@@ -14,8 +14,7 @@
 #include <memory>
 #include <string>
 
-#include "file_utils.h"
-#include "ie_api.h"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 
@@ -82,7 +81,7 @@ class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
 
     std::string getBlobFile(const std::string& blobHash) const {
-        return FileUtils::makePath(m_cachePath, blobHash + ".blob");
+        return ov::util::make_path(m_cachePath, blobHash + ".blob");
     }
 
 public:
@@ -106,7 +105,7 @@ private:
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
         auto blobFileName = getBlobFile(id);
-        if (FileUtils::fileExist(blobFileName)) {
+        if (ov::util::file_exists(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
         }
@@ -114,7 +113,7 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
-        if (FileUtils::fileExist(blobFileName))
+        if (ov::util::file_exists(blobFileName))
             std::remove(blobFileName.c_str());
     }
 };

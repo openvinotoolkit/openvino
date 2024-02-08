@@ -3,8 +3,8 @@
 //
 
 #include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
@@ -16,7 +16,6 @@
 #include "common/arbitrary_order_desc_creator.h"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -124,13 +123,11 @@ MemoryOutputBase::MemoryOutputBase(const std::string id,
                                    const Shape& input_shape,
                                    const ov::element::Type& input_prc,
                                    const GraphContext::CPtr context) :
-    Node(type, name, context), MemoryNode(id) {
+    Node(type, {input_shape}, {}, {input_prc}, {}, name, context), MemoryNode(id) {
     isDynamic = input_shape.isDynamic();
     if (isDynamic) {
         shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
     }
-    inputShapes.emplace_back(input_shape);
-    addOriginalInputPrecision(input_prc);
 }
 
 MemoryOutputBase::~MemoryOutputBase() {
@@ -257,7 +254,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
 }
 
 void MemoryOutput::execute(dnnl::stream strm)  {
-    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    auto inputMem = getSrcMemoryAtPort(0);
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
         getName(),
@@ -270,7 +267,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
 
 void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
     //first we have to resize the output memory
-    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    auto inputMem = getSrcMemoryAtPort(0);
     const auto& newDims = inputMem->getStaticDims();
     OPENVINO_ASSERT(extMemDesc,
         "MemoryOutput ",
@@ -463,10 +460,10 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     return &holder;
 }
 
-void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
+void MemoryNodeVirtualEdge::remove(MemoryNode* node, Holder* holder) {
     std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
+        ov::util::erase_if(*holder, [&](const Holder::value_type& it) {
             return it.second == node;
         });
     }
@@ -544,7 +541,7 @@ void MemoryInput::execute(dnnl::stream strm) {
     if (!isExecutableFlag) return;
 
     auto&& src = getParentEdgeAt(0)->getMemory();
-    auto&& dst = getChildEdgesAtPort(0).front()->getMemoryPtr();
+    auto&& dst = getDstMemoryAtPort(0);
     dst->load(src);
 }
 

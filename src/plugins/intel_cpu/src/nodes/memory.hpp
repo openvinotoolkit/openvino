@@ -4,16 +4,13 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <cpu_types.h>
-#include "ie_algorithm.hpp"
+#include "cpu_types.h"
 #include "input.h"
-#include <node.h>
-#include <ov_optional.hpp>
-#include <memory_state.h>
-#include <proxy_mem_mgr.h>
-#include <string>
-#include <memory>
+#include "memory_state.h"
+#include "node.h"
+#include "ov_optional.hpp"
+#include "proxy_mem_mgr.h"
+
 #include <map>
 
 namespace ov {

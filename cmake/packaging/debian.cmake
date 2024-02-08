@@ -51,10 +51,8 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
            # because in case of .deb package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # see ticket # 82605
-           NOT item STREQUAL "gna" AND
-           # temporary block nvidia
-           NOT item STREQUAL "nvidia" AND
+           # temporary block NVIDIA and NPU
+           NOT item MATCHES "^(nvidia|npu)$" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -90,6 +88,7 @@ macro(ov_cpack_settings)
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
         2023.1.0
         2023.2.0
+        2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
         )
 
     #
@@ -180,23 +179,6 @@ macro(ov_cpack_settings)
         # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} (= ${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
         set(gpu_copyright "generic")
-    endif()
-
-    # intel-gna
-    if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator inference plugin")
-        set(CPACK_COMPONENT_GNA_DEPENDS "${OV_CPACK_COMP_CORE}")
-        set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-plugin-${cpack_name_ver}")
-        # since we have libgna.so we need to call ldconfig and have `def_triggers` here
-        set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
-
-        ov_debian_add_lintian_suppression(gna
-            # package name matches libopenvino_intel_gna_plugin.so
-            # but lintian looks at libgna.so.2 since it's a versioned library
-            "package-name-doesnt-match-sonames")
-        set(gna_copyright "generic")
-
-        _ov_add_plugin(gna OFF)
     endif()
 
     # # add pseudo plugins are recommended to core component
@@ -325,8 +307,6 @@ macro(ov_cpack_settings)
         ov_debian_add_lintian_suppression(${python_component}
             # usr/lib/python3/dist-packages/requirements.txt
             "unknown-file-in-python-module-directory"
-            # usr/lib/python3/dist-packages/openvino/inference_engine/__init__.py
-            "executable-not-elf-or-script"
             # all directories
             "non-standard-dir-perm"
             # usr/bin/benchmark_app

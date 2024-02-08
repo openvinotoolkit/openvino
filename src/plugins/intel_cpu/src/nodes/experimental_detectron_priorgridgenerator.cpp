@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "experimental_detectron_priorgridgenerator.h"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -70,8 +68,8 @@ void ExperimentalDetectronPriorGridGenerator::execute(dnnl::stream strm) {
     const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
     const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
 
-    const auto *bottom_data_0 = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto *top_data_0 = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
+    const auto *bottom_data_0 = getSrcDataAtPortAs<const float>(0);
+    auto *top_data_0 = getDstDataAtPortAs<float>(OUTPUT_ROIS);
 
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {

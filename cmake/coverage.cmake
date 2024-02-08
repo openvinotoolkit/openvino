@@ -89,13 +89,6 @@ if(ENABLE_INTEL_CPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_INTEL_GNA)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gna_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
-    ov_coverage_genhtml(INFO_FILE "intel_gna_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 if (ENABLE_INTEL_GPU)
     ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gpu_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gpu/*")

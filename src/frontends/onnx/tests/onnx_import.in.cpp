@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <cpp/ie_cnn_network.h>
 
 #include <algorithm>
 #include <cmath>
@@ -4365,7 +4363,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float16_3x4) {
     auto model = convert_model("constant_sparse_tensor_float16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4429,7 +4427,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_bfloat16_3x4) {
     auto model = convert_model("constant_sparse_tensor_bfloat16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4495,7 +4493,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     // clang-format off
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+    test_case.add_input<ov::float16>(Shape{1, 1, 4, 4},
             {   0,  1,  2,  3,
                 4,  5,  6,  7,
                 8,  9,  10, 11,
@@ -4504,7 +4502,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
             [[[[0.25, 0.5, 0.25],
                [0.5,  1.0, 0.5],
                [0.25, 0.5, 0.25]]]] */
-    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+    test_case.add_expected_output<ov::float16>(Shape{1, 1, 2, 2},
             {   20, 24,
                 36, 40  });
     // clang-format on
@@ -5651,7 +5649,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<uint32_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1, 2, 3, 4});
 
@@ -5663,7 +5661,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
 
@@ -5700,8 +5698,8 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
     auto test_case = ov::test::TestCase(model, s_device);
 
     test_case.add_input<int8_t>(Shape{1, 1, 2, 2}, std::vector<int8_t>{-127, -2, 3, 4});
-    test_case.add_input<ngraph::float16>(Shape{4}, {1, 2, 3, 4});
-    test_case.add_expected_output<ngraph::float16>(std::vector<ngraph::float16>{-127.0, -2.0, 3.0, 4.0});
+    test_case.add_input<ov::float16>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<ov::float16>(std::vector<ov::float16>{-127.0, -2.0, 3.0, 4.0});
 
     test_case.run();
 }
@@ -6160,4 +6158,90 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or_broadcast_condition) {
     test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 4, 5});
 
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_divisible_by_output_shape) {
+    auto model = convert_model("max_roi_pool_divisible.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 3, 3});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {7., 9., 17., 19.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_not_divisible_by_output_shape) {
+    auto model = convert_model("max_roi_pool_non_divisible.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 4, 4});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {13., 15., 23., 25.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_with_spatial_scale) {
+    auto model = convert_model("max_roi_pool_spatial_scale.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 2, 2});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {1., 2., 6., 7.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor) {
+    auto model = convert_model("bitwise_xor.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {4, 7, 6, 1, 0});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
+    auto model = convert_model("bitwise_xor_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 0, 1});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
+    auto model = convert_model("bitwise_not.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
+    auto model = convert_model("gelu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-16.13f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {0.0f, 24.33f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
+    auto model = convert_model("gelu_float_tanh.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-0.5f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {-0.15428598f, 24.f});
 }

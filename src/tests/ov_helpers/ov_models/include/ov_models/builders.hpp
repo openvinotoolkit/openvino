@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,98 +67,97 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
     }
     return weightsNode;
 }
-
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
+std::shared_ptr<ov::Node> makeInputLayer(const ov::element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape);
 
-std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
-                                          const element::Type& type,
+std::shared_ptr<ov::Node> makeConvolution(const ov::Output<ov::Node>& in,
+                                          const ov::element::Type& type,
                                           const std::vector<size_t>& filterSize,
                                           const std::vector<size_t>& strides,
                                           const std::vector<ptrdiff_t>& padsBegin,
                                           const std::vector<ptrdiff_t>& padsEnd,
                                           const std::vector<size_t>& dilations,
-                                          const op::PadType& autoPad,
+                                          const ov::op::PadType& autoPad,
                                           size_t numOutChannels,
                                           bool addBiases = false,
                                           const std::vector<float>& filterWeights = {},
                                           const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in_data,
-                                          const ov::Output<Node>& in_weights,
-                                          const element::Type& type,
+std::shared_ptr<ov::Node> makeConvolution(const ov::Output<ov::Node>& in_data,
+                                          const ov::Output<ov::Node>& in_weights,
+                                          const ov::element::Type& type,
                                           const std::vector<size_t>& filterSize,
                                           const std::vector<size_t>& strides,
                                           const std::vector<ptrdiff_t>& padsBegin,
                                           const std::vector<ptrdiff_t>& padsEnd,
                                           const std::vector<size_t>& dilations,
-                                          const op::PadType& autoPad,
+                                          const ov::op::PadType& autoPad,
                                           size_t numOutChannels,
                                           bool addBiases = false,
                                           const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
-                                               const element::Type& type,
+std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<ov::Node>& in,
+                                               const ov::element::Type& type,
                                                const std::vector<size_t>& filterSize,
                                                const std::vector<size_t>& strides,
                                                const std::vector<ptrdiff_t>& padsBegin,
                                                const std::vector<ptrdiff_t>& padsEnd,
                                                const std::vector<size_t>& dilations,
-                                               const op::PadType& autoPad,
+                                               const ov::op::PadType& autoPad,
                                                size_t numOutChannels,
                                                size_t numGroups,
                                                bool addBiases = false,
                                                const std::vector<float>& filterWeights = {},
                                                const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<Node>& in,
-                                               const ov::Output<Node>& weights,
-                                               const element::Type& type,
+std::shared_ptr<ov::Node> makeGroupConvolution(const ov::Output<ov::Node>& in,
+                                               const ov::Output<ov::Node>& weights,
+                                               const ov::element::Type& type,
                                                const std::vector<size_t>& strides,
                                                const std::vector<ptrdiff_t>& padsBegin,
                                                const std::vector<ptrdiff_t>& padsEnd,
                                                const std::vector<size_t>& dilations,
-                                               const op::PadType& autoPad,
+                                               const ov::op::PadType& autoPad,
                                                bool addBiases = false,
                                                const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                      const element::Type& type,
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& filterSize,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
                                                       const std::vector<ptrdiff_t>& padsEnd,
                                                       const std::vector<size_t>& dilations,
-                                                      const op::PadType& autoPad,
+                                                      const ov::op::PadType& autoPad,
                                                       size_t numOutChannels,
                                                       bool addBiases = false,
                                                       const std::vector<ptrdiff_t>& outputPadding = {},
                                                       const std::vector<float>& filterWeights = {},
                                                       const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                      const ov::Output<Node>& weights,
-                                                      const element::Type& type,
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::Output<ov::Node>& weights,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
                                                       const std::vector<ptrdiff_t>& padsEnd,
                                                       const std::vector<size_t>& dilations,
-                                                      const op::PadType& autoPad,
+                                                      const ov::op::PadType& autoPad,
                                                       bool addBiases = false,
                                                       const std::vector<ptrdiff_t>& outputPadding = {},
                                                       const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                      const ov::Output<Node>& outputShape,
-                                                      const element::Type& type,
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::Output<ov::Node>& outputShape,
+                                                      const ov::element::Type& type,
                                                       const std::vector<size_t>& filterSize,
                                                       const std::vector<size_t>& strides,
                                                       const std::vector<ptrdiff_t>& padsBegin,
                                                       const std::vector<ptrdiff_t>& padsEnd,
                                                       const std::vector<size_t>& dilations,
-                                                      const op::PadType& autoPad,
+                                                      const ov::op::PadType& autoPad,
                                                       size_t numOutChannels,
                                                       bool addBiases = false,
                                                       const std::vector<ptrdiff_t>& outputPadding = {},
@@ -166,41 +165,41 @@ std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in
                                                       const std::vector<float>& biasesWeights = {});
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated);
+std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<ov::Node>& inputData, const bool mergeRepeated);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
-                                                     const ov::Output<Node>& sequenceLength,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
+                                                     const ov::Output<ov::Node>& sequenceLength,
                                                      int blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision = element::i32);
+                                                     const ov::element::Type& idxPrecision = ov::element::i32);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
                                                      int blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision = element::i32);
+                                                     const ov::element::Type& idxPrecision = ov::element::i32);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
+std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<ov::Node>& logitsNode,
                                       std::vector<int>& logitsLength,
                                       std::vector<std::vector<int>>& labels,
                                       std::vector<int>& labelsLength,
                                       int blankIndex,
-                                      const element::Type& fType,
-                                      const element::Type& iType,
+                                      const ov::element::Type& fType,
+                                      const ov::element::Type& iType,
                                       const bool preprocessCollapseRepeated,
                                       const bool ctcMergeRepeated,
                                       const bool unique);
 
-std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
-                                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& filterSize,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
                                                            const std::vector<ptrdiff_t>& padsEnd,
                                                            const std::vector<size_t>& dilations,
-                                                           const op::PadType& autoPad,
+                                                           const ov::op::PadType& autoPad,
                                                            size_t numOutChannels,
                                                            size_t numGroups,
                                                            bool addBiases = false,
@@ -208,27 +207,27 @@ std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node
                                                            const std::vector<float>& filterWeights = {},
                                                            const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
-                                                           const ov::Output<Node>& weights,
-                                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                           const ov::Output<ov::Node>& weights,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
                                                            const std::vector<ptrdiff_t>& padsEnd,
                                                            const std::vector<size_t>& dilations,
-                                                           const op::PadType& autoPad,
+                                                           const ov::op::PadType& autoPad,
                                                            bool addBiases = false,
                                                            const std::vector<ptrdiff_t>& outputPadding = {},
                                                            const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node>& in,
-                                                           const ov::Output<Node>& outputShape,
-                                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                           const ov::Output<ov::Node>& outputShape,
+                                                           const ov::element::Type& type,
                                                            const std::vector<size_t>& filterSize,
                                                            const std::vector<size_t>& strides,
                                                            const std::vector<ptrdiff_t>& padsBegin,
                                                            const std::vector<ptrdiff_t>& padsEnd,
                                                            const std::vector<size_t>& dilations,
-                                                           const op::PadType& autoPad,
+                                                           const ov::op::PadType& autoPad,
                                                            size_t numOutChannels,
                                                            size_t numGroups,
                                                            bool addBiases = false,
@@ -236,104 +235,107 @@ std::shared_ptr<ov::Node> makeGroupConvolutionBackpropData(const ov::Output<Node
                                                            const std::vector<float>& filterWeights = {},
                                                            const std::vector<float>& biasesWeights = {});
 
-std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<ov::Node>& in,
                                                 const std::vector<size_t>& filterSize,
                                                 const std::vector<size_t>& strides,
                                                 const std::vector<ptrdiff_t>& padsBegin,
                                                 const std::vector<ptrdiff_t>& padsEnd,
                                                 const std::vector<size_t>& dilations,
-                                                const op::PadType& autoPad,
+                                                const ov::op::PadType& autoPad,
                                                 size_t numOutChannels,
                                                 float padValue,
                                                 const std::vector<int8_t>& filterWeihgts = {});
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
-                                    const element::Type& type,
+std::shared_ptr<ov::Node> makeSplit(const ov::Output<ov::Node>& in,
+                                    const ov::element::Type& type,
                                     size_t numSplits,
                                     int64_t axis);
 
-std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
-                                         const element::Type& type,
+std::shared_ptr<ov::Node> makeActivation(const ov::Output<ov::Node>& in,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType,
                                          std::vector<size_t> inShape = {},
                                          std::vector<float> constantsValue = {});
 
 std::shared_ptr<ov::Node> makeActivation(const ov::ParameterVector& parameters,
-                                         const element::Type& type,
+                                         const ov::element::Type& type,
                                          ov::test::utils::ActivationTypes activationType);
 
-std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
-                                      const ov::Output<Node>& in1,
+std::shared_ptr<ov::Node> makeEltwise(const ov::Output<ov::Node>& in0,
+                                      const ov::Output<ov::Node>& in1,
                                       ov::test::utils::EltwiseTypes eltwiseType);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
-                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& cropsBegin,
                                            const std::vector<int64_t>& cropsEnd);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
-                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& padsBegin,
                                            const std::vector<int64_t>& padsEnd);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
                                     const std::vector<int64_t>& begin,
                                     const std::vector<int64_t>& end,
                                     const std::vector<int64_t>& stride,
                                     const std::vector<int64_t>& axes,
-                                    const element::Type& type);
+                                    const ov::element::Type& type);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
-                                    const ov::Output<Node>& begin,
-                                    const ov::Output<Node>& end,
-                                    const ov::Output<Node>& stride,
-                                    const ov::Output<Node>& axes);
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
+                                    const ov::Output<ov::Node>& begin,
+                                    const ov::Output<ov::Node>& end,
+                                    const ov::Output<ov::Node>& stride,
+                                    const ov::Output<ov::Node>& axes);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
-                                    const ov::Output<Node>& begin,
-                                    const ov::Output<Node>& end,
-                                    const ov::Output<Node>& stride);
+std::shared_ptr<ov::Node> makeSlice(const ov::Output<ov::Node>& in,
+                                    const ov::Output<ov::Node>& begin,
+                                    const ov::Output<ov::Node>& end,
+                                    const ov::Output<ov::Node>& stride);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannels, bool normalizeVariance, double eps);
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<ov::Node>& in,
+                                  bool acrossChannels,
+                                  bool normalizeVariance,
+                                  double eps);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeMVN(const ov::Output<ov::Node>& in,
                                   const ov::AxisSet& axes,
                                   bool normalizeVariance,
                                   double eps);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeMVN6(const Output<Node>& in,
-                                   const Output<Node>& axesNode,
+std::shared_ptr<ov::Node> makeMVN6(const ov::Output<ov::Node>& in,
+                                   const ov::Output<ov::Node>& axesNode,
                                    bool normalizeVariance,
                                    float eps,
                                    std::string& epsMode);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
-                                               const element::Type& type,
+std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<ov::Node>& in,
+                                               const ov::element::Type& type,
                                                const std::vector<int>& squeeze_indices,
                                                ov::test::utils::SqueezeOpType opType);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeMinMax(const ov::Output<Node>& in1,
-                                     const ov::Output<Node>& in2,
+std::shared_ptr<ov::Node> makeMinMax(const ov::Output<ov::Node>& in1,
+                                     const ov::Output<ov::Node>& in2,
                                      ov::test::utils::MinMaxOpType opType);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
-                                       const ov::Output<Node>& class_logits,
+std::shared_ptr<ov::Node> makeProposal(const ov::Output<ov::Node>& class_probs,
+                                       const ov::Output<ov::Node>& class_logits,
                                        const std::vector<float>& image_info,
-                                       const element::Type& type,
+                                       const ov::element::Type& type,
                                        size_t base_size,
                                        size_t pre_nms_topn,
                                        size_t post_nms_topn,
@@ -349,33 +351,33 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        float box_coordinate_scale,
                                        std::string framework);
 
-std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& type,
-                                       std::size_t levels,
-                                       std::vector<size_t> constShapes,
-                                       const std::vector<float>& inputLowData,
-                                       const std::vector<float>& inputHighData,
-                                       const std::vector<float>& outputLowData,
-                                       const std::vector<float>& outputHighData);
+std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& type,
+                                           std::size_t levels,
+                                           std::vector<size_t> constShapes,
+                                           const std::vector<float>& inputLowData,
+                                           const std::vector<float>& inputHighData,
+                                           const std::vector<float>& outputLowData,
+                                           const std::vector<float>& outputHighData);
 
-std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
-                                       const element::Type& type,
-                                       std::size_t levels,
-                                       std::vector<size_t> constShapes,
-                                       const int32_t seed = 1);
+std::shared_ptr<ov::Node> makeFakeQuantize(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& type,
+                                           std::size_t levels,
+                                           std::vector<size_t> constShapes,
+                                           const int32_t seed = 1);
 
-std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
-                                                     const element::Type& indicesType,
-                                                     const ov::Output<Node>& emb_table_node,
+std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const ov::element::Type& dataType,
+                                                     const ov::element::Type& indicesType,
+                                                     const ov::Output<ov::Node>& emb_table_node,
                                                      const std::vector<size_t>& indices,
                                                      const std::vector<size_t>& offsets,
                                                      size_t default_index,
                                                      bool with_weights,
                                                      bool with_default_index);
 
-std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType,
-                                                   const element::Type& indicesType,
-                                                   const ov::Output<Node>& emb_table_node,
+std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const ov::element::Type& dataType,
+                                                   const ov::element::Type& indicesType,
+                                                   const ov::Output<ov::Node>& emb_table_node,
                                                    const std::vector<size_t>& indices,
                                                    const std::vector<size_t>& segment_ids,
                                                    size_t num_segments,
@@ -383,34 +385,34 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    bool with_weights,
                                                    bool with_default_index);
 
-std::shared_ptr<ov::Node> makeReduce(const ov::Output<Node>& data,
-                                     const ov::Output<Node>& axes,
+std::shared_ptr<ov::Node> makeReduce(const ov::Output<ov::Node>& data,
+                                     const ov::Output<ov::Node>& axes,
                                      bool keepDims,
                                      ov::test::utils::ReductionType reductionType);
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
-                                  const std::vector<size_t>& strides,
-                                  const std::vector<size_t>& padsBegin,
-                                  const std::vector<size_t>& padsEnd,
-                                  const std::vector<size_t>& kernel,
-                                  const op::RoundingType& roundingType,
-                                  const op::PadType& padType,
-                                  bool excludePad,
-                                  const ov::test::utils::PoolingTypes& poolType);
+std::shared_ptr<ov::Node> makePooling(const ov::Output<ov::Node>& in,
+                                      const std::vector<size_t>& strides,
+                                      const std::vector<size_t>& padsBegin,
+                                      const std::vector<size_t>& padsEnd,
+                                      const std::vector<size_t>& kernel,
+                                      const ov::op::RoundingType& roundingType,
+                                      const ov::op::PadType& padType,
+                                      bool excludePad,
+                                      const ov::test::utils::PoolingTypes& poolType);
 
-std::shared_ptr<ov::Node> makeComparison(const ov::Output<Node>& in0,
-                                         const ov::Output<Node>& in1,
+std::shared_ptr<ov::Node> makeComparison(const ov::Output<ov::Node>& in0,
+                                         const ov::Output<ov::Node>& in1,
                                          ov::test::utils::ComparisonTypes comparisonType);
 
-std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
-                                      const ov::Output<Node>& in1,
+std::shared_ptr<ov::Node> makeLogical(const ov::Output<ov::Node>& in0,
+                                      const ov::Output<ov::Node>& in1,
                                       ov::test::utils::LogicalTypes logicalType);
 
 std::shared_ptr<ov::Node> makeLogical(const ov::ParameterVector& inputs, ov::test::utils::LogicalTypes logicalType);
 
-std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
-                                             const element::Type& type,
+std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<ov::Node>& in,
+                                             const ov::element::Type& type,
                                              const size_t outputSize,
                                              bool addBias = true,
                                              const ov::Shape& weightsShape = {},
@@ -418,7 +420,7 @@ std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const std::vector<float>& biasWeights = {});
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
+std::shared_ptr<ov::Node> makePad(const ov::Output<ov::Node>& data,
                                   const std::vector<int64_t>& padsBegin,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,
@@ -426,7 +428,7 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const bool allow_negative_pad = false);
 
 std::shared_ptr<ov::Node> makeLSTM(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh", "tanh"},
@@ -439,7 +441,7 @@ std::shared_ptr<ov::Node> makeLSTM(
     float WRB_range = 0.f);
 
 std::shared_ptr<ov::Node> makeGRU(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
@@ -452,7 +454,7 @@ std::shared_ptr<ov::Node> makeGRU(
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
 std::shared_ptr<ov::Node> makeRNN(
-    const OutputVector& in,
+    const ov::OutputVector& in,
     const std::vector<ov::Shape>& constants,
     std::size_t hidden_size,
     const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},
@@ -463,23 +465,23 @@ std::shared_ptr<ov::Node> makeRNN(
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
-std::shared_ptr<ov::Node> makeGatherND(const ov::Output<Node>& dataNode,
+std::shared_ptr<ov::Node> makeGatherND(const ov::Output<ov::Node>& dataNode,
                                        const ov::Shape& indicesShape,
-                                       const element::Type& indicesType,
+                                       const ov::element::Type& indicesType,
                                        const std::size_t batchDims);
 
-std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
+std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<ov::Node>& dataNode,
                                         const ov::Shape& indicesShape,
-                                        const element::Type& indicesType,
+                                        const ov::element::Type& indicesType,
                                         const std::size_t batchDims);
 
 enum class NmsVersion { NmsVersion5, NmsVersion9 };
 
 OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
-                                  const ov::Output<Node>& scores,
-                                  const element::Type& maxBoxesPrec,
-                                  const element::Type& thrPrec,
+std::shared_ptr<ov::Node> makeNms(const ov::Output<ov::Node>& boxes,
+                                  const ov::Output<ov::Node>& scores,
+                                  const ov::element::Type& maxBoxesPrec,
+                                  const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,
                                   const float& iouThr,
                                   const float& scoreThr,
@@ -489,12 +491,12 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::element::Type& outType,
                                   const NmsVersion nmsVersion = NmsVersion::NmsVersion5);
 
-std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
+std::shared_ptr<ov::Node> makeDFT(const ov::Output<ov::Node>& dataNode,
                                   const std::vector<int64_t>& axes,
                                   const std::vector<int64_t>& signalSize,
                                   const ov::test::utils::DFTOpType opType);
 
-std::shared_ptr<ov::Node> makeRDFT(const ov::Output<Node>& dataNode,
+std::shared_ptr<ov::Node> makeRDFT(const ov::Output<ov::Node>& dataNode,
                                    const std::vector<int64_t>& axes,
                                    const std::vector<int64_t>& signalSize,
                                    const ov::test::utils::DFTOpType opType);

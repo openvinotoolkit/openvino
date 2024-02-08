@@ -8,7 +8,6 @@
 #include <memory>
 #include <string>
 
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -28,9 +27,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_SUPPRESS_DEPRECATED_START                                      \
     try {                                                                   \
         __VA_ARGS__;                                                        \
-    } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        ov::Busy::create(ex.what());                                        \
     } catch (const ov::Busy&) {                                             \
+        throw;                                                              \
+    } catch (const ov::Cancelled&) {                                        \
         throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
@@ -250,8 +249,6 @@ void InferRequest::wait() {
         _impl->wait();
     } catch (const ov::Cancelled&) {
         throw;
-    } catch (const InferenceEngine::InferCancelled& e) {
-        Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -265,8 +262,8 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
-    } catch (const InferenceEngine::InferCancelled& e) {
-        Cancelled::create(e.what());
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

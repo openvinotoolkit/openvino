@@ -9,9 +9,6 @@ race:^ov::intel_cpu::Node::GetNodesHolder()::localHolder$
 # global const variable from pugixml
 race:^pugi::impl::(anonymous namespace)::dummy_node_set$
 
-# global const variable from GNA plugin
-race:^GNAPluginNS::supported_values[abi:cxx11]$
-
 # Issue 91368
 race:libopenvino_gapi_preproc.so
 

@@ -8,6 +8,7 @@ Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. Th
   * [Triggers and schedules](#workflows-triggers-and-schedule)
   * [Required workflows](#required-workflows)
   * [Workflow structure](#structure-of-the-workflows)
+  * [Workflow and job organisation](#workflows-and-jobs-organisation)
 * [Finding results, artefacts and logs](#finding-results-artefacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -42,7 +43,11 @@ Additionally, several supporting workflows build and test OpenVINO for other ope
 
 ### Reusing GitHub Actions
 
-The listed workflows make use of the rich GitHub Actions official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
+The OpenVINO workflows make use of the rich official and community actions such as `actions/checkout`, `actions/upload-artifact` and others.
+
+Additionally, common jobs, i.e., those featured in several workflows, are extracted into _reusable workflows_. 
+Read more about the used reusable workflows and how to write one [here](./reusable_workflows.md).
+
 You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 
 ### Workflows' Triggers and Schedule
@@ -95,18 +100,18 @@ This workflow runs:
 
 ### Required Workflows
 
-The listed above workflows are not required at the moment, but it is strongly encouraged to pay attention to their [results](#finding-results-artefacts-and-logs) while working within the OpenVINO repository.
+The listed above workflows are **required**, i.e., a PR could not be merged if any of their stages fail. It is strongly encouraged to pay attention to their [results](#finding-results-artefacts-and-logs) while working within the OpenVINO repository.
 
 ### Structure of the Workflows
 
 This section provides the structural overview of the Linux, Windows and macOS workflows.
 
-The structure for all of them is the same:
+The structure for all of them is mostly the same:
 1. Clone OpenVINO repository and required resources
 2. Install build dependencies
 3. Build OpenVINO from source
 4. Pack and upload the artefacts (built OpenVINO and tests)
-5. Download and use the artefacts in the parallel jobs with different kinds of tests
+5. Download and use the artefacts in the parallel jobs with different tests
 6. Collect the test results and upload them as artefacts
 
 **NOTE**: some workflows may use the same structure or lack the last 3 steps and have tests present right after the `Build` step.
@@ -133,12 +138,12 @@ The `Build` job executes the first 4 steps:
 * builds from source with `cmake`
 * packs and uploads the artefacts using `actions/upload-artifact`
 
-The other jobs are responsible for running different kinds of tests using the built artefacts. They:
+The other jobs are responsible for running different tests using the built artefacts. They:
 * download and unpack the artefacts using `actions/download-artifact`
 * install the needed dependencies
 * run tests
 * collect test results
-* upload test results as [artefacts](#artefacts)
+* upload test results as [pipeline artefacts](#artefacts)
 
 #### Single Job Overview
 
@@ -186,7 +191,7 @@ Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Pyt
 To understand which jobs have successfully passed, which are running and which have failed, check the following:
 * For Pull Requests:
   * Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 * For scheduled runs:
   * Navigate to the [OpenVINO Repository Actions](https://github.com/openvinotoolkit/openvino/actions)
   * Select the required workflow from the list on the left
@@ -197,13 +202,13 @@ To understand which jobs have successfully passed, which are running and which h
 
 To find artefacts for a pipeline, use the following steps:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit: 
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 2. Click `Details` to see more information about a job
 3. Click `Summary` above the list of the jobs: 
-  ![jobs_list](../../../_static/images/ci/completed_job_list.png)
+  ![jobs_list](../../../sphinx_setup/_static/images/ci/completed_job_list.png)
 4. Scroll to the bottom of the page
 5. You will find the artefacts produced by **all the jobs in this pipeline**:
-  ![pipeline_artefacts](../../../_static/images/ci/pipeline_artefacts.png)
+  ![pipeline_artefacts](../../../sphinx_setup/_static/images/ci/pipeline_artefacts.png)
 6. Click on the artefact name to download it
 
 **NOTE**: artefacts are available only for the completed, i.e., successful or failed, pipelines.
@@ -212,23 +217,23 @@ To find artefacts for a pipeline, use the following steps:
 
 To find logs for a pipeline:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
-  ![check_results](../../../_static/images/ci/check_results.png)
+  ![check_results](../../../sphinx_setup/_static/images/ci/check_results.png)
 2. Click `Details` to see more information about a job
 3. Click on a step to see its logs
 
 ## Custom Actions
 
-There are several actions written specifically for the needs of the OpenVINO workflows.
+Several actions are written specifically for the needs of the OpenVINO workflows.
 
-Read more about the available actions and what they do [here](./custom_actions.md).
+Read more about the available custom actions and what they do [here](./custom_actions.md).
 
 You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 
 ## Machines
 
-The machines that execute the commands from the workflows are referred to as _runners_ in GitHub Actions.
+The machines that execute the commands from the workflows are called _runners_ in GitHub Actions.
 
-There are two types of runners available for the OpenVINO organization:
+Two types of runners are available for the OpenVINO organization:
 
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
@@ -243,20 +248,12 @@ The jobs in the workflows utilize appropriate Docker images based on a job's nee
 
 ## Caches
 
-There are two types of caches available:
+Three types of caches are available:
 * [GitHub Actions cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
-  * Accessible by `actions/cache` action
-  * Available both GitHub-hosted and self-hosted runners
-  * Limited to 10GB per repository
-  * Suitable for small dependencies caches and artefacts that could be reused between runs 
 * Shared drive cache
-  * Mounted into the Docker container
-  * Available only to the self-hosted runners
-  * Large storage
-  * Suitable for large caches
-    * e.g., build caches, models, datasets
+* Remote build cache via [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs)
 
-The jobs in the workflows utilize appropriate caches based on a job's needs. Read more about the available caches and how to choose one [here](./caches.md).
+The jobs in the workflows utilize appropriate caches based on job's needs. Read more about the available caches and how to use one [here](./caches.md).
 
 ## Adding New Tests
 

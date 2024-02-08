@@ -8,10 +8,7 @@
 
 #include <algorithm>
 #include <array>
-#include <inference_engine.hpp>
 #include <string>
-
-using namespace InferenceEngine;
 
 // Maximum values to compute an average for smoothing
 #define AVERAGE_NUM 5

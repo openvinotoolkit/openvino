@@ -32,12 +32,7 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    if(APPLE)
-        # Apple M1 / M2 is assumed
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-    else()
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
-    endif()
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
@@ -157,21 +152,28 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/attn_quant.cpp
+        API         src/nodes/kernels/scaled_attn/attn_quant.hpp
+        NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
@@ -212,9 +214,7 @@ if(BUILD_SHARED_LIBS)
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
-        $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
+        USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API)
 
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 

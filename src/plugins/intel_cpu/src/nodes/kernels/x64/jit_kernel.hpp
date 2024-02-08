@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include <common/nstl.hpp>
 #include <type_traits>
 #include <functional>

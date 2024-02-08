@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
@@ -46,15 +46,15 @@ void MVNMultiplyAdd::SetUp() {
     std::tie(inputShapes, constantShapes) = shapes;
 
     ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
-    auto axesNode = ngraph::builder::makeConstant(axesType, ov::Shape{axes.size()}, axes);
+    auto axesNode = ov::test::utils::deprecated::make_constant(axesType, ov::Shape{axes.size()}, axes);
     ov::op::MVNEpsMode nEpsMode = ov::op::MVNEpsMode::INSIDE_SQRT;
     if (epsMode == "outside_sqrt")
         nEpsMode = ov::op::MVNEpsMode::OUTSIDE_SQRT;
     auto mvn = std::make_shared<ov::op::v6::MVN>(param[0], axesNode, normalizeVariance, eps, nEpsMode);
 
-    auto gamma = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto gamma = ov::test::utils::deprecated::make_constant<float>(dataType, constantShapes, {}, true);
     auto mul = std::make_shared<ov::op::v1::Multiply>(mvn, gamma);
-    auto beta = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto beta = ov::test::utils::deprecated::make_constant<float>(dataType, constantShapes, {}, true);
     auto add = std::make_shared<ov::op::v1::Add>(mul, beta);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};

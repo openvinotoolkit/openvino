@@ -10,7 +10,7 @@
 #include <openvino/core/type/element_type.hpp>
 #include "utils/plain_tensor.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -26,9 +26,12 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       ov::intel_cpu::PlainTensor& buf_attn_score,
                       bool has_out_transpose,
                       bool auto_causal,
-                      float d_scale);
+                      float d_scale,
+                      const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                      const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                      ov::intel_cpu::PlainTensor& head_sum);
 
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

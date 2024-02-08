@@ -4,43 +4,14 @@
 
 #include "common_test_utils/data_utils.hpp"
 
-#include "blob_factory.hpp"
-#include "debug.h"  // to allow putting vector into exception string stream
-#include "ie_blob.h"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "precomp.hpp"
 
-using namespace InferenceEngine::details;
-
 namespace ov {
 namespace test {
 namespace utils {
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-bool isDenseBlob(const InferenceEngine::Blob::Ptr& blob) {
-    auto blk_desc = blob->getTensorDesc().getBlockingDesc();
-    auto dims = blk_desc.getBlockDims();
-    auto strs = blk_desc.getStrides();
-
-    IE_ASSERT(dims.size() == strs.size()) << " isDenseBlob: inconsistent tensor descriptor";
-
-    auto size = dims.size();
-    if (size == 0)
-        return true;
-    if (size == 1)
-        return strs[0] == 1;
-
-    for (auto i = size - 1; i > 0; i--) {
-        if (strs[i - 1] != strs[i - 1] * dims[i])
-            return false;
-    }
-
-    return true;
-}
-
+namespace {
 template <typename T>
 void copy_7D(void* src_raw_ptr,
              std::vector<size_t>& src_str,
@@ -80,175 +51,7 @@ void copy_7D(void* src_raw_ptr,
         }
     }
 }
-
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Blob::Ptr& values) {
-    using InferenceEngine::SizeVector;
-    constexpr size_t MAX_N_DIMS = 7;  // Suppose it's enough
-
-    IE_ASSERT(blob->getTensorDesc().getPrecision() == values->getTensorDesc().getPrecision());
-
-    auto values_dims = values->getTensorDesc().getDims();
-    auto blob_dims = blob->getTensorDesc().getDims();
-    auto n_dims = blob_dims.size();
-    IE_ASSERT(values_dims.size() <= n_dims);
-    IE_ASSERT(n_dims <= MAX_N_DIMS);
-
-    ov::Shape src_dims(MAX_N_DIMS, 1);
-    std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
-
-    ov::Shape dst_dims(MAX_N_DIMS, 1);
-    std::copy(blob_dims.rbegin(), blob_dims.rend(), dst_dims.rbegin());
-
-    bool compatible = true;
-    for (int i = 0; i < MAX_N_DIMS; i++) {
-        if (src_dims[i] != dst_dims[i] && src_dims[i] != 1)
-            compatible = false;
-    }
-
-    IE_ASSERT(compatible);
-
-    auto fill_strides_like_plain = [](ov::Shape dims) {
-        ov::Shape str(dims.size());
-        if (str.empty())
-            return str;
-        else
-            str.back() = 1;
-
-        // stride[i] = stride[i+1]*d[i+1]
-        std::transform(dims.rbegin(), dims.rend() - 1, str.rbegin(), str.rbegin() + 1, [](size_t d, size_t s) {
-            return d * s;
-        });
-
-        // zeroing broadcast dimension equal 1
-        std::transform(str.begin(), str.end(), dims.begin(), str.begin(), [](size_t s, size_t d) {
-            return d == 1 ? 0 : s;
-        });
-
-        return str;
-    };
-
-    SizeVector src_strides = fill_strides_like_plain(src_dims);
-    SizeVector dst_strides = fill_strides_like_plain(dst_dims);
-
-    auto get_data = [](InferenceEngine::Blob::Ptr& blob) {
-        auto mem_blob = dynamic_cast<InferenceEngine::MemoryBlob*>(blob.get());
-        auto mem = mem_blob->rwmap();
-        return mem.as<float*>();
-    };
-
-    auto dst_ptr = get_data(blob);
-    auto src_ptr = get_data(values);
-
-    switch (blob->getTensorDesc().getPrecision()) {
-    case InferenceEngine::Precision::U64:
-    case InferenceEngine::Precision::I64:
-        copy_7D<uint64_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
-        break;
-    case InferenceEngine::Precision::FP32:
-    case InferenceEngine::Precision::I32:
-        copy_7D<uint32_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
-        break;
-    case InferenceEngine::Precision::I16:
-    case InferenceEngine::Precision::U16:
-    case InferenceEngine::Precision::FP16:
-    case InferenceEngine::Precision::BF16:
-        copy_7D<uint16_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
-        break;
-    case InferenceEngine::Precision::U8:
-    case InferenceEngine::Precision::I8:
-        copy_7D<uint8_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
-        break;
-    default:
-        IE_THROW() << "Unsupported precision by fill_data_with_broadcast function";
-    }
-}
-
-template <InferenceEngine::Precision::ePrecision SRC_E, InferenceEngine::Precision::ePrecision DST_E>
-void copy_with_convert(InferenceEngine::Blob::Ptr& src_blob, InferenceEngine::Blob::Ptr& dst_blob) {
-    using SRC_TYPE = typename InferenceEngine::PrecisionTrait<SRC_E>::value_type;
-    using DST_TYPE = typename InferenceEngine::PrecisionTrait<DST_E>::value_type;
-
-    auto src_lock_m = src_blob->as<InferenceEngine::MemoryBlob>()->rwmap();
-    auto src_ptr = src_lock_m.as<SRC_TYPE*>();
-    auto src_size = src_blob->size();
-
-    auto dst_lock_m = dst_blob->as<InferenceEngine::MemoryBlob>()->rwmap();
-    auto dst_ptr = dst_lock_m.as<DST_TYPE*>();
-
-    std::copy(src_ptr, src_ptr + src_size, dst_ptr);
-}
-
-InferenceEngine::Blob::Ptr make_with_precision_convert(InferenceEngine::Blob::Ptr& blob,
-                                                       InferenceEngine::Precision prc) {
-    IE_ASSERT(isDenseBlob(blob));
-    auto td = blob->getTensorDesc();
-    td.setPrecision(prc);
-
-    auto new_blob = make_blob_with_precision(td);
-    new_blob->allocate();
-
-#define CASE(_PRC)                                                                                             \
-    case InferenceEngine::Precision::_PRC:                                                                     \
-        copy_with_convert<InferenceEngine::Precision::FP32, InferenceEngine::Precision::_PRC>(blob, new_blob); \
-        break
-    switch (prc) {
-        CASE(FP32);
-        CASE(I64);
-        CASE(U64);
-        CASE(I32);
-        CASE(U32);
-        CASE(I16);
-        CASE(U16);
-        CASE(I8);
-        CASE(U8);
-    default:
-        IE_THROW() << "Unsupported precision case";
-    }
-#undef CASE
-
-    return new_blob;
-}
-
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std::vector<float> values) {
-    InferenceEngine::SizeVector value_dims(blob->getTensorDesc().getDims().size() - axis, 1);
-    value_dims.front() = values.size();
-    auto prc = blob->getTensorDesc().getPrecision();
-    auto layout = InferenceEngine::TensorDesc::getLayoutByDims(value_dims);
-    InferenceEngine::TensorDesc value_tdesc(prc, value_dims, layout);
-
-    InferenceEngine::Blob::Ptr values_blob;
-    if (prc == InferenceEngine::Precision::FP32) {
-        values_blob = make_blob_with_precision(value_tdesc, values.data());
-    } else {
-        values_blob = make_blob_with_precision(value_tdesc, values.data());
-        values_blob = make_with_precision_convert(values_blob, prc);
-    }
-
-    fill_data_with_broadcast(blob, values_blob);
-}
-
-InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr& blob,
-                                             InferenceEngine::SizeVector new_shape) {
-    using InferenceEngine::TensorDesc;
-    auto new_size = std::accumulate(new_shape.begin(), new_shape.end(), 1, std::multiplies<size_t>());
-    IE_ASSERT(new_size == blob->size());
-
-    auto orig_mem_blob = dynamic_cast<InferenceEngine::MemoryBlob*>(blob.get());
-    auto orig_mem = orig_mem_blob->rwmap();
-    auto orig_ptr = orig_mem.as<float*>();
-
-    auto new_tdesc =
-        TensorDesc(blob->getTensorDesc().getPrecision(), new_shape, TensorDesc::getLayoutByDims(new_shape));
-    auto new_blob = make_blob_with_precision(new_tdesc, orig_ptr);
-    return new_blob;
-}
-
-size_t byte_size(const InferenceEngine::TensorDesc& tdesc) {
-    auto prc = tdesc.getPrecision();
-    auto dims = tdesc.getDims();
-    return prc.size() * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace
 
 namespace {
 static int randInt(int low, int high) {
@@ -259,15 +62,18 @@ static int randInt(int low, int high) {
 }
 }  // namespace
 
-void fill_psroi(ov::Tensor& tensor,
-                int batchSize,
-                int height,
-                int width,
-                int groupSize,
-                float spatialScale,
-                int spatialBinsX,
-                int spatialBinsY,
-                const std::string& mode) {
+template <ov::element::Type_t type>
+void fill_psroi_impl(ov::Tensor& tensor,
+                     int batchSize,
+                     int height,
+                     int width,
+                     int groupSize,
+                     float spatialScale,
+                     int spatialBinsX,
+                     int spatialBinsY,
+                     const std::string& mode) {
+    using T = typename ov::fundamental_type_for<type>;
+    auto* data = static_cast<T*>(tensor.data());
     auto numROIs = tensor.get_size() / 5;
     int minRoiWidth = groupSize;
     int maxRoiWidth = width / groupSize * groupSize;
@@ -290,7 +96,7 @@ void fill_psroi(ov::Tensor& tensor,
         int startX = randInt(0, std::max(1, width - sizeX - 1));
         int startY = randInt(0, std::max(1, height - sizeY - 1));
 
-        float* roi = tensor.data<float>() + i * 5;
+        T* roi = data + i * 5;
         roi[0] = batchId;
         roi[1] = startX / scaleX;
         roi[2] = startY / scaleY;
@@ -301,8 +107,42 @@ void fill_psroi(ov::Tensor& tensor,
     }
 }
 
+void fill_psroi(ov::Tensor& tensor,
+                int batchSize,
+                int height,
+                int width,
+                int groupSize,
+                float spatialScale,
+                int spatialBinsX,
+                int spatialBinsY,
+                const std::string& mode) {
+#define CASE(X)                          \
+    case X:                              \
+        fill_psroi_impl<X>(tensor,       \
+                           batchSize,    \
+                           height,       \
+                           width,        \
+                           groupSize,    \
+                           spatialScale, \
+                           spatialBinsX, \
+                           spatialBinsY, \
+                           mode);        \
+        break;
+
+    auto element_type = tensor.get_element_type();
+    switch (element_type) {
+        CASE(ov::element::f64)
+        CASE(ov::element::f32)
+        CASE(ov::element::f16)
+        CASE(ov::element::bf16)
+    default:
+        OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+}
+
 template <ov::element::Type_t type>
-inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
+inline void fill_data_roi_impl(ov::Tensor& tensor,
                                const uint32_t range,
                                const int height,
                                const int width,
@@ -348,7 +188,7 @@ inline void fill_data_roi_impl(ov::runtime::Tensor& tensor,
     }
 }
 
-void fill_data_roi(ov::runtime::Tensor& tensor,
+void fill_data_roi(ov::Tensor& tensor,
                    const uint32_t range,
                    const int height,
                    const int width,

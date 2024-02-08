@@ -5,8 +5,6 @@
 
 #include <napi.h>
 
-#include "errors.hpp"
-#include "helper.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {
@@ -21,11 +19,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript PartialShape class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino node-addon.
-     * It exports JavaScript PartialShape class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     /**
      * @brief Creates JavaScript PartialShape object and wraps inside of it ov::PartialShape object.

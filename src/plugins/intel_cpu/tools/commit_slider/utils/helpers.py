@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import importlib
 import shutil
 import os
@@ -31,15 +34,32 @@ def getParams():
         action="store_true",
         help="flag if current directory is working",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-u",
+        "--utility",
+        dest="utility",
+        help="run utility with specified name",
+        default="no_utility",
+    )
+    args, additionalArgs = parser.parse_known_args()
+
+    argHolder = DictHolder(args.__dict__)
 
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
-    customCfgPath = args.__dict__["configuration"]
+    customCfgPath = argHolder.configuration
     presetCfgData = None
     with open(presetCfgPath) as cfgFile:
         presetCfgData = json.load(cfgFile)
     cfgFile.close()
+
+    if argHolder.utility != "no_utility":
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        argHolder = DictHolder(mergedArgs)
+        return argHolder, presetCfgData, presetCfgPath
+
     customCfgData = None
     with open(customCfgPath) as cfgFile:
         customCfgData = json.load(cfgFile)
@@ -50,7 +70,7 @@ def getParams():
         presetCfgData[key] = newVal
 
     presetCfgData = absolutizePaths(presetCfgData)
-    return args, presetCfgData, customCfgPath
+    return argHolder, presetCfgData, customCfgPath
 
 
 def getBlobDiff(file1, file2):
@@ -151,12 +171,7 @@ def checkArgAndGetCommits(commArg, cfgData):
             return outList
 
 
-def runCommandList(commit, cfgData, enforceClean=False):
-    skipCleanInterval = False
-    if "trySkipClean" not in cfgData:
-        skipCleanInterval = not enforceClean
-    else:
-        skipCleanInterval = cfgData["trySkipClean"] and not enforceClean
+def runCommandList(commit, cfgData):
     commitLogger = getCommitLogger(cfgData, commit)
     if not cfgData["extendBuildCommand"]:
         commandList = cfgData["commandList"]
@@ -181,11 +196,26 @@ def runCommandList(commit, cfgData, enforceClean=False):
                 preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
-        strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
+        # {commit}, {makeCmd}, {cashedPath} placeholders
+        pathExists, cashedPath = getCashedPath(commit, cfgData)
+        if pathExists:
+            # todo - and {} in cmd
+            strCommand = cmd["cmd"].format(
+                cashedPath=cashedPath,
+                commit=commit, makeCmd=makeCmd)
+        else:
+            strCommand = cmd["cmd"].format(
+                commit=commit, makeCmd=makeCmd)
         formattedCmd = strCommand.split()
+        # define command launch destination
         cwd = defRepo
         if "path" in cmd:
-            cwd = cmd["path"].format(buildPath=buildPath, gitPath=gitPath)
+            # todo - cashedpath
+            cwd = cmd["path"].format(
+                buildPath=buildPath,
+                gitPath=gitPath,
+                cashedPath=cashedPath)
+        # run and check
         commitLogger.info("Run command: {command}".format(
             command=formattedCmd)
         )
@@ -195,7 +225,8 @@ def runCommandList(commit, cfgData, enforceClean=False):
             encoding="utf-8", errors="replace"
         )
         for line in proc.stdout:
-            sys.stdout.write(line)
+            if cfgData["verboseOutput"]:
+                sys.stdout.write(line)
             commitLogger.info(line)
             if "catchMsg" in cmd:
                 isErrFound = re.search(cmd["catchMsg"], line)
@@ -210,6 +241,16 @@ def runCommandList(commit, cfgData, enforceClean=False):
 
 
 def fetchAppOutput(cfg, commit):
+    commitLogger = getCommitLogger(cfg, commit)
+    appPath = cfg["appPath"]
+    # format appPath if it was cashed
+    if cfg["cachedPathConfig"]["enabled"] == True:
+        pathExists, suggestedAppPath = getCashedPath(commit, cfg)
+        if pathExists and cfg["cachedPathConfig"]["changeAppPath"]:
+            commitLogger.info(
+                "App path, corresponding commit {c} is cashed, "
+                "value:{p}".format(c=commit, p=suggestedAppPath))
+            appPath = suggestedAppPath
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -217,8 +258,6 @@ def fetchAppOutput(cfg, commit):
             envVal = env["val"]
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
-    appPath = cfg["appPath"]
-    commitLogger = getCommitLogger(cfg, commit)
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -240,15 +279,29 @@ def fetchAppOutput(cfg, commit):
 
 def handleCommit(commit, cfgData):
     commitLogger = getCommitLogger(cfgData, commit)
-    if "skipCleanInterval" in cfgData["serviceConfig"]:
-        skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
-        cfgData["trySkipClean"] = skipCleanInterval
+    cashedPath = None
+    if cfgData["cachedPathConfig"]["enabled"] == True:
+        pathExists, cashedPath = getCashedPath(commit, cfgData)
+        if pathExists:
+            commitLogger.info(
+                "Path, corresponding commit {c} is cashed, value:{p}".format(
+                c=commit, p=cashedPath))
+            if cfgData["cachedPathConfig"]["passCmdList"]:
+                return
+        else:
+            if cfgData["cachedPathConfig"]["scheme"] == "mandatory":
+                commitLogger.info("Ignore commit {}".format(commit))
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_IGNORE,
+                    message="build error handled by skip",
+                    commit=commit
+                    )
+
     try:
         runCommandList(commit, cfgData)
         if cfgData["skipMode"]["flagSet"]["enableRebuild"]:
             cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = True
             cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"] = False
-            cfgData["extendBuildCommand"] = False
     except BuildError as be:
         if cfgData["skipMode"]["flagSet"]["enableSkips"]:
             commitLogger.info("Build error: commit {} skipped".format(commit))
@@ -285,6 +338,54 @@ def handleCommit(commit, cfgData):
                         errType = BuildError.BuildErrType.WRONG_STATE,
                         commit=commit
                         )
+
+
+def getCashedPath(commit, cfgData):
+    shortHash = getMeaningfullCommitTail(commit)
+    cashMap = cfgData["cachedPathConfig"]["cashMap"]
+    for k in cashMap:
+        if shortHash in k:
+            return True, cfgData["cachedPathConfig"]["cashMap"][k]
+    return False, None
+
+
+def getReducedInterval(list, cfg):
+    # returns (True, reducedList) if given interval contains
+    # two different prerun-cashed commits
+    # [...[i1...<reduced interval>...i2]...]
+    # and (False, None) otherwise
+    if not cfg["cachedPathConfig"]["enabled"]:
+        return False, None
+    cashMap = cfg["cachedPathConfig"]["cashMap"]
+    for i, commitHash in enumerate(list):
+        list[i] = commitHash.replace('"', "")
+    i1 = None
+    i2 = None
+    for commitHash in list:
+        shortHash = getMeaningfullCommitTail(commitHash)
+        for cashedCommit in cashMap:
+            if shortHash in cashedCommit:
+                i2 = commitHash
+                break
+    for commitHash in reversed(list):
+        shortHash = getMeaningfullCommitTail(commitHash)
+        for cashedCommit in cashMap:
+            if shortHash in cashedCommit:
+                i1 = commitHash
+                break
+    if i1 == i2:
+        return False, None
+    else:
+        reducedList = []
+        for i in list:
+            if not reducedList:
+                if i == i1:
+                    reducedList.append(i)
+            else:
+                reducedList.append(i)
+                if i == i2:
+                    break
+        return True, reducedList
 
 
 def returnToActualVersion(cfg):
@@ -344,6 +445,18 @@ def safeClearDir(path, cfg):
     return
 
 
+def runUtility(cfg, args):
+    modName = args.utility
+    try:
+        mod = importlib.import_module(
+            "utils.{un}".format(un=modName))
+        utilName = checkAndGetUtilityByName(cfg, modName)
+        utility = getattr(mod, utilName)
+        utility(args)
+    except ModuleNotFoundError as e:
+        raise CfgError("No utility {} found".format(modName))
+
+
 class CfgError(Exception):
     pass
 
@@ -362,13 +475,16 @@ class RepoError(Exception):
 
 class BuildError(Exception):
     class BuildErrType(Enum):
-        # Undefined - unresolved behaviour, to-do ...
         UNDEFINED = 0
+        # strategies to handle unsuccessful build
         TO_REBUILD = 1
         TO_SKIP = 2
         TO_STOP = 3
+        # commit supposed to contain irrelevant change,
+        # build is unnecessary
+        TO_IGNORE = 4
         # throwed in unexpected case
-        WRONG_STATE = 4
+        WRONG_STATE = 5
     def __init__(self, commit, message, errType):
         self.message = message
         self.errType = errType
@@ -390,9 +506,27 @@ def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
         return map[keyName]
 
 
+def checkAndGetUtilityByName(cfg, utilName):
+    if not (utilName in cfg["utilMap"]):
+        raise CfgError(
+            "{utilName} is not registered in config".format(
+                utilName=utilName
+            )
+        )
+    else:
+        return cfg["utilMap"][utilName]
+
+
 def checkAndGetSubclass(clName, parentClass):
     cl = [cl for cl in parentClass.__subclasses__() if cl.__name__ == clName]
     if not (cl.__len__() == 1):
         raise CfgError("Class {clName} doesn't exist".format(clName=clName))
     else:
         return cl[0]
+
+
+class DictHolder:
+    def __init__(self, dict: dict = None):
+        if dict is not None:
+            for k, v in dict.items():
+                setattr(self, k, v)

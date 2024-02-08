@@ -4,20 +4,19 @@
 
 #include "depth_to_space.h"
 
-#include <dnnl_extension_utils.h>
-#include <utils/general_utils.h>
+#include "dnnl_extension_utils.h"
+#include "utils/general_utils.h"
 
 #include <cmath>
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <string>
 
 #include "common/blocked_desc_creator.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("DepthToSpace layer with name '", getName(), "' ", __VA_ARGS__)
 
-using namespace InferenceEngine;
 using namespace dnnl::impl;
 
 namespace ov {
@@ -161,8 +160,8 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
 }
 
 void DepthToSpace::createPrimitive() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR("has not allocated destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -185,7 +184,7 @@ void DepthToSpace::createPrimitive() {
 }
 
 void DepthToSpace::prepareParams() {
-    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
@@ -292,8 +291,8 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     if (!permuteKernel)
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     permuteKernel->execute(srcData, dstData, MB);
 }
@@ -303,8 +302,8 @@ void DepthToSpace::execute(dnnl::stream strm) {
         THROW_ERROR("doesn't have a compiled executor.");
     }
 
-    int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
-    execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
+    int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
+    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);
 }
 
 void DepthToSpace::executeDynamicImpl(dnnl::stream strm) {

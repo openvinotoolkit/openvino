@@ -37,6 +37,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -68,7 +71,7 @@ jobs:
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
 
       - name: Fetch setup_python action
         uses: actions/checkout@v4
@@ -121,15 +124,7 @@ jobs:
       # Tests
       #
 
-      - name: Python API 1.0 Tests
-        # if: fromJSON(inputs.affected-components).Python_API.test # Ticket: 127101
-        run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
-
-      - name: Python API 2.0 Tests
+      - name: Python API Tests
         # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
         run: |
           # for 'template' extension
@@ -155,8 +150,9 @@ jobs:
               "$skip_filter"
 
       - name: Python ONNX operators tests
-        if: fromJSON(inputs.affected-components).Python_API.test ||
-            fromJSON(inputs.affected-components).ONNX_FE.test && runner.os != 'macOS' # Ticket: 123325
+        if: (fromJSON(inputs.affected-components).Python_API.test ||
+             fromJSON(inputs.affected-components).ONNX_FE.test) && 
+             runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
@@ -223,6 +219,15 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
+      - name: PyTorch torch.export Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: EXPORT
+
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' }}
         run: |
@@ -256,7 +261,7 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

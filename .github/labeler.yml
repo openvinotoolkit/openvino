@@ -67,9 +67,6 @@
 - 'src/frontends/common/include/openvino/frontend/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension/**/*'
 
-'category: GNA':
-- 'src/plugins/intel_gna/**/*'
-
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
@@ -109,20 +106,23 @@
 'category: packaging':
 - 'cmake/**/packaging/**/*'
 - 'src/bindings/python/wheel/**/*'
+- any: ['src/bindings/js/node/CMakeLists.txt',
+        'src/bindings/js/node/package.json',
+        'src/bindings/js/node/package-lock.json']
 - 'tools/openvino_dev/**/*'
 
 'category: PDPD FE':
 - 'src/frontends/paddle/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_paddle_frontend.py'
 
-'category: POT':
-- 'tools/pot/**/*'
-
 'category: preprocessing':
 - 'src/common/preprocessing/**/*'
 
 'category: Python API':
 - 'src/bindings/python/**/*'
+
+'category: JS API':
+- 'src/bindings/js/**/*'
 
 'category: samples':
 - 'samples/**/*'
@@ -160,7 +160,6 @@
 
 'category: tools':
 - any: ['tools/**',
-        '!tools/pot/**/*',
         '!tools/mo/**/*',
         '!tools/ovc/**/*']
 

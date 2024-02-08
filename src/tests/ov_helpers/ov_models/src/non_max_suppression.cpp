@@ -1,19 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/non_max_suppression.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 
 template <typename NmsOperation>
-std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
-                                  const ov::Output<Node>& scores,
-                                  const element::Type& maxBoxesPrec,
-                                  const element::Type& thrPrec,
+std::shared_ptr<ov::Node> makeNms(const ov::Output<ov::Node>& boxes,
+                                  const ov::Output<ov::Node>& scores,
+                                  const ov::element::Type& maxBoxesPrec,
+                                  const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,
                                   const float& iouThr,
                                   const float& scoreThr,
@@ -22,10 +23,14 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const bool& sortResDescend,
                                   const ov::element::Type& outType) {
     auto maxOutBoxesPerClassNode =
-        makeConstant(maxBoxesPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
-    auto iouThrNode = makeConstant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
-    auto scoreThrNode = makeConstant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
-    auto softNmsSigmaNode = makeConstant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        ov::test::utils::deprecated::make_constant(maxBoxesPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})
+            ->output(0);
+    auto iouThrNode =
+        ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
+    auto scoreThrNode =
+        ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
+    auto softNmsSigmaNode =
+        ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
 
     typename NmsOperation::BoxEncodingType boxEncodingType =
         isCenter ? NmsOperation::BoxEncodingType::CENTER : NmsOperation::BoxEncodingType::CORNER;
@@ -41,10 +46,10 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                           outType);
 }
 
-std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
-                                  const ov::Output<Node>& scores,
-                                  const element::Type& maxBoxesPrec,
-                                  const element::Type& thrPrec,
+std::shared_ptr<ov::Node> makeNms(const ov::Output<ov::Node>& boxes,
+                                  const ov::Output<ov::Node>& scores,
+                                  const ov::element::Type& maxBoxesPrec,
+                                  const ov::element::Type& thrPrec,
                                   const int32_t& maxOutBoxesPerClass,
                                   const float& iouThr,
                                   const float& scoreThr,

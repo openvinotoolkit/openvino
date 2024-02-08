@@ -90,7 +90,7 @@ bool TransposeTransformation::transform(TransformationContext& context, ov::pass
 
     transpose = NetworkHelper::separateInStandaloneBranch(transpose, defaultPrecisions);
     transposeDequantizationConstant(transpose, defaultPrecisions);
-    moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0), false);
+    moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
     return true;
 }
 
