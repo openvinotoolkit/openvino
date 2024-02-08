@@ -37,7 +37,10 @@ test_data_fp32_sync = get_tests \
 
 
 class Test_benchmark_app(SamplesCommonTestClass):
-    sample_name = 'benchmark_app'
+    @classmethod
+    def setup_class(cls):
+        cls.sample_name = 'benchmark_app'
+        super().setup_class()
 
     @pytest.mark.parametrize("param", test_data_fp32_async + test_data_fp32_sync)
     def test(self, param):
