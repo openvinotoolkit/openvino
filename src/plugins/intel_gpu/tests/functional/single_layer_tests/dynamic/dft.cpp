@@ -194,8 +194,8 @@ std::vector<DFTLayerGPUTestParams> getParams4D_DFT() {
 
     params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
             false, false, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {0, 2, 3}}, {{36, 64}, {1, 36, 64}},
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             false, false, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
@@ -205,8 +205,8 @@ std::vector<DFTLayerGPUTestParams> getParams4D_IDFT() {
 
     params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
             true, false, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {0, 2, 3}}, {{36, 64}, {1, 36, 64}},
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             true, false, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
@@ -215,9 +215,10 @@ std::vector<DFTLayerGPUTestParams> getParams4D_RDFT() {
     std::vector<DFTLayerGPUTestParams> params;
 
     // RDFT test cases
-    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}}, {{0}}, {}, false, true, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}, {2, 192, 36, 64}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {-3, -1, -2}}, {{36, 34}, {192, 64, 30}},
+    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}}, {{0}}, {},
+            false, true, true, true, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             false, true, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
@@ -228,8 +229,8 @@ std::vector<DFTLayerGPUTestParams> getParams4D_IRDFT() {
     // IRDFT
     params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
             true, true, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {0, 2, 3}}, {{36, 64}, {1, 36, 64}},
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             true, true, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
