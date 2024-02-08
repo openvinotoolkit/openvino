@@ -20,11 +20,9 @@ test_data_fp32_async = get_tests \
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
-                 'd': ['CPU'],
                  'api': ['async'],
                  'nireq': ['4'],
                  'niter': ['10'], },
-     use_device=['d']
      )
 
 test_data_fp32_sync = get_tests \
@@ -32,10 +30,8 @@ test_data_fp32_sync = get_tests \
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
-                 'd': ['CPU'],
                  'niter': ['10'],
                  'api': ['sync']},
-     use_device=['d']
      )
 
 
@@ -46,7 +42,7 @@ class TestBenchmarkApp(SamplesCommonTestClass):
         cls.sample_name = 'benchmark_app'
         super().setup_class()
 
-    @pytest.mark.parametrize("param", [*test_data_fp32_async, *test_data_fp32_sync])
+    @pytest.mark.parametrize("param", test_data_fp32_async + test_data_fp32_sync)
     def test_benchmark_app(self, param):
         stdout = self._test(param)
         assert "FPS" in stdout
