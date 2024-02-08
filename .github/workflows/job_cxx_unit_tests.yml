@@ -16,6 +16,11 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      sanitizer-check:
+        description: 'Whether the tests should be executed with the sanitizer options'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   CXX_Unit_Tests:
@@ -31,9 +36,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      LSAN_OPTIONS: ${{ github.workspace }}/openvino/tests/lsan/suppressions.txt # Sanitizer skip list
-      NEOReadDebugKeys: 1
-      DisableDeepBind: 1
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
@@ -55,7 +57,12 @@ jobs:
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "LSAN_OPTIONS=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt" >> "$GITHUB_ENV"
+          
+          if [[ "${{ inputs.sanitizer-check }}" == "true" ]]; then
+            echo "LSAN_OPTIONS=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt" >> "$GITHUB_ENV"
+            echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
+            echo "DisableDeepBind=1" >> "$GITHUB_ENV"
+          fi
 
       - name: Extract OpenVINO packages
         run: |
@@ -71,6 +78,7 @@ jobs:
         run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
       - name: Fetch Sanitizer Suppression List
+        if: inputs.sanitizer-check
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -83,28 +91,28 @@ jobs:
       #
 
       - name: OpenVINO Core Unit Tests
-        if: fromJSON(inputs.affected-components).Core.test
+        if: fromJSON(inputs.affected-components).Core.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: fromJSON(inputs.affected-components).inference.test
+        if: fromJSON(inputs.affected-components).inference.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
       - name: OpenVINO Inference Unit Tests
-        if: fromJSON(inputs.affected-components).inference.test
+        if: fromJSON(inputs.affected-components).inference.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
-        if: fromJSON(inputs.affected-components).LP_transformations.test
+        if: fromJSON(inputs.affected-components).LP_transformations.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
@@ -112,28 +120,28 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
-        if: fromJSON(inputs.affected-components).Core.test
+        if: fromJSON(inputs.affected-components).Core.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
-        if: fromJSON(inputs.affected-components).IR_FE.test
+        if: fromJSON(inputs.affected-components).IR_FE.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
-        if: fromJSON(inputs.affected-components).PDPD_FE.test
+        if: fromJSON(inputs.affected-components).PDPD_FE.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test || inputs.sanitizer-check && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
@@ -141,7 +149,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(inputs.affected-components).TF_FE.test ||
+        if: inputs.sanitizer-check || fromJSON(inputs.affected-components).TF_FE.test ||
             fromJSON(inputs.affected-components).TFL_FE.test && 
             (runner.os != 'macOS' && runner.arch != 'ARM64')
         run: |
@@ -150,7 +158,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        if: fromJSON(inputs.affected-components).TF_FE.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
@@ -158,14 +166,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
-        if: fromJSON(inputs.affected-components).TFL_FE.test
+        if: fromJSON(inputs.affected-components).TFL_FE.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
+        if: ${{ fromJSON(inputs.affected-components).transformations.test  || inputs.sanitizer-check && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           
@@ -179,14 +187,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
-        if: fromJSON(inputs.affected-components).CPU.test
+        if: fromJSON(inputs.affected-components).CPU.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
-        if: fromJSON(inputs.affected-components).CPU.test
+        if: fromJSON(inputs.affected-components).CPU.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
@@ -205,21 +213,21 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
-        if: fromJSON(inputs.affected-components).AUTO.test
+        if: fromJSON(inputs.affected-components).AUTO.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
-        if: fromJSON(inputs.affected-components).AUTO.test
+        if: fromJSON(inputs.affected-components).AUTO.test || inputs.sanitizer-check
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
-        if: fromJSON(inputs.affected-components).TEMPLATE.test
+        if: fromJSON(inputs.affected-components).TEMPLATE.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -227,38 +235,38 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: OpenVINO C API tests
-        if: fromJSON(inputs.affected-components).C_API.test
+        if: fromJSON(inputs.affected-components).C_API.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
-        if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        if: fromJSON(inputs.affected-components).AUTO_BATCH.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
-        if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        if: fromJSON(inputs.affected-components).AUTO_BATCH.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
-        if: fromJSON(inputs.affected-components).PROXY.test
+        if: fromJSON(inputs.affected-components).PROXY.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
-        if: fromJSON(inputs.affected-components).HETERO.test
+        if: fromJSON(inputs.affected-components).HETERO.test || inputs.sanitizer-check
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
-        if: fromJSON(inputs.affected-components).HETERO.test
+        if: fromJSON(inputs.affected-components).HETERO.test || inputs.sanitizer-check
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml

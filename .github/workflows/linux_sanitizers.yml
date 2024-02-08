@@ -31,6 +31,17 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount:/mount
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
+          - SANITIZER: 'UndefinedBehavior'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+          - SANITIZER: 'Thread'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -128,7 +139,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DENABLE_SANITIZER=ON \
+            ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -383,6 +394,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
       affected-components: ${{ {} }}
+      sanitizer-check: true
 
   Python_Unit_Tests:
     name: Python unit tests
