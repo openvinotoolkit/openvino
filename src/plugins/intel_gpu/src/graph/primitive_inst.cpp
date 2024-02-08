@@ -1145,42 +1145,6 @@ void primitive_inst::do_runtime_skip_strided_slice() {
         return;
     }
 
-    auto end = desc->end;
-    auto end_mask = desc->end_mask;
-    auto input_pshape = input_layout.get_partial_shape();
-    auto end_shape = _impl_params->get_input_layout(2).get_shape();
-    auto end_rank = end_shape.size();
-    bool is_valid = false;
-    bool is_equal_size = (end.size() == end_mask.size());
-    if (end.empty()) {
-        auto end_id = get_node().get_dependency(2).id();
-        auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == QueueTypes::out_of_order)
-            get_network().get_stream().wait_for_events({_network.get_primitive_event(end_id)});
-        else
-            _network.get_stream().finish();
-        mem_lock<int64_t, mem_lock_type::read> end_data(dep_memory_ptr(2), _network.get_stream());
-        for (size_t i = 0; i < end_rank; ++i) {
-            if ((is_equal_size && end_mask[i] == 1) || (end_data[i] == input_pshape[i].get_length())) {
-                is_valid = true;
-            } else {
-                is_valid = false;
-            }
-        }
-    } else {
-        for (size_t i = 0; i < end.size(); ++i) {
-            if ((is_equal_size && end_mask[i] == 1) || (end[i] == input_pshape[i].get_length())) {
-                is_valid = true;
-            } else {
-                is_valid = false;
-            }
-        }
-    }
-    if (!is_valid) {
-        set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because end index is invalid" << std::endl;
-        return;
-    }
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : can_be_optimized" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
