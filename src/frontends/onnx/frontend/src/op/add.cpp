@@ -37,13 +37,13 @@ ov::OutputVector add(const Node& node) {
 
 namespace set_13 {
 OutputVector add(const Node& node) {
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+    return common::handle_opset13_binary_op<default_opset::Add>(node);
 }
 }  // namespace set_13
 
 namespace set_14 {
 OutputVector add(const Node& node) {
-    return common::handle_opset6_binary_op<default_opset::Add>(node);
+    return common::handle_opset14_binary_op<default_opset::Add>(node);
 }
 }  // namespace set_14
 
