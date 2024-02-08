@@ -42,7 +42,7 @@ class InferAPI(BaseInfer):
 
     def fw_infer(self, input_data, config=None):
         print("OpenVINO version: {}".format(ie2_get_version()))
-        print("Creating IE Core Engine...")
+        print("Creating OV Core Engine...")
         ie = Core()
         print("Reading network files")
         net = ie.read_model(self.model, self.weights)

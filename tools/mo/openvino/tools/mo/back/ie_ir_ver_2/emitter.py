@@ -577,8 +577,8 @@ def serialize_network(graph, net_element, unsupported):
 def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),
                    mean_size: tuple = (), meta_info: dict = dict()):
     """
-    Extracts IE/IR attributes from kind='op' nodes in three ways:
-      (1) node.IE xml scheme that sets correspondence from existing attributes to generated xml elements
+    Extracts OV/IR attributes from kind='op' nodes in three ways:
+      (1) node.OV xml scheme that sets correspondence from existing attributes to generated xml elements
       (2) input/output edges that don't have 'bin' attributes are transformed to input/output ports
       (3) input edges that has 'bin' attributes are handled in special way like weights/biases
 

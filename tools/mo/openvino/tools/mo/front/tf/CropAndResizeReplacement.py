@@ -47,7 +47,7 @@ class CropAndResizeReplacement(FrontReplacementOp):
         # do not remove edge with crop_size because it is needed in the partial infer
         graph.remove_edge(node.in_node(1).id, node.id)
 
-        # input to the CropAndResize contains boxes coordinates in YXYX layout. But IE layer ROIPooling expects
+        # input to the CropAndResize contains boxes coordinates in YXYX layout. But OV layer ROIPooling expects
         # coordinates in the XYXY layout, so convolution is added here to swap coordinates
         swapped_box_coordinates_node = add_convolution_to_swap_xy_coordinates(graph, concat_node, 5)
 

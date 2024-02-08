@@ -79,7 +79,7 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         weights = weights.reshape([weights.shape[0], -1])
         biases = biases.flatten()
 
-        # TF stores weights in IO, but IE requires it in OI: transpose
+        # TF stores weights in IO, but OV requires it in OI: transpose
         weights = weights.transpose()
 
         weights_node.value = weights

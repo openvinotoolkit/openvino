@@ -955,7 +955,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         return new_nodes_to_remove
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
-        # the DetectionOutput in IE produces single tensor, but in TF it produces four tensors, so we need to create
+        # the DetectionOutput in OV produces single tensor, but in TF it produces four tensors, so we need to create
         # only one output edge match
         if match.outputs_count() >= 1:
             return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
@@ -976,7 +976,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         activation_conf_node = add_activation_function_after_node(graph, match.single_input_node(1)[0].in_node(0),
                                                                   activation_function)
 
-        # IE DetectionOutput operation consumes flattened tensors so need add a Reshape layer.
+        # OV DetectionOutput operation consumes flattened tensors so need add a Reshape layer.
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
@@ -1039,7 +1039,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             swap_weights_xy(graph, matmul_or_conv_nodes)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([scaled_offsets])
 
-        # IE DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
+        # OV DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
@@ -1153,7 +1153,7 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
                                                       detection_output)
         mark_as_correct_data_layout(flatten_do)
 
-        # adds "Result" node so this output is returned by IE by default for the backward compatibility
+        # adds "Result" node so this output is returned by OV by default for the backward compatibility
         do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do])
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
@@ -1495,12 +1495,12 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     def ie_to_tf_proposals(graph: Graph, proposal: Node, match: SubgraphMatch, pipeline_config: PipelineConfig,
                            max_proposals: int):
         """
-        Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
-        cropping the IE output of format [batch, x1, y1, x2, y2] to simply [x1, y1, x2, y2] and reshaping tensor to an
+        Builds a graph which converts the proposals data in OV format to the format of TensorFlow. This includes
+        cropping the OV output of format [batch, x1, y1, x2, y2] to simply [x1, y1, x2, y2] and reshaping tensor to an
         appropriate shape. Swapping of the Proposal output is performed when necessary.
 
         :param graph: the graph to operate on
-        :param proposal: the node producing IE proposals
+        :param proposal: the node producing OV proposals
         :param match: the object containing information about matched sub-graph
         :param pipeline_config: object containing information from the pipeline.config file of the model
         :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
@@ -1583,7 +1583,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
-        # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
+        # the DetectionOutput in OV produces single tensor, but in TF it produces two tensors, so create only one output
         # edge match
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
 
@@ -1611,7 +1611,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         activation_function = _value_or_raise(match, pipeline_config, 'postprocessing_score_converter')
         activation_conf_node = add_activation_function_after_node(graph, reshape_conf_before_ac, activation_function)
 
-        # IE DetectionOutput operation expects flattened tensor with bounding boxes shape offsets, so reshaping it
+        # OV DetectionOutput operation expects flattened tensor with bounding boxes shape offsets, so reshaping it
         reshape_offsets = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                            {'name': 'do_reshape_offsets'})
 
@@ -1622,7 +1622,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         reshape_offsets.in_port(0).connect(current_node.out_port(0))
         mark_as_correct_data_layout(reshape_offsets)
 
-        # IE DetectionOutput operation expects flattened tensor with class confidences, so reshaping it
+        # OV DetectionOutput operation expects flattened tensor with class confidences, so reshaping it
         reshape_conf_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                              {'name': 'do_reshape_conf'}, activation_conf_node)
         mark_as_correct_data_layout(reshape_conf_node)
@@ -1692,7 +1692,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
                  nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
 
-        # the TensorFlow model keeps the bounding boxes shape offsets as YXYX, while IE DetectionOutput expects them to
+        # the TensorFlow model keeps the bounding boxes shape offsets as YXYX, while OV DetectionOutput expects them to
         # be specified as XYXY. The solution is to update last convolutions weights and biases to produce XY->YX swapped
         # bounding boxes offsets
         conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'], ['ShapeOf'])

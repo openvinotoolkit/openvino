@@ -69,7 +69,7 @@ def find_ie_version(silent=False):
     """
     Tries to import OpenVINO Python API bindings. In case of successful import
     PATH/LD_LIBRARY_PATH and PYTHONPATH environment variables will be set
-    This variables must be passed to subprocess in order to execute IE python bindings.
+    This variables must be passed to subprocess in order to execute OV python bindings.
     Example:
         if find_ie_version():
             subprocess.run([sys.executable, path_to_script], env=os.environ)

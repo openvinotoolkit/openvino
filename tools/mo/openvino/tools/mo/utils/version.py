@@ -81,7 +81,7 @@ def get_simplified_ie_version(env=dict(), version=None):
         except:
             return "ie not found"
 
-    # To support legacy IE versions
+    # To support legacy OV versions
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
