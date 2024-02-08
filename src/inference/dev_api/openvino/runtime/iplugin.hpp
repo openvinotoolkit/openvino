@@ -207,12 +207,6 @@ public:
     std::shared_ptr<ov::ICore> get_core() const;
 
     /**
-     * @brief Provides an information about used API
-     * @return true if new API is used
-     */
-    bool is_new_api() const;
-
-    /**
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
@@ -228,7 +222,6 @@ private:
     std::weak_ptr<ov::ICore> m_core;                                     //!< A pointer to ICore interface
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                               //!< Member contains plugin version
-    bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
 /**

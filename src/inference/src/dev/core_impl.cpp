@@ -308,7 +308,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     return {updated_device_name, updated_config};
 }
 
-ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
+ov::CoreImpl::CoreImpl() {
     add_mutex("");  // Register global mutex
     m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
@@ -450,6 +450,14 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
 void ov::CoreImpl::register_compile_time_plugins() {
     std::lock_guard<std::mutex> lock(get_mutex());
+
+    auto any_copy = [](const std::map<std::string, std::string>& params) -> ov::AnyMap {
+        ov::AnyMap result;
+        for (auto&& value : params) {
+            result.emplace(value.first, value.second);
+        }
+        return result;
+    };
 
     const decltype(::get_compiled_plugins_registry())& plugins = get_compiled_plugins_registry();
     for (const auto& plugin : plugins) {
@@ -835,9 +843,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
-
-    return compiled_model;
+    return get_plugin(parsed._deviceName).import_model(model, parsed._config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
@@ -845,9 +851,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
-
-    return compiled_model;
+    return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -886,8 +890,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         if (is_hidden_device(deviceName))
             continue;
         try {
-            const ov::Any p = get_property(deviceName, propertyName, {});
-            devicesIDs = p.as<std::vector<std::string>>();
+            devicesIDs = get_property(deviceName, ov::available_devices.name(), {}).as<std::vector<std::string>>();
         } catch (const ov::Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
@@ -991,10 +994,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     }
 
     return supported_config;
-}
-
-bool ov::CoreImpl::is_new_api() const {
-    return m_new_api;
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {
@@ -1589,4 +1588,57 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
     return ov::util::read_model(model, weights, extensions, frontendMode);
+}
+
+std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& deviceName) const {
+    std::map<std::string, ov::Version> versions;
+    std::vector<std::string> deviceNames;
+
+    {
+        // for compatibility with samples / demo
+        if (deviceName.find("HETERO") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_hetero_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.push_back("HETERO");
+        } else if (deviceName.find("MULTI") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.push_back("MULTI");
+        } else if (deviceName.find("AUTO") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.emplace_back("AUTO");
+        } else if (deviceName.find("BATCH") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = {ov::DeviceIDParser::get_batch_device(deviceName.substr(pos + 1))};
+            }
+            deviceNames.push_back("BATCH");
+        } else {
+            deviceNames.push_back(deviceName);
+        }
+    }
+
+    for (auto&& deviceName_ : deviceNames) {
+        ov::DeviceIDParser parser(deviceName_);
+        std::string deviceNameLocal = parser.get_device_name();
+
+        try {
+            ov::Plugin plugin = get_plugin(deviceNameLocal);
+            versions[deviceNameLocal] = plugin.get_version();
+        } catch (const ov::Exception& ex) {
+            std::string exception(ex.what());
+            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                throw;
+            }
+        }
+    }
+
+    return versions;
 }
