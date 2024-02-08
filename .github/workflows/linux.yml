@@ -260,29 +260,29 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino js package
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v3
-        with:
-          name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
-          if-no-files-found: 'error'
+#      - name: Upload openvino js package
+#        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: openvino_js_package
+#          path: ${{ env.INSTALL_DIR_JS }}
+#          if-no-files-found: 'error'
 
-      - name: Upload openvino developer package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-          if-no-files-found: 'error'
-
-      - name: Upload openvino debian packages
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: openvino_debian_packages
-          path: ${{ env.BUILD_DIR }}/*.deb
-          if-no-files-found: 'error'
+#      - name: Upload openvino developer package
+#        if: ${{ always() }}
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: openvino_developer_package
+#          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+#          if-no-files-found: 'error'
+#
+#      - name: Upload openvino debian packages
+#        if: ${{ always() }}
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: openvino_debian_packages
+#          path: ${{ env.BUILD_DIR }}/*.deb
+#          if-no-files-found: 'error'
 
       - name: Upload openvino tests package
         if: ${{ always() }}

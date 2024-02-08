@@ -31,6 +31,9 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      LSAN_OPTIONS: ${{ github.workspace }}/openvino/tests/lsan/suppressions.txt # Sanitizer skip list
+      NEOReadDebugKeys: 1
+      DisableDeepBind: 1
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
@@ -52,6 +55,7 @@ jobs:
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "LSAN_OPTIONS=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -65,6 +69,14 @@ jobs:
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
         run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+
+      - name: Fetch Sanitizer Suppression List
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tests/lsan/suppressions.txt
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
       #
       # Tests
