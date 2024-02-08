@@ -1,6 +1,6 @@
 {
-  "name": "openvinojs-node",
-  "version": "2024.0.0-dev20240123",
+  "name": "openvino-node",
+  "version": "2024.0.0-dev20240205",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "https://github.com/openvinotoolkit/openvino.git",
@@ -20,7 +20,9 @@
     "lint": "eslint .",
     "test": "node --test ./tests/",
     "tsc": "tsc",
-    "install": "node-pre-gyp install"
+    "postinstall": "npm run install_runtime && npm run build",
+    "download_runtime": "node ./scripts/download_runtime.js",
+    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
@@ -34,13 +36,14 @@
     "node": ">=18.16.0"
   },
   "dependencies": {
-    "@mapbox/node-pre-gyp": "^1.0.11"
+    "gunzip-maybe": "^1.4.2",
+    "https-proxy-agent": "^7.0.2",
+    "tar-fs": "^3.0.4"
   },
   "binary": {
-    "module_name": "ov_nodejs_bindings",
     "module_path": "./bin/",
-    "remote_path": "./repositories/openvino/build_artifacts/{version}/{platform}/",
-    "package_name": "{module_name}_{platform}_{version}_{arch}.tgz",
+    "remote_path": "./repositories/openvino/packages/2023.3/linux/",
+    "package_name": "l_openvino_toolkit_ubuntu18_2023.3.0.13775.ceeafaf64f3_arm64.tgz",
     "host": "https://storage.openvinotoolkit.org"
   }
 }
