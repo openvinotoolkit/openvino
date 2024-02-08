@@ -712,9 +712,14 @@ bool primitive_inst::use_async_compilation() {
         }
     }
 
-    return (_node->is_type<convolution>() || compile_fc_impls ||
-            (_node->is_type<gemm>() && _node->get_selected_impl() &&
-             _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos) ||
+    bool compile_gemm_impls = _node->is_type<gemm>();
+    if (compile_gemm_impls) {
+        // Do not async-compile if opt_gemm is chosen for iGPU
+        compile_gemm_impls = _node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
+        compile_gemm_impls |= _network.get_engine().get_device_info().supports_immad;
+    }
+
+    return (_node->is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
