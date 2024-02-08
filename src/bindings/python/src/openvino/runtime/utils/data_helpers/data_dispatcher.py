@@ -159,7 +159,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> dict:
-    return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+    return {k: to_c_style(v, is_shared) if is_shared else v for k, v in inputs.items()}
 
 
 @normalize_arrays.register(OVDict)
@@ -167,7 +167,7 @@ def _(
     inputs: OVDict,
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
 
 
 @normalize_arrays.register(list)
@@ -176,7 +176,7 @@ def _(
     inputs: Union[list, tuple],
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, v in enumerate(inputs)}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, v in enumerate(inputs)}
 
 
 @normalize_arrays.register(np.ndarray)
@@ -184,7 +184,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> Any:
-    return to_c_style(inputs) if is_shared else inputs
+    return to_c_style(inputs, is_shared) if is_shared else inputs
 ###
 # End of array normalization.
 ###
