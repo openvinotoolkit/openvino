@@ -18,7 +18,7 @@ namespace low_precision {
  *
  * For more details about the transformation, refer to
  * [ReluTransformation](@ref openvino_docs_OV_UG_lpt_ReluTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:

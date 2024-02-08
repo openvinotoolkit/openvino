@@ -27,7 +27,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
  *
  * For more details about the transformation, refer to
  * [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::AlignQuantizationParameters : public ov::pass::ModelPass {
 public:

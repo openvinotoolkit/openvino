@@ -26,7 +26,7 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
  *
  * For more details about the transformation, refer to
  * [PullTransposeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::PullTransposeThroughDequantization : public ov::pass::MatcherPass {
 public:

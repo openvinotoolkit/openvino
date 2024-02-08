@@ -26,7 +26,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
  *
  * For more details about the transformation, refer to
  * [AlignQuantizationIntervals](@ref openvino_docs_OV_UG_lpt_AlignQuantizationIntervals) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::AlignQuantizationIntervals : public ov::pass::ModelPass {
 public:

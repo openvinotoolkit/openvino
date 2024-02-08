@@ -17,7 +17,7 @@ namespace low_precision {
  *
  * For more details about the transformation, refer to
  * [AvgPoolTransformation](@ref openvino_docs_OV_UG_lpt_AvgPoolTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
 public:

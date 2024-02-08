@@ -31,7 +31,7 @@ class UpdateSharedPrecisionPreserved;
  *
  * For more details about the transformation, refer to
  * [UpdateSharedPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ov::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {

@@ -32,7 +32,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  *
  * For more details about the transformation, refer to
  * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::MarkupPrecisions : public ov::pass::ModelPass {
 public:

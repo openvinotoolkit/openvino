@@ -16,7 +16,7 @@ namespace low_precision {
  *
  * For more details about the transformation, refer to
  * [ConvolutionBackpropDataTransformation](@ref openvino_docs_OV_UG_lpt_ConvolutionBackpropDataTransformation) page in
- * the Inference Engine Developer Guide.
+ * the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ConvolutionBackpropDataTransformation : public WeightableLayerTransformation {
 public:

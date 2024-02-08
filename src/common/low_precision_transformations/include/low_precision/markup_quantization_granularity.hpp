@@ -30,7 +30,7 @@ class LP_TRANSFORMATIONS_API MarkupQuantizationGranularity;
  *
  * For more details about the transformation, refer to
  * [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::MarkupQuantizationGranularity : public ov::pass::ModelPass {
 public:

@@ -32,7 +32,7 @@ class PropagateToInput;
  *
  * For more details about the transformation, refer to
  * [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {

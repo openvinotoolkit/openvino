@@ -22,7 +22,7 @@ from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 class BatchToSpaceNormalizer(FrontReplacementPattern):
     """
     This transformation converts BatchToSpace, SpaceToBatch operations (TensorFlow semantic)
-    to BatchToSpace, SpaceToBatch operations (Inference Engine semantic).
+    to BatchToSpace, SpaceToBatch operations (OpenVINO semantic).
     Refer to the Op implementation for the operations semantics description.
     """
     enabled = True

@@ -457,7 +457,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             height = width = resizer_max_dimension
         else:
             log.error('Model Optimizer removes pre-processing block of the model which resizes image keeping aspect '
-                      'ratio. Inference Engine does not support dynamic image size so the Intermediate Representation '
+                      'ratio. OpenVINO does not support dynamic image size so the Intermediate Representation '
                       'file is generated with the input image size of a fixed size.', extra={'is_warning': True})
             if user_defined_height and user_defined_width:
                 scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
@@ -916,17 +916,17 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         if mean_scale_kept:
             log.error('The pre-processing block has been removed. Only nodes performing mean value subtraction and '
                       'scaling (if applicable) are kept. It is necessary to resize an input image using the same '
-                      'algorithm as in the original model before feeding it to the Inference Engine.',
+                      'algorithm as in the original model before feeding it to the OpenVINO.',
                       extra={'is_warning': True})
         else:
             log.error('The Preprocessor block has been removed including mean value subtraction and scaling (if '
                       'applicable). It is necessary to resize, scale and pad an input image using the same algorithm '
-                      'as in the original model before feeding it to the Inference Engine.', extra={'is_warning': True})
+                      'as in the original model before feeding it to the OpenVINO.', extra={'is_warning': True})
 
 
 class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    Replaces the sub-graph that is equal to the DetectionOutput layer from Inference Engine (similarly to the
+    Replaces the sub-graph that is equal to the DetectionOutput layer from OpenVINO (similarly to the
     ObjectDetectionAPISSDPostprocessorReplacement). This transformation is used for Faster R-CNN, R-FCN and Mask R-CNN
     topologies conversion.
     Refer to the code for more details.
@@ -1006,7 +1006,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             offsets = reshape_offsets
         else:
             # TF produces shape offsets tensor without boxes corresponding to "background" class
-            # Inference Engine DetectionOutput layer requires "background" class data be included so we generate them
+            # OpenVINO DetectionOutput layer requires "background" class data be included so we generate them
             offsets = add_fake_background_loc(graph, reshape_offsets)
             PermuteAttrs.set_permutation(reshape_offsets, offsets, None)
 
@@ -1105,7 +1105,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
 class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    There are two TensorFlow CropAndResize (corresponding to Inference Engine ROIPooling with bilinear interpolation
+    There are two TensorFlow CropAndResize (corresponding to OpenVINO ROIPooling with bilinear interpolation
     mode) operations in the Mask-RCNN model. The second CropAndResize gets bounding boxes coordinates as input from the
     part of the model which is replaced with the DetectionOutput operation using the transformation
     ObjectDetectionAPIDetectionOutputReplacement. DetectionOutput operation produces tensor with 7-element tuples
@@ -1224,7 +1224,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     """
     The outputs of the Region Proposal Network which produces shape offsets and probabilities whether anchors contain
     object or not is fed to the part of the model which decodes bounding boxes and performs non-maximum suppression.
-    There are two operations in the Inference Engine which can perform such calculations: Proposal and DetectionOutput.
+    There are two operations in the OpenVINO which can perform such calculations: Proposal and DetectionOutput.
     Historically, the Proposal operation was inserted by this transformation, but now a DetectionOutput can be inserted
     instead if the "operation_to_add" parameter in the JSON configuration file is set to "DetectionOutput". There was a
     model for which inserting DetectionOutput instead of Proposal operation results in generation more accurate results.
@@ -1278,7 +1278,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         # size of 'C' dimension of the tensor with class predictions is equal to base_anchors_count * 2, where 2
         # corresponds to a number of classes (background and foreground) and base_anchors_count is equal to number of
         # anchors applied to each position of 'H' and 'W' dimensions. Therefore, there are H * W * base_anchors_count
-        # bounding boxes. Inference Engine Proposal operation interprets the input tensor as a tensor
+        # bounding boxes. OpenVINO Proposal operation interprets the input tensor as a tensor
         # [batch, 2 * base_anchors_count, H, W] but in TensorFlow model it is calculated as
         # [batch, base_anchors_count, H, W] (after NHWC->NCHW layout conversion), so it is necessary to decompose the
         # 'C' dimension into base_anchors_count and 2 and swap these two dimensions
@@ -1561,8 +1561,8 @@ is implemented as a sub-graph of primitive operations instead. There are two tra
 implementing DetectionOutput operation in this file: ObjectDetectionAPISSDPostprocessorReplacement and 
 ObjectDetectionAPIDetectionOutputReplacement. The first one is used for SSD models, the second one for Faster-RCNN,
 Mask-RCNN and RFCN models. These transformations also prepare input data for the DetectionOutput operation because the
-layout and shape of the data is different between the TensorFlow and the Inference Engine. The most notable difference
-is that bounding boxes and deltas are calculated with YXYX order in the TensorFlow model whilst Inference Engine
+layout and shape of the data is different between the TensorFlow and the OpenVINO. The most notable difference
+is that bounding boxes and deltas are calculated with YXYX order in the TensorFlow model whilst OpenVINO
 operation DetectionOutput, ROIPooling and Proposal expects them and produce the output with XYXY order. Refer to the
 transformation code and operations specifications for more details.
 """

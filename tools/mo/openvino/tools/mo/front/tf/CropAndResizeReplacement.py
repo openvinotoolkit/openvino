@@ -17,7 +17,7 @@ from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 class CropAndResizeReplacement(FrontReplacementOp):
     """
     The CropAndResize operation from TF gets separate input with boxes coordinates and image batch indices. But
-    ROIPooling operation in the Inference Engine receives them as a single concatenated input. This replacer
+    ROIPooling operation in the OpenVINO receives them as a single concatenated input. This replacer
     concatenates two inputs into a new one.
     """
     op = "CropAndResize"

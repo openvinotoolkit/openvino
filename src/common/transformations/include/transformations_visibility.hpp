@@ -8,12 +8,12 @@
 
 /**
  * @file transformations_visibility.hpp
- * @brief Defines visibility settings for Inference Engine Transformations library
+ * @brief Defines visibility settings for OpenVINO Transformations library
  */
 
 /**
- * @defgroup ie_transformation_api Inference Engine Transformation API
- * @brief Defines Inference Engine Transformations API which is used to transform ov::Model
+ * @defgroup ie_transformation_api OpenVINO Transformation API
+ * @brief Defines OpenVINO Transformations API which is used to transform ov::Model
  *
  * @{
  * @defgroup ie_runtime_attr_api Runtime information

@@ -27,7 +27,7 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
  *
  * For more details about the transformation, refer to
  * [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::PropagatePrecisions : public ov::pass::ModelPass {
 public:

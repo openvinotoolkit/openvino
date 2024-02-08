@@ -26,7 +26,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  *
  * For more details about the transformation, refer to
  * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::MarkupCanBeQuantized : public ov::pass::ModelPass {
 public:

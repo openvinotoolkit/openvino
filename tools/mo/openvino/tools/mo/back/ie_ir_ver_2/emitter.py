@@ -620,7 +620,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
         log.debug('Partially correct IR XML:\n{}'.format(pretty_xml_as_string))
-        unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
+        unsupported.report(log.error, "List of operations that cannot be converted to OpenVINO IR:")
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
     with open(file_name, 'wb') as file:

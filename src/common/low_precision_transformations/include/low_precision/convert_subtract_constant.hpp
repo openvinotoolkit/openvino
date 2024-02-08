@@ -27,7 +27,7 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  *
  * For more details about the transformation, refer to
  * [ConvertSubtractConstant](@ref openvino_docs_OV_UG_lpt_ConvertSubtractConstant) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
 public:

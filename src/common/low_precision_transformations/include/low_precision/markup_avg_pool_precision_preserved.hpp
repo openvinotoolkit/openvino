@@ -25,7 +25,7 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
  *
  * For more details about the transformation, refer to
  * [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ov::pass::ModelPass {
 public:

@@ -10,7 +10,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
     """
-    Resolves all differences in TensorFlow LSTMCell and Inference Engine LSTMCell:
+    Resolves all differences in TensorFlow LSTMCell and OpenVINO LSTMCell:
     - weights transposing
     - shift_const value addition to biases
     - extra inputs deletion

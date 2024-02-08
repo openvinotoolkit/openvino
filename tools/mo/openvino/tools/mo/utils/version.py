@@ -134,8 +134,8 @@ class VersionChecker(metaclass=SingletonMetaClass):
     def check_runtime_dependencies(self, silent=True):
         if not self.runtime_checked:
             def raise_ie_not_found():
-                raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                            "Consider building the Inference Engine and nGraph Python APIs from sources or "
+                raise Error("Could not find the OpenVINO or Python API.\n"
+                            "Consider building the OpenVINO and Python APIs from sources or "
                             "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
             try:
