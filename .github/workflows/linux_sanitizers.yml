@@ -265,7 +265,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      affected-components: ${{ {} }}
+      affected-components: '{"stage": "stage"}'
 
 #  JS_API:
 #    name: OpenVINO JS API
@@ -393,7 +393,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      affected-components: ${{ {} }}
+      affected-components: '{"stage": "stage"}'
       sanitizer-check: true
 
   Python_Unit_Tests:
@@ -403,7 +403,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
-      affected-components: ${{ {} }}
+      affected-components: '{"stage": "stage"}'
 
   CPU_Functional_Tests:
     name: CPU functional tests
