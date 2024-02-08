@@ -67,6 +67,9 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 }
 #endif // INPUT2_TYPE
 
+#define INPUT0_SIZE_F INPUT0_FEATURE_NUM
+#define INPUT0_SIZE_B INPUT0_BATCH_NUM
+
 KERNEL(gemm_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input0,
@@ -84,13 +87,13 @@ KERNEL(gemm_ref)(
     const uint y = (uint)get_global_id(1);
 
     uint bidx = get_global_id(2);
-    const uint b = bidx % OUTPUT_BATCH_NUM;
-    bidx /= OUTPUT_BATCH_NUM;
-    const uint f = bidx % OUTPUT_FEATURE_NUM;
-    bidx /= OUTPUT_FEATURE_NUM;
-    const uint z = bidx % OUTPUT_SIZE_Z;
-    bidx /= OUTPUT_SIZE_Z;
-    const uint w = bidx % OUTPUT_SIZE_W;
+    const uint b = bidx % TR_OUTPUT_BATCH_NUM;
+    bidx /= TR_OUTPUT_BATCH_NUM;
+    const uint f = bidx % TR_OUTPUT_FEATURE_NUM;
+    bidx /= TR_OUTPUT_FEATURE_NUM;
+    const uint z = bidx % TR_OUTPUT_SIZE_Z;
+    bidx /= TR_OUTPUT_SIZE_Z;
+    const uint w = bidx % TR_OUTPUT_SIZE_W;
 
     const uint K = CAT(INPUT0_SIZE_, MATMUL_AXIS);
 
@@ -129,3 +132,6 @@ KERNEL(gemm_ref)(
     output[dst_index] = dequantized;
 #endif
 }
+
+#undef INPUT0_SIZE_F
+#undef INPUT0_SIZE_B
