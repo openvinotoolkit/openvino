@@ -51,17 +51,6 @@ class Environment:
     """
     env = {}
 
-    @classmethod
-    def abs_path(cls, env_key, *paths):
-        """Construct absolute path by appending paths to environment value.
-
-        :param cls: class
-        :param env_key: Environment.env key used to get the base path
-        :param paths:   paths to be appended to Environment.env value
-        :return:    absolute path string where Environment.env[env_key] is
-                    appended with paths
-        """
-        return str(Path(cls.env[env_key], *paths))
 
 
 def get_tests(cmd_params, use_device=True, use_batch=False):
@@ -261,11 +250,11 @@ class SamplesCommonTestClass():
         line = ''
         for key in sorted(param.keys()):
             if use_preffix and any([x for x in long_hyphen if key == x]):
-                line += '--{} "{}" '.format(key, param[key])
+                line += '--{} {} '.format(key, param[key])
             elif use_preffix and key not in long_hyphen:
-                line += '-{} "{}" '.format(key, param[key])
+                line += '-{} {} '.format(key, param[key])
             elif not use_preffix:
-                line += '"{}" '.format(param[key])
+                line += '{} '.format(param[key])
         return line
 
     @staticmethod
