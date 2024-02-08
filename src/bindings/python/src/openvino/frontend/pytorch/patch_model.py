@@ -21,7 +21,7 @@ def unpatch_model(model, orig_forward_name):
     for _, m in model.named_modules():
         if hasattr(m, orig_forward_name):
             try:
-                m.forward = m._openvino_patch_orig_forward_v2
+                m.forward = getattr(m, orig_forward_name)
                 delattr(m, orig_forward_name)
             except Exception as error:
                 print('[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model.')

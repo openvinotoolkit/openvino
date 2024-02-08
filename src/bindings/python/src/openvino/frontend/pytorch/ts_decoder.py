@@ -124,7 +124,7 @@ class TorchScriptPythonDecoder (Decoder):
                         return extension.wrapper(module, Trampoline.apply, *args, **kwargs)
                     else:
                         return Trampoline.apply(*args, **kwargs)
-                module._openvino_patch_orig_forward_v2 = module.forward
+                setattr(module, orig_forward_name, module.forward)
                 module.forward = new_forward
 
         patch_model.patch_model(model, module_patcher, '_openvino_module_extension_patch_orig_forward')
