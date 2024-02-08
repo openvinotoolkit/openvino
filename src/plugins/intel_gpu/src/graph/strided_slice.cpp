@@ -36,14 +36,14 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
 
-    auto& constant_mem = impl_param.memory_deps;
+    auto& memory_deps = impl_param.memory_deps;
     auto begin_data = desc->begin;
     auto end_data = desc->end;
     auto strides_data = desc->strides;
 
-    if ((begin_data.empty() && !constant_mem.count(1))
-        || (end_data.empty() && !constant_mem.count(2))
-        || (strides_data.empty() && !constant_mem.count(3))) {
+    if ((begin_data.empty() && !memory_deps.count(1))
+        || (end_data.empty() && !memory_deps.count(2))
+        || (strides_data.empty() && !memory_deps.count(3))) {
         auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
             size_t count = 0;
             for (size_t i = 0; i < mask.size(); i++)
@@ -119,37 +119,15 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     op.set_shrink_axis_mask(desc->shrink_axis_mask);
     op.set_ellipsis_mask_mask(desc->ellipsis_mask);
 
-    std::unordered_map<size_t, ov::Tensor> const_data;
-    const auto ta = ov::make_tensor_accessor(const_data);
-    if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
-        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
-        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
-        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
+    // TODO: If begin, end, and strides are constant, there are cases where element types are different each other in many models
+    // Need to take this into consideration for fully mixed const and non const inputs support
+    TensorsContainer const_data(&impl_param.get_stream());
+    const_data.emplace(1, memory_deps.at(1));
+    const_data.emplace(2, memory_deps.at(2));
+    const_data.emplace(3, memory_deps.at(3));
 
-        const_data.emplace(1, begin_tensor);
-        const_data.emplace(2, end_tensor);
-        const_data.emplace(3, strides_tensor);
-
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
-    } else {
-        auto begin_mem = constant_mem.at(1);
-        auto end_mem = constant_mem.at(2);
-        auto strides_mem = constant_mem.at(3);
-
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.get_stream());
-
-        auto begin_tensor = make_tensor(begin_mem->get_layout(), lock1.data());
-        auto end_tensor = make_tensor(end_mem->get_layout(), lock2.data());
-        auto strides_tensor = make_tensor(strides_mem->get_layout(), lock3.data());
-
-        const_data.emplace(1, begin_tensor);
-        const_data.emplace(2, end_tensor);
-        const_data.emplace(3, strides_tensor);
-
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
-    }
+    auto ta = cldnn::make_tensor_accessor(const_data);
+    output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
 
     auto output_format = format::get_default_format(output_shapes[0].size());
 
