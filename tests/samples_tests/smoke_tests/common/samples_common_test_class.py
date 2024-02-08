@@ -261,11 +261,11 @@ class SamplesCommonTestClass():
         line = ''
         for key in sorted(param.keys()):
             if use_preffix and any([x for x in long_hyphen if key == x]):
-                line += '--{} {} '.format(key, param[key])
+                line += '--{} "{}" '.format(key, param[key])
             elif use_preffix and key not in long_hyphen:
-                line += '-{} {} '.format(key, param[key])
+                line += '-{} "{}" '.format(key, param[key])
             elif not use_preffix:
-                line += '{} '.format(param[key])
+                line += '"{}" '.format(param[key])
         return line
 
     @staticmethod

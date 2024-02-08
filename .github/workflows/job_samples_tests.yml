@@ -104,6 +104,8 @@ jobs:
         run: $INSTALL_DIR/samples/c/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/c_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      - name: Install Python benchmark_app
+        run: python3 -m pip install $INSTALL_DIR/tools/openvino-*.whl
 
       #
       # Tests
