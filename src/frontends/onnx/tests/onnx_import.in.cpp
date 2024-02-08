@@ -965,10 +965,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_11) {
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
-        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+        ov::test::NDArray<float, 4>({{{{3, 3, 3, 3}, {3, 3, 3, 3}, {3, 3, 3, 3}, {3, 3, 3, 3}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = ov::test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{12}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -981,10 +981,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_13) {
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
-        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+        ov::test::NDArray<float, 4>({{{{4, 4, 4, 4}, {4, 4, 4, 4}, {4, 4, 4, 4}, {4, 4, 4, 4}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = ov::test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -997,10 +997,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_18) {
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
-        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+        ov::test::NDArray<float, 4>({{{{5, 5, 5, 5}, {5, 5, 5, 5}, {5, 5, 5, 5}, {5, 5, 5, 5}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = ov::test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>({{{{20}}}}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
