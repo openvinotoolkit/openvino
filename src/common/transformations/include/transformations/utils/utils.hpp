@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
@@ -52,7 +52,7 @@ bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
 
 inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<opset8::Convert>(op)) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
             if (ov::is_decompression(op))
                 return true;
         }
@@ -110,7 +110,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -144,7 +144,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -161,18 +161,18 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
     return const_values == values;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node,
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<ov::op::v0::Constant>& const_node,
                                           float& value,
                                           bool check_value_range = true);
 
-TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<opset4::Constant>& constant,
+TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<ov::op::v0::Constant>& constant,
                                                              const PartialShape& shape);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> reshapeTo(const Output<Node>& input, const Shape& shape);
 
-TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<opset4::Constant>& const_node,
+TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Constant>& const_node,
                                            float value,
                                            float eps = 1e-5);
 
