@@ -265,7 +265,7 @@ public:
 {                                                      \
     try {                                              \
         __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
+    } catch (const ov::NotImplemented&) { \
         GTEST_SKIP();                                  \
     }                                                  \
 }
