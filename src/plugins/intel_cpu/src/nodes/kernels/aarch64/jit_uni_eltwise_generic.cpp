@@ -307,7 +307,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const int32_t ptr_offset) {
     switch (src_prc) {
         case ov::element::f16: {
-            utils::load_vector(data.h, data.h4, ptr_reg, ptr_offset, broadcast, this);
+            utils::load_vector(data.h, data.h8, ptr_reg, ptr_offset, broadcast, this);
             break;
         }
         case ov::element::f32:
@@ -438,6 +438,11 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                                 const ov::element::Type& src_prc,
                                                 const ov::element::Type& dst_prc,
                                                 const int32_t ptr_offset) {
+    if (src_prc == dst_prc) {
+        str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+        return;
+    }
+
     if (src_prc != dst_prc) {
         switch (src_prc) {
             case ov::element::f32: {
@@ -460,6 +465,18 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                         fcvtnu(data.s, data.s);
                         xtn(data.h4, data.s4);
                         xtn(data.b8, data.h8);
+                        break;
+                    }
+                    default: {
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                    }
+                }
+                break;
+            }
+            case ov::element::f16: {
+                switch (dst_prc) {
+                    case ov::element::f32: {
+                        fcvtl(data.s4, data.h4);
                         break;
                     }
                     default: {
@@ -525,6 +542,18 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         fcvtnu(vec_data.s, vec_data.s);
                         xtn(vec_data.h4, vec_data.s4);
                         xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    default: {
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                    }
+                }
+                break;
+            }
+            case ov::element::f16: {
+                switch (dst_prc) {
+                    case ov::element::f32: {
+                        fcvt(data, Xbyak_aarch64::HReg(data.getIdx()));
                         break;
                     }
                     default: {

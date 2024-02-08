@@ -135,6 +135,10 @@ void EltwiseLayerTest::SetUp() {
     parameters[0]->set_friendly_name("param0");
     secondary_input->set_friendly_name("param1");
 
+    if (model_type == element::f16) {
+        configuration.emplace("INFERENCE_PRECISION_HINT", "f16");
+    }
+
     auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondary_input, eltwise_type);
     function = std::make_shared<ov::Model>(eltwise, parameters, "Eltwise");
 }

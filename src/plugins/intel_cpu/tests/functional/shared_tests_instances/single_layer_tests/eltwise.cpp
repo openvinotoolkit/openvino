@@ -15,6 +15,7 @@ using ov::test::utils::EltwiseTypes;
 std::vector<std::vector<ov::Shape>> in_shapes_static = {
         {{2}},
         {{2, 200}},
+        {{10, 2}},
         {{10, 200}},
         {{1, 10, 100}},
         {{4, 4, 16}},
