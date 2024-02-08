@@ -92,7 +92,13 @@ bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const
         return false;
 
     const rms_params& params = static_cast<const rms_params&>(p);
+    const auto& input = params.inputs[0];
     const auto& gamma = params.inputs[1];
+
+    // Current bfyx_opt kernel considers only rank=3 input.
+    // To Do: Support other rank
+    if (input.GetDims().size() != 3)
+        return false;
 
     if (!gamma.is_dynamic()) {
         size_t data_size = gamma.LogicalSize();
