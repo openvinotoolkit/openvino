@@ -154,7 +154,6 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
-
     OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
 
     pugi::xml_node compiledBlobNode = document.document_element();
