@@ -31,7 +31,7 @@ b. Optional:
    ```
 5. Run only one sample (for example, classification_sample_async):
    ``` bash
-    python -m pytest test_classification_sample_async.py  --env_conf env_config.yml -s
+    python -m pytest test_classification_sample_async.py --env_conf env_config.yml -s
    ```
 6. To run performance add pytest key: "performance n", where n is number of perf iteration.
    Test finds in output of sample 'fps', if it exists,

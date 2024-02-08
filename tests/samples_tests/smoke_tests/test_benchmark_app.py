@@ -36,14 +36,14 @@ test_data_fp32_sync = get_tests \
 
 
 
-class TestBenchmarkApp(SamplesCommonTestClass):
+class Test_benchmark_app(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
         cls.sample_name = 'benchmark_app'
         super().setup_class()
 
     @pytest.mark.parametrize("param", test_data_fp32_async + test_data_fp32_sync)
-    def test_benchmark_app(self, param):
+    def test(self, param):
         stdout = self._test(param)
         assert "FPS" in stdout
         assert "Latency" in stdout
