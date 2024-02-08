@@ -22,7 +22,6 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 // helper
 namespace {
 template <typename Container>

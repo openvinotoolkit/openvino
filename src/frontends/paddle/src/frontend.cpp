@@ -136,7 +136,6 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
@@ -161,7 +160,6 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
 #endif
     return nullptr;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
