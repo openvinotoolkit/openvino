@@ -125,7 +125,7 @@ protected:
             inputs.push_back(param);
         }
 
-        std::shared_ptr<ov::Node> rdft;
+        std::shared_ptr<ov::Node> dft;
         if (signalSizes.size() > 0) {
             std::shared_ptr<ov::Node> signalSizesNode;
             if (constSignalSizes) {
@@ -136,19 +136,36 @@ protected:
                 signalSizesNode = param;
                 inputs.push_back(param);
             }
-            if (inverse) {
-                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode, signalSizesNode);
+            if (real) {
+                if (inverse) {
+                    dft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode, signalSizesNode);
+                } else {
+                    dft = std::make_shared<ov::op::v9::RDFT>(param, axesNode, signalSizesNode);
+                }
             } else {
-                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode, signalSizesNode);
+                if (inverse) {
+                    dft = std::make_shared<ov::op::v7::IDFT>(param, axesNode, signalSizesNode);
+                } else {
+                    dft = std::make_shared<ov::op::v7::DFT>(param, axesNode, signalSizesNode);
+                }
             }
+
         } else {
-            if (inverse) {
-                rdft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode);
+            if (real) {
+                if (inverse) {
+                    dft = std::make_shared<ov::op::v9::IRDFT>(param, axesNode);
+                } else {
+                    dft = std::make_shared<ov::op::v9::RDFT>(param, axesNode);
+                }
             } else {
-                rdft = std::make_shared<ov::op::v9::RDFT>(param, axesNode);
+                if (inverse) {
+                    dft = std::make_shared<ov::op::v7::IDFT>(param, axesNode);
+                } else {
+                    dft = std::make_shared<ov::op::v7::DFT>(param, axesNode);
+                }
             }
         }
-        function = std::make_shared<ov::Model>(rdft, inputs);
+        function = std::make_shared<ov::Model>(dft, inputs);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -197,6 +214,9 @@ std::vector<DFTLayerGPUTestParams> getParams4D_DFT() {
     params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
             InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             false, false, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
+            false, false, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
 
@@ -207,6 +227,9 @@ std::vector<DFTLayerGPUTestParams> getParams4D_IDFT() {
             true, false, true, true, ov::test::utils::DEVICE_GPU});
     params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
             InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
+            true, false, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
             true, false, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
@@ -220,6 +243,9 @@ std::vector<DFTLayerGPUTestParams> getParams4D_RDFT() {
     params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}},
             InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
             false, true, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
+            false, true, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
 
@@ -231,6 +257,9 @@ std::vector<DFTLayerGPUTestParams> getParams4D_IRDFT() {
             true, true, true, true, ov::test::utils::DEVICE_GPU});
     params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
             InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
+            true, true, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
+            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
             true, true, false, false, ov::test::utils::DEVICE_GPU});
     return params;
 }
