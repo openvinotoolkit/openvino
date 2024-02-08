@@ -440,8 +440,17 @@ std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> no
     ss << "{" << node->get_element_type().to_string() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
 
-    if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node))
-        ss << "\nvalue: " << get_value(constant, max_elements);
+    if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+        std::string value;
+        try {
+            value = get_value(constant, max_elements);
+        } catch (ov::AssertFailure& ex) {
+            value = std::string("ov::AssertFailure: ") + ex.what();
+        } catch (std::exception& ex) {
+            value = ex.what();
+        }
+        ss << "\nvalue: " << value;
+    }
     return ss.str();
 }
 
