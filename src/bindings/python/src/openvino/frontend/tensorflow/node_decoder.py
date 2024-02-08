@@ -29,7 +29,10 @@ def tf_attr_to_numpy(attr):
     if attr_type == "func":
         return attr.func.name
     if attr_type == "s":
-        return attr.s.decode("utf-8")
+        try:
+            return attr.s.decode("utf-8")
+        except UnicodeDecodeError:
+            return attr.s
     if attr_type == "f":
         return np.float32(attr.f)
     if attr_type == "type":
