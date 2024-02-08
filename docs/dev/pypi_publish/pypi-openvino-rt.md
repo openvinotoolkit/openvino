@@ -94,6 +94,10 @@ Users in China might encounter errors while downloading sources via PIP during O
    ```
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
 
+### ERROR:root:Could not find OpenVINO Python API.
+
+On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+
 ### ImportError: libpython3.8.so.1.0: cannot open shared object file: No such file or directory
 
 To resolve missing external dependency on Ubuntu*, execute the following command:
