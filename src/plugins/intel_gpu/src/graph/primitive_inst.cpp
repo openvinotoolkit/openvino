@@ -712,8 +712,6 @@ bool primitive_inst::use_async_compilation() {
         }
     }
 
-    // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
-    // the newly chosen impl is not added to the impl cache for beffer performance.
     return (_node->is_type<convolution>() || compile_fc_impls ||
             (_node->is_type<gemm>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos) ||
