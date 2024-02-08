@@ -10,12 +10,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
-enum class ov_entity {
-    ov_plugin,
-    ov_compiled_model,
-    ov_infer_request,
-    undefined
-};
+enum class ov_entity { ov_plugin, ov_compiled_model, ov_infer_request, undefined };
 
 class ApiSummary;
 
