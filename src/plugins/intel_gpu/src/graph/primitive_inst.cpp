@@ -1113,24 +1113,7 @@ void primitive_inst::do_runtime_skip_permute() {
 void primitive_inst::do_runtime_skip_strided_slice() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
     // Check pattern
-    if (!get_node().is_type<strided_slice>()
-        || is_output()
-        || !get_node().can_be_optimized()
-        || _impl_params->has_fused_primitives()
-        || (_impl_params->get_input_layout(0).format != _impl_params->get_output_layout().format)
-        || (_impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type))
-        return;
-
-    auto desc = _node->as<strided_slice>().get_primitive();
-    auto begin = desc->begin;
-    auto strides = desc->strides;
-    auto begin_mask = desc->begin_mask;
-    if (desc->end_mask.empty()
-        || !desc->new_axis_mask.empty()
-        || !desc->shrink_axis_mask.empty()
-        || !desc->ellipsis_mask.empty()
-        || !(all_zeroes(begin) || all_ones(begin_mask))
-        || !all_ones(strides))
+    if (!get_node().is_type<strided_slice>() || !get_node().can_be_optimized())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
