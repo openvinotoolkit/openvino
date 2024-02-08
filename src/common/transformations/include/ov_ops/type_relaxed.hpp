@@ -338,13 +338,8 @@ bool TypeRelaxed<BaseOp>::evaluate_upper(TensorVector& outputs) const {
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
     element::TypeVector old_input_types;
-
     remember_input_data_types(*this, old_input_types);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     restore_input_data_types(*this, old_input_types);
 }
 
