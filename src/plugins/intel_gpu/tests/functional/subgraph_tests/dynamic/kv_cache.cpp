@@ -157,7 +157,7 @@ class KVCacheTests: public ::testing::Test {
             std::map<ov::Output<ov::Node>, ov::PartialShape> shapes = {
                 {ref_model->input(0), kv_cache_copy.get_shape()},
                 {ref_model->input(1), new_token_data.get_shape()},
-                {ref_model->input(2), matmul_data.get_shape()},
+                {ref_model->input(2), matmul_data.get_shape()}
             };
             ref_model->reshape(shapes);
 
@@ -343,8 +343,8 @@ class KVCacheTests: public ::testing::Test {
             auto input2 = ref_model->get_parameters().at(2);
             auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3)  : nullptr;
             std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {
-                {input0, kv_cache.get_shape()}, 
-                {input1, new_token_data.get_shape()}, 
+                {input0, kv_cache.get_shape()},
+                {input1, new_token_data.get_shape()},
                 {input2, matmul_data.get_shape()}
             };
             std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs = {
