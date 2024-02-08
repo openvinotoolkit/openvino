@@ -451,7 +451,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 void ov::CoreImpl::register_compile_time_plugins() {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    const decltype(::getCompiledPluginsRegistry())& plugins = getCompiledPluginsRegistry();
+    const decltype(::get_compiled_plugins_registry())& plugins = get_compiled_plugins_registry();
     for (const auto& plugin : plugins) {
         const auto& deviceName = plugin.first;
         if (deviceName.find('.') != std::string::npos) {
@@ -461,7 +461,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
-            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extensions_func};
             register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #else

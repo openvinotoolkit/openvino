@@ -212,6 +212,8 @@ if(BUILD_SHARED_LIBS)
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE USE_STATIC_IE)
+
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
     # LTO

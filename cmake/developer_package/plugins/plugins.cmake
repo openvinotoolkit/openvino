@@ -75,11 +75,11 @@ function(ov_add_plugin)
         if(NOT BUILD_SHARED_LIBS)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                OV_CREATE_PLUGIN=CreatePluginEngine${OV_PLUGIN_DEVICE_NAME})
+                OV_CREATE_PLUGIN=create_plugin_engine_${OV_PLUGIN_DEVICE_NAME})
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
-                    OV_CREATE_EXTENSION=CreateExtensionShared${OV_PLUGIN_DEVICE_NAME})
+                    OV_CREATE_EXTENSION=create_extensions_${OV_PLUGIN_DEVICE_NAME})
             endif()
         endif()
 
