@@ -157,7 +157,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
 
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
+    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
     return true;
 }
 

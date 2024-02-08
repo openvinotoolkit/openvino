@@ -139,13 +139,29 @@ Instructions below show how to build sample applications with CMake. If you are 
 
                If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
 
-            To build the C or C++ sample applications on Windows, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+            You can build the C or C++ sample applications on Windows with either PowerShell or Command Prompt.
 
-            .. code-block:: sh
+            .. tab-set::
 
-               build_samples_msvc.bat
+               .. tab-item:: PowerShell
+                  :sync: powershell
 
-            By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
+                  To build Samples with PowerShell, run the following command:
+
+                  .. code-block:: sh
+
+                     & <path-to-build-samples-folder>/build_samples.ps1
+
+               .. tab-item:: Command Prompt
+                  :sync: cmd
+
+                  To build Samples with CMD, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
+
+                  .. code-block:: sh
+
+                     build_samples_msvc.bat
+
+            By default, the script automatically detects the highest Microsoft Visual Studio version installed on the system and uses it to create and build a solution for a sample code
 
             Once the build is completed, you can find sample binaries in the following folders:
 
@@ -294,6 +310,14 @@ To run the code sample with an input image using the IR model:
          .. code-block:: sh
 
             source <INSTALL_DIR>/setupvars.sh
+
+.. note::
+
+   OpenVINO environment variables can be set up by running the following command in PowerShell:
+
+   .. code-block:: sh
+
+      . <path-to-setupvars-folder>/setupvars.ps1
 
 2. Go to the code samples release directory created when you built the samples earlier:
 

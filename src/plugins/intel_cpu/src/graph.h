@@ -227,6 +227,7 @@ protected:
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
+    void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
@@ -259,7 +260,7 @@ private:
 
     void EnforceInferencePrecision();
     void EnforceBF16();
-    void resolveInPlaceDirection(const NodePtr& node) const;
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
 
 using GraphPtr = std::shared_ptr<Graph>;

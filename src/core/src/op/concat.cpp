@@ -8,8 +8,8 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/concat.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
