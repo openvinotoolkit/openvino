@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"

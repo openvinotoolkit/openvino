@@ -13,6 +13,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {

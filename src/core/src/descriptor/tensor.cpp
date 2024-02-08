@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"

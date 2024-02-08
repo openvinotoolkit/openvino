@@ -4,6 +4,7 @@
 
 #include "preprocess_impls.hpp"
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "layout_utils.hpp"
 
 namespace ov {

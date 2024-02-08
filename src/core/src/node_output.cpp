@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 Output<Node>::Output(Node* node, size_t index) : m_index(index) {

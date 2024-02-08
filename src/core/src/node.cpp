@@ -12,6 +12,7 @@
 #include "atomic_guard.hpp"
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"

@@ -17,6 +17,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 namespace op {
