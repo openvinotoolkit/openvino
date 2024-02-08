@@ -3,11 +3,11 @@
 //
 
 #include "mask_attribute.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {

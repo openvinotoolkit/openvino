@@ -8,11 +8,11 @@
 #include "element_visitor.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/reference/gather.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
