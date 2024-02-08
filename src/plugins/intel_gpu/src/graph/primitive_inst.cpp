@@ -834,6 +834,7 @@ bool primitive_inst::update_impl() {
                             if (_node->is_type<gemm>() &&
                                     (_node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") == std::string::npos) &&
                                     impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
+                                compilation_context.remove_keys({updated_params_no_dyn_pad});
                                 return;
                             }
                             if (impl->get_kernels_source().size() > 0) {
