@@ -21,7 +21,7 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertSubtractConstant marks Convert operations on constant subgraph by DISABLED_CONSTANT_FOLDING attribute
  * to prevent constant folding.
  *

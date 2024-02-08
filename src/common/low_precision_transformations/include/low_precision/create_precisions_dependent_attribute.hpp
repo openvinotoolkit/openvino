@@ -29,7 +29,7 @@ class CreatePrecisionsDependentAttribute;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief CreatePrecisionsDependentAttribute transformation marks OperationType operations by
  * PrecisionPreservedAttribute and AttributeType attributes with the same shared part.
  *

@@ -11,9 +11,6 @@ namespace test {
 namespace utils {
 
 enum class ov_entity {
-    ie_plugin,
-    ie_executable_network,
-    ie_infer_request,
     ov_plugin,
     ov_compiled_model,
     ov_infer_request,

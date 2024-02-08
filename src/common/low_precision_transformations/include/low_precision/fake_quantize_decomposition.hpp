@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FakeQuantizeDecompositionTransformation decomposes FakeQuantize operations to quantize
  * (FakeQuantize with changes output intervals and low precision output type) and dequantize operations.
  *

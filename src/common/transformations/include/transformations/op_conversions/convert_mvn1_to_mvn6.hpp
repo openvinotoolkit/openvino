@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertMVN1ToMVN6 covert v0:MVN into v6::MVN.
  */
 class ov::pass::ConvertMVN1ToMVN6 : public ov::pass::MatcherPass {

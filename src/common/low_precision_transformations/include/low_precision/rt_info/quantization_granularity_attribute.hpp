@@ -11,7 +11,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief QuantizationGranularityAttribute defines quantization granularity of operation inputs.
  *
  * For more details about the attribute, refer to

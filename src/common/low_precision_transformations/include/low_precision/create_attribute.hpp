@@ -31,7 +31,7 @@ enum class AttributeSource {
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief CreateAttribute transformation marks OperationType operations by AttributeType attribute.
  *
  * For more details about the transformation, refer to

@@ -15,7 +15,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief QuantizationAlignmentAttribute defines subgraph with the same quantization alignment.
  * FakeQuantize operations are not included. The attribute is used by quantization operations.
  *

@@ -24,7 +24,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
 
 // Transformation is used to add customization options runtime
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkupPrecisions transformation marks:
  *    1) not supported operations by PrecisionsAttribute attribute with empty precisions,
  *    2) operations with required precisions by PrecisionsAttribute attribute according to the provided restrictions,

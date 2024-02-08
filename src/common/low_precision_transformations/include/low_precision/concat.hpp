@@ -20,7 +20,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConcatTransformation propagates dequantization operations through Concat operation.
  *
  * For more details about the transformation, refer to

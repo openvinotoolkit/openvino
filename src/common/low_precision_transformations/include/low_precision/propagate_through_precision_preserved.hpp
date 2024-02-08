@@ -27,7 +27,7 @@ class PropagateThroughPrecisionPreserved;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateThroughPrecisionPreserved transformation propagates AttributeType attribute instances
  * through precision preserved operations.
  *

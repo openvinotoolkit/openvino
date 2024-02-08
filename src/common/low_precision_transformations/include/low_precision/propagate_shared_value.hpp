@@ -27,7 +27,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateSharedValue transformation propagates shared value AttributeType attribute instances
  * through precision preserved operations.
  *

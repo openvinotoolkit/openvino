@@ -21,7 +21,7 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by `QuantizationAlignmentAttribute`
  * attribute after FakeQuantize operations.
  *

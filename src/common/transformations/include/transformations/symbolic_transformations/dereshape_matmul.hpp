@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API DeReshapeFullyConnected;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Transformation uses symbol / label information to optimize out Reshape operations surrounding MatMul.
  * It checks that surrounding Reshapes are only manipulating with batch dimensions of tensor in a do-undo kind of way.
  *
@@ -67,7 +67,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Transformation uses symbol / label information to optimize out Reshape operations surrounding special cases of
  * MatMul. It checks that surrounding Reshapes are only manipulating with batch dimensions of tensor in a do-undo kind
  * of way. The difference with previous optimization is that this case has Reshape only on one input of MatMul and the

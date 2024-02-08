@@ -15,7 +15,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief IntervalsAlignmentSharedValue is used by IntervalsAlignmentAttribute as attribute shared value.
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue {
@@ -49,7 +49,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief IntervalsAlignmentAttribute defines subgraph with the same quantization intervals alignment.
  * FakeQuantize operations are included. The attribute is used by quantization operations.
  *

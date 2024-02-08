@@ -12,7 +12,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MultiplyTransformation propagates dequantization operations through Multiply operation.
  *
  * For more details about the transformation, refer to

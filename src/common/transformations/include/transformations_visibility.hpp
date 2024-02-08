@@ -19,7 +19,7 @@
  * @defgroup ie_runtime_attr_api Runtime information
  * @brief A mechanism of runtime information extension
  *
- * @defgroup ie_transformation_common_api Common optimization passes
+ * @defgroup ov_transformation_common_api Common optimization passes
  * @brief A set of common optimization passes
  *
  * @defgroup ie_transformation_to_opset2_api Conversion from opset3 to opset2

@@ -12,7 +12,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GroupConvolutionTransformation propagates dequantization operations through GroupConvolution operation.
  *
  * For more details about the transformation, refer to

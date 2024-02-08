@@ -20,7 +20,7 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PullTransposeThroughDequantization propagates dequantization operations through Transpose operations.
  * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  *

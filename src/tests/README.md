@@ -1,6 +1,6 @@
 # OpenVINO Test Infrastructure
 
-This is OpenVINO OpenVINO testing framework. OpenVINO OpenVINO test system contains:
+This is OpenVINO testing framework. OpenVINO test system contains:
 * **Unit tests**
   This test type is used for detailed testing of each software instance (including internal classes with their methods)
   within the tested modules (OpenVINO and Plugins). There are following rules which are **required** for Unit

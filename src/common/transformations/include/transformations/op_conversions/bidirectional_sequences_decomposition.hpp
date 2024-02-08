@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose LSTMSequence to forward and reverse LSTMSequence.
  *
  */
@@ -36,7 +36,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose GRUSequence to forward and reverse GRUSequence.
  *
  */
@@ -48,7 +48,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decompose RNNSequence to forward and reverse RNNSequence.
  *
  */
@@ -60,7 +60,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Container for all types of sequences decomposition.
  *
  */

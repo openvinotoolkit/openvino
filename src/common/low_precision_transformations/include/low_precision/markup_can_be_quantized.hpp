@@ -19,7 +19,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkupCanBeQuantized transformation marks Convolution, ConvolutionBackpropData, GroupConvolution and Concat
  * operations as able to be quantized or not. If an operation is not quantized, then PrecisionsAttribute attribute instance
  * is created with empty precisions.

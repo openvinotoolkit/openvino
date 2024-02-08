@@ -13,7 +13,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PrecisionPreservedAttribute defines the precision preserved operation. If the attribute is absent, then an operation is
  * not precision preserved.
  *

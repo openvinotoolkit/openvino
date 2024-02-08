@@ -20,7 +20,7 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkupAvgPoolPrecisionPreserved transformation marks AvgPool operations as precision preserved or not.
  *
  * For more details about the transformation, refer to

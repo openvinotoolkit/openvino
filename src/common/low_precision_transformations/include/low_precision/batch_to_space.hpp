@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief BatchToSpaceTransformation propagates dequantization operations through BatchToSpace operation.
  *
  * For more details about the transformation, refer to

@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagatePrecisions transformation propagates PrecisionsAttribute attribute instances precision preserved operations.
  *
  * For more details about the transformation, refer to

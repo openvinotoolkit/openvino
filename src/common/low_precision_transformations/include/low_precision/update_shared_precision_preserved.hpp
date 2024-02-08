@@ -25,7 +25,7 @@ class UpdateSharedPrecisionPreserved;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief UpdateSharedPrecisionPreserved transformation updates shared AttributeType attribute instance value to true
  * for precision preserved operations if ExpectedAttributeType exist.
  *

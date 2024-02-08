@@ -26,7 +26,7 @@ class PropagateToInput;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateToInput transformation propagates AttributeType shared value attribute instances
  * from parent output ports to consumers input ports.
  *

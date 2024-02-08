@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FoldConvertTransformation evaluates Convert operation on Subtract constant subgraph.
  * Important notice: this transformation ignores DisableConstantFolding runtime attribute.
  *

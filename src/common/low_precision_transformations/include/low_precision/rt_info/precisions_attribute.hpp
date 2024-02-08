@@ -15,7 +15,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
  *
  * For more details about the attribute, refer to
