@@ -715,8 +715,9 @@ bool primitive_inst::use_async_compilation() {
     bool compile_gemm_impls = _node->is_type<gemm>();
     if (compile_gemm_impls) {
         // Do not async-compile if opt_gemm is chosen for iGPU
+        // Do async-compile if it is to be executed from onednn
         compile_gemm_impls = _node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
-        compile_gemm_impls |= _network.get_engine().get_device_info().supports_immad;
+        compile_gemm_impls |= (_node->get_preferred_impl_type() == impl_types::onednn);
     }
 
     return (_node->is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
