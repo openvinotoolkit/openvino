@@ -8,6 +8,7 @@
 
 #include "base_reference_test.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ov;
 using namespace reference_tests;

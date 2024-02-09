@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/embedding_segments_sum.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;

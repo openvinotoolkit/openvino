@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
