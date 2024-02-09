@@ -5,7 +5,7 @@ DeformablePSROIPooling
 
 
 .. meta::
-  :description: Learn about DeformablePSROIPooling-1 - an object detection operation, which 
+  :description: Learn about DeformablePSROIPooling-1 - an object detection operation, which
                 can be performed on two or three input tensors in OpenVINO.
 
 **Versioned name**: *DeformablePSROIPooling-1*
@@ -21,7 +21,6 @@ If only two inputs are provided, position sensitive pooling with regular ROI bin
 If third input is provided, each bin position is transformed by adding corresponding offset to the bin left top corner coordinates. Third input values are usually calculated by regular position sensitive pooling layer, so non-deformable mode (DeformablePSROIPooling with two inputs).
 The ROI coordinates are specified as five element tuples: ``[batch_id, x_1, y_1, x_2, y_2]`` in absolute values.
 
-This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://mxnet.apache.org/versions/1.7.0/api/python/docs/api/contrib/symbol/index.html#mxnet.contrib.symbol.DeformablePSROIPooling>`__ cases where ``group_size`` is equal to ``pooled_size``.
 
 **Attributes**
 
@@ -110,7 +109,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="DeformablePSROIPooling" ... >
        <data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" trans_std="0.0" part_size="3"/>
        <input>
@@ -140,7 +139,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="DeformablePSROIPooling" ... >
        <data group_size="7" mode="bilinear_deformable" output_dim="8" part_size="7" spatial_bins_x="4" spatial_bins_y="4" spatial_scale="0.0625" trans_std="0.1"/>
        <input>

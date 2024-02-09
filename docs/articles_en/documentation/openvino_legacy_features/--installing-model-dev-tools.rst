@@ -13,7 +13,6 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 * Model conversion API
 * Benchmark Tool
 * Accuracy Checker and Annotation Converter
-* Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
 The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C/C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
@@ -138,7 +137,7 @@ To install and configure the components of the development package together with
 
 
 where the ``extras`` parameter specifies the source deep learning framework for the input model
-and is one or more of the following values separated with "," :  ``caffe``, ``kaldi``, ``mxnet``, ``onnx``, ``pytorch``, ``tensorflow``, ``tensorflow2``.
+and is one or more of the following values separated with "," :  ``onnx``, ``pytorch``, ``tensorflow``, ``tensorflow2``.
 
 For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 
