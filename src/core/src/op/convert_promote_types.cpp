@@ -5,7 +5,6 @@
 #include "openvino/op/convert_promote_types.hpp"
 
 #include "itt.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
