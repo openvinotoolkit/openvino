@@ -332,7 +332,7 @@ jobs:
         run: |
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          $PYTHONCOERCECLOCALE="warn"
+          $Env:PYTHONCOERCECLOCALE="warn"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
