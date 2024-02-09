@@ -4,8 +4,8 @@ MulticlassNonMaxSuppression
 ===========================
 
 .. meta::
-  :description: Learn about MulticlassNonMaxSuppression-8 - a sorting and 
-                maximization operation, which can be performed on two or three 
+  :description: Learn about MulticlassNonMaxSuppression-8 - a sorting and
+                maximization operation, which can be performed on two or three
                 required input tensors.
 
 **Versioned name**: *MulticlassNonMaxSuppression-9*
@@ -176,7 +176,7 @@ When there is no box selected, ``selected_num`` is filled with ``0``. ``selected
        </input>
        <output>
            <port id="5" precision="FP32">
-               <dim>-1</dim> < !-- "-1" means a undefined dimension calculated during the model inference -->
+               <dim>-1</dim> <!-- "-1" means a undefined dimension calculated during the model inference -->
                <dim>6</dim>
            </port>
            <port id="6" precision="I64">
@@ -213,7 +213,7 @@ Another possible example with 3 inputs could be like:
        </input>
        <output>
            <port id="5" precision="FP32">
-               <dim>-1</dim> < !-- "-1" means a undefined dimension calculated during the model inference -->
+               <dim>-1</dim> <!-- "-1" means a undefined dimension calculated during the model inference -->
                <dim>6</dim>
            </port>
            <port id="6" precision="I64">

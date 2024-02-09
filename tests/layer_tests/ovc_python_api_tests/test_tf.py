@@ -535,6 +535,28 @@ def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir)
     return model, model_ref, {}
 
 
+def create_keras_layer_with_compressed_constants(tmp_dir):
+    import tensorflow as tf
+
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.const = tf.constant([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], shape=[10], dtype=tf.float16)
+
+        @tf.function(input_signature=[tf.TensorSpec([10], tf.float32)])
+        def __call__(self, input_1):
+            return input_1 + tf.cast(self.const, dtype=tf.float32)
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+
+    ov_model_ref = Model([add_1], [param_1], "test")
+    fw_model = LayerModel()
+    return fw_model, ov_model_ref, {}
+
+
 def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
     class LayerModel(tf.Module):
         def __init__(self):
@@ -673,6 +695,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
+        create_keras_layer_with_compressed_constants,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
