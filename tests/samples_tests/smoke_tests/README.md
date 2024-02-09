@@ -1,4 +1,4 @@
-These tests execute IE samples on pregenerated IR. Test data is downloaded on first run.
+These tests execute OV samples on pregenerated IR. Test data is downloaded on first run.
 
 <INSTALL_DIR> - OpenVINO install directory
 
