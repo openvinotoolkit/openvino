@@ -217,7 +217,7 @@ def _check_output(self, param):
     stdout = self._test(param)
     print(stdout)
     config_file_name = param['dump_config']
-    config = open(config_file_name)
+    config = open(config_file_name, encoding='utf-8')
     lines = config.readlines()
     print('config file name:', param['dump_config'])
     for line in lines:
