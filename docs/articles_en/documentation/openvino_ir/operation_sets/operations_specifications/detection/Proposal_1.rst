@@ -135,7 +135,7 @@ Proposal
   * **Description**: *framework* specifies how the box coordinates are calculated.
   * **Range of values**:
 
-    * "" (empty string) - calculate box coordinates
+    * "" (empty string) - calculate box coordinates like in Caffe
     * *tensorflow* - calculate box coordinates like in the TensorFlow* Object Detection API models
   * **Type**: string
   * **Default value**: "" (empty string)

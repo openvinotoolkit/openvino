@@ -160,7 +160,7 @@ PriorBox
 
 * *min_max_aspect_ratios_order*
 
-  * **Description**: *min_max_aspect_ratios_order* is a flag that denotes the order of output prior box. If set true, the output prior box is in [min, max, aspect_ratios] order. Note that the order affects the weights order of the preceding convolution layer and does not affect the final detection results.
+  * **Description**: *min_max_aspect_ratios_order* is a flag that denotes the order of output prior box. If set true, the output prior box is in [min, max, aspect_ratios] order, which is consistent with Caffe. Note that the order affects the weights order of the preceding convolution layer and does not affect the final detection results.
   * **Range of values**:
 
     * false - the output prior box is in [min, aspect_ratios, max] order
