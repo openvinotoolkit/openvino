@@ -4,6 +4,11 @@
 
 #pragma once
 
+/**
+ * @brief Performance heuristics for OpenVINO runtime
+ * @file openvino/runtime/performance_heuristics.hpp
+ */
+
 #include <cfloat>
 #include <memory>
 

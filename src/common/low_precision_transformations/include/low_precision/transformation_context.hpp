@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TransformationContext instance is used to pass model transformation context data between transformations.
  */
 class LP_TRANSFORMATIONS_API TransformationContext {
