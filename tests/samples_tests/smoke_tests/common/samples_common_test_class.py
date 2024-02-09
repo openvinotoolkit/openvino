@@ -10,7 +10,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import pathlib
 import os
 import itertools
 import sys
@@ -18,6 +17,7 @@ import csv
 import re
 import pytest
 import numpy as np
+import pathlib
 import zipfile
 
 import logging as log

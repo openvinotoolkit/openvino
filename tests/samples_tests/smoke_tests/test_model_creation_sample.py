@@ -13,8 +13,7 @@
 import collections
 import os
 import pytest
-from common.samples_common_test_class import get_tests
-from common.samples_common_test_class import SamplesCommonTestClass
+from common.samples_common_test_class import get_tests, SamplesCommonTestClass
 
 
 class Test_model_creation_sample(SamplesCommonTestClass):

@@ -11,9 +11,9 @@
  limitations under the License.
 """
 import json
-import logging as log
 import os
 import pytest
+import logging as log
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.samples_common_test_class import get_tests
 
@@ -219,7 +219,6 @@ def _check_output(self, param):
     config_file_name = param['dump_config']
     config = open(config_file_name, encoding='utf-8')
     lines = config.readlines()
-    print('config file name:', param['dump_config'])
     for line in lines:
         print(line)
     config.seek(0, 0)
@@ -252,8 +251,6 @@ def _check_output(self, param):
         if is_ok == False:
             log.error("No expected pin in output")
             assert False, "check pin failed"
-
-    log.info('Accuracy passed')
 
 
 def _check_config(param):
