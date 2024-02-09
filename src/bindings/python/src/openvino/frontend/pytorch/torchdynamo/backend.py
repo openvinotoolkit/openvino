@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
     2) model = torch.compile(model, backend="openvino")
 """
 
-openvino_options = []
+openvino_options = {}
 
 @register_backend
 @fake_tensor_unsupported
@@ -121,7 +121,7 @@ def ts_openvino(subgraph, example_inputs):
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
-        if (openvino_options is not None):
+        if len(openvino_options) != 0:
             options = openvino_options
         executor_parameters = None
         inputs_reversed = False
@@ -145,7 +145,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs.reverse()
 
         from torch._subclasses.fake_tensor import FakeTensorMode
-        decompositions = _get_decompositions(options) 
+        decompositions = _get_decompositions(options)
         if (_get_aot_autograd(options)):
             decompositions = decompositions + get_aot_decomposition_list()
         with FakeTensorMode(allow_non_fake_inputs=True):
