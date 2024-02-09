@@ -97,7 +97,7 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
           
           # use clang as a default compiler
-          apt --assume-yes install clang
+          apt --assume-yes install clang lld
           update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
@@ -143,11 +143,16 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_CXX_FLAGS="-fuse-ld=/usr/bin/clang++" \
+            -DCMAKE_C_FLAGS="-fuse-ld=/usr/bin/clang" \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
+        env:
+          CC: clang
+          CXX: clang++
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
