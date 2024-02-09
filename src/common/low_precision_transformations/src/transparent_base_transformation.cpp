@@ -20,7 +20,7 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ov
     }
 
     op = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions), true);
+    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
     return true;
 }
 
