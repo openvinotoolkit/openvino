@@ -25,8 +25,8 @@ logger.setLevel(logging.WARNING)
 
 
 class Partitioner:
-    def __init__(self):
-        self.supported_ops = OperatorSupport()
+    def __init__(self, options):
+        self.supported_ops = OperatorSupport(options)
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         fx_gm = make_fx(graph_module)(*args)

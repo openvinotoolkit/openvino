@@ -10,20 +10,21 @@ from functools import partial
 from hashlib import sha256
 
 import torch
-from torch._decomp.decompositions import aten, pw_cast_for_opmath
 from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
-from torch._decomp import decomposition_table, register_decomposition, get_decompositions
+from torch._decomp import decomposition_table, get_decompositions
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.torchdynamo import decompositions
+from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
 from openvino.runtime import Core, Type, PartialShape
 
@@ -44,10 +45,15 @@ log = logging.getLogger(__name__)
     2) model = torch.compile(model, backend="openvino")
 """
 
+openvino_options = {}
 
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
+    if (_get_aot_autograd(options)):
+        global openvino_options
+        openvino_options = options
+        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino)(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
 @register_backend
@@ -113,47 +119,10 @@ def ts_openvino(subgraph, example_inputs):
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
-
-@register_decomposition(aten.convolution_backward)
-@pw_cast_for_opmath
-def convolution_backward(
-    grad_output,
-    input,
-    weight,
-    bias,
-    stride,
-    padding,
-    dilation,
-    transposed,
-    output_padding,
-    groups,
-    output_mask,
-):
-
-    # Compute the gradient of the input tensor
-    grad_input = torch.nn.functional.conv_transpose2d(
-        grad_output, weight, stride=stride, padding=padding, dilation=dilation, groups=groups
-    )
-
-    # Compute the gradient of the weight tensor
-    grad_weight = torch.nn.functional.conv_transpose2d(
-        #input, weight.transpose(0,1), stride=stride, padding=padding, dilation=dilation, groups=groups
-        input, weight.transpose(0,1), stride=stride, padding=padding, dilation=dilation, groups=groups
-    )
-
-    # Compute the gradient of the bias tensor
-    if bias is not None:
-        grad_bias = grad_output.sum([0, 2, 3], keepdim=True)
-    else:
-        grad_bias = None
-
-    return grad_input, grad_weight, grad_bias
-
-aot_ovgraphs = aot_autograd(fw_compiler=openvino, bw_compiler=openvino)
-register_backend(name="aot_openvino", compiler_fn=aot_ovgraphs)
-
-def fx_openvino(subgraph, example_inputs, options):
+def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        if len(openvino_options) != 0:
+            options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -174,10 +143,17 @@ def fx_openvino(subgraph, example_inputs, options):
                 return _call
         if inputs_reversed:
             example_inputs.reverse()
-        model = make_fx(subgraph, decomposition_table=get_decompositions(_get_decompositions(options)))(*example_inputs)
+
+        from torch._subclasses.fake_tensor import FakeTensorMode
+        decompositions = _get_decompositions(options)
+        if (_get_aot_autograd(options)):
+            decompositions = decompositions + get_aot_decomposition_list()
+        with FakeTensorMode(allow_non_fake_inputs=True):
+            model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
+
         with torch.no_grad():
             model.eval()
-        partitioner = Partitioner()
+        partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model)
 
         if executor_parameters is not None and 'model_hash_str' in executor_parameters:
