@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# flake8: noqa
+# mypy: ignore-errors
+
 import torch
 from torch._decomp.decompositions import aten, pw_cast_for_opmath
 from torch._decomp import register_decomposition
@@ -7,7 +14,7 @@ from torch._decomp import register_decomposition
 @pw_cast_for_opmath
 def convolution_backward(
     grad_output,
-    input,
+    inp,
     weight,
     bias,
     stride,
@@ -28,7 +35,7 @@ def convolution_backward(
 
     # Compute the gradient of the weight tensor
     grad_weight = torch.nn.functional.conv_transpose2d(
-        input, weight.transpose(0, 1), stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        inp, weight.transpose(0, 1), stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
     )
 
     # Compute the gradient of the bias tensor
@@ -51,14 +58,14 @@ def scaled_dot_product_flash_attention(
     return_debug_mask=False,
     scale=None,
 ):
-    batchSize, num_head, qSize, headSize = (
+    batch_size, num_head, q_size, head_size = (
         query.shape[0],
         query.shape[1],
         query.shape[2],
         query.shape[3],
     )
 
-    logsumexp = torch.empty([batchSize, qSize, num_head, headSize], dtype=torch.float)
+    logsumexp = torch.empty([batch_size, q_size, num_head, head_size], dtype=torch.float)
     cum_seq_q, cum_seq_k = torch.empty([], dtype=torch.long), torch.empty(
         [], dtype=torch.long
     )
