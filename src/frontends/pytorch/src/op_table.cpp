@@ -782,7 +782,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.slice_scatter.default", op::translate_slice_scatter_fx},
         {"aten.split.Tensor", op::translate_chunk_fx},
         {"aten.split_with_sizes.default", op::translate_split_with_sizes_fx},
-        {"aten.squeeze.dim", op::quantizable_op<op::translate_squeeze>},
+        {"aten.squeeze.dim", op::translate_squeeze},
         {"aten.squeeze.dims", op::translate_squeeze},
         {"aten.stack.default", op::translate_stack},
         {"aten.sub.default", op::translate_sub_fx},
