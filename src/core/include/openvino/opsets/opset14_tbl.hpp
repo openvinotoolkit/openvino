@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -219,3 +219,4 @@ _OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)
 _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
+_OPENVINO_OP_REG(ConvertPromoteTypes, ov::op::v14)
