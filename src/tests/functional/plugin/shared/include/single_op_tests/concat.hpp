@@ -11,5 +11,10 @@ namespace test {
 TEST_P(ConcatLayerTest, Inference) {
     run();
 };
+
+TEST_P(ConcatStringLayerTest, Inference) {
+    run();
+};
+
 }  // namespace test
 }  // namespace ov

@@ -16,5 +16,13 @@ void concat(const std::vector<const char*>& args,
             const Shape& out_shape,
             int64_t concatenation_axis,
             size_t elem_size);
-}
+
+void concat(const std::vector<const std::string*>& args,
+            std::string* out,
+            const std::vector<Shape>& in_shapes,
+            const Shape& out_shape,
+            int64_t concatenation_axis,
+            size_t);
+
+}  // namespace reference
 }  // namespace ov
