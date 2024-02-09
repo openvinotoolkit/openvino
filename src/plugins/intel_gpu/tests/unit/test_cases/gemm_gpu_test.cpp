@@ -724,8 +724,12 @@ public:
         ov::Shape input1_shape;
         std::vector<int64_t> input0_order;
         std::vector<int64_t> input1_order;
+        ov::Shape beam_table_shape;
         cldnn::layout input0_layout;
         cldnn::layout input1_layout;
+
+        if ((indirect_input1 || indirect_input0) && num_dims != 4)
+            GTEST_SKIP();
 
         if (num_dims == 1) {
             input0_shape = { K_SIZE };
@@ -747,6 +751,10 @@ public:
             input1_shape = { N_SIZE, BATCH_SIZE, 1, K_SIZE };
             input0_order = { 0, 2, 3, 1 };
             input1_order = { 1, 2, 3, 0 };
+            if (indirect_input0)
+                beam_table_shape = { BATCH_SIZE, K_SIZE, 1, 1 };
+            else if (indirect_input1)
+                beam_table_shape = { 1, BATCH_SIZE, 1, K_SIZE };
         }
 
         if (is_input_dynamic) {
@@ -757,10 +765,7 @@ public:
             input1_layout = layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx};
         }
 
-        ov::Shape beam_table_shape = { BATCH_SIZE, K_SIZE };
-        std::vector<int64_t> input0_order = {0, 2, 3, 1};
-        std::vector<int64_t> input1_order = {1, 2, 3, 0};
-        auto beam_table_layout = layout{ov::PartialShape::dynamic(2), data_types::i32, format::bfyx};
+        auto beam_table_layout = layout{ov::PartialShape::dynamic(4), data_types::i32, format::bfyx};
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
         auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx});
         auto beam_table_mem = engine.allocate_memory(layout{ov::PartialShape(beam_table_shape), data_types::i32, format::bfyx});

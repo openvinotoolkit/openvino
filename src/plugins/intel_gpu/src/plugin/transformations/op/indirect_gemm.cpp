@@ -22,6 +22,7 @@ IndirectGemm::IndirectGemm(const ov::Output<Node>& A,
     , m_indirect_a(indirect_a)
     , m_indirect_b(indirect_b) {
     set_argument(2, I);
+    OPENVINO_ASSERT((indirect_a && indirect_b) == false, "[GPU] Gemm supports indirect addressing for one input only");
     validate_and_infer_types();
 }
 
