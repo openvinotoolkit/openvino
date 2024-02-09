@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API BatchToSpaceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief BatchToSpaceFusion transformation replaces following graph:
  * Transpose (or Reshape) -> DepthToSpace -> StridedSlice -> Transpose (or Reshape)
  * to BatchToSpace

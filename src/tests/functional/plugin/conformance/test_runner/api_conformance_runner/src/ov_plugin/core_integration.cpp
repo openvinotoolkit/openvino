@@ -12,7 +12,7 @@ using namespace ov::test::conformance;
 
 namespace {
 //
-// IE Class Common tests with <pluginName, deviceName params>
+// OV Class Common tests with <pluginName, deviceName params>
 //
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
@@ -23,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelOptionalTestP,
                          ::testing::Values(targetDevice));
 
-// IE Class Query network
+// OV Class Query network
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVClassQueryModelTest,

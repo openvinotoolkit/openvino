@@ -59,5 +59,5 @@ Regardless of the automated tests, you should ensure the quality of your changes
 * [How to create a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) 
 * [Install Git](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup)
 * If you want to add a new sample, please have a look at the Guide for contributing
-  to C++/C/Python IE samples and add the license statement at the top of new files for
+  to C++/C/Python OV samples and add the license statement at the top of new files for
   C++ example, Python example.

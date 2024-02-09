@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Removing Broadcast OP before ElementWise if output shape of Broadcast
  * are equal neighboring input shape of ElementWise.
  */

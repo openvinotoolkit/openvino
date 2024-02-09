@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API HSwishDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief HSwishDecomposition transformation into sub-graph x * (min(Relu(x + 3), 6) * const(1/6).
  */
 class ov::pass::HSwishDecomposition : public ov::pass::MatcherPass {

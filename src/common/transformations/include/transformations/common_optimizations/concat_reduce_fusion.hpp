@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ConcatReduceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReplaceConcatReduceByMinOrMax transformation replaces Concat with 2 inputs and ReduceMin/Max
  * by a single Minimum/Maximum with 2 inputs and inserts squeeze in case when Reduce has keep_dims = false.
  */
@@ -29,7 +29,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PullSqueezeThroughEltwise transformation propagates Squeeze up through binary elementwise operations:
  */
 class ov::pass::PullSqueezeThroughEltwise : public ov::pass::MatcherPass {
@@ -39,7 +39,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConcatReduceFusion pass replaces the following graph:
  *
  *               +---------------+            +---------------+

@@ -17,7 +17,7 @@ namespace cldnn {
 /// ONNX order: iofz
 /// Caffe order: ifoz
 /// pyTorch order: izof
-/// IE order: fizo
+/// OV order: fizo
 enum class lstm_weights_order {
     iofz,
     ifoz,

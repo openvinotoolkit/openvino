@@ -81,7 +81,7 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                               "\t--transformations_config\n" \
                               "\t--tensorflow_object_detection_api_pipeline_config\n" \
                               "\t--input_shape (optional)\n" \
-                              "\t--reverse_input_channels (if you convert a model to use with the Inference Engine sample applications)\n" \
+                              "\t--reverse_input_channels (if you convert a model to use with the OpenVINO sample applications)\n" \
                               "Detailed information about conversion of this model can be found at\n" \
                               "https://docs.openvino.ai/2023.0/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html"
                     return {'model_type': {'TF_OD_API': result}}, message

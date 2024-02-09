@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API UnrollIf;
 
 // clang-format off
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief The transformation replaces 'If' operations with one of the internal functions (bodies) if the provided condition is constant.
  * The condition is true: 'If' op is replaced with then_body
  * The condition is false 'If' op is replaced with else_body

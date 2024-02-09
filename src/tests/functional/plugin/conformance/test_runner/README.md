@@ -140,7 +140,7 @@ The target is able to take the following command-line arguments:
 * `-h` prints target command-line options with description.
 * `--device` specifies target device.
 * `--input_folders` specifies the input folders with IRs or `.lst` file. It contains paths, separated by a comma `,`.
-* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices.
+* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in OV Core devices.
 * `--disable_test_config` allows ignoring all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows specifying paths to files. It contains a list of regular expressions to skip tests. [Examples](./op_conformance_runner/skip_configs/skip_config_example.lst)
 * `--config_path` allows specifying the path to a file that contains plugin config. [Example](./op_conformance_runner/config/config_example.txt)

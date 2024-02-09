@@ -18,7 +18,7 @@ struct lstm_elt_params : public base_params {
         offset_iofz,  // ONNX default
         offset_ifoz,  // caffe
         offset_izof,  // pyTorch
-        offset_fizo   // IE default
+        offset_fizo   // OV default
     };
 
     lstm_elt_params() : base_params(KernelType::LSTM_ELT) {}

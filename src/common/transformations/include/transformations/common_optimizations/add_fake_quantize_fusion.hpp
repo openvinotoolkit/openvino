@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API AddFakeQuantizeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AddFakeQuantizeFusion transformation replaces following graph:
  * Add->FakeQuantize to a single FakeQuantize
  * Restrictions:

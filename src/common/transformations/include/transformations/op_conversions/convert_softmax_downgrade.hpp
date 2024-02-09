@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertSoftMax8ToSoftMax1;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertSoftMax8ToSoftMax1 converts v8::SoftMax into v1::SoftMax.
  */
 class ov::pass::ConvertSoftMax8ToSoftMax1 : public ov::pass::MatcherPass {

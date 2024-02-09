@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation looks for a FQ + Reshape pair in the graph and moves
  * the Reshape operation above the FQ node. Shapes of limit inputs are updated
  * following FQ broadcasting semantics

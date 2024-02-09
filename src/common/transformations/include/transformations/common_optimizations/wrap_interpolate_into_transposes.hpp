@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API WrapInterpolateIntoTransposes;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief WrapInterpolateIntoTransposes transformation replaces
  *      Interpolate
  *  with
