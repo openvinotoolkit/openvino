@@ -39,13 +39,10 @@ test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'do
 
 
 class TestHello(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'hello_classification'
-        super().setup_class()
+    sample_name = 'hello_classification'
 
     @pytest.mark.parametrize("param", test_data_fp32)
-    def test_hello_classification_fp32(self, param):
+    def test_hello_classification_fp32(self, param, cache):
         """
         Classification_sample_async has functional and accuracy tests.
         Also check ASCII path support.
@@ -53,7 +50,7 @@ class TestHello(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
+        stdout = self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
         if not stdout:
             return 0
 
@@ -72,7 +69,7 @@ class TestHello(SamplesCommonTestClass):
         log.info('Accuracy passed')
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
-    def test_hello_classification_check_unicode_path_support(self, param):
+    def test_hello_classification_check_unicode_path_support(self, param, cache):
         """
         Check UNICODE characters in paths.
         """
@@ -90,10 +87,11 @@ class TestHello(SamplesCommonTestClass):
         tmp_image_dir.mkdir(parents=True)  # make tmp_dir_path too
         tmp_model_dir.mkdir()
 
+        test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
         # Copy files
-        shutil.copy(Path(Environment.env['test_data']) / Path(param['i']), tmp_image_dir)
-        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m']), tmp_model_dir)
-        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(test_data_dir / 'validation_set' / param['i'], tmp_image_dir)
+        shutil.copy(test_data_dir / 'models' / 'public' / param['m'], tmp_model_dir)
+        shutil.copy(test_data_dir / 'models' / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]

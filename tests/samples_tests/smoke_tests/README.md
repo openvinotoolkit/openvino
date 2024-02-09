@@ -1,4 +1,4 @@
-These tests execute IE samples on pregenerated IR
+These tests execute IE samples on pregenerated IR. Test data is downloaded on first run.
 
 <INSTALL_DIR> - OpenVINO install directory
 
@@ -22,16 +22,13 @@ a. Required:
     - Install openvino-*.whl to provide Python benchmark_app executable
 b. Optional:
     - TEST_DEVICE=CPU;MULTI:CPU;AUTO by default
-3. Configure env_config.yml according to your paths:
-    - Set WORKSPACE : working directory, e.g. '<INSTALL_DIR>'
-    - Set SHARE : path to loaded data with models, e.g. '<INSTALL_DIR>/tests/smoke_tests/samples_smoke_tests_data/' 
 4. Run all test via pytest:
    ``` bash
-    python -m pytest --env_conf env_config.yml -s
+    python -m pytest
    ```
 5. Run only one sample (for example, classification_sample_async):
    ``` bash
-    python -m pytest test_classification_sample_async.py --env_conf env_config.yml -s
+    python -m pytest test_classification_sample_async.py
    ```
 6. To run performance add pytest key: "performance n", where n is number of perf iteration.
    Test finds in output of sample 'fps', if it exists,
