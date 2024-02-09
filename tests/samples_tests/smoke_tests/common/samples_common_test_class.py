@@ -51,18 +51,6 @@ class Environment:
     """
     env = {}
 
-    @classmethod
-    def abs_path(cls, env_key, *paths):
-        """Construct absolute path by appending paths to environment value.
-
-        :param cls: class
-        :param env_key: Environment.env key used to get the base path
-        :param paths:   paths to be appended to Environment.env value
-        :return:    absolute path string where Environment.env[env_key] is
-                    appended with paths
-        """
-        return str(Path(cls.env[env_key], *paths))
-
 
 def get_tests(cmd_params, use_device=True, use_batch=False):
     # Several keys:
@@ -453,7 +441,7 @@ class SamplesCommonTestClass():
         """
         Clean up IRs and npy files from self.output_dir if exist
         :return: """
-        is_save = getattr(self, 'save', None) 
+        is_save = getattr(self, 'save', None)
         if not is_save and os.path.exists(self.output_dir):
             shutil.rmtree(self.output_dir)
         filenames = glob.glob('out*.bmp')
