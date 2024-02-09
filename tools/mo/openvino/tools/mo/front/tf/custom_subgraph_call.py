@@ -46,7 +46,7 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
     """
     Merges nodes specified in the set 'nodes_to_merge_names' into one mega-node, creating new edges between mega-node
     and inputs/outputs nodes of the mega-node. The added edges contain name of input/output nodes which will be used for
-    generation of placeholders and will be saved to the IR xml so IE plug-in know how to map input/output data for the
+    generation of placeholders and will be saved to the IR xml so OV plug-in know how to map input/output data for the
     layer. Also the function adds protobufs of the nodes of the sub-graph and 'Const' ops consumed by nodes in the
     sub-graph to the node's attribute 'pbs'.
     :param graph: the graph object to operate on.
