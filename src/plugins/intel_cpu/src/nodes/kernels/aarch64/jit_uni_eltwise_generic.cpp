@@ -3,7 +3,6 @@
 //
 
 #include "jit_uni_eltwise_generic.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -12,7 +11,6 @@ namespace aarch64 {
 using namespace Xbyak_aarch64;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::aarch64;
-using namespace InferenceEngine;
 
 void jit_uni_eltwise_kernel::operator()(
     const node::jit_eltwise_call_args_ptrs* const_args,
@@ -138,7 +136,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
             is_valid_configuration = false;
 
         if (!is_valid_configuration)
-            IE_THROW() << "Eltwise jitter has invalid configuration for Eltwise node";
+            OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
 
         L(unroll_loop_label);
         {
@@ -306,7 +304,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             break;
         }
         default: {
-            IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+            OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
         }
     }
 
@@ -327,11 +325,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                         break;
                     }
                     default:
-                        IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
                 }
                 break;
             default:
-                IE_THROW(Unexpected) << "dst_prc " << dst_prc << " is not supported";;
+                OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
         }
     }
 }
@@ -354,7 +352,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
             break;
         }
         default: {
-            IE_THROW(Unexpected) << "dst_prc " << dst_prc << " is not supported";;
+            OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
         }
     }
 
@@ -375,11 +373,11 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                         break;
                     }
                     default:
-                        IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
                 }
                 break;
             default:
-                IE_THROW(Unexpected) << "dst_prc " << dst_prc << " is not supported";;
+                OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
         }
     }
 }
@@ -407,13 +405,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                         break;
                     }
                     default: {
-                        IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
                     }
                 }
                 break;
             }
             default: {
-                IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
             }
         }
     }
@@ -430,7 +428,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
             break;
         }
         default: {
-            IE_THROW(Unexpected) << "dst_prc " << dst_prc << " is not supported";;
+            OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_ptr is " + src_prc.to_string());
         }
     }
 }
@@ -458,13 +456,13 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         break;
                     }
                     default: {
-                        IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
                     }
                 }
                 break;
             }
             default: {
-                IE_THROW(Unexpected) << "src_prc " << src_prc << " is not supported";;
+                OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
             }
         }
     }
@@ -481,7 +479,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
             break;
         }
         default: {
-            IE_THROW(Unexpected) << "dst_prc " << src_prc << " is not supported";;
+            OPENVINO_THROW("dst_prc " + src_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
         }
     }
 }
@@ -531,7 +529,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter));
 
     if (!ctx.emitter)
-        IE_THROW() << "Unsupported operation type '" << algToString(data.algo) << "' for Eltwise emitter";
+        OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
 
     return ctx.emitter;
 }
@@ -585,9 +583,9 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() {
 
             eltwise_post_op_idx++;
         } else if (ops_list_[i] == ov::intel_cpu::Type::FakeQuantize) {
-            IE_THROW(Unexpected) << "Eltwise jit kernel: FakeQuantize is not supported";
+            OPENVINO_THROW("Eltwise jit kernel: FakeQuantize is not supported");
         } else {
-            IE_THROW(Unexpected) << "Eltwise jit kernel: unexpected operation type";
+            OPENVINO_THROW("Eltwise jit kernel: unexpected operation type");
         }
     }
 }
@@ -663,7 +661,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
     }
 
     if (exec_prc == ov::element::undefined) {
-        IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
+        OPENVINO_THROW("Eltwise jitter failed to specify execution precision for Eltwise node");
     }
 
     return exec_prc;
@@ -680,7 +678,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter));
 
     if (precisions.empty())
-        IE_THROW() << "Unsupported operation type for Eltwise emitter";
+        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }
