@@ -17,12 +17,12 @@ import csv
 import re
 import pytest
 import numpy as np
-import urllib
 import zipfile
 
 import logging as log
 from common.common_utils import shell
 from shutil import which
+from urllib import request
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -100,7 +100,7 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
         return		
     try:
         print("\nStart downloading samples_smoke_tests_data.zip...")
-        with urllib.request.urlopen(url) as samples_request:
+        with request.urlopen(url) as samples_request:
             with open(samples_path, 'wb') as samples_file:
                 samples_file.write(samples_request.read())
         print("\nsamples_smoke_tests_data.zip downloaded successfully")

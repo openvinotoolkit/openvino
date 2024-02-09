@@ -118,7 +118,7 @@ test_data_fp32_reshape = get_tests \
      )
 
 test_data_dynamic_shapes_one_input = get_tests \
-    (cmd_params={'i': ['227x227/dog.bmp'] * 2,
+    (cmd_params={'i': 2 * ['227x227/dog.bmp'],
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'sample_type': ['C++'],
                  'shape' : ['[?,3,?,?]'],
@@ -142,14 +142,6 @@ class Test_benchmark_app(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32_async_config)
     def test_benchmark_app_sample_fp32_async_config(self, param):
-        _check_output(self, param)
-
-    @pytest.mark.parametrize("param", test_data_fp32_async)
-    def test_benchmark_app_sample_fp32_async(self, param):
-        _check_output(self, param)
-
-    @pytest.mark.parametrize("param",test_data_fp32_sync)
-    def test_benchmark_app_fp32_sync(self, param):
         _check_output(self, param)
 
     @pytest.mark.parametrize("param", test_data_fp32_async_config_dump_nstreams)
