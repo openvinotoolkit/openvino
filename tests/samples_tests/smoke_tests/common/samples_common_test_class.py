@@ -51,7 +51,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
     new_cmd_params = []
     cmd_keys = list(cmd_params.keys())
 
-    devices = os.environ.get("TEST_DEVICE", "CPU;AUTO").split(';')
+    devices = os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
 
     # You can pass keys (like d, d_lpr ..) via use_device list. And the topology executes only on these devices
     # Use this option when a topology isn't supported in some plugin. In default CPU only.
@@ -168,7 +168,7 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def join_env_path(param, executable_path, complete_path=True):
-        gpu_lib_path = os.path.join(os.environ.get('IE_APP_PATH'), 'lib')
+        gpu_lib_path = os.path.join(os.environ['IE_APP_PATH'], 'lib')
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -220,12 +220,6 @@ class SamplesCommonTestClass():
             elif ('r' == k) and complete_path:
                 if len(param['r']) > 0:
                     param['r'] = os.path.join(Environment.env['test_data'], param['r'])
-            elif ('o' == k) and complete_path:
-                param['o'] = os.path.join(Environment.env['out_directory'], param['o'])
-            elif ('wg' == k):
-                param['wg'] = os.path.join(Environment.env['out_directory'], param['wg'])
-            elif ('we' == k):
-                param['we'] = os.path.join(Environment.env['out_directory'], param['we'])
             elif ('fg' == k):
                 param['fg'] = os.path.join(Environment.env['test_data'], param['fg'])
             elif ('labels' == k):
@@ -313,12 +307,10 @@ class SamplesCommonTestClass():
     @classmethod
     def setup_class(cls):
         getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
-        assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
         assert os.path.exists(Environment.env['models_path']), \
             "Path for public models {} is not exist!".format(Environment.env['models_path'])
         assert os.path.exists(Environment.env['test_data']), \
             "Path for test data {} is not exist!".format(Environment.env['test_data'])
-        cls.output_dir = Environment.env['out_directory']
 
     def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
         """
@@ -336,15 +328,10 @@ class SamplesCommonTestClass():
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
         if 'python' in sample_type.lower():
-            assert os.environ.get('IE_APP_PYTHON_PATH') is not None, \
-                "IE_APP_PYTHON_PATH environment variable is not specified!"
-            self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
+            self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
                                       sample_type=sample_type)
         else:
-            self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
-
-        if not os.path.exists(self.output_dir):
-            os.mkdir(self.output_dir)
+            self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
 
         if 'bitstream' in param_cp:
             del param_cp['bitstream']
@@ -409,27 +396,3 @@ class SamplesCommonTestClass():
             log.error(stderr)
         assert retcode == 0, "Sample execution failed"     
         return stdout
-
-    def setup_method(self):
-        """
-        Clean up IRs and npy files from self.output_dir if exist
-        And skip several test for performance
-        :return: """
-        if os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
-        filenames = glob.glob('out*.bmp')
-        [os.remove(fn) for fn in filenames]
-        # Skip samples that are not for performance:
-        if Environment.env['performance'] and 'list_of_skipped_samples' in Environment.env and \
-                self.sample_name in Environment.env['list_of_skipped_samples']:
-            pytest.skip('[Skip from setup] Sample {} not executed for performance'.format(self.sample_name))
-
-    def teardown_method(self):
-        """
-        Clean up IRs and npy files from self.output_dir if exist
-        :return: """
-        is_save = getattr(self, 'save', None)
-        if not is_save and os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
-        filenames = glob.glob('out*.bmp')
-        [os.remove(fn) for fn in filenames]

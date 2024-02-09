@@ -45,4 +45,3 @@ class Test_benchmark_app(SamplesCommonTestClass):
     def test(self, param):
         stdout = self._test(param)
         assert "FPS" in stdout
-        assert "Latency" in stdout

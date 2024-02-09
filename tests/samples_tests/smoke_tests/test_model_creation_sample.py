@@ -17,14 +17,14 @@ from common.samples_common_test_class import get_tests
 from common.samples_common_test_class import SamplesCommonTestClass
 
 
-class TestModelCreation(SamplesCommonTestClass):
+class Test_model_creation_sample(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
         cls.sample_name = 'model_creation_sample'
         super().setup_class()
 
     @pytest.mark.parametrize('param', get_tests({'sample_type': ['C++', 'Python']}))
-    def test_model_creation_fp32(self, param):
+    def test(self, param):
         stdout = self._test(collections.OrderedDict(
             m=f'"{os.path.join(os.environ["WORKSPACE"], "samples", "cpp", "model_creation_sample", "lenet.bin")}"',
             **param,
