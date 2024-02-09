@@ -11,16 +11,12 @@
  limitations under the License.
 """
 import os
-import glob
 import itertools
-import shutil
 import sys
 import csv
 import re
 import pytest
-from glob import iglob
 import numpy as np
-from pathlib import Path
 import requests 
 import zipfile
 
