@@ -95,6 +95,11 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
           apt install --assume-yes --no-install-recommends default-jdk
+          
+          # use clang as a default compiler
+          apt --assume-yes install clang
+          update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
+          update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
