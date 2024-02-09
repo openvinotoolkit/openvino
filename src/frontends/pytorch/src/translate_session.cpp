@@ -235,7 +235,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
         for (const auto& param : *parameters) {
-            std::cout << "param name " << param->output(0).get_any_name() << std::endl;
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
         }

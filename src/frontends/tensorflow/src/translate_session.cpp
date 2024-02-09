@@ -828,7 +828,6 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
                                 "inputs to body must match");
         for (size_t input_ind = 0; input_ind < ext_num_inputs; ++input_ind) {
             auto required_input_name = input_names[input_ind];
-            std::cout << "body name " << std::to_string(input_ind) << " " << required_input_name << std::endl;
             bool is_found_body_input = false;
             size_t body_found_ind = 0;
             for (size_t internal_ind = 0; internal_ind < int_num_inputs; ++internal_ind) {
