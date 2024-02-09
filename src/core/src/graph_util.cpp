@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"

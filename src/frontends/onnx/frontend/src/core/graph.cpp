@@ -15,6 +15,7 @@
 #include "core/value_info.hpp"
 #include "exceptions.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
