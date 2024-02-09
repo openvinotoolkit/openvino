@@ -23,14 +23,13 @@ if(ON)
     set(MIXED_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
 
     set_property(SOURCE ${MIXED_SRC}
         APPEND PROPERTY INCLUDE_DIRECTORIES
             $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
             $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/dev_api
-            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include
-            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include/ie)
+            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include)
 endif()
 
 # Create named folders for the sources within the .vcproj

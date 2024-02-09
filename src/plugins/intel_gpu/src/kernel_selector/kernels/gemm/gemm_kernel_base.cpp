@@ -180,13 +180,37 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
     });
 
+    auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
+        auto output_dims_order = GetDimsOrder(output_order_idx);
+
+        switch (output_dims_order.at(target_idx)) {
+            case 'b':
+                return "OUTPUT_BATCH_NUM";
+            case 'f':
+                return "OUTPUT_FEATURE_NUM";
+            case 'w':
+                return "OUTPUT_SIZE_W";
+            case 'z':
+                return "OUTPUT_SIZE_Z";
+            case 'y':
+                return "OUTPUT_SIZE_Y";
+            case 'x':
+                return "OUTPUT_SIZE_X";
+            default:
+                return "";
+        }
+    };
+
     jit.AddConstants({
         MakeJitConstant("TRANSPOSE_X_LAST", 0),
         MakeJitConstant("TRANSPOSE_Y_LAST", 1),
         MakeJitConstant("TRANSPOSE_OTHER", 2),
         MakeJitConstant("INPUT0_DIMS_ORDER", GetDimsOrder(params.input0_order)),
         MakeJitConstant("INPUT1_DIMS_ORDER", GetDimsOrder(params.input1_order)),
-        MakeJitConstant("MATMUL_AXIS", static_cast<char>(std::toupper(GetDimsOrder(params.input0_order).at(10)))),
+        MakeJitConstant("TR_OUTPUT_SIZE_Z", get_output_size(params.output_order, 6)),
+        MakeJitConstant("TR_OUTPUT_SIZE_W", get_output_size(params.output_order, 4)),
+        MakeJitConstant("TR_OUTPUT_FEATURE_NUM", get_output_size(params.output_order, 2)),
+        MakeJitConstant("TR_OUTPUT_BATCH_NUM", get_output_size(params.output_order, 0)),
     });
 
     return jit;

@@ -1,11 +1,11 @@
-These tests execute IE samples on pregenerated IR
+These tests execute OV samples on pregenerated IR
 
 <INSTALL_DIR> - OpenVINO install directory
 
 You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE and SHARE
 
 To install smoke tests:
-``` bash                                            			
+``` bash
 cd <working directory>/tests/samples_tests/smoke_tests
 mkdir build && cd build
 cmake ../..
@@ -18,8 +18,8 @@ cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -P cmake_install.cm
 2. Call setupvars script and then set the environment variables:
 a. Required:
     - IE_APP_PATH : coomon path to C++ and C samples, e.g. '<INSTALL_DIR>/samples_bin'
-    - IE_APP_PYTHON_PATH : path to python IE samples, e.g. '<INSTALL_DIR>/samples/python/'
-    - IE_APP_PYTHON_TOOL_PATH : path to python IE tools for benchmark_app, e.g. '<INSTALL_DIR>/tools/' 
+    - IE_APP_PYTHON_PATH : path to python OV samples, e.g. '<INSTALL_DIR>/samples/python/'
+    - Install openvino-*.whl to provide Python benchmark_app executable
 b. Optional:
     - TEST_DEVICE = CPU by default
 3. Configure env_config.yml according to your paths:
@@ -31,7 +31,7 @@ b. Optional:
    ```
 5. Run only one sample (for example, classification_sample_async):
    ``` bash
-    python -m pytest test_classification_sample_async.py  --env_conf env_config.yml -s
+    python -m pytest test_classification_sample_async.py --env_conf env_config.yml -s
    ```
 6. To run performance add pytest key: "performance n", where n is number of perf iteration.
    Test finds in output of sample 'fps', if it exists,
