@@ -129,13 +129,12 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         return -1;
     };
 
-    const bool is_legacy_api = getConfig().isLegacyApi;
     for (const auto& op : model->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0), is_legacy_api);
+            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
             inputNodesMap[name] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
@@ -143,7 +142,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            const std::string inputID = get_port_name(op->output(0), is_legacy_api);
+            const std::string inputID = get_port_name(op->output(0));
             outputNodesMap[inputID] = node;
         }
 
@@ -1022,8 +1021,8 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
 
         auto srcPrec = actualDesc->getPrecision();
         auto dstPrec = expected_desc_ptr->getPrecision();
-        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
-            OPENVINO_THROW("Output blob byte size is not equal network output byte size (",
+        if (srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
+            OPENVINO_THROW("Output tensor byte size is not equal model output byte size (",
                            ext_blob->get_byte_size(),
                            "!=",
                            intr_blob.getSize(),
