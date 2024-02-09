@@ -10,9 +10,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
-import re
 import sys
 import logging as log
 from common.samples_common_test_class import get_tests
@@ -36,7 +34,7 @@ class TestHelloQueryDevice(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_empty_cmd_line)
+        stdout = self._test(param, use_preffix=False)
         if not stdout:
             return 0
         stdout = stdout.split('\n')
