@@ -20,7 +20,7 @@ from common.samples_common_test_class import get_devices, get_cmd_output, prepen
 def get_executable(sample_language):
     executable = 'benchmark_app'
     if sample_language == 'C++':
-        executable = pathlib.Path(os.environ['IE_APP_PATH'], 'benchmark_app').with_suffix('.exe')
+        executable = pathlib.Path(os.environ['IE_APP_PATH'], 'benchmark_app').with_suffix('.exe' if os.name == 'nt' else '')
         assert executable.exists()
         return executable
     return 'benchmark_app'
