@@ -34,7 +34,7 @@ class TestHelloQueryDevice(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_empty_cmd_line)
+        stdout = self._test(param, use_preffix=False)
         if not stdout:
             return 0
         stdout = stdout.split('\n')

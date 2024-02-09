@@ -22,7 +22,7 @@ class TestThroughputBenchmarkCpp(SamplesCommonTestClass):
         super().setup_class()
 
     def test_benchmark_app_onnx(self):
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': os.path.join('ssd512', 'FP16', 'ssd512.xml')}, use_preffix=False)
 
 
 class TestThroughputBenchmarkPython(SamplesCommonTestClass):
@@ -34,4 +34,4 @@ class TestThroughputBenchmarkPython(SamplesCommonTestClass):
 
     def test_benchmark_app_onnx(self, monkeypatch):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': os.path.join('ssd512', 'FP16', 'ssd512.xml')}, use_preffix=False)

@@ -31,17 +31,6 @@ from shutil import which
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 
-def search_model_path_recursively(config_key, model_name):
-    search_pattern = config_key + '/**/' + model_name
-    path_found = list(iglob(search_pattern, recursive=True))
-    if len(path_found) == 1:
-        return path_found[0]
-    elif len(path_found) == 0:
-        raise FileNotFoundError("File not found for pattern {}".format(search_pattern))
-    else:
-        raise ValueError("More than one file with {} name".format(model_name))
-
-
 class Environment:
     """
     Environment used by tests.
@@ -287,11 +276,6 @@ class SamplesCommonTestClass():
         with open(csv_path, 'a', newline='') as f:
             perf_writer = csv.writer(f, delimiter='|', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             perf_writer.writerow([sample_name, sample_type, cmd_perf.rstrip(), fps_perf])
-
-    @staticmethod
-    def get_empty_cmd_line(param, use_preffix=True, long_hyphen=None):
-        line = ''
-        return line
 
     @staticmethod
     def get_hello_cmd_line(param, use_preffix=True, long_hyphen=None):
