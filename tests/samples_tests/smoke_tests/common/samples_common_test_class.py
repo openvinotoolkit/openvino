@@ -62,7 +62,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
     new_cmd_params = []
     cmd_keys = list(cmd_params.keys())
 
-    devices = os.environ["TEST_DEVICE"].split(';') if os.environ.get("TEST_DEVICE") else ["CPU"]
+    devices = os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
 
     # You can pass keys (like d, d_lpr ..) via use_device list. And the topology executes only on these devices
     # Use this option when a topology isn't supported in some plugin. In default CPU only.
@@ -250,13 +250,13 @@ class SamplesCommonTestClass():
         if long_hyphen is None:
             long_hyphen = []
         line = ''
-        for key in sorted(param.keys()):
+        for key, value in param.items():
             if use_preffix and any([x for x in long_hyphen if key == x]):
-                line += '--{} {} '.format(key, param[key])
+                line += '--{} {} '.format(key, value)
             elif use_preffix and key not in long_hyphen:
-                line += '-{} {} '.format(key, param[key])
+                line += '-{} {} '.format(key, value)
             elif not use_preffix:
-                line += '{} '.format(param[key])
+                line += '{} '.format(value)
         return line
 
     @staticmethod
