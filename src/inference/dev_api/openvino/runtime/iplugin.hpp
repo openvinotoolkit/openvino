@@ -248,7 +248,7 @@ using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
  * @ingroup ov_dev_api_plugin_api
  */
 #ifndef OV_CREATE_PLUGIN
-#    define OV_CREATE_PLUGIN CreatePluginEngine
+#    define OV_CREATE_PLUGIN create_plugin_engine
 #endif
 
 /**
