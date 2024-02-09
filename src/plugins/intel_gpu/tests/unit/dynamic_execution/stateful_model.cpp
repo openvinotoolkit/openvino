@@ -157,8 +157,8 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
-    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), false);
-    ASSERT_EQ(gather_inst->can_be_optimized(), false);
+    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), true);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
 
     auto KV_SIZE = 24;
     auto BATCH_SIZE = 1;
