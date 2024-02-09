@@ -3,4 +3,4 @@
 BatchToSpaceTransformation transformation
 =========================================
 
-ngraph::pass::low_precision::BatchToSpaceTransformation class represents the `BatchToSpace` operation transformation.
+``ov::pass::low_precision::BatchToSpaceTransformation`` class represents the ``BatchToSpace`` operation transformation.

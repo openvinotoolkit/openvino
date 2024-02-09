@@ -165,7 +165,7 @@ To avoid such issues you can also disable globbing for PIP commands by defining 
 alias pip='noglob pip'
 ```
 
-### ERROR:root:Could not find the Inference Engine or nGraph Python API.
+### ERROR:root:Could not find OpenVINO Python API.
 
 On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
