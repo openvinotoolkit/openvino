@@ -103,6 +103,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_inputs)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.xfail(reason='CVS-132151: Layer tests should call ovc + save_model') 
     def test_floordiv(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
         self._test(*self.create_flordiv_tf_net(**params, ir_version=ir_version,
