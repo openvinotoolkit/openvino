@@ -498,4 +498,20 @@ std::vector<int> get_available_cores_types() {
 }
 #endif
 
+int get_proc_id_by_type(const int request_core_type) {
+    if ((MAIN_CORE_PROC == request_core_type) && (EFFICIENT_CORE_PROC == request_core_type)) {
+        CPU& cpu = cpu_info();
+
+        if (cpu._cpu_mapping_table.size() > 1) {
+            for (auto& row : cpu._cpu_mapping_table) {
+                if (request_core_type == row[CPU_MAP_CORE_TYPE]) {
+                    return row[CPU_MAP_PROCESSOR_ID];
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
 }  // namespace ov

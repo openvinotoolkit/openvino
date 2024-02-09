@@ -199,6 +199,14 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 OPENVINO_RUNTIME_API int get_current_socket_id();
 
 /**
+ * @brief      Returns the processor ID in cpu mapping table of the request core type.
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Processor ID in cpu mapping, or "-1" if no processor of the target core type is found.
+ * Parameter request_core_type only support MAIN_CORE_PROC and EFFICIENT_CORE_PROC. Will return "-1" for other inputs.
+ */
+int get_proc_id_by_type(const int request_core_type);
+
+/**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU
  * resources. The difference from get_proc_type_table: This is used to get the configuration of current machine. For
  * example, GPU plugin occupies all Pcores, there is only one type core in proc_type_table from get_proc_type_table().
