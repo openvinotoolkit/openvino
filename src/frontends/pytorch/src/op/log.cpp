@@ -33,8 +33,8 @@ OutputVector translate_log(const NodeContext& context) {
 OutputVector translate_log_sigmoid(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto x = context.get_input(0);
+    x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
     auto sigmoid = context.mark_node(std::make_shared<v0::Sigmoid>(x));
-    sigmoid = context.mark_node(std::make_shared<v0::Convert>(sigmoid, element::f32));
     auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
     return {log};
 };
