@@ -33,4 +33,4 @@ class Test_sync_benchmark_py(SamplesCommonTestClass):
 
     def test(self, monkeypatch):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': 'squeezenet_v1.1/FP32/squeezenet1.1.xml'}, use_preffix=False)
+        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)

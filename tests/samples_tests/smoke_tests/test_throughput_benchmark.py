@@ -34,4 +34,4 @@ class Test_throughput_benchmark_py(SamplesCommonTestClass):
 
     def test(self, monkeypatch):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': 'ssd512/FP16/ssd512.xml'}, use_preffix=False)
+        self._test({'m': os.path.join('ssd512', 'FP16', 'ssd512.xml')}, use_preffix=False)
