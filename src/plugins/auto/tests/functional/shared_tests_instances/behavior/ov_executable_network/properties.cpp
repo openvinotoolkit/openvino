@@ -95,7 +95,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}};
 
-// IE Class Load network
+// OV Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPUOVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE", "MULTI:TEMPLATE"),

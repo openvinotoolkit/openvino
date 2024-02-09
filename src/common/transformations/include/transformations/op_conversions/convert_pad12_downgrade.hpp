@@ -10,7 +10,7 @@
 namespace ov {
 namespace pass {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Converts Pad v12 to Pad v1
  */
 class TRANSFORMATIONS_API ConvertPad12ToPad1 : public MatcherPass {

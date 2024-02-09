@@ -22,7 +22,7 @@
 namespace ov {
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief each element in vector represents dimension and each element
  * in set is an id of dimensions which contains zeros.
  */

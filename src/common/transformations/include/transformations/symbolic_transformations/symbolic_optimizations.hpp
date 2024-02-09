@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Runs optimizations which are based on symbolic shape inference
  */
 class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
@@ -36,7 +36,7 @@ private:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Assigns labels / symbols to all tensors on shapes and values. Uses shape inference and other special rules to
  * propagate labels / symbols
  */
@@ -51,7 +51,7 @@ private:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Transformation requires equal labels on one input of Add and output of last Reshape in the pattern:
  *      -> Add -> Reshape -[then or else input]-> Select -> Softmax -> Reshape ->
  *
