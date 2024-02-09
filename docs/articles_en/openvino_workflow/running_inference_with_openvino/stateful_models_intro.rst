@@ -143,4 +143,4 @@ You can find more examples demonstrating how to work with states in other articl
 
 * `LLM Chatbot notebook <notebooks/273-stable-zephyr-3b-chatbot-with-output.html>`__
 * :doc:`Speech Recognition sample <openvino_sample_automatic_speech_recognition>`
-* :doc:`Serving Stateful Models with OpenVINO Model Server <ovms_docs_stateful_models.html>`
+* :doc:`Serving Stateful Models with OpenVINO Model Server <ovms_docs_stateful_models>`
