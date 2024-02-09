@@ -11,7 +11,6 @@
  limitations under the License.
 """
 import os
-import pathlib
 import sys
 from common.samples_common_test_class import SamplesCommonTestClass
 
@@ -23,16 +22,15 @@ class TestSyncBenchmarkCpp(SamplesCommonTestClass):
         super().setup_class()
 
     def test_benchmark_app_onnx(self):
-        self._test({'m': str(pathlib.PurePath('squeezenet_v1.1') / 'FP32' / 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
 
 
 class TestSyncBenchmarkPython(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
         cls.sample_name = 'sync_benchmark'
-        cls.executable_path = sys.executable + ' -bb -W error -X dev -X warn_default_encoding ' + str((pathlib.PurePath(os.environ['IE_APP_PYTHON_PATH']) / 'benchmark' / cls.sample_name / cls.sample_name).with_suffix('.py'))
-        super().setup_class()
+        cls.executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.path.join(os.environ["IE_APP_PYTHON_PATH"], "benchmark", cls.sample_name, cls.sample_name)}.py"'
 
     def test_benchmark_app_onnx(self, monkeypatch):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': str(pathlib.PurePath('squeezenet_v1.1') / 'FP32' / 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)

@@ -62,7 +62,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
     new_cmd_params = []
     cmd_keys = list(cmd_params.keys())
 
-    devices = os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
+    devices = os.environ.get("TEST_DEVICE", "CPU;AUTO").split(';')
 
     # You can pass keys (like d, d_lpr ..) via use_device list. And the topology executes only on these devices
     # Use this option when a topology isn't supported in some plugin. In default CPU only.

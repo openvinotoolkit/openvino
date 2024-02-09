@@ -12,7 +12,6 @@
 """
 import collections
 import os
-import pathlib
 import pytest
 from common.samples_common_test_class import get_tests
 from common.samples_common_test_class import SamplesCommonTestClass
@@ -27,7 +26,7 @@ class TestModelCreation(SamplesCommonTestClass):
     @pytest.mark.parametrize('param', get_tests({'sample_type': ['C++', 'Python']}))
     def test_model_creation_fp32(self, param):
         stdout = self._test(collections.OrderedDict(
-            m=str(pathlib.PurePath(os.environ['WORKSPACE']) / 'samples' / 'cpp' / 'model_creation_sample' / 'lenet.bin'),
+            m=f'"{os.path.join(os.environ["WORKSPACE"], "samples", "cpp", "model_creation_sample", "lenet.bin")}"',
             **param,
         ), use_preffix=False).split(sep='\n')
         target_line_index = -1

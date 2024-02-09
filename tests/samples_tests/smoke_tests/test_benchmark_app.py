@@ -35,7 +35,6 @@ test_data_fp32_sync = get_tests \
      )
 
 
-
 class Test_benchmark_app(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
