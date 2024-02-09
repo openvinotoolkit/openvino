@@ -95,7 +95,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
-# IE is public API => need to mark this library as important for ABI free
+# OpenVINO Runtime is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
 ov_set_threading_interface_for(${TARGET_NAME}_obj)
