@@ -21,10 +21,8 @@ element::Type bitwidth_to_int(size_t bitwidth) {
         return element::i16;
     case 32:
         return element::i32;
-    case 64:
-        return element::i64;
     default:
-        OPENVINO_THROW("Unsupported bitwidth for integer datatype: ", bitwidth);
+        return element::i64;
     };
 }
 bool is_float8(const element::Type& type) {
@@ -120,17 +118,17 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
         const auto is_input_1_signed = input_1_type.is_signed();
         if (pytorch_scalar_promotion && (is_input_0_scalar != is_input_1_scalar)) {
             // For pytorch mode, when number formats are same, promote to type of non-scalar input.
-            if (promote_unsafe) {
-                return is_input_0_scalar ? input_1_type : input_0_type;
-            }
-            // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
             const auto target = is_input_0_scalar ? input_1_type : input_0_type;
-            const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
-            NODE_VALIDATION_CHECK(
-                op,
-                ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
-                 (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth())),
-                "Scalar input cannot be PyTorch-like aligned using safe promotion rules.");
+            if (!promote_unsafe) {
+                // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
+                const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
+                const auto is_pytorch_promote_safe =
+                    ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
+                     (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth()));
+                NODE_VALIDATION_CHECK(op,
+                                      is_pytorch_promote_safe,
+                                      "Scalar input cannot be PyTorch-like promoted using safe promotion rules.");
+            }
             return target;
         } else if ((is_input_0_signed != is_input_1_signed)) {
             // Signed and unsigned integers are mixed, convert to signed integer with bitwidth able to hold all unsigned

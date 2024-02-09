@@ -515,7 +515,7 @@ TEST_F(ConvertPromoteTypesTest, exception_torch_signed_unsigned_unsafe) {
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
                     ov::Exception,
-                    testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
+                    testing::HasSubstr("Scalar input cannot be PyTorch-like promoted using safe promotion rules."));
 }
 
 TEST_F(ConvertPromoteTypesTest, exception_torch_unsigned_unsafe) {
@@ -523,7 +523,7 @@ TEST_F(ConvertPromoteTypesTest, exception_torch_unsigned_unsafe) {
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
                     ov::Exception,
-                    testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
+                    testing::HasSubstr("Scalar input cannot be PyTorch-like promoted using safe promotion rules."));
 }
 
 TEST_F(ConvertPromoteTypesTest, exception_torch_floating_unsafe) {
@@ -531,7 +531,7 @@ TEST_F(ConvertPromoteTypesTest, exception_torch_floating_unsafe) {
     auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
     OV_EXPECT_THROW(std::ignore = this->make_op(in0, in1, false, true),
                     ov::Exception,
-                    testing::HasSubstr("Scalar input cannot be PyTorch-like aligned using safe promotion rules."));
+                    testing::HasSubstr("Scalar input cannot be PyTorch-like promoted using safe promotion rules."));
 }
 
 TEST_F(ConvertPromoteTypesTest, exception_bf16_f16_unsafe) {
