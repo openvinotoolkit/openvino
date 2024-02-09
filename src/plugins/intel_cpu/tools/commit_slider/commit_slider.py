@@ -40,6 +40,8 @@ elif args.isWorkingDir:
     else:
         commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
 
+    cfgData["commitSeq"] = args.commitSeq
+
     commitList.reverse()
     p = Mode.factory(cfgData)
     p.run(commitList, cfgData)

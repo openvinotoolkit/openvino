@@ -106,6 +106,10 @@ class Mode(ABC):
                 )
 
     def prepareRun(self, list, cfg):
+        self.commonLogger.info(
+                    "prepare run. start, list {}".format(
+                        list)
+                )
         self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         # check prerun-cashed commits
@@ -121,6 +125,10 @@ class Mode(ABC):
                 list = newList
         else:
             self.preliminaryCheck(list, cfg)
+        self.commonLogger.info(
+                    "prepare run. end, list {}".format(
+                        list)
+                )
         return list
 
     def normalizeCfg(self, cfg):
@@ -350,6 +358,9 @@ class Mode(ABC):
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
             self.mode.commonLogger.info(
+                "Passed cfg: {}".format(cfg)
+            )
+            self.mode.commonLogger.info(
                 "Check interval {i1}..{i2}".format(i1=i1, i2=i2)
             )
             self.mode.commonLogger.info(
@@ -370,6 +381,9 @@ class Mode(ABC):
             super().__init__(mode)
 
         def bypass(self, curList, list, cfg) -> int:
+            self.commonLogger.info(
+                "Bypass, list: {}".format(list)
+            )
             curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
