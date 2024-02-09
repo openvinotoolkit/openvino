@@ -21,6 +21,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
@@ -351,11 +352,42 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
             if (m_weights->size() < offset + size)
                 OPENVINO_THROW("Incorrect weights in bin file!");
-            if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
-                OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
-
             char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+
+            if (el_type == element::string) {
+                auto buffer =
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+                a->set(buffer);
+            } else {
+                if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                    OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
+
+                auto buffer =
+                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+                a->set(buffer);
+            }
+        }
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        pugi::xml_node dn = m_node.child("data");
+        const auto& type = pugixml::get_str_attr(m_node, "type");
+        if (name == "value" && type == "Const") {
+            std::vector<int64_t> shape;
+            std::string el_type_str;
+
+            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+            if (!getStrAttribute(dn, "element_type", el_type_str))
+                return;
+            if (!getParameters<int64_t>(dn, "shape", shape))
+                return;
+
+            if (!m_weights)
+                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+            if (m_weights->size() < offset + size)
+                OPENVINO_THROW("Incorrect weights in bin file!");
+            char* data = m_weights->get_ptr<char>() + offset;
+            auto buffer =
+                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {

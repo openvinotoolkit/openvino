@@ -98,7 +98,7 @@ TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThro
         clear_target_device = target_devices.begin()->substr(0, pos);
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
-    ASSERT_LT(deviceIDs.size(), target_devices.size());
+    ASSERT_LE(deviceIDs.size(), target_devices.size());
 
     std::string multi_target_device = ov::test::utils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {

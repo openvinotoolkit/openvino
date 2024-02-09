@@ -8,9 +8,6 @@
 
 #include "check_network_batchable.hpp"
 #include "compilation_context.hpp"
-#include "dev/converter_utils.hpp"
-#include "dev/icompiled_model_wrapper.hpp"
-#include "dev/iplugin_wrapper.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -56,7 +53,6 @@ template <typename F>
 void allowNotImplemented(F&& f) {
     try {
         f();
-    } catch (const InferenceEngine::NotImplemented&) {
     } catch (const ov::NotImplemented&) {
     }
 }
@@ -312,7 +308,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     return {updated_device_name, updated_config};
 }
 
-ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
+ov::CoreImpl::CoreImpl() {
     add_mutex("");  // Register global mutex
     m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
@@ -455,7 +451,15 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 void ov::CoreImpl::register_compile_time_plugins() {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    const decltype(::getCompiledPluginsRegistry())& plugins = getCompiledPluginsRegistry();
+    auto any_copy = [](const std::map<std::string, std::string>& params) -> ov::AnyMap {
+        ov::AnyMap result;
+        for (auto&& value : params) {
+            result.emplace(value.first, value.second);
+        }
+        return result;
+    };
+
+    const decltype(::get_compiled_plugins_registry())& plugins = get_compiled_plugins_registry();
     for (const auto& plugin : plugins) {
         const auto& deviceName = plugin.first;
         if (deviceName.find('.') != std::string::npos) {
@@ -465,7 +469,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
-            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extensions_func};
             register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #else
@@ -586,8 +590,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
-            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin_impl))
-                wrapper->set_shared_object(so);
             plugin = Plugin{plugin_impl, so};
         }
 
@@ -692,7 +694,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 std::vector<ov::Extension::Ptr> ext;
                 desc.extensionCreateFunc(ext);
                 add_extensions_unsafe(ext);
-            } catch (const InferenceEngine::GeneralError&) {
+            } catch (const ov::Exception&) {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
@@ -700,15 +702,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
-    } catch (const InferenceEngine::Exception& ex) {
-        OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::from_file_path(desc.libraryLocation),
-                       " for device ",
-                       deviceName,
-                       "\n",
-                       "Please, check your environment\n",
-                       ex.what(),
-                       "\n");
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
                        ov::util::from_file_path(desc.libraryLocation),
@@ -850,12 +843,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
-    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
-
-    return compiled_model;
+    return get_plugin(parsed._deviceName).import_model(model, parsed._config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
@@ -863,12 +851,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
-    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
-
-    return compiled_model;
+    return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -907,10 +890,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         if (is_hidden_device(deviceName))
             continue;
         try {
-            const ov::Any p = GetMetric(deviceName, propertyName);
-            devicesIDs = p.as<std::vector<std::string>>();
-        } catch (const InferenceEngine::Exception&) {
-            // plugin is not created by e.g. invalid env
+            devicesIDs = get_property(deviceName, ov::available_devices.name(), {}).as<std::vector<std::string>>();
         } catch (const ov::Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
@@ -1014,10 +994,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     }
 
     return supported_config;
-}
-
-bool ov::CoreImpl::is_new_api() const {
-    return m_new_api;
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {
@@ -1376,8 +1352,6 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     try {
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
-    } catch (const InferenceEngine::NotImplemented&) {
-        return false;
     } catch (const ov::NotImplemented&) {
         return false;
     }
@@ -1459,9 +1433,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             update_config[ov::loaded_from_cache.name()] = true;
             compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                      : plugin.import_model(networkStream, update_config);
-            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
-                wrapper->get_executable_network()->loadedFromCache();
-            }
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
@@ -1617,4 +1588,57 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
     return ov::util::read_model(model, weights, extensions, frontendMode);
+}
+
+std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& deviceName) const {
+    std::map<std::string, ov::Version> versions;
+    std::vector<std::string> deviceNames;
+
+    {
+        // for compatibility with samples / demo
+        if (deviceName.find("HETERO") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_hetero_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.push_back("HETERO");
+        } else if (deviceName.find("MULTI") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.push_back("MULTI");
+        } else if (deviceName.find("AUTO") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
+            }
+            deviceNames.emplace_back("AUTO");
+        } else if (deviceName.find("BATCH") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = {ov::DeviceIDParser::get_batch_device(deviceName.substr(pos + 1))};
+            }
+            deviceNames.push_back("BATCH");
+        } else {
+            deviceNames.push_back(deviceName);
+        }
+    }
+
+    for (auto&& deviceName_ : deviceNames) {
+        ov::DeviceIDParser parser(deviceName_);
+        std::string deviceNameLocal = parser.get_device_name();
+
+        try {
+            ov::Plugin plugin = get_plugin(deviceNameLocal);
+            versions[deviceNameLocal] = plugin.get_version();
+        } catch (const ov::Exception& ex) {
+            std::string exception(ex.what());
+            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                throw;
+            }
+        }
+    }
+
+    return versions;
 }
