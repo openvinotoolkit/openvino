@@ -103,10 +103,9 @@ const std::vector<std::vector<InputShape>> input_shapes_basic = {
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
-    if (inputs.size() > targetInputStaticShapes.size()) {
-        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) +
-                                 " != inputs.size() = " + std::to_string(inputs.size()));
-    }
+    OPENVINO_ASSERT(inputs.size() <= targetInputStaticShapes.size(),
+        "targetInputStaticShapes.size() = ", targetInputStaticShapes.size(), " != inputs.size() = ", inputs.size());
+
     for (size_t i = 0; i < inputs.size(); i++) {
         shapes.insert({inputs[i], targetInputStaticShapes[i]});
     }
