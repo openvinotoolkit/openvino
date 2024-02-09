@@ -567,17 +567,16 @@ Note that if a `PortDescriptor` is required, you can obtain it directly (without
 
 Concluding this section, it's worth mentioning that the `LinearIR` currently provides several debug features: `debug_print()`, serialization, performance counters and segfault detector. 
 The first one prints input and output `PortConnectors` and `PortDescriptors` for every `Expression` to stderr. 
-The second one allows users to serialize the `LIR` in two views: as control flow graph of `LinearIR` using the pass `SerializeControlFlow` and 
-as data flow graph of `LinearIR` using the pass `SerializeDataFlow` (control flow operations (e.g. `LoopBegin`/`LoopEnd`) are not serialized).
+The second one allows users to serialize the `LIR` in two representations: as a control flow graph of `LinearIR` using the pass `SerializeControlFlow` and 
+as a data flow graph of `LinearIR` using the pass `SerializeDataFlow` (control flow operations (e.g. `LoopBegin`/`LoopEnd`) are not serialized).
 The both serializations are saved in `xml` OpenVINO graph format, where a lot of useful parameters are displayed for every `Expression`.
 Please see [perf_count.md](./debug_capabilities/perf_count.md) and [snippets_segfault_detector.md](./debug_capabilities/snippets_segfault_detector.md) for more info regarding the performance counters and segfault detector. 
 
-Also the `LinearIR` provides an interface for work with new `Expression` which encapsulates all the technical details inside.
-The method `insert_node(...)` creates new `Expression` based on the passed `ov::Node` and inserts in the specified place in the `LinearIR`
-by performing all the necessary actions for full integration into the `LinearIR` (connection with parents and consumers and updates of the corresponding `LoopInfo`).
-This helper is used in several control flow transformations `InsertSomething`, for example, in the `InsertLoadStore` pass inside [insert_load_store.cpp](../src/lowered/pass/insert_load_store.cpp).
-The method `replace_with_node(...)` creates new `Expression` based on the passed `ov::Node` and replaces the existing `Expressions` in the `LinearIR`
-with the created `Expression` with full integration into the `LinearIR`.
+The `LinearIR` also provides a a convenient interface for working with new `Expressions`.
+This interface includes the `insert_node(...)` method that creates a new `Expression` based on the passed `ov::Node` and inserts it in the specified place in the `LinearIR`.
+The `insert_node(...)` method automatically performs all the necessary actions for full integration into the `LinearIR` (connection with parents and consumers and updates of the corresponding `LoopInfo`).
+This helper is used in several control flow transformations, that are usually named `InsertSomething`. Consider the `InsertLoadStore` pass as an example [insert_load_store.cpp](../src/lowered/pass/insert_load_store.cpp).
+The method `replace_with_node(...)` replaces the existing `Expressions` in the `LinearIR` with the new `Expression`. This `Expression` is created from the passed `ov::Node`.
 The example of using the helper might be found in the `LoadMoveBroadcastToBroadcastLoad` pass inside [load_movebroadcast_to_broadcastload.cpp](../src/lowered/pass/load_movebroadcast_to_broadcastload.cpp).
 The method `replace_with_expr(...)` replaces the existing `Expressions` in the `LinearIR` with the passed `Expression`.
 For more details regarding these helpers please refer to the relevant descriptions in `LinearIR` interface inside [linear_ir.cpp](../src/lowered/linear_ir.cpp).
@@ -597,8 +596,7 @@ These are needed, so appropriate instructions will be emitted during the code ge
 5. `InitLoops` - initialize data pointer shift parameters (pointer increments and finalization offsets for each loop port) in `LoopInfo`.
 6. `InsertLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
 Again, the explicit operations are needed to emit appropriate instructions later.
-7. `InsertBroadcastMove` insert `MoveBroadcast` before `Expressions` with several inputs since a special broadcasting instruction needs to be 
-generated to broadcast a single value to fill the whole vector register.
+7. `InsertBroadcastMove` insert `MoveBroadcast` before `Expressions` with several inputs since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
 8. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
 9. `AllocateBuffers` is responsible for a safe `Buffer` data pointer increments and common memory size calculation. For more details refer please to the end of this section.
 10. `CleanRepeatedDataPointerShifts` - eliminates redundant pointer increments from the loops.
@@ -606,14 +604,18 @@ generated to broadcast a single value to fill the whole vector register.
 
 As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
 Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
-all `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing);
-each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`) and `ID` (the `Buffers` with the same `ID` have the same assigned register).
-The algorithm supports two modes: optimized (the algorithm calculates minimal memory size and minimal unique `ID` count required to handle all the buffers) and
-not optimized (the each buffer has unique `ID` and `offset`). The first mode is default, the second one might be used for debugging in cases when
-there is possibility incorrect work of the optimized algorithm.
+* All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
+* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`) and `ID` (the `Buffers` with the same `ID` have the same assigned register).
+
+The algorithm supports two modes: optimized and non-optimized.
+The optimized one calculates minimal memory size and minimal unique `ID` count required to handle all the buffers.
+The non-optimized version assigns each buffer an unique `ID` and `offset`.
+The first mode is the default one, while the second one might be used for debugging the optimized version.
 The optimized algorithm `AllocateBuffers` has the main following steps:
-1. `IdentifyBuffers` - analyzes `Buffers` using graph coloring algorithm to avoid redundant pointer increments by assigning `ID` to them.
-2. `DefineBufferClusters` - creates `BufferClusters` where `Buffers` from the same cluster will have the same `offset` relative to the `Buffer scratchpad` data pointer.
+1. `IdentifyBuffers` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+2. `DefineBufferClusters` - creates sets of `Buffer` ops - `BufferClusters`.
+`Buffers` from one `BufferCluster` refer to the same memory area (they have the same `offset` relative to the `Buffer scratchpad` data pointer).
+For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one `BufferCluster`.
 3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
 More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
@@ -642,8 +644,8 @@ The `increment` defines how many data entries are processed on every loop iterat
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
 `InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
 3. `CleanupLoopOffsets` "fuses" the finalization offsets of loop with an outer loop's pointer increments and zeroes the offsets before `Result` operations.
-4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd` and sets the special flag to `LoopEnd` for the next optimizations in the corresponding emitter
-if the loop body can be executed only once.
+4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
+This information will be used during code emission to eliminate redundant instructions.
 
 Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the main passes in the `Preparation` stage. 
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
