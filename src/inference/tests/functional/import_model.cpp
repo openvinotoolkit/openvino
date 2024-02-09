@@ -6,8 +6,7 @@
 #include "gtest/gtest.h"
 #include "openvino/runtime/core.hpp"
 
-// Test is disabled due to issue 128924
-TEST(ImportModel, DISABLED_ImportModelWithNullContextThrows) {
+TEST(ImportModel, ImportModelWithNullContextThrows) {
     ov::Core core;
     ov::RemoteContext context;
     std::istringstream stream("None");
