@@ -18,12 +18,12 @@ import re
 import pytest
 import numpy as np
 import pathlib
+import requests
 import zipfile
 
 import logging as log
 from common.common_utils import shell
 from shutil import which
-from urllib import request
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -96,15 +96,15 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
 
     return test_args
 
-def getting_samples_data_zip(url, samples_path):
+def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
     if os.path.exists(samples_path) or os.path.exists(samples_path[:-4]):
         return		
     try:
         print("\nStart downloading samples_smoke_tests_data.zip...")
-        pathlib.Path(samples_path).parent.mkdir(parents=True, exist_ok=True)
-        with request.urlopen(url) as samples_request:
-            with open(samples_path, 'wb') as samples_file:
-                samples_file.write(samples_request.read())
+        samples_request = requests.get(url, stream=True)
+        with open(samples_path, 'wb') as samples_file:
+            for elem in samples_request.iter_content(chunk_size=size_of_chunk):
+                samples_file.write(elem)
         print("\nsamples_smoke_tests_data.zip downloaded successfully")
         samples_file.close()
         print("\nExtracting of samples_smoke_tests_data.zip...")

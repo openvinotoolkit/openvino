@@ -1,4 +1,5 @@
 -c ../../constraints.txt
+requests
 pyyaml
 numpy
 pytest
