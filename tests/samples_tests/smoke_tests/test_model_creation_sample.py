@@ -26,7 +26,7 @@ class Test_model_creation_sample(SamplesCommonTestClass):
     @pytest.mark.parametrize('param', get_tests({'sample_type': ['C++', 'Python']}))
     def test(self, param):
         stdout = self._test(collections.OrderedDict(
-            m=f'"{os.path.join(os.environ["WORKSPACE"], "samples", "cpp", "model_creation_sample", "lenet.bin")}"',
+            m=f'"{os.environ["WORKSPACE"]}/samples/cpp/model_creation_sample/lenet.bin"',
             **param,
         ), use_preffix=False).split(sep='\n')
         target_line_index = -1

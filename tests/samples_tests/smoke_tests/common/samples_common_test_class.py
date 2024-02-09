@@ -95,7 +95,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
 
     return test_args
 
-def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
+def getting_samples_data_zip(url, samples_path):
     if os.path.exists(samples_path) or os.path.exists(samples_path[:-4]):
         return		
     try:
@@ -144,7 +144,6 @@ class SamplesCommonTestClass():
         # This exeption is made for benchmark_app, because it locates in another place.
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
             executable_path = which(str('benchmark_app'))
-        # if not hasattr(cls, 'executable_path'):
         cls.executable_path = executable_path
 
     @staticmethod
@@ -163,7 +162,6 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def join_env_path(param, executable_path, complete_path=True):
-        gpu_lib_path = os.path.join(os.environ['IE_APP_PATH'], 'lib')
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -174,54 +172,8 @@ class SamplesCommonTestClass():
             if ('i' == k) and complete_path:
                 param['i'] = [os.path.join(Environment.env['test_data'], e) for e in param['i']]
                 param['i'] = ' '.join(param['i'])
-            elif ('ref_m' == k):
-                param['ref_m'] = SamplesCommonTestClass.reset_models_path(param['ref_m'])
             elif ('m' == k):
                 param['m'] = SamplesCommonTestClass.reset_models_path(param['m'])
-            elif ('m_ag' == k):
-                param['m_ag'] = SamplesCommonTestClass.reset_models_path(param['m_ag'])
-            elif ('m_hp' == k):
-                param['m_hp'] = SamplesCommonTestClass.reset_models_path(param['m_hp'])
-            elif ('m_va' == k):
-                param['m_va'] = SamplesCommonTestClass.reset_models_path(param['m_va'])
-            elif ('m_lpr' == k):
-                param['m_lpr'] = SamplesCommonTestClass.reset_models_path(param['m_lpr'])
-            elif ('m_em' == k):
-                param['m_em'] = SamplesCommonTestClass.reset_models_path(param['m_em'])
-            elif ('m_pa' == k):
-                param['m_pa'] = SamplesCommonTestClass.reset_models_path(param['m_pa'])
-            elif ('m_reid' == k):
-                param['m_reid'] = SamplesCommonTestClass.reset_models_path(param['m_reid'])
-            elif ('m_fd' == k):
-                param['m_fd'] = SamplesCommonTestClass.reset_models_path(param['m_fd'])
-            elif ('m_act' == k):
-                param['m_act'] = SamplesCommonTestClass.reset_models_path(param['m_act'])
-            elif ('m_lm' == k):
-                param['m_lm'] = SamplesCommonTestClass.reset_models_path(param['m_lm'])
-            elif ('m_det' == k):
-                param['m_det'] = SamplesCommonTestClass.reset_models_path(param['m_det'])
-            elif ('m_td' == k):
-                param['m_td'] = SamplesCommonTestClass.reset_models_path(param['m_td'])
-            elif ('m_tr' == k):
-                param['m_tr'] = SamplesCommonTestClass.reset_models_path(param['m_tr'])
-            elif ('m_en' == k):
-                param['m_en'] = SamplesCommonTestClass.reset_models_path(param['m_en'])
-            elif ('m_de' == k):
-                param['m_de'] = SamplesCommonTestClass.reset_models_path(param['m_de'])
-            elif ('l' == k and 'pascal_voc_classes' in param['l']):
-                param['l'] = os.path.join(Environment.env['test_data'], param['l'])
-            elif ('pp' == k):
-                param['pp'] = gpu_lib_path
-            elif ('r' == k) and complete_path:
-                if len(param['r']) > 0:
-                    param['r'] = os.path.join(Environment.env['test_data'], param['r'])
-            elif ('fg' == k):
-                param['fg'] = os.path.join(Environment.env['test_data'], param['fg'])
-            elif ('labels' == k):
-                label_folder = os.path.dirname(executable_path.split(' ')[-1])
-                param['labels'] = os.path.join(label_folder, param['labels'])
-            elif ('lb') == k:
-                param['lb'] = os.path.join(Environment.env['test_data'], param['lb'])
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):

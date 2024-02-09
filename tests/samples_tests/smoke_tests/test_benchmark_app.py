@@ -213,7 +213,7 @@ def _check_output(self, param):
 
     # Run _test function, that returns stdout or 0.
     if 'dump_config' not in param:
-        param['dump_config'] = os.path.join(os.environ.get('WORKSPACE'), 'config.json')
+        param['dump_config'] = os.path.join(os.environ['WORKSPACE'], 'config.json')
     stdout = self._test(param)
     print(stdout)
     config_file_name = param['dump_config']
@@ -263,7 +263,8 @@ def _check_config(param):
     config_path = os.path.join(os.environ['WORKSPACE'], 'config.json')
     assert os.path.exists(config_path) == True
     device = param['d']
-    config = json.load(open(config_path))
+    with open(config_path, encoding='utf-8') as config_file:
+        config = json.load(config_file)
     if device in ['CPU', 'GPU']:
         assert device in config.keys()
         if param.get('api', 'async') == 'async':

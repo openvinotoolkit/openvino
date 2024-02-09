@@ -22,15 +22,15 @@ class Test_sync_benchmark_cpp(SamplesCommonTestClass):
         super().setup_class()
 
     def test(self):
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': 'squeezenet_v1.1/FP32/squeezenet1.1.xml'}, use_preffix=False)
 
 
 class Test_sync_benchmark_py(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
         cls.sample_name = 'sync_benchmark'
-        cls.executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.path.join(os.environ["IE_APP_PYTHON_PATH"], "benchmark", cls.sample_name, cls.sample_name)}.py"'
+        cls.executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.environ["IE_APP_PYTHON_PATH"]}/benchmark/{cls.sample_name}/{cls.sample_name}.py"'
 
     def test(self, monkeypatch):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': 'squeezenet_v1.1/FP32/squeezenet1.1.xml'}, use_preffix=False)
