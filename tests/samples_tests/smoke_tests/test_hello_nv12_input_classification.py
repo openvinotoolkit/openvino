@@ -24,8 +24,7 @@ test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('224x224', 'dog6.yuv')
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'size': ['224x224'],
 				       'sample_type': ['C++', 'C'],
-                                       'd': ['CPU']},
-                           use_device=['d']
+                                       },
                            )
 
 class TestHelloNV12Input(SamplesCommonTestClass):

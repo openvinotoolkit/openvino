@@ -130,7 +130,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
 class SamplesCommonTestClass():
 
     @classmethod
-    def made_executable_path(cls, path1, path2, sample_type='C++'):
+    def made_executable_path(cls, path1, path2, sample_type):
         if hasattr(cls, 'executable_path'):
             return
 
@@ -156,8 +156,6 @@ class SamplesCommonTestClass():
     @staticmethod
     def join_env_path(param, cache, executable_path, complete_path=True):
         test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
-        inputs = test_data_dir / 'validation_set'
-        models = test_data_dir / 'models' / 'public'
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -166,10 +164,10 @@ class SamplesCommonTestClass():
                 param['i'] = list([param['i']])
         for k in param.keys():
             if ('i' == k) and complete_path:
-                param['i'] = [inputs / e for e in param['i']]
+                param['i'] = [test_data_dir / 'validation_set' / e for e in param['i']]
                 param['i'] = ' '.join(map(str, param['i']))
             elif 'm' == k and not param['m'].endswith('/samples/cpp/model_creation_sample/lenet.bin"'):
-                param['m'] = models / param['m']
+                param['m'] = test_data_dir / 'models' / 'public' / param['m']
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):
@@ -186,33 +184,11 @@ class SamplesCommonTestClass():
         return line
 
     @staticmethod
-    def check_is_perf(stdout):
-        # This function check if FPS in stdout. If yes - then need to run this sample for perfomance
-        for line in stdout:
-            if 'fps' in line.lower():
-                return True
-        return False
-
-    @staticmethod
-    def check_has_niter(param):
-        # Check if niter has already in params, so it was set before
-        if 'niter' in param:
-            return True
-        return False
-
-    @staticmethod
     def find_fps(stdout):
         stdout = stdout.split('\n')
         for line in stdout:
             if 'fps' in line.lower():
                 return float(re.findall(r"\d+\.\d+", line)[0])
-
-    @staticmethod
-    def write_csv(sample_name, sample_type, cmd_perf, fps_perf):
-        csv_path = Environment.env['perf_csv_name']
-        with open(csv_path, 'a', newline='') as f:
-            perf_writer = csv.writer(f, delimiter='|', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            perf_writer.writerow([sample_name, sample_type, cmd_perf.rstrip(), fps_perf])
 
     @staticmethod
     def get_hello_cmd_line(param, use_preffix=True, long_hyphen=None):

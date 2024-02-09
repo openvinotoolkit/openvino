@@ -45,7 +45,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
     assert 'FPS' in output
     if tmp_path:
         assert (tmp_path / 'exec_graph.xml').exists()
-        with (tmp_path / 'conf.json').open() as file:
+        with (tmp_path / 'conf.json').open(encoding='utf-8') as file:
             config_json = json.load(file)
         if 'CPU' == device:
             assert 'CPU' in config_json
