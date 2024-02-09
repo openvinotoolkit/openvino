@@ -15,6 +15,8 @@ class TRANSFORMATIONS_API ConvertConvertPromoteTypes;
 }  // namespace pass
 }  // namespace ov
 
+/// \brief Transformation to replace ConvertPromoteTypes with pair of Convert ops for each input to evaluated common
+/// element type.
 class ov::pass::ConvertConvertPromoteTypes : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertConvertPromoteTypes", "0");
