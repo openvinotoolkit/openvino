@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReduceBaseTransformation: base class for Reduce*Transformation,
  * detects dequantization operations in front of the Reduce* operation and
  * propagates them through the Reduce* if possible.

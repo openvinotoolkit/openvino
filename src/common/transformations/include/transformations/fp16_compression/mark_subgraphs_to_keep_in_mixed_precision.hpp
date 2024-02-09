@@ -19,7 +19,7 @@ constexpr auto float16_min_normalized = float16::from_bits(0x0400);
 }  // namespace ov
 
 /*
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief: MarkSugraphsToKeepInMixedPrecision container for marking passes which marks subgraphs
  * to be kept in f32 for mixed precision inference. Includes passes for the following patterns:
  * L2Normalize, MVN, ShapeOf subgraphs, Exp in ReduceOp paths and Division with small eps values.

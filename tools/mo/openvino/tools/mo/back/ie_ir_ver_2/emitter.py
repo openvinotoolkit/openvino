@@ -577,8 +577,8 @@ def serialize_network(graph, net_element, unsupported):
 def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),
                    mean_size: tuple = (), meta_info: dict = dict()):
     """
-    Extracts IE/IR attributes from kind='op' nodes in three ways:
-      (1) node.IE xml scheme that sets correspondence from existing attributes to generated xml elements
+    Extracts OV/IR attributes from kind='op' nodes in three ways:
+      (1) node.OV xml scheme that sets correspondence from existing attributes to generated xml elements
       (2) input/output edges that don't have 'bin' attributes are transformed to input/output ports
       (3) input edges that has 'bin' attributes are handled in special way like weights/biases
 
@@ -620,7 +620,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
         log.debug('Partially correct IR XML:\n{}'.format(pretty_xml_as_string))
-        unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
+        unsupported.report(log.error, "List of operations that cannot be converted to OpenVINO IR:")
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
     with open(file_name, 'wb') as file:

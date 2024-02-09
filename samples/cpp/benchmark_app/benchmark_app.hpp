@@ -231,11 +231,11 @@ static const char exec_graph_path_message[] =
 
 // @brief message for dump config option
 static const char dump_config_message[] =
-    "Optional. Path to JSON file to dump IE parameters, which were set by application.";
+    "Optional. Path to JSON file to dump OV parameters, which were set by application.";
 
 // @brief message for load config option
 static const char load_config_message[] =
-    "Optional. Path to JSON file to load custom IE parameters."
+    "Optional. Path to JSON file to load custom OV parameters."
     " Please note, command line parameters have higher priority then parameters from configuration file.\n"
     "                              Example 1: a simple JSON file for HW device with primary properties.\n"
     "                                       {\n"

@@ -197,7 +197,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
         // Target transform: Swap feature with y
-        // IE order:    0 2 1 3 => bfyx -> byfx
+        // OV order:    0 2 1 3 => bfyx -> byfx
         // cldnn order: 0 3 2 1 => bfxy -> byxf
         if (order.size() != 4) {
             return false;

@@ -21,7 +21,7 @@ class TestNoInferenceEngine(unittest.TestCase):
             subprocess_main()
         assert e.value.code == 1
         res = [i for i in cm.output if
-               'Consider building the Inference Engine and nGraph Python APIs from sources' in i]
+               'Consider building the OpenVINO and Python APIs from sources' in i]
         assert res
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 113358")

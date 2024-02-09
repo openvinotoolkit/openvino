@@ -23,7 +23,7 @@ TRANSFORMATIONS_API bool is_fp16_compression_postponed(const RTMap& rt_info);
 TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief DisableFP16Compression class represents runtime info attribute that marks operation
  * as prohibited to convert to lower precision (e.g. to FP16) and they should be inferred precisely in the original
  * precision.

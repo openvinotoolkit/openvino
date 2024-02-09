@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertMaxPool8ToMaxPool1;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertMaxPool8ToMaxPool1 converts v8::MaxPool into v1::MaxPool.
  */
 class ov::pass::ConvertMaxPool8ToMaxPool1 : public ov::pass::MatcherPass {

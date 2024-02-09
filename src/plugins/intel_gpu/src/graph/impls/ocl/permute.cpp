@@ -12,7 +12,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
+// This helper function is needed to convert permute order from OV format (bfyx) into cldnn format (bfxy)
 inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
     std::vector<uint16_t> ie_order_aligned = ie_order;
     // if order size is less than 4 - fill the rest with just copy

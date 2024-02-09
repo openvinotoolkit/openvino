@@ -57,7 +57,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         raise Error("Data type is unsupported: {}. " +
                     refer_to_faq_msg(50), tf_dtype)
 
-    decode_err_msg = 'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support ' \
+    decode_err_msg = 'Failed to parse a tensor with Unicode characters. Note that OpenVINO does not support ' \
                      'string literals, so the string constant should be eliminated from the graph.'
     if pb_tensor.tensor_content:
         value = mo_array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))

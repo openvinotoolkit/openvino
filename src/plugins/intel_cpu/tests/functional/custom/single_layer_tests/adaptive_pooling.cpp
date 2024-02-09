@@ -140,7 +140,7 @@ protected:
             return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-            << "model interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+            << "model interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         compare(expectedOutputs, actualOutputs);
     }

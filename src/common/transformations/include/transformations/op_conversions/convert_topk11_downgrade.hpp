@@ -10,7 +10,7 @@
 namespace ov {
 namespace pass {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Converts TopK version 11 to TopK version 3 if TopK 11 stable attribute is set to false
  */
 class TRANSFORMATIONS_API ConvertTopK11ToTopK3 : public MatcherPass {

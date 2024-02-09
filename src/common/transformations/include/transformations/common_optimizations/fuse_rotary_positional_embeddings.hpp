@@ -14,7 +14,7 @@ class TRANSFORMATIONS_API RPE_Fusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Fuses special sub-graph into an internal Rotary Positional Embedding operation
  */
 class ov::pass::RPE_Fusion : public ov::pass::MatcherPass {

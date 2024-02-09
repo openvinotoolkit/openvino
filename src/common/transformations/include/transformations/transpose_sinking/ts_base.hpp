@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API TSForwardBase;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSForwardBase is a base class for all forward transformations.
  */
 class ov::pass::transpose_sinking::TSForwardBase : public ov::pass::MatcherPass {

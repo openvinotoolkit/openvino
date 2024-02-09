@@ -15,12 +15,12 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief QuantizationAlignmentAttribute defines subgraph with the same quantization alignment.
  * FakeQuantize operations are not included. The attribute is used by quantization operations.
  *
  * For more details about the attribute, refer to
- * [QuantizationAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment) page in the Inference Engine Developer Guide.
+ * [QuantizationAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment) page in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API QuantizationAlignmentAttribute : public SharedAttribute<bool> {
 public:

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API DropoutWithRandomUniformReplacer;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation replaces possible Dropout block (in inference mode) with RandomUniform
  *  to Broadcast of half-ones in a sub-graph.
  *

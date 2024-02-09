@@ -12,12 +12,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief UnsqueezeTransformation propagates dequantization operations through Unsqueeze operation.
  *
  * For more details about the transformation, refer to
  * [UnsqueezeTransformation](@ref openvino_docs_OV_UG_lpt_UnsqueezeTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
 public:

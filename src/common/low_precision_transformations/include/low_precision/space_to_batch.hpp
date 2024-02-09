@@ -13,12 +13,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SpaceToBatchTransformation propagates dequantization operations through SpaceToBatch operation.
  *
  * For more details about the transformation, refer to
  * [SpaceToBatchTransformation](@ref openvino_docs_OV_UG_lpt_SpaceToBatchTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API SpaceToBatchTransformation : public LayerTransformation {
 public:

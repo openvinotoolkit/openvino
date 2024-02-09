@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API AdaptivePoolToReduce;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AdaptivePoolToReduce transformation replaces AdaptiveXXXPool with ReduceXXX when possible
  */
 

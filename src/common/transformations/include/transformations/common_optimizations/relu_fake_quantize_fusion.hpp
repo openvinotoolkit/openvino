@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReluFakeQuantizeFusion transformation replaces following graph:
  * Relu -> FakeQuantize to FakeQuantize under following conditions:
  * -  'input_low' input to FakeQuantize is a Constant

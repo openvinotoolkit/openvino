@@ -13,12 +13,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FuseSubtractToFakeQuantizeTransformation fuses Subtract operation to FakeQuantize.
  *
  * For more details about the transformation, refer to
  * [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FuseSubtractToFakeQuantizeTransformation : public FuseElementwiseToFakeQuantizeTransformation {
 public:

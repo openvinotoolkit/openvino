@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertPrecision;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertPrecision transformation convert precision for entire ov::Model
  * List of supported precision conversion:
  *    FROM -> TO

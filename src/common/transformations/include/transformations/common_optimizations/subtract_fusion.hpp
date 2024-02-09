@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API SubtractFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SubtractFusion transformation replaces a sub-graph
  * Mul(y, -1) + x or x + Mul(y, -1) with Subtract(x,y)
  */

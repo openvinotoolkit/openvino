@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertSpaceToBatch transformation decomposes SpaceToBatch layer to Pad->Reshape->Transpose->Reshape.
  *
  * @param convert_by_elements - reduces the maximum number of dimensions that arise during the transformation

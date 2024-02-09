@@ -852,7 +852,7 @@ void RNN::fillBiases(const int *gate_map) {
 
 void RNN::copyWeightsData() {
     /* Copy Weight data
-     * IE format:
+     * OV format:
      *   W - [gates, out_state_size, in_data_size]
      *   R - [gates, out_state_size, in_state_size]
      *   B - [gates, out_state_size]
@@ -865,10 +865,10 @@ void RNN::copyWeightsData() {
      *   Gate order
      *   ====== LSTM ======
      *   Caffe - IFOC, ONNX   - IOFC
-     *   IE    - FICO, onednn - IFCO
+     *   OV    - FICO, onednn - IFCO
      *
      *   ====== GRU ======
-     *   IE - URO, onednn - URO
+     *   OV - URO, onednn - URO
      */
     const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
     const int gate_map_gru[]  = {0, 1, 2, 3};

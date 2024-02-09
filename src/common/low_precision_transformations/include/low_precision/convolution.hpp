@@ -11,12 +11,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvolutionTransformation propagates dequantization operations through Convolution operation.
  *
  * For more details about the transformation, refer to
  * [ConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_ConvolutionTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:

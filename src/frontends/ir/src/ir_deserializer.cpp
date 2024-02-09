@@ -957,7 +957,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                 }
             } else {
                 // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
-                // when loading new IR with new attribute in old IE version.
+                // when loading new IR with new attribute in old OV version.
             }
         }
     };

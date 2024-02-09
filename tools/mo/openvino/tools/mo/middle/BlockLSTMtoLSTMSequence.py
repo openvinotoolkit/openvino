@@ -85,7 +85,7 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
         # 4. return to the original shapes
         weights = weights.reshape([weights.shape[0], -1])
         biases = biases.flatten()
-        # 5. TF stores weights in IO, but IE requires it in OI: transpose
+        # 5. TF stores weights in IO, but OV requires it in OI: transpose
         weights = weights.transpose()
         # 6. set up normalized values for Constant weights and bias
         block_lstm.in_port(1).data.set_value(weights)
@@ -116,13 +116,13 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
 
 class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     """
-    MO virtual operation RNNSequence that converts to IE TensorIterator with LSTMCell inside supports 3 outputs:
+    MO virtual operation RNNSequence that converts to OV TensorIterator with LSTMCell inside supports 3 outputs:
     0: concatenated hidden states over the whole time sequence,
     1: last hidden state,
     2: last cell state.
 
     Replacer do several tasks:
-    1. Checks if current BlockLSTM can be translated to IR (IE does not support concatenated cell state output
+    1. Checks if current BlockLSTM can be translated to IR (OV does not support concatenated cell state output
     which can be produced by BlockLSTM)
     2. Searches for sub-graph, that takes last cell state out of unsupported concatenated cell state output.
     We cut this sub-graph off in case if there are no other consumers of concatenated cell state output and we connect
@@ -196,7 +196,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     def replace_pattern(graph: Graph, match: dict):
         time_len = match['concatenated_hidden_states'].shape[0]
         r"""
-        Working with concatenated_cell_states_data part first, because IE TensorIterator primitive doesn't have
+        Working with concatenated_cell_states_data part first, because OV TensorIterator primitive doesn't have
         concatenated cell states output and if we can not collapse it, then we does not support this type of BlockLSTM
 
         We simplify the sub-graph below by taking another output of BlockLSTM:
@@ -283,7 +283,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         weights = weights.reshape([weights.shape[0], -1])
         biases = biases.flatten()
 
-        # TF stores weights in IO, but IE requires it in OI: transpose
+        # TF stores weights in IO, but OV requires it in OI: transpose
         weights = weights.transpose()
 
         weights_node.value = weights

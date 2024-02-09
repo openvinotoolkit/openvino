@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API CompressFloatConstants;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief CompressFloatConstantsImpl transformation replaces FP32/FP64 Constants with FP16 ones.
  */
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief CompressFloatConstants transformation replaces FP32/FP64 Constants with FP16 ones.
  */
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {

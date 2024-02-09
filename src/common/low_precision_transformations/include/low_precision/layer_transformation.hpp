@@ -234,7 +234,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Base class for low precision transformation.
  */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {

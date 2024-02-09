@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief DepthToSpaceFusion transformation detects Reshape-Transpose-Reshape pattern
  * and tries to fuse it into a single DepthToSpace layer.
  *

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertPadToGroupConvolution transformation replaces Pad operation
  * with GroupConvolution but has some restrictions on Pad parameters:
  * 1. PadMode must be Constant and value is equal to 0

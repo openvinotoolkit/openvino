@@ -25,7 +25,7 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern: _contrib_MultiBoxPrior(s) -> Concat -> Reshape
-        remove Reshape layer - IE does not expect outputs from concatenation of _contrib_MultiBoxPrior to be reshaped
+        remove Reshape layer - OV does not expect outputs from concatenation of _contrib_MultiBoxPrior to be reshaped
 
         Parameters
         ----------

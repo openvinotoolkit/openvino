@@ -30,7 +30,7 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find the pattern: SoftmaxActivation -> DetectionOutput
-        DetectionOutput in IE expects flattened input from SoftMax, that is why there is the need to add
+        DetectionOutput in OV expects flattened input from SoftMax, that is why there is the need to add
         Flatten layer
 
         Parameters

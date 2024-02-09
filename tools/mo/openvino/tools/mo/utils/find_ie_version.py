@@ -40,7 +40,7 @@ def reset_env():
 
 def try_to_import_ie(module="", libs=[], silent=False):
     """
-    Check if Inference Engine Python API modules exists and in case of success
+    Check if OpenVINO Python API modules exists and in case of success
     environment will be set with given values.
     :param module: path to python module
     :param libs: list with paths to libraries
@@ -67,9 +67,9 @@ def try_to_import_ie(module="", libs=[], silent=False):
 
 def find_ie_version(silent=False):
     """
-    Tries to import Inference Engine Python API bindings. In case of successful import
+    Tries to import OpenVINO Python API bindings. In case of successful import
     PATH/LD_LIBRARY_PATH and PYTHONPATH environment variables will be set
-    This variables must be passed to subprocess in order to execute IE python bindings.
+    This variables must be passed to subprocess in order to execute OV python bindings.
     Example:
         if find_ie_version():
             subprocess.run([sys.executable, path_to_script], env=os.environ)

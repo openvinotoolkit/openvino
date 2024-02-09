@@ -181,7 +181,7 @@ int get_int_child(const pugi::xml_node& node, const char* str, int defVal);
 
 /**
  * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.
- * @ingroup    ie_dev_api_xml
+ * @ingroup    ov_dev_api_xml
  */
 struct ParseResult {
     /**
@@ -207,7 +207,7 @@ struct ParseResult {
 
 /**
  * @brief      Parses a file and returns ParseResult
- * @ingroup    ie_dev_api_xml
+ * @ingroup    ov_dev_api_xml
  *
  * @param[in]  file_path  The file path
  *

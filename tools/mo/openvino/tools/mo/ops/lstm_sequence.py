@@ -14,7 +14,7 @@ class LSTMSequence(Op):
 
         It is assumed that there is no equivalent of this op in IE,
         so it is considered as intermediate operation that will be translated differently.
-        We define type for this operation to enable debuggin at IE side.
+        We define type for this operation to enable debuggin at OV side.
 
         There are several flavors of this op depending on how it was created and in which framework.
         There are several attributes that specifies the LSTM flavor:

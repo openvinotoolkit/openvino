@@ -45,8 +45,8 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
-    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by OpenVINO, and
+    OpenVINO's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     intents to replace TF CTCGreedyDecoder+SparseToDense where SparseToDense third input get from input parameter
     to CTCGreedyDecoderSeqLen which compatible with IE.
     """
@@ -70,8 +70,8 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
 class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
-    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by OpenVINO, and
+    OpenVINO's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     intents to replace TF CTCGreedyDecoder+SparseToDense where SparseToDense third input get from CTCGreedyDecoder
     second output to CTCGreedyDecoderSeqLen which compatible with IE.
     """
@@ -96,8 +96,8 @@ class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph
 
 class CTCGreedyDecoderSingleReplacement(FrontReplacementPattern):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
-    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by OpenVINO, and
+    OpenVINO's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     handles a single TF CTCGreedyDecoder and warns the user about another format of the output
     """
     enabled = True

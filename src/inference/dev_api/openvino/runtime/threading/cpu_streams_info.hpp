@@ -4,7 +4,7 @@
 
 /**
  * @file cpu_streams_info.hpp
- * @brief A header file for Inference Engine CPU streams info table implementation.
+ * @brief A header file for OpenVINO CPU streams info table implementation.
  */
 
 #pragma once

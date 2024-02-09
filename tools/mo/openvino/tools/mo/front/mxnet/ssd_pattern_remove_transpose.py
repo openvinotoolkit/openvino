@@ -31,8 +31,8 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
         """
         Need to find each occurrence of pattern:
         transpose -> SoftmaxActivation -> _contrib_MultiBoxDetection
-        remove transpose layer to secure the order of weights in SoftMax to be the same as IE expects
-        IE expects weights to be in following order: class-wise values for each priorbox.
+        remove transpose layer to secure the order of weights in SoftMax to be the same as
+        OV expects weights to be in following order: class-wise values for each priorbox.
         priorboxes change the quickest
 
         Parameters

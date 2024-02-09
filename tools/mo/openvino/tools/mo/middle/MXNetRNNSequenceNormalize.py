@@ -15,11 +15,11 @@ from openvino.tools.mo.ops.transpose import Transpose
 
 class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
     """
-        Convert blobs and shapes of MXNet-like RNN cell to IE compatible form.
+        Convert blobs and shapes of MXNet-like RNN cell to OV compatible form.
 
         The target form of this operation is not normally covered by a dedicated
-        layer in IE. It should be further transformed to some other layer
-        that are supported by IE. This transformation pass involves weights and
+        layer in OV. It should be further transformed to some other layer
+        that are supported by OV. This transformation pass involves weights and
         shapes processing only.
 
         Post-conditions:

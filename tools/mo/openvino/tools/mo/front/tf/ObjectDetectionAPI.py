@@ -457,7 +457,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             height = width = resizer_max_dimension
         else:
             log.error('Model Optimizer removes pre-processing block of the model which resizes image keeping aspect '
-                      'ratio. Inference Engine does not support dynamic image size so the Intermediate Representation '
+                      'ratio. OpenVINO does not support dynamic image size so the Intermediate Representation '
                       'file is generated with the input image size of a fixed size.', extra={'is_warning': True})
             if user_defined_height and user_defined_width:
                 scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
@@ -916,17 +916,17 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         if mean_scale_kept:
             log.error('The pre-processing block has been removed. Only nodes performing mean value subtraction and '
                       'scaling (if applicable) are kept. It is necessary to resize an input image using the same '
-                      'algorithm as in the original model before feeding it to the Inference Engine.',
+                      'algorithm as in the original model before feeding it to the OpenVINO.',
                       extra={'is_warning': True})
         else:
             log.error('The Preprocessor block has been removed including mean value subtraction and scaling (if '
                       'applicable). It is necessary to resize, scale and pad an input image using the same algorithm '
-                      'as in the original model before feeding it to the Inference Engine.', extra={'is_warning': True})
+                      'as in the original model before feeding it to the OpenVINO.', extra={'is_warning': True})
 
 
 class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    Replaces the sub-graph that is equal to the DetectionOutput layer from Inference Engine (similarly to the
+    Replaces the sub-graph that is equal to the DetectionOutput layer from OpenVINO (similarly to the
     ObjectDetectionAPISSDPostprocessorReplacement). This transformation is used for Faster R-CNN, R-FCN and Mask R-CNN
     topologies conversion.
     Refer to the code for more details.
@@ -955,7 +955,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         return new_nodes_to_remove
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
-        # the DetectionOutput in IE produces single tensor, but in TF it produces four tensors, so we need to create
+        # the DetectionOutput in OV produces single tensor, but in TF it produces four tensors, so we need to create
         # only one output edge match
         if match.outputs_count() >= 1:
             return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
@@ -976,7 +976,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         activation_conf_node = add_activation_function_after_node(graph, match.single_input_node(1)[0].in_node(0),
                                                                   activation_function)
 
-        # IE DetectionOutput operation consumes flattened tensors so need add a Reshape layer.
+        # OV DetectionOutput operation consumes flattened tensors so need add a Reshape layer.
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
@@ -1006,7 +1006,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             offsets = reshape_offsets
         else:
             # TF produces shape offsets tensor without boxes corresponding to "background" class
-            # Inference Engine DetectionOutput layer requires "background" class data be included so we generate them
+            # OpenVINO DetectionOutput layer requires "background" class data be included so we generate them
             offsets = add_fake_background_loc(graph, reshape_offsets)
             PermuteAttrs.set_permutation(reshape_offsets, offsets, None)
 
@@ -1039,7 +1039,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             swap_weights_xy(graph, matmul_or_conv_nodes)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([scaled_offsets])
 
-        # IE DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
+        # OV DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
@@ -1105,7 +1105,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
 class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    There are two TensorFlow CropAndResize (corresponding to Inference Engine ROIPooling with bilinear interpolation
+    There are two TensorFlow CropAndResize (corresponding to OpenVINO ROIPooling with bilinear interpolation
     mode) operations in the Mask-RCNN model. The second CropAndResize gets bounding boxes coordinates as input from the
     part of the model which is replaced with the DetectionOutput operation using the transformation
     ObjectDetectionAPIDetectionOutputReplacement. DetectionOutput operation produces tensor with 7-element tuples
@@ -1153,7 +1153,7 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
                                                       detection_output)
         mark_as_correct_data_layout(flatten_do)
 
-        # adds "Result" node so this output is returned by IE by default for the backward compatibility
+        # adds "Result" node so this output is returned by OV by default for the backward compatibility
         do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do])
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
@@ -1224,7 +1224,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     """
     The outputs of the Region Proposal Network which produces shape offsets and probabilities whether anchors contain
     object or not is fed to the part of the model which decodes bounding boxes and performs non-maximum suppression.
-    There are two operations in the Inference Engine which can perform such calculations: Proposal and DetectionOutput.
+    There are two operations in the OpenVINO which can perform such calculations: Proposal and DetectionOutput.
     Historically, the Proposal operation was inserted by this transformation, but now a DetectionOutput can be inserted
     instead if the "operation_to_add" parameter in the JSON configuration file is set to "DetectionOutput". There was a
     model for which inserting DetectionOutput instead of Proposal operation results in generation more accurate results.
@@ -1278,7 +1278,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         # size of 'C' dimension of the tensor with class predictions is equal to base_anchors_count * 2, where 2
         # corresponds to a number of classes (background and foreground) and base_anchors_count is equal to number of
         # anchors applied to each position of 'H' and 'W' dimensions. Therefore, there are H * W * base_anchors_count
-        # bounding boxes. Inference Engine Proposal operation interprets the input tensor as a tensor
+        # bounding boxes. OpenVINO Proposal operation interprets the input tensor as a tensor
         # [batch, 2 * base_anchors_count, H, W] but in TensorFlow model it is calculated as
         # [batch, base_anchors_count, H, W] (after NHWC->NCHW layout conversion), so it is necessary to decompose the
         # 'C' dimension into base_anchors_count and 2 and swap these two dimensions
@@ -1495,12 +1495,12 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     def ie_to_tf_proposals(graph: Graph, proposal: Node, match: SubgraphMatch, pipeline_config: PipelineConfig,
                            max_proposals: int):
         """
-        Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
-        cropping the IE output of format [batch, x1, y1, x2, y2] to simply [x1, y1, x2, y2] and reshaping tensor to an
+        Builds a graph which converts the proposals data in OV format to the format of TensorFlow. This includes
+        cropping the OV output of format [batch, x1, y1, x2, y2] to simply [x1, y1, x2, y2] and reshaping tensor to an
         appropriate shape. Swapping of the Proposal output is performed when necessary.
 
         :param graph: the graph to operate on
-        :param proposal: the node producing IE proposals
+        :param proposal: the node producing OV proposals
         :param match: the object containing information about matched sub-graph
         :param pipeline_config: object containing information from the pipeline.config file of the model
         :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
@@ -1561,8 +1561,8 @@ is implemented as a sub-graph of primitive operations instead. There are two tra
 implementing DetectionOutput operation in this file: ObjectDetectionAPISSDPostprocessorReplacement and 
 ObjectDetectionAPIDetectionOutputReplacement. The first one is used for SSD models, the second one for Faster-RCNN,
 Mask-RCNN and RFCN models. These transformations also prepare input data for the DetectionOutput operation because the
-layout and shape of the data is different between the TensorFlow and the Inference Engine. The most notable difference
-is that bounding boxes and deltas are calculated with YXYX order in the TensorFlow model whilst Inference Engine
+layout and shape of the data is different between the TensorFlow and the OpenVINO. The most notable difference
+is that bounding boxes and deltas are calculated with YXYX order in the TensorFlow model whilst OpenVINO
 operation DetectionOutput, ROIPooling and Proposal expects them and produce the output with XYXY order. Refer to the
 transformation code and operations specifications for more details.
 """
@@ -1583,7 +1583,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
-        # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
+        # the DetectionOutput in OV produces single tensor, but in TF it produces two tensors, so create only one output
         # edge match
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
 
@@ -1611,7 +1611,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         activation_function = _value_or_raise(match, pipeline_config, 'postprocessing_score_converter')
         activation_conf_node = add_activation_function_after_node(graph, reshape_conf_before_ac, activation_function)
 
-        # IE DetectionOutput operation expects flattened tensor with bounding boxes shape offsets, so reshaping it
+        # OV DetectionOutput operation expects flattened tensor with bounding boxes shape offsets, so reshaping it
         reshape_offsets = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                            {'name': 'do_reshape_offsets'})
 
@@ -1622,7 +1622,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         reshape_offsets.in_port(0).connect(current_node.out_port(0))
         mark_as_correct_data_layout(reshape_offsets)
 
-        # IE DetectionOutput operation expects flattened tensor with class confidences, so reshaping it
+        # OV DetectionOutput operation expects flattened tensor with class confidences, so reshaping it
         reshape_conf_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                              {'name': 'do_reshape_conf'}, activation_conf_node)
         mark_as_correct_data_layout(reshape_conf_node)
@@ -1692,7 +1692,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
                  nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
 
-        # the TensorFlow model keeps the bounding boxes shape offsets as YXYX, while IE DetectionOutput expects them to
+        # the TensorFlow model keeps the bounding boxes shape offsets as YXYX, while OV DetectionOutput expects them to
         # be specified as XYXY. The solution is to update last convolutions weights and biases to produce XY->YX swapped
         # bounding boxes offsets
         conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'], ['ShapeOf'])

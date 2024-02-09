@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API EliminateDuplicateTIInputs;
 }  // namespace ov
 
 /*
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief EliminateDuplicateTIInputs transformation
  * removes duplicated inputs of SubgraphOps.
  */

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertU4WeightsZeroPointToScalar;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Converts U4 weights zero point to scalar if all values are equal
  */
 class ov::pass::ConvertU4WeightsZeroPointToScalar : public ov::pass::MatcherPass {

@@ -54,7 +54,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape&
 /**
  * Construct from blocked parameters
  *
- * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
+ * OV  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
  *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
  *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
  *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims

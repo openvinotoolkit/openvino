@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API PReluFusionNegReluMulAdd;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionNegativeAdd transformation replaces a sub-graph
  *             Op
  *          /     \
@@ -46,7 +46,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionNegativeSub transformation replaces a sub-graph
  *             Op
  *          /     \
@@ -65,7 +65,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionMultiplyAdd transformation replaces a sub-graph
  *             Op
  *          /     \
@@ -84,7 +84,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionMultiplySub transformation replaces a sub-graph
  *             Op
  *          /     \
@@ -103,7 +103,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionAbsSubMulMulAdd transformation replaces a sub-graph
  *             Op
  *          /  |  \
@@ -124,7 +124,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusionNegReluMulAdd transformation replaces a sub-graph
  *             Op
  *          /     \
@@ -143,7 +143,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluFusion transformation replaces various sub-graphs with a PRelu op.
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertDeformableConv8To1;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertDeformableConv8To1 converts v8::DeformableConvolution into v1::DeformableConvolution.
  */
 class ov::pass::ConvertDeformableConv8To1 : public ov::pass::MatcherPass {

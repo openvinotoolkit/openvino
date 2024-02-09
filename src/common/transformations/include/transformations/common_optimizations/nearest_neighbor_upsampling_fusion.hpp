@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API NearestNeighborUpsamplingFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief NearestNeighborUpsamplingFusion transformation fuses subgraph that uses the simpler operations, as ShapeOf,
  *        StridedSlice, Concat, Reshape, Mul to calculate Interpolate with mode='nearest'.
  */

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertROIAlign3To9;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertROIAlign3To9 converts v3::ROIAlign into v9::ROIAlign.
  */
 class ov::pass::ConvertROIAlign3To9 : public ov::pass::MatcherPass {

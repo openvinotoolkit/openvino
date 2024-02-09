@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API AlignMixedFP32FP16Types;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AlignMixedFP32FP16Types adds Converts to keep mixed FP16/FP32 graph type consistent
  */
 class ov::pass::AlignMixedFP32FP16Types : public ov::pass::ModelPass {

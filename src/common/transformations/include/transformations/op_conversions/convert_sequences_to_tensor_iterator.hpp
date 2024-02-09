@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertRNNSequenceToTensorIterator transformation converts RNNSequence layer to TensorIterator
  * *
  */
@@ -34,7 +34,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertGRUSequenceToTensorIterator transformation converts GRUSequence layer to TensorIterator
  * *
  */
@@ -46,7 +46,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertLSTMSequenceToTensorIterator transformation converts LSTMSequence layer to TensorIterator
  * *
  */

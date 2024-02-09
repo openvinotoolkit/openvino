@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SelectWithOneValueCondition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SelectWithOneValueCondition transformation eliminates Select operation if the condition
  * is constant and consists of al True or False elements
  */

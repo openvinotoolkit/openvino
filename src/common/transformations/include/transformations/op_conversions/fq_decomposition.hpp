@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FakeQuantizeDecomposition transformation decomposes FakeQuantize layer.
  *
  * Expression from specification:

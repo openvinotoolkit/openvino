@@ -56,8 +56,8 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         // Will generate sequence of Tile operations if num_of_tile_dims != 1
-        // because IE Tile operations supports only one axis to be tiled.
-        // To keep op name unique will use special IE specific delimiter ':'
+        // because OV Tile operations supports only one axis to be tiled.
+        // To keep op name unique will use special OV specific delimiter ':'
         // Original frameworks doesn't use such delimiter in names, so it will
         // guarantee that newly generated name like "original_name:_1" doesn't
         // match with already existed names.

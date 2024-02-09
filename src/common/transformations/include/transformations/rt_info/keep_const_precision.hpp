@@ -17,7 +17,7 @@ TRANSFORMATIONS_API void disable_keep_const_precision(const std::shared_ptr<Node
 TRANSFORMATIONS_API bool is_keep_const_precision(const std::shared_ptr<const Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief KeepConstPrecision class represents runtime info attribute that marks a Constant
  * as prohibitted to fuse precision in ConvertPrecision
  */

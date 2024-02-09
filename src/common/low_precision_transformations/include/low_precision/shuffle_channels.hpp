@@ -12,12 +12,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ShuffleChannelsTransformation propagates dequantization operations through ShuffleChannels operation.
  *
  * For more details about the transformation, refer to
  * [ShuffleChannelsTransformation](@ref openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
 public:

@@ -15,11 +15,11 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
  *
  * For more details about the attribute, refer to
- * [PrecisionsAttribute](@ref openvino_docs_OV_UG_lpt_Precisions) page in the Inference Engine Developer Guide.
+ * [PrecisionsAttribute](@ref openvino_docs_OV_UG_lpt_Precisions) page in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ov::element::Type>> {
 public:

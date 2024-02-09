@@ -22,7 +22,7 @@ from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 class BatchToSpaceNormalizer(FrontReplacementPattern):
     """
     This transformation converts BatchToSpace, SpaceToBatch operations (TensorFlow semantic)
-    to BatchToSpace, SpaceToBatch operations (Inference Engine semantic).
+    to BatchToSpace, SpaceToBatch operations (OpenVINO semantic).
     Refer to the Op implementation for the operations semantics description.
     """
     enabled = True
@@ -35,7 +35,7 @@ class BatchToSpaceNormalizer(FrontReplacementPattern):
         for node in graph.get_op_nodes(op='SpaceToBatch') + graph.get_op_nodes(op='BatchToSpace'):
             node.add_input_port(3, skip_if_exist=True)
 
-            # convert TF representation of the pads/crops as [N, 2] to IE representation: [N] and [N]
+            # convert TF representation of the pads/crops as [N, 2] to OV representation: [N] and [N]
             transposed_pads = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])})
             node.in_port(2).get_connection().set_destination(transposed_pads.in_port(0))
             split_pads = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})

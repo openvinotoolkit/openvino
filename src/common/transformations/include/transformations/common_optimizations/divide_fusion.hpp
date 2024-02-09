@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API DivideFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief DivideFusion transformation replaces a sub-graph
  * Pow(y, -1) * x or x * Pow(y, -1) with Divide(x,y)
  */

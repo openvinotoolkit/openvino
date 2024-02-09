@@ -34,15 +34,15 @@ class BaseInfer:
 
 class InferAPI(BaseInfer):
     def __init__(self, model, weights, device, use_new_frontend):
-        super().__init__('Inference Engine')
+        super().__init__('OpenVINO')
         self.device = device
         self.model = model
         self.weights = weights
         self.use_new_frontend = use_new_frontend
 
     def fw_infer(self, input_data, config=None):
-        print("Inference Engine version: {}".format(ie2_get_version()))
-        print("Creating IE Core Engine...")
+        print("OpenVINO version: {}".format(ie2_get_version()))
+        print("Creating OV Core Engine...")
         ie = Core()
         print("Reading network files")
         net = ie.read_model(self.model, self.weights)

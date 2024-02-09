@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API TSResetNoSinkingAttribute;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSResetNoSinkingAttribute transformation resets all NoSinkingAttribute runtime attributes
  * in Transpose operations.
  */

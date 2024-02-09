@@ -40,7 +40,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief LinOpSequenceFusion transformation fuses linear operation sequence.
  */
 class ov::pass::LinOpSequenceFusion : public ov::pass::GraphRewrite {

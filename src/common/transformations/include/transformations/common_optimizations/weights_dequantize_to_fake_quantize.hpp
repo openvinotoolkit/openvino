@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief WeightsDequantizeToFakeQuantize transformation replaces
  *      Constant (i8) -> Convert (to fp) -> Subtract (zp) -> Multiply (scale) ->
  *  with

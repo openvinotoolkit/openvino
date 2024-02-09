@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API SoftPlusToMishFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftPlusToMishFusion transformation replaces group of
  * operations: x * tanh(softplus(x)) to Mish op.
  */

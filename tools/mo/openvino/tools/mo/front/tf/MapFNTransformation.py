@@ -235,7 +235,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
         list_reserve_node.out_port(0).disconnect()
 
         # connect a number of iterations with trip count that can be received from the second input of ListReserve
-        # create a constant network with True value for execution_condition so that IE can ignore execution condition
+        # create a constant network with True value for execution_condition so that OV can ignore execution condition
         # and perform trip_counts iterations. This approach with known trip count value allows to avoid dynamism.
         loop_node.in_port(1).disconnect()
         list_reserve_node.in_port(1).get_source().connect(loop_node.in_port(1))
