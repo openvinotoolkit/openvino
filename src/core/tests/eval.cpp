@@ -4137,3 +4137,33 @@ TEST(eval, evaluate_gather_string_basic) {
     const auto result_const = ov::op::v0::Constant(out_vector.at(0));
     EXPECT_EQ(out_expected, result_const.get_value_strings());
 }
+
+TEST(eval, evaluate_concat_string_basic) {
+    std::vector<std::string> input_values_a = {"Abc", "x"};
+    std::vector<std::string> input_values_b = {"1234", "...."};
+
+    std::vector<std::string> out_expected{"Abc", "x", "1234", "...."};
+
+    const auto data_shape = Shape{1, 2};
+    const auto exp_out_shape = Shape{2, 2};
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+
+    auto axis = 0;
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, axis);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data_a, data_b});
+
+    auto result = ov::Tensor(element::string, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::string, data_shape, input_values_a.data());
+    auto in_tensor_b = ov::Tensor(element::string, data_shape, input_values_b.data());
+
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), exp_out_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(out_expected, result_const.get_value_strings());
+}
