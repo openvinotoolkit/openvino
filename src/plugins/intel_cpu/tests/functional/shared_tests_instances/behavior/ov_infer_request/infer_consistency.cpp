@@ -3,7 +3,6 @@
 //
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
-#include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::behavior;
 

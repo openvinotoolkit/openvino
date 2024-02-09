@@ -9,6 +9,7 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
