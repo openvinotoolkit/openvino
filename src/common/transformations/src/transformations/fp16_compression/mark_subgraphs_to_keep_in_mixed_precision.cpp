@@ -431,7 +431,7 @@ public:
         MATCHER_SCOPE(MarkFloorDiv);
         // FloorDiv is repesented either as:
         // Floor(Div(input_1, input_2))
-        // Floor(Mul(input_1, inversed_input_2)), if input_2 is constant
+        // Floor(Mul(input_1, inversed_const_input_2)), if input_2 is a constant
 
         auto input_1 = pattern::any_input();
         auto input_2 = pattern::any_input();
