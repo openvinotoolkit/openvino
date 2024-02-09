@@ -147,7 +147,7 @@ const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
-// IE Class Load network
+// OV Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPUOVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU", "HETERO:CPU"),

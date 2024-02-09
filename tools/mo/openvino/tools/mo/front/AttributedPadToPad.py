@@ -12,7 +12,7 @@ from openvino.tools.mo.ops.pad import Pad
 class AttributedPadToPad(FrontReplacementPattern):
     """
     This transformation converts AttributedPad operation (begin/end paddings are specified as attribute) to Pad
-    operation (Inference Engine semantic).
+    operation (OpenVINO semantic).
     """
     enabled = True
 

@@ -68,6 +68,97 @@ def test_benchmark_app_help(sample_language):
 def test_benchmark_app(sample_language, api, nireq, device, cache):
     verify(sample_language, device, api=api, nireq=nireq, cache=cache)
 
+test_data_fp32_async_config = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'd': ['CPU'],
+                 'api': ['async'],
+                 'nireq': ['4'],
+                 'niter': ['10'],
+                 'nstreams' : ['2'],
+                 'pin' : ['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
+                 'dump_config' : [os.path.join(os.environ.get('WORKSPACE'), 'test_data_fp32_async_config.json')],
+                 'hint' : ['none']},
+     use_device=['d']
+     )
+
+test_data_fp32_async = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'api': ['async'],
+                 'nireq': ['4'],
+                 'niter': ['10']},
+     )
+
+test_data_fp32_sync = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm':[os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'niter': ['10'],
+                 'api': ['sync']},
+     )
+
+test_data_fp32_async_config_dump_nstreams = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'd': ['CPU', 'GPU'],
+                 'api': ['async'],
+                 'nstreams' : ['2'],
+                 'hint' : ['none'],
+                 'niter': ['10'],
+                 'dump_config' : [os.path.join(os.environ.get('WORKSPACE'), 'config.json')]},
+     use_device=['d']
+     )
+
+test_data_fp16_config_dump_exec_graph = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'api': ['sync', 'async'],
+                 'niter': ['10'],
+                 'exec_graph_path' : [os.path.join(os.environ.get('WORKSPACE'), 'exec_graph.xml')],
+                 'dump_config' : [os.path.join(os.environ.get('WORKSPACE'), 'config.json')]},
+     )
+
+test_data_fp32_config_dump_pin = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++', 'Python'],
+                 'd': ['CPU'],
+                 'pin' : ['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
+                 'hint': ['none'],
+                 'niter': ['10'],
+                 'dump_config' : [os.path.join(os.environ.get('WORKSPACE'), 'config.json')]},
+     use_device=['d']
+     )
+
+test_data_fp32_reshape = get_tests \
+    (cmd_params={'i': ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'sample_type': ['C++', 'Python'],
+                 'shape' : ['data[2,3,227,227]'],
+                 'niter': ['10']},
+     )
+
+test_data_dynamic_shapes_one_input = get_tests \
+    (cmd_params={'i': 2 * ['227x227/dog.bmp'],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'sample_type': ['C++'],
+                 'shape' : ['[?,3,?,?]'],
+                 'data_shape' : ['[1,3,227,227][1,3,227,227]'],
+                 'layout' : ['[NCHW]'],
+                 'niter': ['10']
+                 },
+     )
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')

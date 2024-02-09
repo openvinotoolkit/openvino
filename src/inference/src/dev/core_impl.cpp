@@ -850,6 +850,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OPENVINO_ASSERT(context, "Remote context must not be empty.");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }

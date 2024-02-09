@@ -15,7 +15,7 @@ from openvino.tools.mo.ops.const import Const
 class SsdPatternAnchorReshape(FrontReplacementSubgraph):
     """
     Find ssd anchors and setup variants values.
-    Need to provide compatibility with IE DetectionOutput layer.
+    Need to provide compatibility with OV DetectionOutput layer.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]

@@ -12,12 +12,21 @@
 """
 import os
 import itertools
+<<<<<<< HEAD
 import subprocess
+=======
+>>>>>>> master
 import sys
 import csv
 import re
 import pytest
 import numpy as np
+<<<<<<< HEAD
+=======
+import pathlib
+import requests
+import zipfile
+>>>>>>> master
 
 import logging as log
 from common.common_utils import shell
