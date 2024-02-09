@@ -31,17 +31,16 @@ public:
 }  // namespace ov
 
 #ifndef OV_CREATE_EXTENSION
+#    define OV_CREATE_EXTENSION create_extensions
+#endif
+
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
  * @param vector of extensions
  */
 OPENVINO_EXTENSION_C_API
-void create_extensions(std::vector<ov::Extension::Ptr>&);
-
-#    define OV_CREATE_EXTENSION create_extensions
-
-#endif
+void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>&);
 
 /**
  * @brief Macro generates the entry point for the library

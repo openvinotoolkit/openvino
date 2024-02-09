@@ -130,7 +130,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
                                              openvino::snippets)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE mlas)
@@ -213,8 +212,7 @@ if(BUILD_SHARED_LIBS)
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE USE_STATIC_IE)
 
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 

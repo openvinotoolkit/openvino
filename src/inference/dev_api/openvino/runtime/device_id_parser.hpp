@@ -4,7 +4,7 @@
 
 /**
  * @brief Provides parser for device name
- * @file openvino/runtime/device_id_paeser.hpp
+ * @file openvino/runtime/device_id_parser.hpp
  */
 
 #pragma once

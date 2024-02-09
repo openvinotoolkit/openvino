@@ -30,7 +30,7 @@ Overview of OpenVINO Plugin Library
 
 The plugin architecture of OpenVINO allows to develop and plug independent inference 
 solutions dedicated to different devices. Physically, a plugin is represented as a dynamic library 
-exporting the single ``CreatePluginEngine`` function that allows to create a new plugin instance.
+exporting the single ``create_plugin_engine`` function that allows to create a new plugin instance.
 
 OpenVINO Plugin Library
 #######################

@@ -48,9 +48,7 @@ if(ENABLE_TESTS)
 
         ov_set_threading_interface_for(${OBJ_NAME})
 
-        target_compile_definitions(${OBJ_NAME}
-            PRIVATE
-                USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API)
+        target_compile_definitions(${OBJ_NAME} PRIVATE USE_STATIC_IE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
     endif()
 
     add_subdirectory(tests)

@@ -18,6 +18,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
 #    if __GLIBC_MINOR__ < 34
