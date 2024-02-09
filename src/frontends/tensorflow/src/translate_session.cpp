@@ -431,12 +431,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
-
-        std::string operation_name;
-        std::string port_type;
-        size_t port_index;
-        ov::frontend::tensorflow::extract_operation_name_and_port(input_name, operation_name, port_index, port_type);
-
         if (ov_tensors_map->count(input_name)) {
             // probably this input is frozen
             continue;
