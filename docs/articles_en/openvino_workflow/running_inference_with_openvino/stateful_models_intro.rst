@@ -142,4 +142,4 @@ sequences.
 You can find more examples demonstrating how to work with states in other articles:
 
 * `LLM Chatbot notebook <notebooks/273-stable-zephyr-3b-chatbot-with-output.html>`__
-* :doc:`Serving Stateful Models with OpenVINO Model Server <ovms_docs_stateful_models.html>`
+* :doc:`Serving Stateful Models with OpenVINO Model Server <ovms_docs_stateful_models>`
