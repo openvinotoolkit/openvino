@@ -237,7 +237,7 @@ int get_org_numa_id(int numa_node_id) {
 }
 
 int get_proc_id_by_type(const int request_core_type) {
-        return -1;
+    return -1;
 }
 
 #elif defined(__APPLE__)
