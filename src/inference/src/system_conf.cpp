@@ -236,6 +236,10 @@ int get_org_numa_id(int numa_node_id) {
     return -1;
 }
 
+int get_proc_id_by_type(const int request_core_type) {
+        return -1;
+}
+
 #elif defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -312,6 +316,10 @@ int get_org_numa_id(int numa_node_id) {
     if (iter != cpu._numaid_mapping_table.end()) {
         return iter->second;
     }
+    return -1;
+}
+
+int get_proc_id_by_type(const int request_core_type) {
     return -1;
 }
 
@@ -481,22 +489,6 @@ int get_org_numa_id(int numa_node_id) {
     }
     return -1;
 }
-#endif
-
-#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
-std::vector<int> get_available_numa_nodes() {
-    return custom::info::numa_nodes();
-}
-// this is impl only with the TBB
-std::vector<int> get_available_cores_types() {
-    return custom::info::core_types();
-}
-#else
-// as the core types support exists only with the TBB, the fallback is same for any other threading API
-std::vector<int> get_available_cores_types() {
-    return {-1};
-}
-#endif
 
 int get_proc_id_by_type(const int request_core_type) {
     if ((MAIN_CORE_PROC == request_core_type) && (EFFICIENT_CORE_PROC == request_core_type)) {
@@ -513,5 +505,22 @@ int get_proc_id_by_type(const int request_core_type) {
 
     return -1;
 }
+
+#endif
+
+#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+std::vector<int> get_available_numa_nodes() {
+    return custom::info::numa_nodes();
+}
+// this is impl only with the TBB
+std::vector<int> get_available_cores_types() {
+    return custom::info::core_types();
+}
+#else
+// as the core types support exists only with the TBB, the fallback is same for any other threading API
+std::vector<int> get_available_cores_types() {
+    return {-1};
+}
+#endif
 
 }  // namespace ov
