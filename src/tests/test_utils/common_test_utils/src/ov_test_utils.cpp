@@ -4,6 +4,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/util/file_util.hpp"
+#include "template/properties.hpp"
+
 namespace ov {
 namespace pass {
 
@@ -108,3 +114,56 @@ void check_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_p
 std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
     return ov::op::v0::Constant::create(et, shape, {0});
 }
+
+namespace ov {
+namespace test {
+namespace utils {
+
+ov::TensorVector infer_model_via_template(const std::shared_ptr<ov::Model>& model,
+                                          const ov::TensorVector& input_tensors) {
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
+    auto params = model->inputs();
+    OPENVINO_ASSERT(params.size() == input_tensors.size());
+    for (int i = 0; i < params.size(); i++) {
+        inputs[params[i].get_node_shared_ptr()] = input_tensors[i];
+    }
+    return infer_model_via_template(model, inputs);
+}
+
+ov::TensorVector infer_model_via_template(const std::shared_ptr<ov::Model>& model,
+                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
+    ov::Core core;
+
+    // Register Template plugin
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), std::string(ov::test::utils::DEVICE_TEMPLATE)) == devices.end()) {
+        auto plugin_path =
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                               std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
+        if (!ov::util::file_exists(plugin_path)) {
+            throw std::runtime_error("Plugin: " + plugin_path + " does not exists!");
+        }
+        core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
+    }
+
+    auto compiled_model = core.compile_model(model,
+                                             ov::test::utils::DEVICE_TEMPLATE,
+                                             {{ov::template_plugin::disable_transformations(true)}});
+    auto infer_request = compiled_model.create_infer_request();
+
+    for (auto& input : inputs) {
+        infer_request.set_tensor(input.first, input.second);
+    }
+    infer_request.infer();
+
+    ov::TensorVector outputs;
+    for (const auto& output : model->outputs()) {
+        outputs.push_back(infer_request.get_tensor(output));
+    }
+
+    return outputs;
+}
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
