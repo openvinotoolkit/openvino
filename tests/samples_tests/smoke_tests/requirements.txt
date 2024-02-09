@@ -3,3 +3,4 @@ requests
 pyyaml
 numpy
 pytest
+opencv-python-headless

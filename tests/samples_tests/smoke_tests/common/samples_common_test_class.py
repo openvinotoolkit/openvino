@@ -34,13 +34,14 @@ def get_cmd_output(*cmd):
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         if isinstance(error, subprocess.CalledProcessError):
-            pytest.fail(f"""command '{' '.join(map(str, cmd))}'
+            print(f"""command '{' '.join(map(str, cmd))}'
 exited with code {error.returncode}. Output:
 {error.output}""")
         else:
-            pytest.fail(f"""command '{' '.join(map(str, cmd))}'
+            print(f"""command '{' '.join(map(str, cmd))}'
 timed out after {error.timeout} seconds. Output:
 {error.output}""")
+        raise
     return output
 
 
