@@ -148,8 +148,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                         auto extracted_model_op_cnt =
                             extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
 
-                        bool is_same_sink_op_cnt = ov::util::is_same_sink_op_cnt(extracted_model, cached_model.first);
-                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt && is_same_sink_op_cnt) {
+                        bool is_same_paired_op_cnt = ov::util::is_same_paired_op_cnt(extracted_model, cached_model.first);
+                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt && is_same_paired_op_cnt) {
                             if (cached_model_op_cnt > extracted_model_op_cnt) {
                                 return;
                             }

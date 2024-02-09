@@ -13,13 +13,13 @@ using namespace ov::tools::subgraph_dumper;
 
 std::vector<ReadValueAssignExtractor::ExtractedPattern>
 ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
-    struct PairChacker {
+    struct PairChecker {
         int cnt_assign = 0;
         int cnt_read_val = 0;
         std::shared_ptr<ov::Node> rv;
         std::string variable_id;
     };
-    std::map<ov::op::util::Variable*, PairChacker>  pairs;
+    std::map<ov::op::util::Variable*, PairChecker>  pairs;
     for (auto& node : model->get_ordered_ops()) {
         if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
             pairs[assign->get_variable().get()].cnt_assign++;
@@ -51,7 +51,6 @@ ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
                 if (pairs[assign->get_variable().get()].rv &&
                     pairs[assign->get_variable().get()].rv->get_friendly_name() == pair.second.rv->get_friendly_name()) {
-                    assign->add_control_dependency(pairs[assign->get_variable().get()].rv);
                     break;
                 }
             }
