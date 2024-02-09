@@ -49,35 +49,16 @@ def generate_ir(coverage=False, **kwargs):
 
 def generate_ir_python_api(coverage=False, **kwargs):
     from openvino.runtime import save_model
-    from openvino.tools import mo, ovc
-    
+    from openvino.tools.mo import convert_model
+
     out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
     compress_to_fp16 = getattr(kwargs, 'compress_to_fp16', True)
+    kwargs.pop('compress_to_fp16', None)
 
-    import inspect
-    acceptable_mo_arg_names = ['use_new_frontend', 'model_name', 'compress_to_fp16', 'output_dir']  # mo args that do not conflict with ovc
-    ovc_arg_names = inspect.signature(ovc.convert_model).parameters.keys()
-
-    # By default, run in ovc, but fallback to mo if there are args not present in ovc.convert_model.
-    # Also, if there are such arguments as 'model_name', 'out_dir', etc. they do not conflict with ovc, they should be just
-    # removed from kwargs and then ovc.convert_model can be run with updated ovc_kwargs.
-    use_ovc = True
-    
-    ovc_kwargs = kwargs.copy()
-    for key in kwargs.keys():
-        if key not in ovc_arg_names:
-            ovc_kwargs.pop(key)
-        if key not in ovc_arg_names and key not in acceptable_mo_arg_names:
-            use_ovc = False
-            break
-
-    if use_ovc:
-        ov_model = ovc.convert_model(**ovc_kwargs)    
-    else:
-        # TODO: Remove usage of legacy params from layer tests and switch completely to ovc.convert_model
-        ov_model = mo.convert_model(**kwargs)    
-    
+    # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
+    ov_model = convert_model(**kwargs)
     save_model(ov_model, out_dir, compress_to_fp16)
+
     return 0, ""
 
 
