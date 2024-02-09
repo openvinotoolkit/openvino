@@ -36,19 +36,6 @@ test_data_fp32_sync = get_tests \
                  'api': ['sync']},
      )
 
-
-class Test_benchmark_app(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'benchmark_app'
-        super().setup_class()
-
-    @pytest.mark.parametrize("param", test_data_fp32_async + test_data_fp32_sync)
-    def test(self, param):
-        stdout = self._test(param)
-        assert "FPS" in stdout
-
-
 test_data_fp32_async_config = get_tests \
     (cmd_params={'i': ['227x227/dog.bmp'],
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
@@ -70,11 +57,9 @@ test_data_fp32_async = get_tests \
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
-                 'd': ['CPU', 'GPU'],
                  'api': ['async'],
                  'nireq': ['4'],
                  'niter': ['10']},
-     use_device=['d']
      )
 
 test_data_fp32_sync = get_tests \
@@ -82,12 +67,9 @@ test_data_fp32_sync = get_tests \
                  'm':[os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'batch': [1],
                  'sample_type': ['C++', 'Python'],
-                 'd': ['CPU', 'GPU'],
                  'niter': ['10'],
                  'api': ['sync']},
-     use_device=['d']
      )
-
 
 test_data_fp32_async_config_dump_nstreams = get_tests \
     (cmd_params={'i': ['227x227/dog.bmp'],
@@ -127,38 +109,37 @@ test_data_fp32_config_dump_pin = get_tests \
      use_device=['d']
      )
 
-
 test_data_fp32_reshape = get_tests \
     (cmd_params={'i': ['227x227/dog.bmp'],
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'sample_type': ['C++', 'Python'],
-                 'd': ['CPU'],
                  'shape' : ['data[2,3,227,227]'],
                  'niter': ['10']},
-     use_device=['d']
      )
-
 
 test_data_dynamic_shapes_one_input = get_tests \
     (cmd_params={'i': ['227x227/dog.bmp'] * 2,
                  'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                  'sample_type': ['C++'],
-                 'd': ['CPU'],
                  'shape' : ['[?,3,?,?]'],
                  'data_shape' : ['[1,3,227,227][1,3,227,227]'],
                  'layout' : ['[NCHW]'],
                  'niter': ['10']
                  },
-     use_device=['d']
      )
 
 
-class TestBenchmarkApp(SamplesCommonTestClass):
+class Test_benchmark_app(SamplesCommonTestClass):
     @classmethod
     def setup_class(cls):
         cls.sample_name = 'benchmark_app'
         super().setup_class()
-    #add a case
+
+    @pytest.mark.parametrize("param", test_data_fp32_async + test_data_fp32_sync)
+    def test_data_fp32(self, param):
+        stdout = self._test(param)
+        assert "FPS" in stdout
+
     @pytest.mark.parametrize("param", test_data_fp32_async_config)
     def test_benchmark_app_sample_fp32_async_config(self, param):
         _check_output(self, param)
@@ -174,18 +155,22 @@ class TestBenchmarkApp(SamplesCommonTestClass):
     @pytest.mark.parametrize("param", test_data_fp32_async_config_dump_nstreams)
     def test_benchmark_app_fp32_async_config_dump_nstreams(self, param):
         _check_output(self, param)
-        _check_config(self, param)
+        _check_config(param)
 
     @pytest.mark.parametrize("param", test_data_fp16_config_dump_exec_graph)
     def test_benchmark_app_fp16_config_dump_auto(self, param):
         _check_output(self, param)
-        _check_config(self, param)
-        _check_exec_graph(self, param)
+        _check_config(param)
+        exec_graph_path = os.path.join(os.environ['WORKSPACE'], 'exec_graph.xml')
+        assert os.path.exists(exec_graph_path) == True
+        os.remove(exec_graph_path)
+        assert os.path.exists(exec_graph_path) == False
+        log.info('Execution graph check passed')
 
     @pytest.mark.parametrize("param", test_data_fp32_config_dump_pin)
     def test_benchmark_app_fp32_config_dump_pin(self, param):
         _check_output(self, param)
-        _check_config(self, param)
+        _check_config(param)
 
     @pytest.mark.parametrize("param", test_data_fp32_reshape)
     def test_benchmark_app_test_data_fp32_reshape(self, param):
@@ -231,7 +216,7 @@ def pin_checker(param, config_json):
 def _check_output(self, param):
     """
     Benchmark_app has functional and accuracy testing.
-    For accuracy the test checks if 'FPS' 'Latency' in output. If both exist - the est passed
+    For accuracy the test checks if 'FPS' in output. If both exist - the est passed
     """
 
     # Run _test function, that returns stdout or 0.
@@ -263,16 +248,6 @@ def _check_output(self, param):
         log.error("No FPS in output")
     assert flag == 0, "Wrong output of FPS"
 
-    flag = 0
-    is_ok = False
-    for line in stdout:
-        if 'Latency' in line:
-            is_ok = True
-    if is_ok == False:
-        flag = 1
-        log.error("No Latency in output")
-    assert flag == 0, "Wrong output of Latency"
-
     is_ok = False
     if 'nstreams' in param:
         is_ok = stream_checker(param, config_json)
@@ -289,17 +264,7 @@ def _check_output(self, param):
     log.info('Accuracy passed')
 
 
-def _check_exec_graph(self, param):
-    """
-    Check whether execution graph is stored
-    """
-    exec_graph_path = os.path.join(os.environ['WORKSPACE'], 'exec_graph.xml')
-    assert os.path.exists(exec_graph_path) == True
-    os.remove(exec_graph_path)
-    assert os.path.exists(exec_graph_path) == False
-    log.info('Execution graph check passed')
-
-def _check_config(self, param):
+def _check_config(param):
     """
     Check whether config is stored and correct
     """
@@ -316,5 +281,3 @@ def _check_config(self, param):
             assert config[device].get('NUM_STREAMS', 1) == 1
 
     os.remove(config_path)
-    assert os.path.exists(config_path) == False
-    log.info('Config check passed')

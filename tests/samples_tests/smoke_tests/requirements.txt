@@ -1,1 +1,4 @@
 -c ../../constraints.txt
+numpy
+pytest
+pyyaml
