@@ -8,8 +8,8 @@ import sys
 
 
 def log_ie_not_found():
-    log.error("Could not find the OpenVINO or nGraph Python API.\n"
-              "Consider building the OpenVINO and nGraph Python APIs"
+    log.error("Could not find the OpenVINO or Python API.\n"
+              "Consider building the OpenVINO and Python APIs"
               " from sources or try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
 
