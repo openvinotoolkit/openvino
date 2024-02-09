@@ -40,8 +40,8 @@ jobs:
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
           - SANITIZER: 'UndefinedBehavior'
             SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-          - SANITIZER: 'Thread'
-            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+#          - SANITIZER: 'Thread'
+#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'  # bug in gcc-9 in U20: https://bugs.launchpad.net/ubuntu/+source/gcc-9/+bug/2029910
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -139,6 +139,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
