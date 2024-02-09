@@ -15,7 +15,7 @@ def tf_type_to_ov_type(tf_type_int):
     if tf_type.name == "variant":
         return Type.dynamic
     if tf_type.name == "string":
-        return "DT_STRING"
+        return Type.string
     numpy_type = tf_type.as_numpy_dtype
     try:
         ret_type = Type(numpy_type)
@@ -29,7 +29,10 @@ def tf_attr_to_numpy(attr):
     if attr_type == "func":
         return attr.func.name
     if attr_type == "s":
-        return attr.s.decode("utf-8")
+        try:
+            return attr.s.decode("utf-8")
+        except UnicodeDecodeError:
+            return attr.s
     if attr_type == "f":
         return np.float32(attr.f)
     if attr_type == "type":
@@ -157,7 +160,7 @@ class TFGraphNodeDecoder(DecoderBase):
 
         if name == "value":
             if self.m_data_type == 'string':
-                return OVAny(self.m_parsed_content)
+                return OVAny(Tensor(self.m_parsed_content))
             if self.m_parsed_content.size == 1:
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
