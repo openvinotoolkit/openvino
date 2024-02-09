@@ -16,15 +16,14 @@ namespace ov {
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
-    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
-    explicit Exception(const std::string& what_arg);
-
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
     virtual ~Exception();
 
     static const std::string default_msg;
 
 protected:
+    explicit Exception(const std::string& what_arg);
+
     static std::string make_what(const char* file,
                                  int line,
                                  const char* check_string,
@@ -65,23 +64,13 @@ public:
                                     const std::string& explanation);
 
 protected:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit AssertFailure(const std::string& what_arg) : ov::Exception(what_arg) {}
-    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /// Exception class to be thrown on not implemented code
 class OPENVINO_API NotImplemented : public AssertFailure {
 public:
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
-
-    [[noreturn]] OPENVINO_DEPRECATED(
-        "This function is deprecated and will be removed, please use "
-        "OPENVINO_THROW_NOT_IMPLEMENTED instead") static void create(const char* file,
-                                                                     int line,
-                                                                     const char*,
-                                                                     const std::string&,
-                                                                     const std::string& explanation);
 
     static const std::string default_msg;
 

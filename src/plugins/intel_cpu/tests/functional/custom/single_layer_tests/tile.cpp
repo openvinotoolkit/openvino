@@ -222,7 +222,7 @@ const std::vector<CPUSpecificParams> CPUParams5D = {
 /* ============= */
 
 /* INSTANCES */
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4D,
                         TileLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes4D),
                                                               ::testing::ValuesIn(repeats4D),
@@ -232,7 +232,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D,
                                            ::testing::ValuesIn(CPUParams4D)),
                         TileLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape4D,
                         TileLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes4D),
                                                               ::testing::ValuesIn(repeats4D),
@@ -249,7 +249,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynBatchInputShapes4D = {{/
                                                                                  {1, 16, 3, 4},
                                                                                  {3, 16, 3, 4}}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D,
+INSTANTIATE_TEST_SUITE_P(smoke_DynBatch4D,
                         TileLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynBatchInputShapes4D),
                                                               ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
@@ -259,7 +259,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D,
                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape5D,
                         TileLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes5D),
                                                               ::testing::ValuesIn(repeats5D),
@@ -269,7 +269,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D,
                                            ::testing::ValuesIn(CPUParams5D)),
                         TileLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape5D,
                         TileLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes5D),
                                                               ::testing::ValuesIn(repeats5D),
