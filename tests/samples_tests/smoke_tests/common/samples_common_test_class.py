@@ -10,6 +10,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import pathlib
 import os
 import itertools
 import sys
@@ -100,6 +101,7 @@ def getting_samples_data_zip(url, samples_path):
         return		
     try:
         print("\nStart downloading samples_smoke_tests_data.zip...")
+        pathlib.Path(samples_path).parent.mkdir(parents=True, exist_ok=True)
         with request.urlopen(url) as samples_request:
             with open(samples_path, 'wb') as samples_file:
                 samples_file.write(samples_request.read())
