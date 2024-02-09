@@ -21,7 +21,7 @@ a. Required:
     - IE_APP_PYTHON_PATH : path to python OV samples, e.g. '<INSTALL_DIR>/samples/python/'
     - Install openvino-*.whl to provide Python benchmark_app executable
 b. Optional:
-    - TEST_DEVICE = CPU by default
+    - TEST_DEVICE=CPU;MULTI:CPU;AUTO by default
 3. Configure env_config.yml according to your paths:
     - Set WORKSPACE : working directory, e.g. '<INSTALL_DIR>'
     - Set SHARE : path to loaded data with models, e.g. '<INSTALL_DIR>/tests/smoke_tests/samples_smoke_tests_data/' 

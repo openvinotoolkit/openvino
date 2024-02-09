@@ -41,7 +41,7 @@ def performance(request):
 
 def pytest_configure(config):
     # Setting common environment:
-    with open(config.getoption('env_conf'), "r") as env_conf:
+    with open(config.getoption('env_conf'), "r", encoding='utf-8') as env_conf:
         try:
             Environment.env = fix_env_conf(yaml.safe_load(env_conf))
             # Check mandatory env variables:
