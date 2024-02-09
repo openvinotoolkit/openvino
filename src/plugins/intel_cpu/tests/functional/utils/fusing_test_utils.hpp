@@ -10,6 +10,13 @@
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "ov_models/utils/data_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 
 using namespace ov::test;
 

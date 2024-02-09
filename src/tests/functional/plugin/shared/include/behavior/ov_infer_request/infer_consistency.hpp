@@ -5,10 +5,10 @@
 #pragma once
 #include <string>
 
-#include <openvino/openvino.hpp>
+#include "openvino/openvino.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "common_test_utils/test_common.hpp"
 
 namespace ov {
 namespace test {
