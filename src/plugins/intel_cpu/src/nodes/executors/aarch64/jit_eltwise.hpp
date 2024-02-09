@@ -13,8 +13,6 @@ namespace intel_cpu {
 namespace executors {
 namespace aarch64 {
 
-using namespace InferenceEngine;
-
 class JitEltwiseExecutor : public EltwiseExecutor {
 public:
     explicit JitEltwiseExecutor(const ExecutorContext::CPtr context);

@@ -42,8 +42,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_ngraph_utils.hpp"
-
 #ifndef OPENVINO_ARCH_ARM64
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include "emitters/plugin/x64/jit_emitter.hpp"
@@ -58,7 +56,6 @@
 #include "executors/aarch64/jit_eltwise.hpp"
 #endif
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 

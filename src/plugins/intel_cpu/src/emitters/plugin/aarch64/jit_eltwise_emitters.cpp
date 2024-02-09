@@ -5,7 +5,6 @@
 #include "jit_eltwise_emitters.hpp"
 
 #include <memory>
-#include "ie_ngraph_utils.hpp"
 #include "common/utils.hpp"
 
 namespace ov {

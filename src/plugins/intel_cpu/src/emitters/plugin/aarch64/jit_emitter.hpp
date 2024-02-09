@@ -8,8 +8,6 @@
 #include <set>
 
 #include <cpu/aarch64/jit_generator.hpp>
-#include <ie_common.h>
-
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
 #include "node.h"

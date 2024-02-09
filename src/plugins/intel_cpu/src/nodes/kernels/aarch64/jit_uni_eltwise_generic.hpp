@@ -37,7 +37,6 @@ namespace aarch64 {
 using namespace Xbyak_aarch64;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::aarch64;
-using namespace InferenceEngine;
 
 struct jit_eltwise_params {
     size_t inputs_number;
