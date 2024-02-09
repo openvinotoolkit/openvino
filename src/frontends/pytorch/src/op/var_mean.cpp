@@ -75,35 +75,19 @@ OutputVector translate_var_mean(const NodeContext& context) {
 };
 
 OutputVector translate_var_mean_fx(const NodeContext& context) {
-    num_inputs_check(context, 1, 4);
+    num_inputs_check(context, 2, 2);
     auto data = context.get_input(0);
-    bool unbiased = false;
     auto num_elements = numel(context, data);
-    std::shared_ptr<ov::Node> mean, t_mean;
+    std::shared_ptr<ov::Node> mean;
     ov::Output<ov::Node> axes;
 
     axes = context.get_input(1);
-    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
-    t_mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
-    auto reduced_dims = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    reduced_dims = context.mark_node(std::make_shared<v8::Gather>(reduced_dims, axes, zero));
-    num_elements = context.mark_node(std::make_shared<v1::ReduceProd>(reduced_dims, zero, false));
 
-    auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, t_mean));
+    auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, mean));
     auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
     auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, true));
-    // if unbiased=true Bessel’s correction will be used
-    // Correct bias in calculating variance, by dividing it over (N - 1) instead on N
-    if (unbiased) {
-        num_elements = context.mark_node(std::make_shared<v1::ConvertLike>(num_elements, data));
-        auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-        one = context.mark_node(std::make_shared<v1::ConvertLike>(one, data));
-        auto mul = context.mark_node(std::make_shared<v1::Multiply>(var, num_elements));
-        auto n_minus_one = context.mark_node(std::make_shared<v1::Subtract>(num_elements, one));
-        var = context.mark_node(std::make_shared<v1::Divide>(mul, n_minus_one));
-    }
+
     ov::OutputVector out_vec;
 
     out_vec.push_back(var);

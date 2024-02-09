@@ -41,14 +41,14 @@ OutputVector translate_unbind_int_fx(const NodeContext& context) {
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto dim_val = context.const_input<int>(1);
-    auto shape = context.get_input(0).get_shape();
+    auto shape = input.get_shape();
 
     if (dim_val < 0) {
         dim_val = static_cast<int>(shape.size()) + dim_val;
     }
 
     auto num_splits = static_cast<int>(shape[dim_val]);
-    auto chunk = context.mark_node(std::make_shared<v1::Split>(context.get_input(0), dim, num_splits));
+    auto chunk = context.mark_node(std::make_shared<v1::Split>(input, dim, num_splits));
 
     return {context.mark_node(make_list_construct(chunk->outputs()))};
 }
