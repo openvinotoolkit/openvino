@@ -549,6 +549,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
 
+        std::cout << "MHA HAS BEEN TOKENIZED!\n";
+
         return true;
 
         /* ================================ */

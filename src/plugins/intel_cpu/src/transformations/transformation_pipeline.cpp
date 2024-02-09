@@ -730,6 +730,8 @@ void Transformations::MainSnippets(void) {
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     tokenization_config.mha_supported_transpose_ranks = { 4 };
 
+    std::cout << tokenization_config.concurrency << std::endl;;
+
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
