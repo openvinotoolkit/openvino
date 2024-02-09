@@ -164,6 +164,12 @@ Plugin::~Plugin() {
     // trigger earlier cache cleanup by setting its capacity to 0.
     // Related ticket: 106154.
     dnnl::set_primitive_cache_capacity(0);
+
+    // In case of multiple ov::Core instances (and multiple GPU plugins) we need to restore original
+    // cache capacity to prevent working with zero-capacity cache in other GPU Plugin instances, since
+    // cache is shared between all of GPU Plugin instances and cache clean up affects all of them.
+    const int default_cache_capacity = 1024;
+    dnnl::set_primitive_cache_capacity(default_cache_capacity);
 #endif
 }
 
