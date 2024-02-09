@@ -320,7 +320,7 @@ Stateful Models
 
 The CPU plugin supports stateful models without any limitations.
 
-For details, see :doc:`stateful models guide <openvino_docs_OV_UG_model_state_intro>`.
+For details, see :doc:`stateful models guide <openvino_docs_OV_UG_stateful_models_intro>`.
 
 Supported Properties
 ###########################################################

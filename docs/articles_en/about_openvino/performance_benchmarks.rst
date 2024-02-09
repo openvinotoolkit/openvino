@@ -133,7 +133,7 @@ For a listing of all platforms and configurations used for testing, refer to the
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: _static/benchmarks_files/benchmarks_files/OV-2023.3-Performance-Data.xlsx
+      .. button-link:: _static/benchmarks_files/OV-2023.3-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
