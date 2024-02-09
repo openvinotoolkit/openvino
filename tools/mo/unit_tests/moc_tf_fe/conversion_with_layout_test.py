@@ -48,15 +48,15 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
     @generate(
         *[
             (
-                    "model_fp32.pbtxt", 5, "in1(cn),in2(cn)",
+                    "model_fp32.pbtxt", 5, "in1:0(cn),in2:0(cn)",
                     {"in1:0": PartialShape([2, 5]), "in2:0": PartialShape([2, 5])},
             ),
             (
-                    "model_fp32.pbtxt", 9, "in1(nc),in2(nc)",
+                    "model_fp32.pbtxt", 9, "in1:0(nc),in2:0(nc)",
                     {"in1:0": PartialShape([9, 2]), "in2:0": PartialShape([9, 2])},
             ),
             (
-                    "model_fp32.pbtxt", 7, "in1(?c),in2(?c)",
+                    "model_fp32.pbtxt", 7, "in1:0(?c),in2:0(?c)",
                     {"in1:0": PartialShape([2, 2]), "in2:0": PartialShape([2, 2])},
             ),
         ],
@@ -67,12 +67,12 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
     @generate(
         *[
             (
-                    "model_with_convolution_dynamic_rank.pbtxt", 7, "x(n???),kernel(????)",
+                    "model_with_convolution_dynamic_rank.pbtxt", 7, "x:0(n???),kernel:0(????)",
                     {"x:0": PartialShape([7, Dimension.dynamic(), Dimension.dynamic(), 3]),
                      "kernel:0": PartialShape([2, 2, 3, 1])},
             ),
             (
-                    "model_with_convolution_dynamic_rank.pbtxt", 3, "x(???n),kernel(??n?)",
+                    "model_with_convolution_dynamic_rank.pbtxt", 3, "x:0(???n),kernel:0(??n?)",
                     {"x:0": PartialShape([Dimension.dynamic(), Dimension.dynamic(), Dimension.dynamic(), 3]),
                      "kernel:0": PartialShape([2, 2, 3, 1])},
             ),

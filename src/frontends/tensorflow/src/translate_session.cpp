@@ -452,8 +452,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
 
         auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-        param->set_friendly_name(operation_name);
-        set_node_name(input_name, param);
+        param->set_friendly_name(input_name);
+        set_out_name(input_name, param);
         params.push_back(param);
         (*ov_tensors_map)[input_name] = {NamedOutput(param)};
     }
@@ -828,6 +828,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
                                 "inputs to body must match");
         for (size_t input_ind = 0; input_ind < ext_num_inputs; ++input_ind) {
             auto required_input_name = input_names[input_ind];
+            std::cout << "body name " << std::to_string(input_ind) << " " << required_input_name << std::endl;
             bool is_found_body_input = false;
             size_t body_found_ind = 0;
             for (size_t internal_ind = 0; internal_ind < int_num_inputs; ++internal_ind) {

@@ -283,6 +283,7 @@ def type_supported_by_tf_fe(input_model):
         return True
     return False
 
+
 def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input, share_weights):
     input_model = trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input)
 

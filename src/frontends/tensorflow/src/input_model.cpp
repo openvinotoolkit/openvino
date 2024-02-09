@@ -181,7 +181,7 @@ void InputModel::InputModelTFImpl::load_places() {
         // put places for all inputs of a model into m_inputs
         if (op_type == "Placeholder" || op_type == "PlaceholderWithDefault") {
             if (m_input_names.size() > 0 &&
-                std::find(m_input_names.begin(), m_input_names.end(), op_name) == m_input_names.end()) {
+                std::find(m_input_names.begin(), m_input_names.end(), op_name + ":0") == m_input_names.end()) {
                 // this is a body graph since it contains non-empty m_input_names
                 // such node not included into m_input_names should be skipped
                 continue;
@@ -220,7 +220,7 @@ void InputModel::InputModelTFImpl::load_places() {
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
-            std::vector<std::string> names = {op_name};
+            std::vector<std::string> names = {op_name + ":0"};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
 
             // In Model Optimizer user can refer to model inputs by a name of Placeholder
