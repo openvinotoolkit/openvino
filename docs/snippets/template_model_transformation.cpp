@@ -14,7 +14,7 @@ bool ov::pass::MyModelTransformation::run_on_model(const std::shared_ptr<ov::Mod
     // Example transformation code
     NodeVector nodes;
 
-    // Traverse nGraph Function in topological order
+    // Traverse OpenVINO transformation function in topological order
     for (auto& node : f->get_ordered_ops()) {
         // Check that number of input and output ports are equal to 1
         if (node->inputs().size() == 1 && node->outputs().size() == 1) {
@@ -34,7 +34,7 @@ bool ov::pass::MyModelTransformation::run_on_model(const std::shared_ptr<ov::Mod
                   << "Name: " << node->get_friendly_name() << std::endl;
     }
 
-    // Return false because we didn't change nGraph Function
+    // Return false because we didn't change the OpenVINO transformation function
     return false;
 }
 // ! [model_pass:template_transformation_cpp]

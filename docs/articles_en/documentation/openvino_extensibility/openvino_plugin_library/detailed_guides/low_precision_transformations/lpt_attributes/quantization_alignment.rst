@@ -8,7 +8,7 @@ QuantizationAlignment Attribute
    :description: Learn about QuantizationAlignment attribute, which describes a subgraph with the same quantization alignment.
 
 
-:ref:`ngraph::QuantizationAlignmentAttribute <doxid-classngraph_1_1_quantization_alignment_attribute>` class represents the ``QuantizationAlignment`` attribute.
+``ov::QuantizationAlignmentAttribute`` class represents the ``QuantizationAlignment`` attribute.
 
 The attribute defines a subgraph with the same quantization alignment. ``FakeQuantize`` operations are not included. The attribute is used by quantization operations.
 

@@ -117,7 +117,7 @@ Sample Output
       .. code-block:: console
 
          [ INFO ] Creating OpenVINO Runtime Core
-         [ INFO ] Loading the model using ngraph function with weights from lenet.bin
+         [ INFO ] Loading the model using openvino with weights from lenet.bin
          [ INFO ] Loading the model to the plugin
          [ INFO ] Starting inference in synchronous mode
          [ INFO ] Top 1 results:

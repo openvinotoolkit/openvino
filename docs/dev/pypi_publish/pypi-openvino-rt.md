@@ -1,4 +1,4 @@
-# OpenVINO™ 
+# OpenVINO™
 
 <!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
 > **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
@@ -15,11 +15,11 @@ Before you start the installation, check the supported operating systems and req
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
-## Install OpenVINO™ 
+## Install OpenVINO™
 
 ### Step 1. Set Up Python Virtual Environment
 
-Use a virtual environment to avoid dependency conflicts. 
+Use a virtual environment to avoid dependency conflicts.
 
 To create a virtual environment, use the following commands:
 
@@ -75,26 +75,26 @@ If installation was successful, you will see the list of available devices.
 
 | Component        | Content                                                                  | Description                                                                                                                                                                                                                                                                                                   |
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [OpenVINO Runtime](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) | `openvino package` |**OpenVINO Runtime**  is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch\*, TensorFlow\*, TensorFlow Lite\*, ONNX\*, and PaddlePaddle\* models and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and includes the following plugins: [CPU](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html), [GPU](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html), [Auto Batch](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Automatic_Batching.html), [Auto](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html), [Hetero](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Hetero_execution.html).       
+| [OpenVINO Runtime](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) | `openvino package` |**OpenVINO Runtime**  is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch\*, TensorFlow\*, TensorFlow Lite\*, ONNX\*, and PaddlePaddle\* models and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and includes the following plugins: [CPU](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html), [GPU](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html), [Auto Batch](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Automatic_Batching.html), [Auto](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html), [Hetero](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Hetero_execution.html).
 | [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc) | `ovc` |**OpenVINO Model Converter**  converts models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include ONNX\*, TensorFlow\*, TensorFlow Lite\*, and PaddlePaddle\*.                                    |
 | [Benchmark Tool](https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.3/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.3/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China
 
 Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
-   
-* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example:
 
    ``` sh
    pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
    ```
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
 
-### ERROR:root:Could not find the Inference Engine or nGraph Python API.
+### ERROR:root:Could not find OpenVINO Python API.
 
 On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
