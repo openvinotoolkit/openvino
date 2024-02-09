@@ -292,12 +292,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         is_batch_clarified = False
         for model_input in ov_model.inputs:
             input_name = model_input.any_name
-            op_name = model_input.node.get_friendly_name()
             input_partial_shape = model_input.get_partial_shape()
-            if op_name in deferred_batch_names and input_partial_shape.rank.is_static:
+            if input_name in deferred_batch_names and input_partial_shape.rank.is_static:
                 # update input shape with the specified batch for input that originally has dynamic rank
                 batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
-                                                                           [op_name],
+                                                                           model_input.get_names(),
                                                                            layout_values, 'N', 0)
                 if batch_dim is None:
                     continue
