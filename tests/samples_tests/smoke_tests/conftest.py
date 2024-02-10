@@ -19,8 +19,12 @@ import zipfile
 @pytest.fixture(scope='session', autouse=True)
 def download_test_data(pytestconfig):
     test_data_dir = pytestconfig.cache.makedir('test_data_dir')
-    if (test_data_dir / 'samples_smoke_tests_data_2021.4' / 'models' / 'public' / 'squeezenet1.1' / 'FP16' / 'squeezenet1.1.xml').exists():
+    one_of_the_required_files = test_data_dir / 'samples_smoke_tests_data_2021.4' / 'models' / 'public' / 'squeezenet1.1' / 'FP16' / 'squeezenet1.1.xml'
+    if (one_of_the_required_files).exists():
         return
     response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+    if (one_of_the_required_files).exists():
+        # Other process could have already extracted it
+        return
     with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
         zfile.extractall(test_data_dir)
