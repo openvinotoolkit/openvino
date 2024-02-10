@@ -35,16 +35,13 @@ def get_devices():
 
 def get_cmd_output(*cmd):
     try:
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60)
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         if isinstance(error, subprocess.CalledProcessError):
-            print(f"""command '{' '.join(map(str, cmd))}'
-exited with code {error.returncode}. Output:
-{error.output}""")
+            print(f"command '{' '.join(map(str, cmd))}' exited with code {error.returncode}. Output:")
         else:
-            print(f"""command '{' '.join(map(str, cmd))}'
-timed out after {error.timeout} seconds. Output:
-{error.output}""")
+            print(f"command '{' '.join(map(str, cmd))}' timed out after {error.timeout} seconds. Output:")
+        print(error.output)
         raise
     return output
 
@@ -57,15 +54,19 @@ def download(test_data_dir, file_path):
         lock_path.unlink()
     while True:
         try:
-            with lock_path.open('x'):
+            with lock_path.open('x') as lock:
                 if file_path.exists():
+                    lock.close()
+                    lock_path.unlink()
                     return file_path
                 response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
                 with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                     zfile.extractall(test_data_dir)
+            with contextlib.suppress(PermissionError):
+                lock_path.unlink()
             assert file_path.exists()
             return file_path
-        except FileExistsError:
+        except (FileExistsError, PermissionError):
             time.sleep(1.0)
 
 
@@ -75,7 +76,7 @@ def prepend(cache, inp='', model=''):
     if inp:
         inp = '-i', download(test_data_dir, unpacked / 'validation_set' / inp)
     if model:
-        model = '-m', download(cache, unpacked / 'models' / 'public' / model)
+        model = '-m', download(test_data_dir, unpacked / 'models' / 'public' / model)
     return *inp, *model
 
 
@@ -186,10 +187,10 @@ class SamplesCommonTestClass():
                 param['i'] = list([param['i']])
         for k in param.keys():
             if ('i' == k) and complete_path:
-                param['i'] = [str(download(cache, unpacked / 'validation_set' / e)) for e in param['i']]
+                param['i'] = [str(download(test_data_dir, unpacked / 'validation_set' / e)) for e in param['i']]
                 param['i'] = ' '.join(map(str, param['i']))
             elif 'm' == k and not param['m'].endswith('/samples/cpp/model_creation_sample/lenet.bin"'):
-                param['m'] = download(cache, unpacked / 'models' / 'public' / param['m'])
+                param['m'] = download(test_data_dir, unpacked / 'models' / 'public' / param['m'])
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):
