@@ -330,12 +330,13 @@ jobs:
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt "$ovCoreWheelPath"
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
-          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
+          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --numprocesses auto --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
           SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
           WORKSPACE: ${{ env.INSTALL_DIR }}
+          PYTHONHASHSEED: 69  # Workaround https://github.com/pytest-dev/pytest-xdist/issues/432 by disabling hash randomization
 
       # Test .bat scripts for samples building
       - name: Build cpp samples (bat)

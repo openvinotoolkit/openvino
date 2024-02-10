@@ -123,7 +123,8 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests \
+          export PYTHONHASHSEED: 69  # Workaround https://github.com/pytest-dev/pytest-xdist/issues/432 by disabling hash randomization
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests --numprocesses auto \
             --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results
