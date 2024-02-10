@@ -88,11 +88,7 @@ Any simplified_type_interpret(Any type);
 
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
-element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars);
-void align_eltwise_input_types(const NodeContext& context,
-                               Output<Node>& lhs,
-                               Output<Node>& rhs,
-                               bool align_scalars = false);
+void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
@@ -159,7 +155,7 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     // If type is string or None, we shouldn't align
     if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
         !rhs_type.is<type::PyNone>())
-        align_eltwise_input_types(context, lhs, rhs, true);
+        align_eltwise_input_types(context, lhs, rhs);
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);
     return res;

@@ -32,7 +32,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
             rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
     } else {
-        align_eltwise_input_types(context, lhs, rhs, true);
+        align_eltwise_input_types(context, lhs, rhs);
     }
     Output<Node> alpha;
     if (!context.input_is_none(2)) {

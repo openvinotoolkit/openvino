@@ -37,7 +37,7 @@ OutputVector translate_linalg_cross(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
     auto self = context.get_input(0);
     auto other = context.get_input(1);
-    align_eltwise_input_types(context, self, other, true);
+    align_eltwise_input_types(context, self, other);
     auto const_minus_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     Output<Node> dim;
     if (context.input_is_none(2)) {
@@ -61,7 +61,7 @@ OutputVector translate_cross(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
     auto self = context.get_input(0);
     auto other = context.get_input(1);
-    align_eltwise_input_types(context, self, other, true);
+    align_eltwise_input_types(context, self, other);
     Output<Node> dim;
     if (context.input_is_none(2)) {
         //  If dim is not given, it defaults to the first dimension found with the size 3

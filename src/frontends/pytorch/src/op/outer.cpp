@@ -22,7 +22,7 @@ OutputVector translate_outer(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto vec1 = context.get_input(0);
     auto vec2 = context.get_input(1);
-    align_eltwise_input_types(context, vec1, vec2, true);
+    align_eltwise_input_types(context, vec1, vec2);
     auto const_zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     vec1 = context.mark_node(std::make_shared<v0::Unsqueeze>(vec1, const_minus_one));

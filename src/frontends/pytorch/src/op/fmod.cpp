@@ -16,7 +16,7 @@ OutputVector translate_fmod(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    align_eltwise_input_types(context, x, y, true);
+    align_eltwise_input_types(context, x, y);
 
     auto res = context.mark_node(std::make_shared<ov::op::v1::Mod>(x, y));
     if (!context.input_is_none(2)) {

@@ -17,7 +17,7 @@ OutputVector translate_remainder(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    align_eltwise_input_types(context, x, y, true);
+    align_eltwise_input_types(context, x, y);
     return {context.mark_node(std::make_shared<v1::FloorMod>(x, y))};
 };
 
