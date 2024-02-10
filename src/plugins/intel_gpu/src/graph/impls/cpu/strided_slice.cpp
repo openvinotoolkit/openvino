@@ -85,6 +85,10 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "strided_slice::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
+        if (instance.can_be_optimized()) {
+            return stream.group_events(events);
+        }
+
         for (auto e : events) {
             e->wait();
         }
