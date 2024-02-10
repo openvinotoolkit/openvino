@@ -77,7 +77,7 @@ def test_affinity_setting(sample_language, pin, cache, tmp_path):
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-@pytest.mark.parametrize('device', {'CPU', 'GPU'} & get_devices())
+@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
 def test_affinity_setting_asfasdf(sample_language, device, cache, tmp_path):
     verify(sample_language, device, cache=cache, tmp_path=tmp_path)
 

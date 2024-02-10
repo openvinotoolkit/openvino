@@ -10,14 +10,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import contextlib
+import io
 import os
 import itertools
+import pathlib
+import re
 import subprocess
 import sys
-import csv
-import re
-import pytest
+import requests
+import time
 import numpy as np
+import zipfile
 
 import logging as log
 from common.common_utils import shell
@@ -26,7 +30,7 @@ from shutil import which
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 def get_devices():
-    return set(os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';'))
+    return os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
 
 
 def get_cmd_output(*cmd):
@@ -45,17 +49,34 @@ timed out after {error.timeout} seconds. Output:
     return output
 
 
-def prepend(cache, input='', model=''):
-    test_data_dir = cache.mkdir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
-    if input:
-        input = test_data_dir / 'validation_set' / input
-        assert input.exists()
-        input = '-i', input
+def download(test_data_dir, file_path):
+    if file_path.exists():
+        return file_path
+    lock_path = pathlib.Path(test_data_dir / 'download.lock')
+    with contextlib.suppress(FileNotFoundError, PermissionError):
+        lock_path.unlink()
+    while True:
+        try:
+            with lock_path.open('x'):
+                if file_path.exists():
+                    return file_path
+                response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
+                    zfile.extractall(test_data_dir)
+            assert file_path.exists()
+            return file_path
+        except FileExistsError:
+            time.sleep(1.0)
+
+
+def prepend(cache, inp='', model=''):
+    test_data_dir = cache.mkdir('test_data_dir')
+    unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
+    if inp:
+        inp = '-i', download(test_data_dir, unpacked / 'validation_set' / inp)
     if model:
-        model = test_data_dir / 'models' / 'public' / model
-        assert model.exists()
-        model = '-m', model
-    return *input, *model
+        model = '-m', download(cache, unpacked / 'models' / 'public' / model)
+    return *inp, *model
 
 
 class Environment:
@@ -155,7 +176,8 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def join_env_path(param, cache, executable_path, complete_path=True):
-        test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
+        test_data_dir = cache.mkdir('test_data_dir')
+        unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -164,10 +186,10 @@ class SamplesCommonTestClass():
                 param['i'] = list([param['i']])
         for k in param.keys():
             if ('i' == k) and complete_path:
-                param['i'] = [test_data_dir / 'validation_set' / e for e in param['i']]
+                param['i'] = [str(download(cache, unpacked / 'validation_set' / e)) for e in param['i']]
                 param['i'] = ' '.join(map(str, param['i']))
             elif 'm' == k and not param['m'].endswith('/samples/cpp/model_creation_sample/lenet.bin"'):
-                param['m'] = test_data_dir / 'models' / 'public' / param['m']
+                param['m'] = download(cache, unpacked / 'models' / 'public' / param['m'])
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):
