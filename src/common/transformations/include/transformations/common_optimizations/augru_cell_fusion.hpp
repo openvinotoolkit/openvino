@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API AUGRUCellFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AUGRUCellFusion transformation replaces a sequence of
  * operations with AUGRUCell op.
  *
