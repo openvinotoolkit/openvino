@@ -14,7 +14,6 @@ import contextlib
 import io
 import os
 import itertools
-import pathlib
 import re
 import subprocess
 import sys
@@ -55,14 +54,12 @@ def download(test_data_dir, file_path):
     while True:
         try:
             with lock_path.open('x') as lock:
-                if file_path.exists():
-                    lock.close()
-                    lock_path.unlink()
-                    return file_path
-                response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
-                with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
-                    zfile.extractall(test_data_dir)
-            lock_path.unlink()
+                if not file_path.exists():
+                    response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
+                        zfile.extractall(test_data_dir)
+            with contextlib.suppress(FileNotFoundError):
+                lock_path.unlink()
             assert file_path.exists()
             return file_path
         except (FileExistsError, PermissionError):
