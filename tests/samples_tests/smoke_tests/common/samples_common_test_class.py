@@ -38,9 +38,9 @@ def get_cmd_output(*cmd):
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         if isinstance(error, subprocess.CalledProcessError):
-            print(f"command '{' '.join(map(str, cmd))}' exited with code {error.returncode}. Output:")
+            print(f"'{' '.join(map(str, cmd))}' returned {error.returncode}. Output:")
         else:
-            print(f"command '{' '.join(map(str, cmd))}' timed out after {error.timeout} seconds. Output:")
+            print(f"'{' '.join(map(str, cmd))}' timed out after {error.timeout} seconds. Output:")
         print(error.output)
         raise
     return output
@@ -49,7 +49,7 @@ def get_cmd_output(*cmd):
 def download(test_data_dir, file_path):
     if file_path.exists():
         return file_path
-    lock_path = pathlib.Path(test_data_dir / 'download.lock')
+    lock_path = test_data_dir / 'download.lock'
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
     while True:
@@ -62,8 +62,7 @@ def download(test_data_dir, file_path):
                 response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
                 with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                     zfile.extractall(test_data_dir)
-            with contextlib.suppress(PermissionError):
-                lock_path.unlink()
+            lock_path.unlink()
             assert file_path.exists()
             return file_path
         except (FileExistsError, PermissionError):

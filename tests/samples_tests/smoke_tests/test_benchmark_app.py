@@ -65,27 +65,27 @@ def test_benchmark_app_help(sample_language):
 @pytest.mark.parametrize('api', ['sync', 'async'])
 @pytest.mark.parametrize('nireq', ['4', ''])
 @pytest.mark.parametrize('device', get_devices())
-def test_benchmark_app(sample_language, api, nireq, device, cache):
+def test_nireq(sample_language, api, nireq, device, cache):
     verify(sample_language, device, api=api, nireq=nireq, cache=cache)
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('pin', ['YES', 'NO', 'NUMA', 'HYBRID_AWARE'])
-def test_affinity_setting(sample_language, pin, cache, tmp_path):
+def test_pin(sample_language, pin, cache, tmp_path):
     verify(sample_language, 'CPU', pin=pin, nstreams='2', cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
-def test_affinity_setting_asfasdf(sample_language, device, cache, tmp_path):
+def test_simple(sample_language, device, cache, tmp_path):
     verify(sample_language, device, cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('api', ['sync', 'async'])
 @pytest.mark.parametrize('device', get_devices())
-def test_affinity_setting_asfasdf_kek(sample_language, api, device, cache, tmp_path):
+def test_api(sample_language, api, device, cache, tmp_path):
     verify(sample_language, device, api=api, cache=cache, tmp_path=tmp_path)
 
 

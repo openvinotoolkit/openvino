@@ -112,9 +112,9 @@ class TestHello(SamplesCommonTestClass):
 
         # Reference run
         log.info("Reference run ...")
-        self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=param.get('sample_type'))
+        executable_path = self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=param.get('sample_type'))
         cmd_line = f"{model_path} {image_path} {param.get('d', 'C++')}"
-        ref_retcode, ref_stdout, ref_stderr = shell([self.executable_path, cmd_line])
+        ref_retcode, ref_stdout, ref_stderr = shell([executable_path, cmd_line])
 
         if ref_retcode != 0:
             log.error("Reference run FAILED with error:")
@@ -148,7 +148,7 @@ class TestHello(SamplesCommonTestClass):
                 cmd_line = f"{model_path} {image_path} {param.get('d', 'CPU')}"
 
                 if sys.platform.startswith('win'):
-                    subproc = subprocess.Popen(f"{self.executable_path} {cmd_line}", shell=True, stdout=subprocess.PIPE,
+                    subproc = subprocess.Popen(f"{executable_path} {cmd_line}", shell=True, stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, encoding='utf-8')
                     (stdout, stderr) = subproc.communicate()
                     retcode = subproc.returncode
@@ -161,7 +161,7 @@ class TestHello(SamplesCommonTestClass):
                               f"RETCODE:\n"
                               f"{retcode}\n\n")
                 else:
-                    retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+                    retcode, stdout, stderr = shell([executable_path, cmd_line])
 
                 if retcode != 0:
                     passed = False
