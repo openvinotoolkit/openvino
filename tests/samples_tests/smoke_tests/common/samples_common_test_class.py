@@ -154,7 +154,7 @@ class SamplesCommonTestClass():
     @classmethod
     def made_executable_path(cls, path1, path2, sample_type):
         if hasattr(cls, 'executable_path'):
-            return
+            return cls.executable_path
 
         executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
             else os.path.join(path1, path2)
@@ -173,7 +173,7 @@ class SamplesCommonTestClass():
         # This exeption is made for benchmark_app, because it locates in another place.
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
             executable_path = which(str('benchmark_app'))
-        cls.executable_path = executable_path
+        return executable_path
 
     @staticmethod
     def join_env_path(param, cache, executable_path, complete_path=True):
@@ -262,10 +262,10 @@ class SamplesCommonTestClass():
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
         if 'python' in sample_type.lower():
-            self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
+            executable_path = self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
                                       sample_type=sample_type)
         else:
-            self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
+            executable_path = self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
 
         if 'bitstream' in param_cp:
             del param_cp['bitstream']
@@ -276,7 +276,7 @@ class SamplesCommonTestClass():
         if get_cmd_func is None:
             get_cmd_func = self.get_cmd_line
 
-        self.join_env_path(param_cp, cache, executable_path=self.executable_path, complete_path=complete_path)
+        self.join_env_path(param_cp, cache, executable_path=executable_path, complete_path=complete_path)
 
         # Updating all attributes in the original dictionary (param), because param_cp was changes (join_env_path)
         for key in param.keys():
@@ -288,8 +288,8 @@ class SamplesCommonTestClass():
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
 
-        log.info("Running command: {} {}".format(self.executable_path, cmd_line))
-        retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+        log.info("Running command: {} {}".format(executable_path, cmd_line))
+        retcode, stdout, stderr = shell([executable_path, cmd_line])
 
         if get_shell_result:
             return retcode, stdout, stderr
