@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API RNNCellDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RNNCellDecomposition transformation decomposes RNNCell layer with inputs X, H, W, R, B
  * to Add, MatMul ops according to the formula:
                 *   - Denotes dot product.

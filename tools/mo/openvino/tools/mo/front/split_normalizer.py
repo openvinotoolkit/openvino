@@ -16,7 +16,7 @@ from openvino.tools.mo.utils.error import Error
 class SqueezeAxis(FrontReplacementOp):
     """
     Split-like operations from original frameworks split tensor by a certain `axis` dimension, removing
-    dimension over which splitting is performed. The "Split" layer of IE doesn't do that.
+    dimension over which splitting is performed. The "Split" layer of OV doesn't do that.
     This replacer inserts Squeeze operation for each output of the Split nodes to remove the dimension.
 
     It is applicable to Unpack from TF operation and MxNet SliceChannel

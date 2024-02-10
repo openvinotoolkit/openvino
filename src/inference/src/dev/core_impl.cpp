@@ -451,7 +451,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         return result;
     };
 
-    const decltype(::getCompiledPluginsRegistry())& plugins = getCompiledPluginsRegistry();
+    const decltype(::get_compiled_plugins_registry())& plugins = get_compiled_plugins_registry();
     for (const auto& plugin : plugins) {
         const auto& deviceName = plugin.first;
         if (deviceName.find('.') != std::string::npos) {
@@ -461,7 +461,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
-            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extensions_func};
             register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #else
@@ -842,6 +842,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OPENVINO_ASSERT(context, "Remote context must not be empty.");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }

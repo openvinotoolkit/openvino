@@ -26,7 +26,7 @@ TRANSFORMATIONS_API bool fold_subgraph_empty_inputs_is_disabled(const std::share
 }  // namespace ov
 
 /*
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FoldSubgraphEmptyInputs transformation fold MultiSubGraphOp inputs (by replacing with Constant op)
  * if the dimension is static and at least one is "0".
  * It means that subgraphs producing empty tensors are removed.
