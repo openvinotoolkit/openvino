@@ -15,11 +15,10 @@ import pytest
 import re
 import sys
 import logging as log
-import subprocess
-from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import get_tests, get_cmd_output
 from common.samples_common_test_class import SamplesCommonTestClass
-from common.samples_common_test_class import Environment
 from common.common_utils import shell
+import subprocess
 from pathlib import Path
 import shutil
 
@@ -69,7 +68,7 @@ class TestHello(SamplesCommonTestClass):
         log.info('Accuracy passed')
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
-    def test_hello_classification_check_unicode_path_support(self, param, cache):
+    def test_hello_classification_check_unicode_path_support(self, param, cache, tmp_path):
         """
         Check UNICODE characters in paths.
         """
@@ -77,14 +76,10 @@ class TestHello(SamplesCommonTestClass):
         if sys.platform.startswith("win"):  #issue 71298 need fix, then add condition: and param.get('sample_type') == "C":
             pytest.skip("C sample doesn't support unicode paths on Windows")
 
-        tmp_dir_path = Path(os.path.join(os.environ.get('WORKSPACE'), f"tmp_dir_for_{self.sample_name}"))
-        tmp_image_dir = tmp_dir_path / 'image'
-        tmp_model_dir = tmp_dir_path / 'model'
+        tmp_image_dir = tmp_path / 'image'
+        tmp_model_dir = tmp_path / 'model'
 
-        if tmp_dir_path.exists():
-            shutil.rmtree(tmp_dir_path)
-
-        tmp_image_dir.mkdir(parents=True)  # make tmp_dir_path too
+        tmp_image_dir.mkdir()
         tmp_model_dir.mkdir()
 
         test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
@@ -129,10 +124,6 @@ class TestHello(SamplesCommonTestClass):
                 prob = float(line.split()[1])
                 ref_probs.append((prob_class, prob))
 
-        #  Testing
-        errors_list = []
-        passed = True
-
         for image_name in [encoded_words[-1]]:
             for model_name in [encoded_words[-1]]:
 
@@ -162,31 +153,11 @@ class TestHello(SamplesCommonTestClass):
                               f"{retcode}\n\n")
                 else:
                     retcode, stdout, stderr = shell([executable_path, cmd_line])
-
-                if retcode != 0:
-                    passed = False
-                    errors_list.append({'image_additional_name': image_name.decode('utf-8'),
-                                        'model_additional_name': model_name.decode('utf-8'),
-                                        'error': stderr})
-
+                assert retcode == 0
                 probs = []
                 for line in stdout.split(sep='\n'):
                     if re.match(r"^\\d+\\s+\\d+.\\d+", line):
                         prob_class = int(line.split()[0])
                         prob = float(line.split()[1])
                         probs.append((prob_class, prob))
-
-                if ref_probs == probs:
-                    log.info('Accuracy passed. \n')
-                else:
-                    passed = False
-                    errors_list.append({'image_additional_name': image_name.decode('utf-8'),
-                                        'model_additional_name': model_name.decode('utf-8'),
-                                        'error': "Accuracy failed!"})
-
-        if passed:
-            shutil.rmtree(tmp_dir_path)
-            log.info("UNICODE check passed. Temporary files and directories has been deleted.")
-        else:
-            log.error("UNICODE check failed. Temporary files and directories has not been deleted.")
-            raise AssertionError("Sample execution failed!")
+                assert ref_probs == probs

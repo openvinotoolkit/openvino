@@ -51,19 +51,17 @@ def download(test_data_dir, file_path):
     lock_path = test_data_dir / 'download.lock'
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
-    while True:
-        try:
-            with lock_path.open('x') as lock:
+    for _ in range(9999):
+        with contextlib.suppress(FileExistsError, PermissionError):
+            with lock_path.open('x'):
                 if not file_path.exists():
                     response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
                     with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                         zfile.extractall(test_data_dir)
-            with contextlib.suppress(FileNotFoundError):
-                lock_path.unlink()
+            lock_path.unlink(missing_ok=True)
             assert file_path.exists()
             return file_path
-        except (FileExistsError, PermissionError):
-            time.sleep(1.0)
+        time.sleep(1.0)
 
 
 def prepend(cache, inp='', model=''):
