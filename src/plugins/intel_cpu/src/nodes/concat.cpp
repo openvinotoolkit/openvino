@@ -40,6 +40,9 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Node is not an instance of the Concat operation.";
             return false;
         }
+        if (concatOp->get_output_element_type(0) == ov::element::string) {
+            return false;
+        }
     } catch (...) {
         return false;
     }

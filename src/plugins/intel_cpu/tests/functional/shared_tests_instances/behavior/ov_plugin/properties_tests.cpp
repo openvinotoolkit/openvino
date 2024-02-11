@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
@@ -133,7 +133,7 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
 
 
-// IE Class load and check network with ov::device::properties
+// OV Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU"), ::testing::ValuesIn(configsDeviceProperties)));

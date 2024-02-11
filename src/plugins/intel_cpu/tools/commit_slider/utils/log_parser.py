@@ -85,6 +85,7 @@ def makeCSV(csvData):
         csvwriter.writerows(rows)
 
 def logParser(args, zipName="archive", dirName = "artifacts"):
+    args = vars(args)
     if "-path" not in args:
         raise CfgError("No 'path' for log parser provided")
     elif "-zip_name" in args:

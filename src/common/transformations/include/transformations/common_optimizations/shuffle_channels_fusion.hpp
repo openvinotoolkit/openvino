@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ShuffleChannelsFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ShuffleChannelsFusion transformation detects Reshape-Transpose-Reshape pattern
  * and tries to fuse it into a single ShuffleChannels layer with axis = 1.
  *
