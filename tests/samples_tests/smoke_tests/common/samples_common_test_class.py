@@ -51,7 +51,7 @@ def download(test_data_dir, file_path):
     lock_path = test_data_dir / 'download.lock'
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
-    for _ in range(9999):
+    for _ in range(9999):  # Give up after about 3 hours
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('x'):
                 if not file_path.exists():

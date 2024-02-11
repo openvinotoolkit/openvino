@@ -15,10 +15,9 @@ import pytest
 import re
 import sys
 import logging as log
-from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import get_cmd_output, get_tests
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.common_utils import shell
-import subprocess
 from pathlib import Path
 import shutil
 
@@ -67,6 +66,13 @@ class TestHello(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
     def test_hello_classification_check_unicode_path_support(self, param, cache, tmp_path):
+        """
+        Check UNICODE characters in paths.
+        """
+        #  Make temporary dirs, prepare temporary input data and temporary model
+        if sys.platform.startswith("win"):  #issue 71298 need fix, then add condition: and param.get('sample_type') == "C":
+            pytest.skip("C sample doesn't support unicode paths on Windows")
+
         tmp_image_dir = tmp_path / 'image'
         tmp_model_dir = tmp_path / 'model'
 
@@ -125,18 +131,7 @@ class TestHello(SamplesCommonTestClass):
                 new_model_path = tmp_model_dir / (original_model_name + f"_{model_name.decode('utf-8')}.xml")
                 model_path.rename(new_model_path)
                 Path(str(model_path).replace('.xml', '.bin')).rename(Path(str(new_model_path).replace('.xml', '.bin')))
-                model_path = new_model_path
-
-                cmd_line = f"{model_path} {image_path} {param.get('d', 'CPU')}"
-
-                if sys.platform.startswith('win'):
-                    subproc = subprocess.Popen(f"{executable_path} {cmd_line}", shell=True, stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE, encoding='utf-8')
-                    (stdout, stderr) = subproc.communicate()
-                    retcode = subproc.returncode
-                else:
-                    retcode, stdout, stderr = shell([executable_path, cmd_line])
-                assert retcode == 0
+                stdout = get_cmd_output(executable_path, new_model_path, image_path, param['d'])
                 probs = []
                 for line in stdout.split(sep='\n'):
                     if re.match(r"^\\d+\\s+\\d+.\\d+", line):

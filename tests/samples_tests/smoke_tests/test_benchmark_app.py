@@ -77,7 +77,7 @@ def test_pin(sample_language, pin, cache, tmp_path):
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
+@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))  # Determenisitic order is required for --numprocesses
 def test_simple(sample_language, device, cache, tmp_path):
     verify(sample_language, device, cache=cache, tmp_path=tmp_path)
 
