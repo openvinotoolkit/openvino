@@ -69,13 +69,6 @@ class TestHello(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32_unicode)
     def test_hello_classification_check_unicode_path_support(self, param, cache, tmp_path):
-        """
-        Check UNICODE characters in paths.
-        """
-        #  Make temporary dirs, prepare temporary input data and temporary model
-        if sys.platform.startswith("win"):  #issue 71298 need fix, then add condition: and param.get('sample_type') == "C":
-            pytest.skip("C sample doesn't support unicode paths on Windows")
-
         tmp_image_dir = tmp_path / 'image'
         tmp_model_dir = tmp_path / 'model'
 
