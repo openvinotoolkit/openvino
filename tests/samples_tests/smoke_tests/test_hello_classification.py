@@ -15,7 +15,7 @@ import pytest
 import re
 import sys
 import logging as log
-from common.samples_common_test_class import get_tests, get_cmd_output
+from common.samples_common_test_class import get_tests
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.common_utils import shell
 import subprocess
@@ -26,15 +26,13 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'd': ['CPU'],
                                        'sample_type': ['C++', 'C']},
-                           use_device=['d'])
+                          )
 
 test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
                                                'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                               'd': ['CPU'],
-                                               'sample_type': ['C++', 'C']},
-                                   use_device=['d'])
+                                               'sample_type': ['C++']},
+                                  )
 
 
 class TestHello(SamplesCommonTestClass):
@@ -136,14 +134,6 @@ class TestHello(SamplesCommonTestClass):
                                                stderr=subprocess.PIPE, encoding='utf-8')
                     (stdout, stderr) = subproc.communicate()
                     retcode = subproc.returncode
-
-                    if param['sample_type'] == 'C':
-                        print(f"STDOUT:\n"
-                              f"{stdout}\n\n"
-                              f"STDERR:\n"
-                              f"{stderr}\n\n"
-                              f"RETCODE:\n"
-                              f"{retcode}\n\n")
                 else:
                     retcode, stdout, stderr = shell([executable_path, cmd_line])
                 assert retcode == 0
