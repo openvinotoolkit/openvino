@@ -27,19 +27,19 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
+        ov::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         std::shared_ptr<ov::op::v0::Constant> weights;
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
         ov::element::Type precisionAfterDequantization;
     };
 
@@ -60,7 +60,7 @@ public:
         const auto inputShape = std::get<1>(GetParam());
         auto testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::ConvolutionFunction::getOriginal(
             netPrecision,
             testValues.actual.precisionBeforeDequantization,
             inputShape,
@@ -86,7 +86,7 @@ public:
             testValues.expected.weights = ov::as_type_ptr<ov::op::v0::Constant>(convertedWeights);
         }
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
+        referenceFunction = ov::builder::subgraph::ConvolutionFunction::getReference(
             netPrecision,
             testValues.expected.precisionBeforeDequantization,
             inputShape,

@@ -28,8 +28,8 @@ OutputVector translate_expand(const NodeContext& context) {
     auto x = context.get_input(0);
     auto sizes = context.get_input(1);
     // TODO: figure out what implicit means
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
-                                  "Unexpected value of implicit for expand operation");
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
+                                "Unexpected value of implicit for expand operation");
     return base_expand(context, x, sizes);
 };
 
@@ -49,13 +49,13 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     // output shapes are same. This should be removed after a proper optimization is
     // implemented.
     auto sizes_const = context.const_input<Shape>(1);
-    if (x.get_shape() == sizes_const) {
+    if (x.get_partial_shape().is_static() && x.get_shape() == sizes_const) {
         return {x};
     }
     auto sizes = context.get_input(1);
     // TODO: figure out what implicit means
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
-                                  "Unexpected value of implicit for expand operation");
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
+                                "Unexpected value of implicit for expand operation");
     return base_expand(context, x, sizes);
 };
 

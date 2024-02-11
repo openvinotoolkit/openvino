@@ -54,8 +54,8 @@ class TestKerasConvLSTM2D(CommonTF2LayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_keras_conv_lstm_2d_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_old_api, use_new_frontend):
+                                      use_new_frontend):
         self._test(*self.create_keras_conv_lstm_2d_net(**params), ie_device,
                    precision,
-                   temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

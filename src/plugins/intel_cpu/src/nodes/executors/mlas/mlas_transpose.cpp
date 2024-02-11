@@ -153,8 +153,8 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
     const auto& input_dims = input_shape.getDims();
     const auto element_size = input->getDesc().getPrecision().size();
 
-    const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
-    auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
+    const auto* input_data = input->getDataAs<const uint8_t>();
+    auto* output_data = output->getDataAs<uint8_t>();
 
     auto num_loops = calcShapeSize(input_shape, 0, to);
     auto num_writers = input_dims[from];
@@ -215,8 +215,8 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
     const auto& input_dims = input_shape.getDims();
 
     const auto element_size = input->getDesc().getPrecision().size();
-    const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
-    auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
+    const auto* input_data = input->getDataAs<const uint8_t>();
+    auto* output_data = output->getDataAs<uint8_t>();
 
     auto num_loops = calcShapeSize(input_shape, 0, from);
     auto num_readers = input_dims[from];
@@ -270,7 +270,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
     }
 }
 
-void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     if (from > to) {
             TransposeSingleAxisOutwards(src[0], dst[0], from, to);
     } else {

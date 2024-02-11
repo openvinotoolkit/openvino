@@ -253,8 +253,8 @@ void TileBroadcastCommon::broadcastScalar(const char *srcData, char *dstData, si
 }
 
 void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
-    auto srcData = reinterpret_cast<const char *>(srcMemory->getData());
-    auto dstData = reinterpret_cast<char *>(dstMemory->getData());
+    auto srcData = srcMemory->getDataAs<const char>();
+    auto dstData = dstMemory->getDataAs<char>();
 
     if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
         const auto prc = dstMemory->getDesc().getPrecision();
@@ -266,7 +266,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];
-            auto srcData_i32 = reinterpret_cast<const int *>(srcMemory->getData());
+            auto srcData_i32 = srcMemory->getDataAs<const int>();
             if (data_size == 1) {
                 memset(dstData, srcData[0], elt_cnt);
             } else if (data_size == 4 && srcData_i32[0] == 0) {

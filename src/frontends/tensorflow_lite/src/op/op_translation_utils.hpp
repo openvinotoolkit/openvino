@@ -73,10 +73,13 @@ OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_
     ov::frontend::tensorflow_lite::dequantize_inputs(inputs);
     auto context = ov::frontend::tensorflow_lite::NodeContext(node.get_decoder(), inputs);
     auto output = ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
+    output[0].get_node()->set_friendly_name("");
+    output[0].set_names({});
     const auto& decoder = get_decoder(context);
     get_activation(output,
                    context,
                    EnumNameActivationFunctionType(decoder->get_attribute(&TF_TYPE::fused_activation_function)));
+    output[0].get_node()->set_friendly_name(node.get_name());
     return output;
 }
 

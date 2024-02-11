@@ -31,6 +31,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -114,12 +117,13 @@ jobs:
           export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
+          # Install Python benchmark_app by installing openvino-*.whl
+          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv $INSTALL_TEST_DIR/smoke_tests \
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests \
             --env_conf $INSTALL_TEST_DIR/smoke_tests/env_config.yml \
             --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 

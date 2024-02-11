@@ -6,12 +6,11 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -38,16 +37,20 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getOriginal(
     std::shared_ptr<ov::Node> branch1Last;
     {
         // branch with limitation precision operation (Convolution)
-        std::shared_ptr<ov::Node> branch1Operation = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
-            std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::MaxPool>(
-                fakeQuantize,
-                Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
-                op::RoundingType::FLOOR)) :
-            std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
-                ov::opset1::PRelu(
-                    fakeQuantize,
-                    std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
-                element::f32);
+        std::shared_ptr<ov::Node> branch1Operation =
+            values.operationBeforeLimitedOperationIsPrecisionTransparent
+                ? std::dynamic_pointer_cast<ov::Node>(
+                      std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                            Strides{1, 1},
+                                                            Shape{1, 1},
+                                                            Shape{0, 0},
+                                                            Shape{2, 2},
+                                                            op::RoundingType::FLOOR))
+                : std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
+                      ov::opset1::PRelu(
+                          fakeQuantize,
+                          std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.01})),
+                      element::f32);
 
         const size_t inputChannelsCount = inputShape[1].get_length();
         const size_t outputChannelsCount = 2 * inputShape[1].get_length();
@@ -84,8 +87,8 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getOriginal(
         branch2Last = std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
             ov::opset1::PRelu(
                 fakeQuantize,
-                std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
-            element::f32);
+                std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.01})),
+            ov::element::f32);
     }
 
     const std::shared_ptr<ov::opset1::Concat> concat = std::make_shared<ov::opset1::Concat>(
@@ -103,21 +106,24 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+    const auto fakeQuantize = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(
         input,
         precision,
         values.fakeQuantizeOnData);
     fakeQuantize->set_friendly_name("fakeQuantize");
 
     // branch with limitation precision operation (Convolution)
-    std::shared_ptr<ov::Node> branch1Pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
-        std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::MaxPool>(
-            fakeQuantize,
-            Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
-            op::RoundingType::FLOOR)) :
-        std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
-            fakeQuantize,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
+    std::shared_ptr<ov::Node> branch1Pooling =
+        values.operationBeforeLimitedOperationIsPrecisionTransparent
+            ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                                                        Strides{1, 1},
+                                                                                        Shape{1, 1},
+                                                                                        Shape{0, 0},
+                                                                                        Shape{2, 2},
+                                                                                        op::RoundingType::FLOOR))
+            : std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
+                  fakeQuantize,
+                  std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.01}));
 
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
@@ -139,14 +145,16 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
             values.fakeQuantizeOnWeights.outputLowValues,
             values.fakeQuantizeOnWeights.outputHighValues);
 
-    std::shared_ptr<ov::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-        std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
-        ov::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{},
+            ov::op::TemporaryReplaceOutputType(branch1Pooling, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(onWeights, ov::element::f32).get(),
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
 
     std::shared_ptr<ov::opset1::Multiply> branch1Multiply = std::make_shared<ov::opset1::Multiply>(
         convolution,
@@ -156,7 +164,7 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
     // just another branch
     std::shared_ptr<ov::opset1::PRelu> branch2PRelu = std::make_shared<ov::op::TypeRelaxed<ov::opset1::PRelu>>(
         fakeQuantize,
-        std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
+        std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.01}));
 
     const std::shared_ptr<ov::Node> branch2Multiply = std::make_shared<ov::opset1::Multiply>(
         branch2PRelu,
@@ -196,4 +204,4 @@ std::shared_ptr<ov::Model> FakeQuantizePrecisionSelectionFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

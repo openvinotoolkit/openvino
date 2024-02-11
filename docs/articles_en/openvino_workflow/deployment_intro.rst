@@ -12,7 +12,7 @@ Deploy Locally
    Optimize Binaries Size <opevino_conditional_compilation_deploying_guide>
 
 .. meta::
-   :description: There are several ways of deploying OpenVINO™ application once 
+   :description: There are several ways of deploying OpenVINO™ application once
                  its development has been finished.
 
 
@@ -64,7 +64,7 @@ The granularity of OpenVINO packages may vary for different distribution types. 
 .. image:: _static/images/deployment_simplified.svg
 
 
-- The main library ``openvino`` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs, including both API 2.0 and the previous Inference Engine and nGraph APIs. For C language applications, ``openvino_c`` is additionally required for distribution.
+- The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.
 - The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <openvino_docs_OV_UG_Hetero_execution>` and :doc:`Multi-Device Execution <openvino_docs_OV_UG_Running_on_multiple_devices>`.
 - The "optional" plugin libraries like ``openvino_ir_frontend`` (matching ``openvino_.+_frontend``) are used to provide capabilities to read models of different file formats such as OpenVINO IR, TensorFlow, ONNX, and PaddlePaddle.
 
@@ -74,5 +74,5 @@ Building a local distribution will require more detailed information, and you wi
 
 .. note::
 
-   Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`, :doc:`Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>`.
+   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 

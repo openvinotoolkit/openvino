@@ -34,6 +34,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
@@ -852,10 +853,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Wait for previous execution completion
     reset_execution(false);
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "============================================================================" << std::endl;
         GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     } else {
-        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     }
 
@@ -1035,7 +1036,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         execute_primitive(inst, events);
         executed_prims++;
-
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
 
@@ -1297,7 +1297,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
             const auto dep_node = dep.first;
-            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || dep_node->is_type<read_value>()) {
+            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || (dep_node->is_type<read_value>() && !dep_node->can_be_optimized())) {
                 return true;
             }
             if (dep_node->can_be_optimized()) {
@@ -1329,6 +1329,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
+    }
+    if (node.is_type<kv_cache>()) {
+       kv_cache_ids.push_back(node.id());
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());

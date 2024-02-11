@@ -14,15 +14,15 @@ namespace LayerTestsDefinitions {
 
 class TransposeTransformationTestValues {
 public:
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<int> transposeConstValues;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::element::Type precisionBeforeFq;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::element::Type precisionBeforeFq;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     TransposeTransformationTestValues> TransposeTransformationParams;
 

@@ -28,6 +28,11 @@ if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
 
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -77,13 +82,10 @@ if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
 endif()
 
 # remove file with exported targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # remove exported developer targets files to force its regeneration
 macro(ov_clean_developer_package_targets)
-    file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_developer_package_targets.cmake")
     file(REMOVE "${CMAKE_BINARY_DIR}/openvino_developer_package_targets.cmake")
     unset(_OPENVINO_DEVELOPER_PACKAGE_TARGETS CACHE)
     unset(openvino_installed_targets CACHE)

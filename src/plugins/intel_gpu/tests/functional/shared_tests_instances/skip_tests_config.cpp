@@ -14,13 +14,15 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
-            R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
+            R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput5In).*)",
+
+
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
             // TODO: Issue: 54194
@@ -35,12 +37,14 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            // Issue: 122177
+            R"(.*LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
             // TODO: Issue 67408
-            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
-            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
+            R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // Unsupported
@@ -58,14 +62,17 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 124060
             R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
-            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
-            R"(.*ExecGraphSerializationTest.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            // Issue: 131699 SUPPORTED_PROPERTIES in BATCH issue. DEVICE_ID in BATCH, HETERO issue.
+            R"(.*OVClassCompiledModelGetPropertyTest/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_SUPPORTED_CONFIG_KEYS/2)",
+            R"(.*nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
@@ -84,5 +91,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Nms9LayerTest.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
     };
 }

@@ -18,7 +18,7 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     if (cldnn_axis >= static_cast<int64_t>(rank))
         OPENVINO_THROW("kv_cache axis exceeds number of dimensions");
 
-    // Difference in dimension ordering between IE and GPU plugin,
+    // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     if (cldnn_axis >= 2) {
         auto spatial_axis = cldnn_axis - 2;
@@ -79,10 +79,12 @@ struct kv_cache_impl : typed_primitive_impl_ocl<kv_cache> {
         variable.set();
 
         if (can_be_optimized) {
+            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
             return res_event;
         } else {
             // Othwerise, we need to copy result from out buffer to state memory
+            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable meomry" << std::endl;
             auto& stream = instance.get_network().get_stream();
 
             stream.enqueue_barrier();

@@ -24,8 +24,11 @@ namespace pass {
 class InsertPerfCount: public Pass {
 public:
     OPENVINO_RTTI("InsertPerfCount", "Pass")
-    InsertPerfCount() = default;
+    InsertPerfCount(std::map<std::string, std::string> boundary_op_names);
     bool run(LinearIR& linear_ir) override;
+
+private:
+    std::map<std::string, std::string> m_boundary_op_names;
 };
 
 } // namespace pass

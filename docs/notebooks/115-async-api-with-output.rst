@@ -11,8 +11,8 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
 -  `Prepare model and data
@@ -37,7 +37,8 @@ requests) rather than wait for the current inference to complete first.
 -  `AsyncInferQueue <#asyncinferqueue>`__
 
    -  `Setting Callback <#setting-callback>`__
-   -  `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+   -  `Test the performance with
+      AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports
 -------
@@ -53,6 +54,10 @@ Imports
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -113,10 +118,204 @@ each frame of the video.
     ################|| Downloading person-detection-0202 ||################
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
-    
+
+
+.. parsed-literal::
+
+    ... 12%, 32 KB, 1452 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 25%, 64 KB, 1385 KB/s, 0 seconds passed
+... 38%, 96 KB, 1632 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 51%, 128 KB, 1424 KB/s, 0 seconds passed
+... 64%, 160 KB, 1393 KB/s, 0 seconds passed
+... 77%, 192 KB, 1664 KB/s, 0 seconds passed
+... 89%, 224 KB, 1795 KB/s, 0 seconds passed
+... 100%, 248 KB, 1986 KB/s, 0 seconds passed
+
+
+
+.. parsed-literal::
+
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
-    
+
+
+.. parsed-literal::
+
+    ... 0%, 32 KB, 1284 KB/s, 0 seconds passed
+... 1%, 64 KB, 1284 KB/s, 0 seconds passed
+... 2%, 96 KB, 1894 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 3%, 128 KB, 1699 KB/s, 0 seconds passed
+... 4%, 160 KB, 2092 KB/s, 0 seconds passed
+... 5%, 192 KB, 2274 KB/s, 0 seconds passed
+... 6%, 224 KB, 2623 KB/s, 0 seconds passed
+... 7%, 256 KB, 2328 KB/s, 0 seconds passed
+... 8%, 288 KB, 2599 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 9%, 320 KB, 2693 KB/s, 0 seconds passed
+... 9%, 352 KB, 2939 KB/s, 0 seconds passed
+... 10%, 384 KB, 2655 KB/s, 0 seconds passed
+... 11%, 416 KB, 2858 KB/s, 0 seconds passed
+... 12%, 448 KB, 2918 KB/s, 0 seconds passed
+... 13%, 480 KB, 3100 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 14%, 512 KB, 2858 KB/s, 0 seconds passed
+... 15%, 544 KB, 2904 KB/s, 0 seconds passed
+... 16%, 576 KB, 3065 KB/s, 0 seconds passed
+... 17%, 608 KB, 3219 KB/s, 0 seconds passed
+... 18%, 640 KB, 2998 KB/s, 0 seconds passed
+... 18%, 672 KB, 3133 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 19%, 704 KB, 3164 KB/s, 0 seconds passed
+... 20%, 736 KB, 3293 KB/s, 0 seconds passed
+... 21%, 768 KB, 3098 KB/s, 0 seconds passed
+... 22%, 800 KB, 3120 KB/s, 0 seconds passed
+... 23%, 832 KB, 3228 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 24%, 864 KB, 3062 KB/s, 0 seconds passed
+... 25%, 896 KB, 3170 KB/s, 0 seconds passed
+... 26%, 928 KB, 3274 KB/s, 0 seconds passed
+... 27%, 960 KB, 3291 KB/s, 0 seconds passed
+... 27%, 992 KB, 3388 KB/s, 0 seconds passed
+... 28%, 1024 KB, 3231 KB/s, 0 seconds passed
+... 29%, 1056 KB, 3322 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 30%, 1088 KB, 3331 KB/s, 0 seconds passed
+... 31%, 1120 KB, 3189 KB/s, 0 seconds passed
+... 32%, 1152 KB, 3275 KB/s, 0 seconds passed
+... 33%, 1184 KB, 3360 KB/s, 0 seconds passed
+... 34%, 1216 KB, 3370 KB/s, 0 seconds passed
+... 35%, 1248 KB, 3448 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 36%, 1280 KB, 3316 KB/s, 0 seconds passed
+... 36%, 1312 KB, 3390 KB/s, 0 seconds passed
+... 37%, 1344 KB, 3401 KB/s, 0 seconds passed
+... 38%, 1376 KB, 3472 KB/s, 0 seconds passed
+... 39%, 1408 KB, 3349 KB/s, 0 seconds passed
+... 40%, 1440 KB, 3418 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 41%, 1472 KB, 3426 KB/s, 0 seconds passed
+... 42%, 1504 KB, 3488 KB/s, 0 seconds passed
+... 43%, 1536 KB, 3372 KB/s, 0 seconds passed
+... 44%, 1568 KB, 3437 KB/s, 0 seconds passed
+... 45%, 1600 KB, 3446 KB/s, 0 seconds passed
+... 45%, 1632 KB, 3505 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 46%, 1664 KB, 3400 KB/s, 0 seconds passed
+... 47%, 1696 KB, 3457 KB/s, 0 seconds passed
+... 48%, 1728 KB, 3468 KB/s, 0 seconds passed
+... 49%, 1760 KB, 3520 KB/s, 0 seconds passed
+... 50%, 1792 KB, 3417 KB/s, 0 seconds passed
+... 51%, 1824 KB, 3472 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 52%, 1856 KB, 3478 KB/s, 0 seconds passed
+... 53%, 1888 KB, 3383 KB/s, 0 seconds passed
+... 54%, 1920 KB, 3437 KB/s, 0 seconds passed
+... 54%, 1952 KB, 3487 KB/s, 0 seconds passed
+... 55%, 1984 KB, 3495 KB/s, 0 seconds passed
+... 56%, 2016 KB, 3544 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 57%, 2048 KB, 3451 KB/s, 0 seconds passed
+... 58%, 2080 KB, 3500 KB/s, 0 seconds passed
+... 59%, 2112 KB, 3506 KB/s, 0 seconds passed
+... 60%, 2144 KB, 3554 KB/s, 0 seconds passed
+... 61%, 2176 KB, 3466 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 62%, 2208 KB, 3510 KB/s, 0 seconds passed
+... 63%, 2240 KB, 3513 KB/s, 0 seconds passed
+... 64%, 2272 KB, 3561 KB/s, 0 seconds passed
+... 64%, 2304 KB, 3478 KB/s, 0 seconds passed
+... 65%, 2336 KB, 3518 KB/s, 0 seconds passed
+... 66%, 2368 KB, 3521 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 67%, 2400 KB, 3444 KB/s, 0 seconds passed
+... 68%, 2432 KB, 3486 KB/s, 0 seconds passed
+... 69%, 2464 KB, 3495 KB/s, 0 seconds passed
+... 70%, 2496 KB, 3528 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 71%, 2528 KB, 3454 KB/s, 0 seconds passed
+... 72%, 2560 KB, 3496 KB/s, 0 seconds passed
+... 73%, 2592 KB, 3505 KB/s, 0 seconds passed
+... 73%, 2624 KB, 3515 KB/s, 0 seconds passed
+... 74%, 2656 KB, 3463 KB/s, 0 seconds passed
+... 75%, 2688 KB, 3502 KB/s, 0 seconds passed
+... 76%, 2720 KB, 3514 KB/s, 0 seconds passed
+... 77%, 2752 KB, 3523 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 78%, 2784 KB, 3474 KB/s, 0 seconds passed
+... 79%, 2816 KB, 3510 KB/s, 0 seconds passed
+... 80%, 2848 KB, 3522 KB/s, 0 seconds passed
+... 81%, 2880 KB, 3530 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 82%, 2912 KB, 3482 KB/s, 0 seconds passed
+... 82%, 2944 KB, 3518 KB/s, 0 seconds passed
+... 83%, 2976 KB, 3529 KB/s, 0 seconds passed
+... 84%, 3008 KB, 3535 KB/s, 0 seconds passed
+... 85%, 3040 KB, 3489 KB/s, 0 seconds passed
+... 86%, 3072 KB, 3523 KB/s, 0 seconds passed
+... 87%, 3104 KB, 3532 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 88%, 3136 KB, 3540 KB/s, 0 seconds passed
+... 89%, 3168 KB, 3498 KB/s, 0 seconds passed
+... 90%, 3200 KB, 3530 KB/s, 0 seconds passed
+... 91%, 3232 KB, 3539 KB/s, 0 seconds passed
+... 91%, 3264 KB, 3544 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 92%, 3296 KB, 3504 KB/s, 0 seconds passed
+... 93%, 3328 KB, 3536 KB/s, 0 seconds passed
+... 94%, 3360 KB, 3544 KB/s, 0 seconds passed
+... 95%, 3392 KB, 3550 KB/s, 0 seconds passed
+... 96%, 3424 KB, 3509 KB/s, 0 seconds passed
+... 97%, 3456 KB, 3540 KB/s, 0 seconds passed
+... 98%, 3488 KB, 3548 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 99%, 3520 KB, 3560 KB/s, 0 seconds passed
+... 100%, 3549 KB, 3521 KB/s, 1 seconds passed
+
     
 
 
@@ -313,7 +512,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 40.67 fps
+    average throuput in sync mode: 43.51 fps
 
 
 Async Mode
@@ -452,7 +651,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 74.75 fps
+    average throuput in async mode: 74.01 fps
 
 
 Compare the performance
@@ -491,7 +690,7 @@ Compare the performance
 
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a
@@ -595,5 +794,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 111.75 fps
+    average throughput in async mode with async infer queue: 110.03 fps
 

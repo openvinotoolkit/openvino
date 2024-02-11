@@ -1,4 +1,4 @@
-name: Samples
+name: C++ Unit Tests
 
 on:
   workflow_call:
@@ -32,6 +32,9 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map
 
 import torch
+
 
 class TorchFXPythonDecoder (Decoder):
 
@@ -23,56 +24,96 @@ class TorchFXPythonDecoder (Decoder):
         self.input_types = input_types
         self.input_shapes = input_shapes
 
+        self._input_signature = []
+        self._output_names = []
+
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
 
+            self._input_is_list = None
             self._nodes = list(pt_module.graph.nodes)
             self._inputs = []
             self._outputs = []
             for i in range(len(self._nodes)):
                 if self._nodes[i].op == 'placeholder':
                     self._inputs.append(i)
+                    self._input_signature.append(self._nodes[i].name)
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
                     args = self._nodes[i].args
                     if isinstance(args[0], tuple):
                         args = args[0]
-                    for output in args:
-                        self._outputs.append(self._nodes.index(output))
+                    if isinstance(args[0], dict):
+                        for name, output in args[0].items():
+                            self._outputs.append(self._nodes.index(output))
+                            self._output_names.append(name)
+                    else:
+                        for output in args:
+                            self._outputs.append(self._nodes.index(output))
 
         elif issubclass(type(pt_module), torch.fx.Node):
 
-
-            self._nodes = nodes # passed from outer context
+            self._nodes = nodes  # passed from outer context
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             for i in range(len(self._nodes)):
                 if self._nodes[i] == pt_module:
                     self._outputs = [i]
 
-            # code constant or None input as a tuple to diffirentiate it from regular input
-            # negative index is used to mark inputs initialized by inline constants, there are no such inputs in the graph
-            self._inputs = [self._nodes.index(arg) if arg in self._nodes else (arg,) for arg in pt_module.args]
+            # None in inputs mean the input is inlined or None (also considered inlined)
+            self._inputs = [self._nodes.index(
+                arg) if arg in self._nodes else (arg,) for arg in pt_module.args]
 
-            # FIXME: Find a better way to pass nested tuples to OV frontend. This is a temprary solution to flatten arguments.
+            # FIXME: Find a better way to pass nested tuples to OV frontend. This is a temporary solution to flatten arguments.
             new_inputs = []
             for i in range(len(pt_module.args)):
-                expand_list = False
-                if isinstance(pt_module.args[i], list):
+                if isinstance(pt_module.args[i], list) and any([isinstance(a, torch.fx.Node) for a in pt_module.args[i]]):
                     for arg in pt_module.args[i]:
                         if arg in self._nodes:
-                            expand_list = True
-                            break;
-                if expand_list:
-                    for arg in pt_module.args[i]:
-                        new_inputs.append(self._nodes.index(arg))
+                            new_inputs.append(self._nodes.index(arg))
+                        else:
+                            new_inputs.append((arg,))
                 else:
                     new_inputs.append(self._inputs[i])
             self._inputs = new_inputs
 
-
-
     def inputs(self):
-        return [x if x is not None else 100000 for x in self._inputs]
+        # Consider 0 a special case which may mean the input is inlined, but not guaranteed
+        return [x if not isinstance(x, tuple) else 0 for x in self._inputs]
+
+    def is_input_inlined(self, index):
+        return isinstance(self._inputs[index], tuple)
+
+    @staticmethod
+    def arg_to_constant(arg):
+        if isinstance(arg, list):
+            if len(arg) > 0:
+                return make_constant(pt_to_ov_type_map[type(
+                    arg[0]).__name__], Shape([len(arg)]), arg)
+            else:
+                # TODO: which type should we use if list is empty? Need a signaling value here
+                return make_constant(int, Shape([0]), [])
+        elif isinstance(arg, bool):
+            return make_constant(OVType.boolean, Shape([]), [arg])
+        elif isinstance(arg, int):
+            arg = maybe_convert_max_int(arg)
+            return make_constant(OVType.i32, Shape(
+                []), [arg])  # TODO: i32? why not i64?
+        elif isinstance(arg, float):
+            return make_constant(OVType.f32, Shape(
+                []), [arg])  # TODO: f32? why not f64?
+        return None
+
+    
+    def inlined_input(self, index):
+        assert index < len(self._inputs), "Requested input doesn't exist"
+        assert isinstance(self._inputs[index], tuple), "Requested input which is not inlined"
+        assert self._inputs[index][0] is not None, "Requested None inlined input"
+        constant = None
+        arg = self._inputs[index][0]
+        constant = self.arg_to_constant(arg)
+
+        assert constant is not None, "Constant wasn't created for inlined input"
+        return constant.outputs()
 
     def input(self, index):  # TODO: remove
         return self.inputs()[index]  # TODO: find specialized method
@@ -81,6 +122,8 @@ class TorchFXPythonDecoder (Decoder):
         return "input"+str(index)
 
     def get_input_signature_name(self, index: int) -> str:
+        if self._input_signature is not None and index < len(self._input_signature):
+            return self._input_signature[index]
         return self.get_input_debug_name(index)
 
     def get_input_shape(self, index):
@@ -89,6 +132,16 @@ class TorchFXPythonDecoder (Decoder):
         input = self._raw_input(index)
         return self.get_shape_for_value(input)
 
+    def get_input_strides(self, index: int) -> list:
+        raw_input = self._raw_input(index)
+        if isinstance(raw_input, torch.fx.node.Node) and hasattr(raw_input, "meta"):
+            meta = raw_input.meta
+            if "tensor_meta" in meta and hasattr(meta["tensor_meta"], "stride"):
+                strides = list(meta["tensor_meta"].stride)
+                if strides:
+                    return strides
+        return []
+
     def get_input_type(self, index):
         if index < len(self.input_types):
             return OVAny(pt_to_ov_type_map[str(self.input_types[index])])
@@ -96,7 +149,10 @@ class TorchFXPythonDecoder (Decoder):
         return self.get_type_for_value(input)
 
     def get_output_debug_name(self, index):
-        return "output"+str(index)
+        if self._output_names is not None and index < len(self._output_names):
+            return self._output_names[index]
+        name = getattr(self.pt_module, "name", "output")
+        return name + ":" + str(index)
 
     def get_output_shape(self, index):
         output = self._raw_output(index)
@@ -106,52 +162,58 @@ class TorchFXPythonDecoder (Decoder):
         output = self._raw_output(index)
         return self.get_type_for_value(output)
 
-    def _get_known_type_for_value(self, type):
-        '''
-            Returns known/unknown types wrapped as OVAny
-        '''
-        # Check for simple scalar types first
-        # TODO: Don't use str, use native types
-        if type is None:
-            return OVAny(OVType.dynamic)
-        if str(type) in pt_to_ov_type_map:
-            return OVAny(pt_to_ov_type_map[str(type)])
-        elif type.__class__ is torch.TensorType:
-            # Tensor type, parse element type
-            # TODO: replace string by native type
-            # return OVAny(PartialShape([1,2,3]))
-            return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
-        elif type.__class__ is torch.ListType:
-            element_type = type.getElementType()
-            return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
-        else:
-            # Not yet recognized
-            return OVAny(OVType.dynamic)
-            #pt_type_class = value.type().__class__
-            #    if pt_type_class is torch.ListType:
-
     def get_shape_for_value(self, value):
-        if value and ('tensor_meta' in value.meta.keys()):
-            return PartialShape(value.meta['tensor_meta'].shape)
-        return PartialShape([1])
+        if value and hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()):
+            if value.meta['tensor_meta']:
+                return PartialShape(len(value.meta['tensor_meta'].shape) * [-1])
+        return PartialShape.dynamic()
 
     def get_type_for_value(self, value):
         if issubclass(type(value), torch.fx.Node):
             if ('tensor_meta' in value.meta.keys()):
-                pt_type = value.meta['tensor_meta'].dtype
-                if str(pt_type) in pt_to_ov_type_map:
-                    ov_type = pt_to_ov_type_map[str(pt_type)]
-                    return OVAny(ov_type)
+                if value.meta['tensor_meta'] and isinstance(value.meta['tensor_meta'], torch.Tensor):
+                    pt_type = value.meta['tensor_meta'].dtype
+                    if str(pt_type) in pt_to_ov_type_map:
+                        ov_type = pt_to_ov_type_map[str(pt_type)]
+                        return OVAny(ov_type)
             else:
-                return OVAny(OVType.f32)
+                return OVAny(OVType.dynamic)
         elif isinstance(value, int):
             return OVAny(OVType.i32)
         elif isinstance(value, float):
             return OVAny(OVType.f32)
         elif isinstance(value, bool):
             return OVAny(OVType.boolean)
-        else:
-            return OVAny(OVType.f32)
+        return OVAny(OVType.dynamic)
+
+    def get_attribute(self, name):
+        if name in self.pt_module.kwargs:
+            attr = self.pt_module.kwargs[name]
+            if isinstance(attr, torch.dtype):
+                return OVAny(pt_to_ov_type_map[str(attr)])
+            if isinstance(attr, torch.device):
+                return OVAny(attr.type)
+            if isinstance(attr, str):
+                return OVAny(attr)
+            # Numeric attrs convert to Constant
+            constant = self.arg_to_constant(attr)
+            if constant is not None:
+                return OVAny(constant.output(0))
+            # so that has_attribute return True if attribute exist
+            return OVAny(DecoderType.PyNone())
+        return OVAny(None)
+
+    def get_named_input(self, name):
+        """
+        Returns id of kwargs input. Such input can be Node or a constant value,
+        this function is only used for to return node index. If the input is
+        constant, get_attribute should be used.
+        """
+        if name in self.pt_module.kwargs:
+            arg = self.pt_module.kwargs[name]
+            if isinstance(arg, torch.fx.Node):
+                return self._nodes.index(arg)
+        raise RuntimeError("This input is not a Node")
 
     def get_subgraph_size(self):
         if issubclass(type(self.pt_module), torch.fx.Node):
@@ -165,8 +227,11 @@ class TorchFXPythonDecoder (Decoder):
         # make sure topological order is satisfied
         for node in self._nodes:
             if node.op == 'placeholder' or node.op == 'output':
-                continue # skipping non-operational nodes
-            decoder = TorchFXPythonDecoder(node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
+                continue  # skipping non-operational nodes
+            if node.op == 'call_function' and str(node.target) in ["aten._assert_async.msg"]:
+                continue
+            decoder = TorchFXPythonDecoder(
+                node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -176,7 +241,8 @@ class TorchFXPythonDecoder (Decoder):
         return list(self.pt_module.blocks())
 
     def get_subgraph_decoder(self, index):
-        decoder = TorchFXPythonDecoder(self.get_subgraphs()[index], self.fx_gm, mark_node_callback=self.mark_node_callback)
+        decoder = TorchFXPythonDecoder(self.get_subgraphs(
+        )[index], self.fx_gm, mark_node_callback=self.mark_node_callback)
         self.m_decoders.append(decoder)
         return decoder
 
@@ -202,7 +268,7 @@ class TorchFXPythonDecoder (Decoder):
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
-        return [self._nodes[x] if x is not None and x < len(self._nodes) else x for x in self._inputs]
+        return [self._nodes[x] if not isinstance(x, tuple) and x < len(self._nodes) else x[0] for x in self._inputs]
 
     def _raw_input(self, index):
         return self._raw_inputs()[index]
@@ -214,6 +280,10 @@ class TorchFXPythonDecoder (Decoder):
         return self.outputs()[index]
 
     def mark_node(self, node):
+        name = self.get_op_type()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
+        node.set_friendly_name(name)
         if self.mark_node_callback is not None:
             self.mark_node_callback(self, node)
         return node
@@ -223,9 +293,8 @@ class TorchFXPythonDecoder (Decoder):
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            ov_const = op.Constant(ret.numpy(), shared_memory=True)
+            ov_const = op.Constant(ret.numpy(force=True), shared_memory=True)
             return ov_const.outputs()
-
 
         if not self.get_op_type() == 'prim::Constant':
             return None
@@ -258,7 +327,8 @@ class TorchFXPythonDecoder (Decoder):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
             try:
-                ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
+                ivalue = ivalue.to(
+                    memory_format=torch.contiguous_format).detach().cpu()
             except:
                 print("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_py_type_map:
@@ -273,12 +343,15 @@ class TorchFXPythonDecoder (Decoder):
                     # this is only possible with adding a new ctor for Constant Python binding
                     # TODO Check strides and pass them somehow
                     values = ivalue.data_ptr()
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    ov_const = make_constant(
+                        ovtype, ovshape.get_shape(), values)
                 except:
                     # old variant that makes a slow data copying
-                    print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    print(
+                        f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    ov_const = make_constant(
+                        ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()
         else:
             # Incomplete tensor can be scalar
@@ -294,14 +367,17 @@ class TorchFXPythonDecoder (Decoder):
                 try:
                     ovshape = PartialShape(ivalue.size())
                     ovtype = pt_to_ov_type_map[str(ivalue.type())]
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
+                    ov_const = make_constant(
+                        ovtype, ovshape.get_shape(), ivalue.data_ptr())
                 except:
                     # old variant that makes a slow data copying
-                    print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
-                    nvalues = ivalue.numpy()
+                    print(
+                        f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    nvalues = ivalue.numpy(force=True)
                     ovtype = np_to_ov_type_map[str(nvalues.dtype)]
                     ovshape = PartialShape(nvalues.shape)
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
+                    ov_const = make_constant(
+                        ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
                 return ov_const.outputs()
         return None
 
@@ -325,7 +401,7 @@ class TorchFXPythonDecoder (Decoder):
             return ov_const.outputs()
 
     def input_is_none(self, index):
-        if index >= len(self.inputs()) or self._raw_input(index) is None:
+        if index >= len(self._inputs) or (isinstance(self._inputs[index], tuple) and self._inputs[index][0] is None):
             return True
         else:
             r_input = self._raw_input(index)
@@ -342,7 +418,8 @@ class TorchFXPythonDecoder (Decoder):
                 arg = self._inputs[i][0]
                 if isinstance(arg, list):
                     if len(arg) > 0:
-                        constant = make_constant(pt_to_ov_type_map[type(arg[0]).__name__], Shape([len(arg)]), arg)
+                        constant = make_constant(pt_to_ov_type_map[type(
+                            arg[0]).__name__], Shape([len(arg)]), arg)
                     else:
                         # TODO: which type should we use if list is empty? Need a signaling value here
                         constant = make_constant(int, Shape([0]), [])
@@ -350,9 +427,11 @@ class TorchFXPythonDecoder (Decoder):
                     constant = make_constant(OVType.boolean, Shape([]), [arg])
                 elif isinstance(arg, int):
                     arg = maybe_convert_max_int(arg)
-                    constant = make_constant(OVType.i32, Shape([]), [arg])  # TODO: i32? why not i64?
+                    constant = make_constant(OVType.i32, Shape(
+                        []), [arg])  # TODO: i32? why not i64?
                 elif isinstance(arg, float):
-                    constant = make_constant(OVType.f32, Shape([]), [arg])  # TODO: f32? why not f64?
+                    constant = make_constant(OVType.f32, Shape(
+                        []), [arg])  # TODO: f32? why not f64?
 
                 if constant is None:
                     if arg is None:

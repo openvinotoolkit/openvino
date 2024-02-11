@@ -23,13 +23,11 @@ public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
                     const ov::element::Type           inferencePrecision,
-                    const bool                        isLegacyApi,
                     const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
           inferencePrecision(inferencePrecision),
-          isLegacyApi(isLegacyApi),
           snippetsMode(snippetsMode),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
@@ -44,13 +42,12 @@ private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
     const ov::element::Type inferencePrecision;
-    const bool    isLegacyApi;
     const Config::SnippetsMode snippetsMode;
     const Config& config;
 
-    void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
+    void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
-    void Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions);
+    void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 
@@ -59,6 +56,7 @@ private:
     bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node) const;
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+    static bool fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };
 
 }   // namespace intel_cpu

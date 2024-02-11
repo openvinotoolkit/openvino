@@ -11,35 +11,21 @@
  limitations under the License.
 """
 import os
-import glob
 import itertools
-import shutil
 import sys
 import csv
 import re
 import pytest
-from glob import iglob
 import numpy as np
-from pathlib import Path
-import requests 
+import pathlib
+import requests
 import zipfile
 
 import logging as log
 from common.common_utils import shell
-from distutils import spawn
+from shutil import which
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
-
-
-def search_model_path_recursively(config_key, model_name):
-    search_pattern = config_key + '/**/' + model_name
-    path_found = list(iglob(search_pattern, recursive=True))
-    if len(path_found) == 1:
-        return path_found[0]
-    elif len(path_found) == 0:
-        raise FileNotFoundError("File not found for pattern {}".format(search_pattern))
-    else:
-        raise ValueError("More than one file with {} name".format(model_name))
 
 
 class Environment:
@@ -50,18 +36,6 @@ class Environment:
                 configuration file.
     """
     env = {}
-
-    @classmethod
-    def abs_path(cls, env_key, *paths):
-        """Construct absolute path by appending paths to environment value.
-
-        :param cls: class
-        :param env_key: Environment.env key used to get the base path
-        :param paths:   paths to be appended to Environment.env value
-        :return:    absolute path string where Environment.env[env_key] is
-                    appended with paths
-        """
-        return str(Path(cls.env[env_key], *paths))
 
 
 def get_tests(cmd_params, use_device=True, use_batch=False):
@@ -74,7 +48,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
     new_cmd_params = []
     cmd_keys = list(cmd_params.keys())
 
-    devices = os.environ["TEST_DEVICE"].split(';') if os.environ.get("TEST_DEVICE") else ["CPU"]
+    devices = os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
 
     # You can pass keys (like d, d_lpr ..) via use_device list. And the topology executes only on these devices
     # Use this option when a topology isn't supported in some plugin. In default CPU only.
@@ -152,6 +126,9 @@ class SamplesCommonTestClass():
 
     @classmethod
     def made_executable_path(cls, path1, path2, sample_type='C++'):
+        if hasattr(cls, 'executable_path'):
+            return
+
         executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
             else os.path.join(path1, path2)
         is_windows = sys.platform.startswith('win')
@@ -168,8 +145,7 @@ class SamplesCommonTestClass():
 
         # This exeption is made for benchmark_app, because it locates in another place.
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
-            executable_path = spawn.find_executable(str('benchmark_app'))
-        # if not hasattr(cls, 'executable_path'):
+            executable_path = which(str('benchmark_app'))
         cls.executable_path = executable_path
 
     @staticmethod
@@ -188,7 +164,6 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def join_env_path(param, executable_path, complete_path=True):
-        gpu_lib_path = os.path.join(os.environ.get('IE_APP_PATH'), 'lib')
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -199,73 +174,21 @@ class SamplesCommonTestClass():
             if ('i' == k) and complete_path:
                 param['i'] = [os.path.join(Environment.env['test_data'], e) for e in param['i']]
                 param['i'] = ' '.join(param['i'])
-            elif ('ref_m' == k):
-                param['ref_m'] = SamplesCommonTestClass.reset_models_path(param['ref_m'])
             elif ('m' == k):
                 param['m'] = SamplesCommonTestClass.reset_models_path(param['m'])
-            elif ('m_ag' == k):
-                param['m_ag'] = SamplesCommonTestClass.reset_models_path(param['m_ag'])
-            elif ('m_hp' == k):
-                param['m_hp'] = SamplesCommonTestClass.reset_models_path(param['m_hp'])
-            elif ('m_va' == k):
-                param['m_va'] = SamplesCommonTestClass.reset_models_path(param['m_va'])
-            elif ('m_lpr' == k):
-                param['m_lpr'] = SamplesCommonTestClass.reset_models_path(param['m_lpr'])
-            elif ('m_em' == k):
-                param['m_em'] = SamplesCommonTestClass.reset_models_path(param['m_em'])
-            elif ('m_pa' == k):
-                param['m_pa'] = SamplesCommonTestClass.reset_models_path(param['m_pa'])
-            elif ('m_reid' == k):
-                param['m_reid'] = SamplesCommonTestClass.reset_models_path(param['m_reid'])
-            elif ('m_fd' == k):
-                param['m_fd'] = SamplesCommonTestClass.reset_models_path(param['m_fd'])
-            elif ('m_act' == k):
-                param['m_act'] = SamplesCommonTestClass.reset_models_path(param['m_act'])
-            elif ('m_lm' == k):
-                param['m_lm'] = SamplesCommonTestClass.reset_models_path(param['m_lm'])
-            elif ('m_det' == k):
-                param['m_det'] = SamplesCommonTestClass.reset_models_path(param['m_det'])
-            elif ('m_td' == k):
-                param['m_td'] = SamplesCommonTestClass.reset_models_path(param['m_td'])
-            elif ('m_tr' == k):
-                param['m_tr'] = SamplesCommonTestClass.reset_models_path(param['m_tr'])
-            elif ('m_en' == k):
-                param['m_en'] = SamplesCommonTestClass.reset_models_path(param['m_en'])
-            elif ('m_de' == k):
-                param['m_de'] = SamplesCommonTestClass.reset_models_path(param['m_de'])
-            elif ('l' == k and 'pascal_voc_classes' in param['l']):
-                param['l'] = os.path.join(Environment.env['test_data'], param['l'])
-            elif ('pp' == k):
-                param['pp'] = gpu_lib_path
-            elif ('r' == k) and complete_path:
-                if len(param['r']) > 0:
-                    param['r'] = os.path.join(Environment.env['test_data'], param['r'])
-            elif ('o' == k) and complete_path:
-                param['o'] = os.path.join(Environment.env['out_directory'], param['o'])
-            elif ('wg' == k):
-                param['wg'] = os.path.join(Environment.env['out_directory'], param['wg'])
-            elif ('we' == k):
-                param['we'] = os.path.join(Environment.env['out_directory'], param['we'])
-            elif ('fg' == k):
-                param['fg'] = os.path.join(Environment.env['test_data'], param['fg'])
-            elif ('labels' == k):
-                label_folder = os.path.dirname(executable_path.split(' ')[-1])
-                param['labels'] = os.path.join(label_folder, param['labels'])
-            elif ('lb') == k:
-                param['lb'] = os.path.join(Environment.env['test_data'], param['lb'])
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):
         if long_hyphen is None:
             long_hyphen = []
         line = ''
-        for key in sorted(param.keys()):
+        for key, value in param.items():
             if use_preffix and any([x for x in long_hyphen if key == x]):
-                line += '--{} {} '.format(key, param[key])
+                line += '--{} {} '.format(key, value)
             elif use_preffix and key not in long_hyphen:
-                line += '-{} {} '.format(key, param[key])
+                line += '-{} {} '.format(key, value)
             elif not use_preffix:
-                line += '{} '.format(param[key])
+                line += '{} '.format(value)
         return line
 
     @staticmethod
@@ -296,11 +219,6 @@ class SamplesCommonTestClass():
         with open(csv_path, 'a', newline='') as f:
             perf_writer = csv.writer(f, delimiter='|', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             perf_writer.writerow([sample_name, sample_type, cmd_perf.rstrip(), fps_perf])
-
-    @staticmethod
-    def get_empty_cmd_line(param, use_preffix=True, long_hyphen=None):
-        line = ''
-        return line
 
     @staticmethod
     def get_hello_cmd_line(param, use_preffix=True, long_hyphen=None):
@@ -338,12 +256,10 @@ class SamplesCommonTestClass():
     @classmethod
     def setup_class(cls):
         getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
-        assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
         assert os.path.exists(Environment.env['models_path']), \
             "Path for public models {} is not exist!".format(Environment.env['models_path'])
         assert os.path.exists(Environment.env['test_data']), \
             "Path for test data {} is not exist!".format(Environment.env['test_data'])
-        cls.output_dir = Environment.env['out_directory']
 
     def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
         """
@@ -361,15 +277,10 @@ class SamplesCommonTestClass():
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
         if 'python' in sample_type.lower():
-            assert os.environ.get('IE_APP_PYTHON_PATH') is not None, \
-                "IE_APP_PYTHON_PATH environment variable is not specified!"
-            self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
+            self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
                                       sample_type=sample_type)
         else:
-            self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
-
-        if not os.path.exists(self.output_dir):
-            os.mkdir(self.output_dir)
+            self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
 
         if 'bitstream' in param_cp:
             del param_cp['bitstream']
@@ -434,27 +345,3 @@ class SamplesCommonTestClass():
             log.error(stderr)
         assert retcode == 0, "Sample execution failed"     
         return stdout
-
-    def setup_method(self):
-        """
-        Clean up IRs and npy files from self.output_dir if exist
-        And skip several test for performance
-        :return: """
-        if os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
-        filenames = glob.glob('out*.bmp')
-        [os.remove(fn) for fn in filenames]
-        # Skip samples that are not for performance:
-        if Environment.env['performance'] and 'list_of_skipped_samples' in Environment.env and \
-                self.sample_name in Environment.env['list_of_skipped_samples']:
-            pytest.skip('[Skip from setup] Sample {} not executed for performance'.format(self.sample_name))
-
-    def teardown_method(self):
-        """
-        Clean up IRs and npy files from self.output_dir if exist
-        :return: """
-        is_save = getattr(self, 'save', None) 
-        if not is_save and os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
-        filenames = glob.glob('out*.bmp')
-        [os.remove(fn) for fn in filenames]

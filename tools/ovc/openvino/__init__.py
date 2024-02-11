@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
@@ -23,7 +23,7 @@ from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import preprocess as preprocess
 from openvino import utils as utils
-from openvino.runtime import properties as properties
+from openvino import properties as properties
 
 # Import most important classes and functions from openvino.runtime
 from openvino.runtime import Model

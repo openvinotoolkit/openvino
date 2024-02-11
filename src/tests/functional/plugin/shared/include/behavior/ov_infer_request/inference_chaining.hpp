@@ -11,7 +11,7 @@
 #include <tuple>
 #include <vector>
 
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"

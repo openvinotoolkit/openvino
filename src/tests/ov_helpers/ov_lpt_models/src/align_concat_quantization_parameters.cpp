@@ -10,9 +10,8 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,7 +21,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {
@@ -36,7 +35,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
@@ -46,7 +45,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent1->set_friendly_name("maxPool1");
         }
 
@@ -69,7 +68,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
@@ -79,7 +78,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent2->set_friendly_name("maxPool2");
         }
 
@@ -96,7 +95,9 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
         const auto fakeQuantizeOnWeights = ov::test::utils::make_fake_quantize(
-            std::make_shared<ov::opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ov::shape_size(shape))),
+            std::make_shared<ov::opset1::Constant>(ov::element::f32,
+                                                   shape,
+                                                   std::vector<float>(1.f, ov::shape_size(shape))),
             precision,
             255,
             {outputChannels, 1, 1, 1},
@@ -129,15 +130,15 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
     const ov::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {
         FakeQuantizeOnData onData = { 256, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f }, ov::element::u8};
-        parent1 = makeFakeQuantizeTypeRelaxed(input1, element::f32, onData);
-        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent1, element::u8);
+        parent1 = makeFakeQuantizeTypeRelaxed(input1, ov::element::f32, onData);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent1, ov::element::u8);
         parent1->set_friendly_name("fakeQuantizeOnActivations1");
 
         parent1 = std::make_shared<ov::opset1::AvgPool>(
@@ -147,7 +148,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
@@ -157,7 +158,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent1->set_friendly_name("maxPool1");
         }
 
@@ -170,9 +171,9 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
     const auto input2 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent2 = input2;
     {
-        FakeQuantizeOnData onData = { 256, {}, { -0.64f }, { 0.635f }, { 64.f }, { 192.f }, element::u8};
-        parent2 = makeFakeQuantizeTypeRelaxed(input2, element::f32, onData);
-        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent2, element::u8);
+        FakeQuantizeOnData onData = {256, {}, {-0.64f}, {0.635f}, {64.f}, {192.f}, ov::element::u8};
+        parent2 = makeFakeQuantizeTypeRelaxed(input2, ov::element::f32, onData);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent2, ov::element::u8);
         parent2->set_friendly_name("fakeQuantizeOnActivations2");
 
         parent2 = std::make_shared<ov::opset1::AvgPool>(
@@ -182,7 +183,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             true,
-            op::RoundingType::FLOOR);
+            ov::op::RoundingType::FLOOR);
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
@@ -192,7 +193,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
                 Shape{ 1, 1 },
                 Shape{ 0, 0 },
                 Shape{ 2, 2 },
-                op::RoundingType::FLOOR);
+                ov::op::RoundingType::FLOOR);
             parent2->set_friendly_name("maxPool2");
         }
 
@@ -212,10 +213,10 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
         const size_t outputChannels = 9ul;
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-        const auto onWeights = std::make_shared<ov::opset1::Constant>(
-            element::i8,
-            shape,
-            std::vector<size_t>(outputChannels * inputChannels, 127));
+        const auto onWeights =
+            std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                   shape,
+                                                   std::vector<size_t>(outputChannels * inputChannels, 127));
 
         parent = std::make_shared<ov::opset1::Convolution>(
             ov::op::TemporaryReplaceOutputType(parent, precision).get(),
@@ -240,4 +241,4 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getReferen
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

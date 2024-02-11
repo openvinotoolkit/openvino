@@ -39,7 +39,6 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_GEMM,
     LSTM_ELT,
     BORDER,
     TILE,
@@ -48,7 +47,6 @@ enum class KernelType {
     BUCKETIZE,
     GEMM,
     GRID_SAMPLE,
-    PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
     GATHER,
@@ -65,8 +63,6 @@ enum class KernelType {
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
-    LSTM_DYNAMIC_INPUT,
-    LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
@@ -98,6 +94,7 @@ enum class KernelType {
     UNIQUE_COUNT,
     UNIQUE_GATHER,
     RMS,
+    SWIGLU,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

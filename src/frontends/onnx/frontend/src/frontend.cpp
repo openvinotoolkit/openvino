@@ -13,24 +13,21 @@
 #endif
 
 #include <fstream>
-#include <input_model.hpp>
-#include <onnx_import/onnx_utils.hpp>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/frontend/onnx/extension/conversion.hpp>
-#include <openvino/frontend/onnx/frontend.hpp>
-#include <openvino/frontend/onnx/visibility.hpp>
 #include <sstream>
-#include <utils/onnx_internal.hpp>
 
-#include "legacy_op_extension.hpp"
+#include "input_model.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
+#include "openvino/frontend/onnx/frontend.hpp"
+#include "openvino/frontend/onnx/visibility.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
-#include "utils/legacy_conversion_extension.hpp"
+#include "utils/onnx_internal.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -89,9 +86,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
-    NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
@@ -118,11 +115,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     const auto partially_converted = convert_partially(model);
 
-    const auto error_message = ngraph::onnx_import::common::collect_translation_exceptions(partially_converted);
-    NGRAPH_CHECK(error_message.empty(), error_message);
+    const auto error_message = ov::frontend::onnx::common::collect_translation_exceptions(partially_converted);
+    FRONT_END_GENERAL_CHECK(error_message.empty(), error_message);
 
     normalize(partially_converted);
 
@@ -130,13 +127,13 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
-    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    ov::frontend::onnx::detail::convert_decoded_model(partially_converted);
     normalize(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
-    NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
 }
 
@@ -196,13 +193,6 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-namespace {
-const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
-const ngraph::onnx_import::LegacyConversionExtension::Ptr get_legacy_conversion_extension() {
-    return legacy_conversion_extension;
-}
-}  // namespace
-
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_extensions.telemetry = telemetry;
@@ -217,10 +207,5 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.conversions.push_back(onnx_conv_ext);
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
-    } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
-        m_other_extensions.push_back(legacy_ext);
-        std::call_once(has_legacy_extension, [this] {
-            m_extensions.conversions.push_back(get_legacy_conversion_extension());
-        });
     }
 }

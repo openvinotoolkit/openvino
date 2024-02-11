@@ -23,7 +23,6 @@ flake8-string-format
 flake8-variables-names
 flake8_builtins<2.3.0
 flake8_coding
-flake8_commas
 flake8_pep3101
 flake8_quotes
 mypy
@@ -39,7 +38,6 @@ retrying
 tox
 types-pkg_resources
 wheel
-singledispatchmethod
 torch
 torchvision; platform_machine == 'arm64' and python_version >= '3.8'
 torchvision; platform_machine != 'arm64'

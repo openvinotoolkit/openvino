@@ -60,5 +60,16 @@ OPENVINO_API Shape reduce_keep_dims(const Shape& input, const AxisSet& axes);
  * @return Result shape from inputs with applied broadcast specification.
  */
 Shape get_broadcast_shape(const Shape& first, const Shape& second, const ov::op::AutoBroadcastSpec& broadcast_spec);
+
+/**
+ * @brief Normalize shape index to the rank
+ *
+ * If input index is out of range [-rank, rank) throws exception.
+ *
+ * @param idx   Shape dimension index.
+ * @param rank  Shape rank.
+ * @return Normalized shape dimension index.
+ */
+OPENVINO_API std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank);
 }  // namespace util
 }  // namespace ov

@@ -6,14 +6,14 @@
 #include "include/batch_headers/int4_utils.cl"
 
 #ifdef INDEX_DIM
-inline uint FUNC(get_positive_index)(int in)
+inline uint FUNC(get_positive_index)(OPTIONAL_SHAPE_INFO_ARG int in)
 {
-    if(in < 0)
+    if (in < 0)
         return in + INDEX_DIM;
     else
         return in;
 }
-#define INPUT_AXIS_INDEX (uint)FUNC_CALL(get_positive_index)(indices[indices_idx])
+#define INPUT_AXIS_INDEX (uint)FUNC_CALL(get_positive_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[indices_idx])
 #else
 #define INPUT_AXIS_INDEX (uint)(indices[indices_idx])
 #endif

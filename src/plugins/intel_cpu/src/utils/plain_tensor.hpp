@@ -93,15 +93,15 @@ struct PlainTensor {
     size_t m_strides[PLAINTENSOR_RANK_MAX];
     size_t m_dims[PLAINTENSOR_RANK_MAX];
     size_t m_rank = 0;
-    void* m_ptr = nullptr;
+    std::shared_ptr<uint8_t> m_ptr;
     size_t m_capacity = 0;
-    bool with_storage = false;
     size_t m_element_size = 0;
+    size_t m_offset = 0;
     ov::element::Type_t m_dt = ov::element::Type_t::undefined;
     MemoryPtr m_mem;        // hold memory ptr reference
 
     operator bool() const {
-        return static_cast<bool>(m_ptr);
+        return m_ptr != nullptr;
     }
 
     VectorDims shape() const {
@@ -133,30 +133,16 @@ struct PlainTensor {
 
     PlainTensor() = default;
 
-    PlainTensor(bool _with_storage) {
-        with_storage = _with_storage;
-    }
-
-    // copy construct (always not take ownership)
     PlainTensor operator=(const PlainTensor& other) {
-        OPENVINO_ASSERT(!with_storage);
         memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
         m_rank = other.m_rank;
         m_ptr = other.m_ptr;
         m_dt = other.m_dt;
         m_element_size = other.m_element_size;
+        m_capacity = other.m_capacity;
+        m_offset = other.m_offset;
         return *this;
-    }
-
-    ~PlainTensor() {
-        if (with_storage && m_capacity > 0) {
-#ifdef _WIN32
-            _aligned_free(m_ptr);
-#else
-            ::free(m_ptr);
-#endif
-        }
     }
 
     void reset(MemoryPtr mem) {
@@ -235,7 +221,8 @@ struct PlainTensor {
             i_src++;
         }
         sub_tensor.m_rank = i_dst;  // index may imply squeeze
-        sub_tensor.m_ptr = reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size);
+        sub_tensor.m_ptr = m_ptr;
+        sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
         sub_tensor.m_element_size = m_element_size;
         return sub_tensor;
@@ -268,8 +255,8 @@ struct PlainTensor {
         }
 
         auto off = start * m_strides[axis];
-        auto* data = reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size;
-        sub_tensor.m_ptr = reinterpret_cast<void*>(data);
+        sub_tensor.m_ptr = m_ptr;
+        sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
         sub_tensor.m_element_size = m_element_size;
 
@@ -307,7 +294,7 @@ struct PlainTensor {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
-        new_tensor_view.resize(target_shape, m_element_size, m_dt, m_ptr);
+        new_tensor_view.resize(target_shape, m_element_size, m_dt, static_cast<void*>(m_ptr.get() + m_element_size * m_offset));
         return new_tensor_view;
     }
 
@@ -315,10 +302,12 @@ struct PlainTensor {
         PlainTensor new_tensor_view;
         assert(order.size() == m_rank);
         new_tensor_view.m_capacity = 0;
+        // not hold memory reference
         new_tensor_view.m_ptr = m_ptr;
         new_tensor_view.m_rank = m_rank;
         new_tensor_view.m_dt = m_dt;
         new_tensor_view.m_element_size = m_element_size;
+        new_tensor_view.m_offset = m_offset;
         auto it_order = order.begin();
         // also should check order has no repeat element
         for (size_t i = 0; i < m_rank; i++) {
@@ -346,21 +335,29 @@ struct PlainTensor {
         if (!data) {
             auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
-                if (!with_storage) {
-                    throw std::bad_alloc();
-                }
+                void* ptr;
                 #ifdef _WIN32
-                    m_ptr = _aligned_malloc(capacity_new, 64);
+                    ptr = _aligned_malloc(capacity_new, 64);
                 #else
-                    int rc = ::posix_memalign(&m_ptr, 64, capacity_new);
-                    if (rc) m_ptr = nullptr;
+                    int rc = ::posix_memalign(&ptr, 64, capacity_new);
+                    if (rc) {
+                        OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
+                    }
                 #endif
+                m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(ptr), [](uint8_t* ptr) {
+                    #ifdef _WIN32
+                        _aligned_free(ptr);
+                    #else
+                        ::free(ptr);
+                    #endif
+                });
                 m_capacity = capacity_new;
+                m_offset = 0;
             }
         } else {
             // m_capacity is zero to indicate that we don't own the memory
             m_capacity = 0;
-            m_ptr = data;
+            m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(data), [](uint8_t*) {});
         }
     }
 
@@ -369,9 +366,26 @@ struct PlainTensor {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }
 
-    template <typename DT>
-    DT* data() const {
-        return reinterpret_cast<DT*>(m_ptr);
+    template <int dim>
+    int64_t offset() const {
+        return m_offset;
+    }
+    template <int dim, typename I>
+    int64_t offset(I i) const {
+        return m_offset + i * m_strides[dim];
+    }
+    template <int dim, typename I, typename... Is>
+    int64_t offset(I i, Is... indices) const {
+        return i * m_strides[dim] + offset<dim + 1>(indices...);
+    }
+    template <typename DT, typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+    }
+
+    template <typename... Is>
+    void* ptr_v(Is... indices) const {
+        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
@@ -389,14 +403,14 @@ struct PlainTensor {
             }
             off += m_strides[i] * coordinate;
         }
-        return (reinterpret_cast<DT*>(reinterpret_cast<uint8_t*>(m_ptr) + off * m_element_size))[0];
+        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
 
     template <typename DT>
     PlainTensor& operator=(const DT& value) {
         // assign every element to value
         std::vector<size_t> index(m_rank, 0);
-        auto* dst = reinterpret_cast<DT*>(m_ptr);
+        auto* dst = reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
         while (1) {
             size_t off = 0;
             for (int i = m_rank - 1; i >= 0; i--) {
@@ -490,17 +504,17 @@ struct PlainTensor {
             // display current element if we still have buget
             if (cur_row_lines_left > 0) {
                 if (m_dt == ov::element::Type_t::f32)
-                    ss << reinterpret_cast<float*>(m_ptr)[i] << ",";
+                    ss << (ptr<float>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::bf16)
-                    ss << reinterpret_cast<bfloat16*>(m_ptr)[i] << ",";
+                    ss << (ptr<bfloat16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::f16)
-                    ss << reinterpret_cast<float16*>(m_ptr)[i] << ",";
+                    ss << (ptr<float16>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i32)
-                    ss << reinterpret_cast<int32_t*>(m_ptr)[i] << ",";
+                    ss << (ptr<int32_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::i8)
-                    ss << static_cast<int32_t>(reinterpret_cast<int8_t*>(m_ptr)[i]) << ",";
+                    ss << (ptr<int8_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::u8)
-                    ss << static_cast<int32_t>(reinterpret_cast<uint8_t*>(m_ptr)[i]) << ",";
+                    ss << (ptr<uint8_t>())[i] << ",";
                 else
                     ss << "?,";
                 cur_line_elecnt++;

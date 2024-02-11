@@ -4,20 +4,21 @@
 
 #include "op/loop.hpp"
 
-#include <iterator>
-#include <memory>
-
 #include "core/graph.hpp"
-#include "default_opset.hpp"
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/core/null_node.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
@@ -25,7 +26,7 @@ namespace {
 ///             iterations.
 ///             It allows to replace termination condition body output with
 ///             Constant.
-///             As a result ngraph Loop shape inference is able to handle more
+///             As a result OV Loop shape inference is able to handle more
 ///             cases.
 ///
 /// \param[in]  cond_in    boolean input to the loop body depicting loop termination condition
@@ -33,15 +34,15 @@ namespace {
 /// \param[in]  cond_out   loop termination condition computed after each iteration
 ///
 /// \return true if termination condition is not modified during loop iterations, false otherwise.
-bool is_termination_condition_always_true(const ngraph::Node* cond_in, const ngraph::Node* cond_out) {
+bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Node* cond_out) {
     return cond_in == cond_out;
 }
 }  // namespace
 
-OutputVector loop(const Node& node) {
-    const auto& ng_inputs = node.get_ng_inputs();
+ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
+    const auto& ng_inputs = node.get_ov_inputs();
 
-    const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
+    const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
@@ -55,27 +56,26 @@ OutputVector loop(const Node& node) {
     }
 
     // optional inputs
-    Output<ngraph::Node> trip_count;
+    ov::Output<ov::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ov::op::util::is_null(ng_inputs.at(0)) ||
-        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
-         ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
+        (ov::op::util::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
+         ov::as_type_ptr<v0::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
-        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
+        trip_count = v0::Constant::create(ov::element::i64, {1}, {-1});
     } else {
         trip_count = ng_inputs.at(0);
     }
 
-    Output<ngraph::Node> termination_cond;                             // true means that first interation should be run
+    ov::Output<ov::Node> termination_cond;                             // true means that first interation should be run
     if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
-        termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
-    } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
-               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
-                       ->cast_vector<bool>()[0] == false) {
+        termination_cond = v0::Constant::create(ov::element::boolean, {1}, {true});
+    } else if (ov::op::util::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
+               ov::as_type_ptr<v0::Constant>(ng_inputs.at(1).get_node_shared_ptr())->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
-        OutputVector node_outputs;
+        ov::OutputVector node_outputs;
         // final values
         for (const auto& dep : loop_carried_dependencies) {
             node_outputs.push_back(dep);
@@ -90,17 +90,17 @@ OutputVector loop(const Node& node) {
     }
 
     const int64_t concat_axis = 0;
-    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+    const auto concat_axis_const = v0::Constant::create(ov::element::i64, {1}, {concat_axis});
     // add dimension along which scan outputs will be concatenated
     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i) {
-        body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
+        body_outputs[i] = std::make_shared<v0::Unsqueeze>(body_outputs[i], concat_axis_const);
     }
 
     const auto& cond_in = body_inputs[1];
     const auto& cond_out = body_outputs[0];
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
-        body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+        body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
     }
 
     CHECK_VALID_NODE(node,
@@ -120,12 +120,12 @@ OutputVector loop(const Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
+    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
     body_params.emplace(body_params.begin(),
                         body_inputs[0]);  // current iteration body input
-    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
-    auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-    default_opset::Loop::SpecialBodyPorts spec_ports{0, 0};
+    const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
+    auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
+    v5::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
     loop->set_function(body);
 
@@ -136,7 +136,7 @@ OutputVector loop(const Node& node) {
     auto body_outputs_it = std::next(body_outputs.begin(), 1);
 
     // Set-up loop carried dependencies and final output values
-    OutputVector final_values;
+    ov::OutputVector final_values;
     for (const auto& dep : loop_carried_dependencies) {
         loop->set_merged_input(*body_inputs_it++, dep, *body_outputs_it);
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
@@ -157,14 +157,14 @@ OutputVector loop(const Node& node) {
     }
 
     // Set-up scan outputs
-    OutputVector scan_outputs;
+    ov::OutputVector scan_outputs;
     for (; body_outputs_it != body_outputs.end(); body_outputs_it++) {
         // start=0, stride=1, part_size=1, end=-1, axis=0
         scan_outputs.push_back(loop->get_concatenated_slices(*body_outputs_it, 0, 1, 1, -1, concat_axis));
     }
     loop->validate_and_infer_types();
 
-    OutputVector node_outputs;
+    ov::OutputVector node_outputs;
     for (const auto& v : final_values) {
         node_outputs.push_back(v);
     }
@@ -175,6 +175,6 @@ OutputVector loop(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

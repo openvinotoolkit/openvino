@@ -27,7 +27,10 @@ Supported Python* versions:
 To configure the environment for the OpenVINO C* API, run:
 
 - On Ubuntu 20.04/22.04: `source <INSTALL_DIR>/setupvars.sh .`
-- On Windows 10/11: `<INSTALL_DIR>\setupvars.bat `
+- On Windows 10/11:
+
+  * `. <path-to-setupvars-folder>/setupvars.ps1` in PowerShell
+  * `<INSTALL_DIR>\setupvars.bat ` in Command Prompt
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.
 
@@ -78,7 +81,7 @@ typedef struct {
 typedef struct ov_dimension {
 
     int64_t min;
-  
+
     int64_t max;
 
 } ov_dimension_t;
@@ -371,7 +374,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
 
 ## OV Core
 
-This strcut represents OpenVINO entity and allows you to manipulate with plugins using unified interfaces.
+This struct represents OpenVINO entity and allows you to manipulate with plugins using unified interfaces.
 
 ### Create
 

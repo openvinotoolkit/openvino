@@ -10,18 +10,18 @@
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 namespace {
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeWithNames(
-        const Output<Node>& parent,
+        const ov::Output<Node>& parent,
         const ov::element::Type precision,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::string name) {
-    auto fq = ngraph::builder::subgraph::makeFakeQuantize(parent, precision, fqOnData);
+    auto fq = ov::builder::subgraph::makeFakeQuantize(parent, precision, fqOnData);
     fq->set_friendly_name(name);
     fq->get_input_node_ptr(1)->set_friendly_name(name + "/inputLow");
     fq->get_input_node_ptr(2)->set_friendly_name(name + "/inputHigh");
@@ -37,13 +37,13 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
         const ov::PartialShape& inputShape,
         const bool broadcast,
         const std::string& elementWiseType,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,
-        const ngraph::builder::subgraph::Convolution& convolution1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore2,
-        const ngraph::builder::subgraph::Convolution& convolution2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) {
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,
+        const ov::builder::subgraph::Convolution& convolution1,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter1,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore2,
+        const ov::builder::subgraph::Convolution& convolution2,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter2,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) {
     ov::PartialShape inputShape2 = inputShape;
 
     if (broadcast) {
@@ -55,9 +55,9 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
         const size_t index,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore,
-        const ngraph::builder::subgraph::Convolution& convolution,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) ->
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore,
+        const ov::builder::subgraph::Convolution& convolution,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter) ->
             std::pair<std::shared_ptr<ov::opset1::Parameter>, std::shared_ptr<ov::Node>> {
         const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
         input->set_friendly_name("input" + std::to_string(index));
@@ -97,13 +97,12 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
         result = makeFakeQuantizeWithNames(result, precision, fqOnDataAfter, "fakeQuantizeAfter");
 
         // we need a some operation to move dequantization operations away from FakeQuantize to avoid cleanup fuse
-        result = std::make_shared<ov::opset1::MaxPool>(
-            result,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+        result = std::make_shared<ov::opset1::MaxPool>(result,
+                                                       Strides{1, 1},
+                                                       Shape{1, 1},
+                                                       Shape{0, 0},
+                                                       Shape{2, 2},
+                                                       ov::op::RoundingType::FLOOR);
         result->set_friendly_name("maxPool");
     }
 
@@ -116,4 +115,4 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov
