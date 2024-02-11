@@ -13,7 +13,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TransparentBaseTransformation is base type for precision preserved operation transformation.
  */
 class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransformation {
