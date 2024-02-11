@@ -146,20 +146,10 @@ void update_device_properties_setting(const std::string& device_name,
         return;
     }
 
-    // because of legacy API 1.0. eg the config from JSON file.
-    if (config[ov::device::properties.name()].is<std::string>()) {
-        config[ov::device::properties.name()] = config[ov::device::properties.name()].as<ov::AnyMap>();
-    }
-
     auto& device_properties = config[ov::device::properties.name()].as<ov::AnyMap>();
     if (device_properties.find(device_name) == device_properties.end()) {
         device_properties.insert({device_name, ov::AnyMap{device_property}});
         return;
-    }
-
-    // because of legacy API 1.0. eg the config from JSON file.
-    if (device_properties[device_name].is<std::string>()) {
-        device_properties[device_name] = device_properties[device_name].as<ov::AnyMap>();
     }
 
     auto& secondary_property = device_properties[device_name].as<ov::AnyMap>();
