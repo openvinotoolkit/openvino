@@ -152,7 +152,6 @@ void LoopEndStatic::validate_and_infer_types() {
 }
 
 bool LoopEndStatic::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("increment", m_work_amount_increment);
     visitor.on_attribute("ptr_incr", m_ptr_increments);
     visitor.on_attribute("fin_offset", m_finalization_offsets);
     visitor.on_attribute("evaluate_once", m_evaluate_once);
