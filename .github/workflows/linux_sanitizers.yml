@@ -148,8 +148,6 @@ jobs:
         run: |
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
           export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
-          export PYTHONMALLOC=malloc 
-          export LD_PRELOAD=/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
@@ -173,8 +171,6 @@ jobs:
         run: |
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
           export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
-          export PYTHONMALLOC=malloc
-          export LD_PRELOAD=/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Cmake install - OpenVINO
