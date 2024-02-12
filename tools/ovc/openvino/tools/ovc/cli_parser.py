@@ -298,20 +298,6 @@ def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
     return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
 
 
-def readable_files_or_empty(paths: [str, list, tuple]):
-    """
-    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    if isinstance(paths, (list, tuple)):
-        return [readable_file_or_object(path) for path in paths]
-    if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
-        return paths_list
-    return paths
-
-
 def add_args_by_description(args_group, params_description):
     signature = inspect.signature(openvino.tools.ovc.convert_model)  # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
