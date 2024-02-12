@@ -6,6 +6,7 @@
 #include "eltwise.hpp"
 #include "reduce.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -94,8 +95,14 @@ struct CustomPowerStaticBuilder : public TPPNodeFactory::TPPCustomBuilder {
         auto matches = [=](const TPPNodeFactory::TPPCustomBuilder& custom_builder) {
             return custom_builder.matcher(n);
         };
-        return m_direct_mappig.count(n->get_type_info()) ||
-               std::any_of(m_custom_mapping.begin(), m_custom_mapping.end(), matches);
+        // TPP currently supports only FP32 precisions (ticket: 130010)
+        // Note: verify that TypeRelaxed property is maintained (mismatched input precisions)
+        // after low precisions are enabled (ticket: 132328)
+        const auto& ins = n->inputs();
+        auto is_fp32_input = [](const ov::Input<ov::Node>& in){ return in.get_element_type() == element::f32; };
+        const bool all_inputs_fp32 = std::all_of(ins.begin(), ins.end(), is_fp32_input);
+        return (m_direct_mappig.count(n->get_type_info()) ||
+               std::any_of(m_custom_mapping.begin(), m_custom_mapping.end(), matches)) && all_inputs_fp32;
     }
 
 } // namespace op
