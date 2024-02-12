@@ -25,7 +25,7 @@ void LoopBegin::validate_and_infer_types() {
     OPENVINO_ASSERT(get_output_size() == 1, "LoopBegin must have only one output");
     const auto& last_output_inputs = get_output_target_inputs(0);
     OPENVINO_ASSERT(last_output_inputs.size() == 1, "LoopBegin must have exactly one input attached to the last output");
-    OPENVINO_ASSERT(ov::is_type<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this()),
+    OPENVINO_ASSERT(ov::is_type<LoopEnd>(last_output_inputs.begin()->get_node()),
                     "LoopBegin must have LoopEnd connected to its last output");
 }
 
@@ -34,7 +34,7 @@ std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() const {
     OPENVINO_ASSERT(last_output_inputs.size() == 1, "LoopBegin has more than one inputs attached to the last output");
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
     OPENVINO_ASSERT(loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
-    return  loop_end;
+    return loop_end;
 }
 
 std::shared_ptr<Node> LoopBeginStatic::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -61,7 +61,7 @@ std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
     const auto& loop_begin = ov::as_type_ptr<LoopBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
     if (!loop_begin)
         throw std::invalid_argument("LoopEnd last input is not connected to LoopBegin");
-    return  loop_begin;
+    return loop_begin;
 }
 
 const std::vector<bool>& LoopEnd::get_is_incremented() const {
@@ -110,10 +110,13 @@ void LoopEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_is_incremented.empty() || m_is_incremented.size() == io_size,
                           "is_incremented must be either empty or defined per every input & output of joined Loop. Expected size: ",
                           io_size, " got ", m_is_incremented.size());
-    set_output_type(0, element::f32, ov::PartialShape{ov::Shape{}});
+    set_output_type(0, element::f32, ov::PartialShape{});
 }
 
 bool LoopEnd::visit_attributes(AttributeVisitor &visitor) {
+    std::vector<int> int_incremented(m_is_incremented.cbegin(), m_is_incremented.cend());
+    visitor.on_attribute("is_incremented", int_incremented);
+    visitor.on_attribute("data_sizes", m_element_type_sizes);
     visitor.on_attribute("increment", m_work_amount_increment);
     visitor.on_attribute("input_num", m_input_num);
     visitor.on_attribute("output_num", m_output_num);
@@ -152,6 +155,7 @@ void LoopEndStatic::validate_and_infer_types() {
 }
 
 bool LoopEndStatic::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("work_amount", m_work_amount);
     visitor.on_attribute("ptr_incr", m_ptr_increments);
     visitor.on_attribute("fin_offset", m_finalization_offsets);
     visitor.on_attribute("evaluate_once", m_evaluate_once);
