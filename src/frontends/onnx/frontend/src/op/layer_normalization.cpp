@@ -42,14 +42,10 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     auto default_stash_type_i = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
     int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type_i);
     element::Type stash_type = common::get_ov_element_type(stash_type_i);
-    CHECK_VALID_NODE(node,
-                     stash_type == element::f32 || stash_type == element::bf16,
-                     "LayerNormalization `stash_type` attribute is expected to represent float or bfloat16 type. Got: ",
-                     stash_type);
 
     ov::Output<ov::Node> data = inputs.at(0);
     element::Type original_type = data.get_element_type();
-    bool needs_type_casting = original_type.is_dynamic() || stash_type != original_type;
+    bool needs_type_casting = stash_type != original_type;
 
     if (needs_type_casting)
         data = std::make_shared<Convert>(data, stash_type);
