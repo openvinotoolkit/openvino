@@ -8,6 +8,10 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
+if(${CMAKE_CXX_STANDARD} GREATER_EQUAL 20)
+    ov_deprecated_featurs_no_errors()
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()

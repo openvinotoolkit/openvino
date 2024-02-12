@@ -16,6 +16,9 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
+if(${CMAKE_CXX_STANDARD} GREATER_EQUAL 20)
+    ov_deprecated_featurs_no_errors()
+endif()
 
 add_library(${TARGET_NAME} STATIC
             ${LIBRARY_SRC}
