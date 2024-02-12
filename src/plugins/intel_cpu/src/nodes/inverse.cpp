@@ -159,7 +159,7 @@ void Inverse::lu_decomposition(const T* data,
         P[i] = static_cast<T>(i);
     });
 
-    for (size_t k = 0; k < m_side - 1; ++k) {
+    for (size_t k = 0; k < m_side; ++k) {
         size_t pivot_row = k;
         size_t k_idx = k * m_side;
         size_t pivot_idx = pivot_row * m_side;
@@ -175,17 +175,20 @@ void Inverse::lu_decomposition(const T* data,
             }
         }
 
-        // Swap rows in L, U and P
-        std::swap(P[k], P[pivot_row]);
-        parallel_for(m_side, [&](size_t i) {
-            T L_val = L[pivot_idx + i];
-            L[pivot_idx + i] = L[k_idx + i];
-            L[k_idx + i] = L_val;
+        if (pivot_row != k) {
+            // Swap rows in L, U and P
+            sign = !sign;
+            std::swap(P[k], P[pivot_row]);
+            parallel_for(m_side, [&](size_t i) {
+                T L_val = L[pivot_idx + i];
+                L[pivot_idx + i] = L[k_idx + i];
+                L[k_idx + i] = L_val;
 
-            T U_val = U[pivot_idx + i];
-            U[pivot_idx + i] = U[k_idx + i];
-            U[k_idx + i] = U_val;
-        });
+                T U_val = U[pivot_idx + i];
+                U[pivot_idx + i] = U[k_idx + i];
+                U[k_idx + i] = U_val;
+            });
+        }
 
         parallel_for(remaining_rows, [&](size_t i) {
             size_t i_idx = (i + k + 1) * m_side;

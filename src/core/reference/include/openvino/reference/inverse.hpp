@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <openvino/core/shape.hpp>
-#include <cstdlib>
-#include <vector>
 #include <cmath>
+#include <cstdlib>
+#include <openvino/core/shape.hpp>
+#include <vector>
 
 namespace ov {
 namespace reference {
