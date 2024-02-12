@@ -22,12 +22,12 @@ void lu_decomposition(const T* input,
                       size_t b,
                       size_t n) {
     // Make L identity, U a copy of input and P a range(0, n)
-    const size_t batch_idx = b * n * n;
+    const auto batch_idx = b * n * n;
     for (size_t i = 0; i < n; ++i) {
         P[i] = T{i};
         L[i][i] = T{1};
 
-        size_t i_idx = i * n;
+        auto i_idx = i * n;
         for (size_t j = 0; j < n; ++j) {
             U[i][j] = input[batch_idx + i_idx + j];
         }
@@ -35,8 +35,8 @@ void lu_decomposition(const T* input,
 
     for (size_t k = 0; k < n; ++k) {
         // Partial Pivoting
-        size_t pivot_row = k;
-        for (size_t i = k + 1; i < n; ++i) {
+        auto pivot_row = k;
+        for (auto i = k + 1; i < n; ++i) {
             if (std::abs(U[i][k]) > std::abs(U[pivot_row][k])) {
                 pivot_row = i;
             }
@@ -50,9 +50,9 @@ void lu_decomposition(const T* input,
             sign = !sign;
         }
 
-        for (size_t i = k + 1; i < n; ++i) {
+        for (auto i = k + 1; i < n; ++i) {
             L[i][k] = U[i][k] / U[k][k];
-            for (size_t j = k; j < n; ++j) {
+            for (auto j = k; j < n; ++j) {
                 U[i][j] -= L[i][k] * U[k][j];
             }
         }
@@ -81,17 +81,12 @@ void lu_solve(T* output,
     }
 
     // Backward substitution: Ux = y
-    for (size_t i = n - 1; i >= 0; --i) {
+    for (auto i = n - 1; i != static_cast<size_t>(-1); --i) {
         X[i] = Y[i];
-        for (size_t j = i + 1; j < n; ++j) {
+        for (auto j = i + 1; j < n; ++j) {
             X[i] -= U[i][j] * X[j];
         }
-
-        // Necessary since for i = 0, i-- underflows back to max(size_t)
         X[i] /= U[i][i];
-        if (i == 0) {
-            break;
-        }
     }
 
     size_t batch_idx = b * n * n;
@@ -108,7 +103,7 @@ void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, 
         determinant *= U[i][i];
     }
 
-    const size_t batch_idx = b * n * n;
+    const auto batch_idx = b * n * n;
     for (auto idx = batch_idx; idx < batch_idx + n * n; ++idx) {
         output[idx] *= determinant;
     }
@@ -142,7 +137,6 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
         }
 
         if (adjoint) {
-            // Multiply by det(A) (= det(U) * sign)
             to_adjoint(output, U, sign, b, n);
         }
     }
