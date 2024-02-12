@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,14 +90,12 @@ std::vector<InverseParams> generateInverseParams() {
         matrices_4_4_shape,
         ET,
         std::vector<VT>{7, -2, 5, 8, -6, 3, -2, 27, 10, -12, 23, 21, 1, -21, 16, 15});
-    // Test from CPU
     reference_tests::Tensor matrices_4_4_v2(
         matrices_4_4_shape,
         ET,
         std::vector<
             VT>{5.0f, 6.0f, 6.0f, 8.0f, 2.0f, 2.0f, 2.0f, 8.0f, 6.0f, 6.0f, 2.0f, 8.0f, 2.0f, 3.0f, 6.0f, 7.0f});
 
-    // ==== OUTPUTS
     reference_tests::Tensor output_2_2_no_adjoint(matrices_2_2_shape, ET, std::vector<VT>{-1.0f, 0.5f, 1.5f, -0.25f});
     reference_tests::Tensor output_2_2_adjoint(matrices_2_2_shape, ET, std::vector<VT>{2.0f, -1.0f, -3.0f, 0.5f});
 
@@ -160,7 +158,6 @@ std::vector<InverseParams> generateInverseParams() {
                                                                      0.0298592f,
                                                                      -0.010601f,
                                                                      0.0065324f});
-
     reference_tests::Tensor output_4_4_v1_adjoint(matrices_4_4_shape,
                                                   ET,
                                                   std::vector<VT>{8406.0f,
@@ -198,7 +195,6 @@ std::vector<InverseParams> generateInverseParams() {
                                                                      0.75f,
                                                                      -0.75f,
                                                                      -1.0f});
-
     reference_tests::Tensor output_4_4_v2_adjoint(matrices_4_4_shape,
                                                   ET,
                                                   std::vector<VT>{136.0f,
