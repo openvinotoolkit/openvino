@@ -13,11 +13,7 @@ namespace op {
 Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::move(nested)) {}
 
 std::shared_ptr<Kernel> Kernel::make_kernel(const lowered::LinearIR& region) {
-    auto is_dynamic_loop = [](const lowered::ExpressionPtr& expr) {
-        return ov::is_type<op::LoopBeginDynamic>(expr->get_node()) || ov::is_type<op::LoopEndDynamic>(expr->get_node());
-    };
-
-    if (std::any_of(region.cbegin(), region.cend(), is_dynamic_loop)) {
+    if (region.is_dynamic()) {
         return std::make_shared<KernelDynamic>(region);
     } else {
         return std::make_shared<KernelStatic>(region);

@@ -73,8 +73,8 @@ void swap(jit_snippets_call_args::loop_args_t& first, jit_snippets_call_args::lo
     std::swap(first.m_finalization_offsets, second.m_finalization_offsets);
 }
 
-jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr, size_t reg_runtime_params_idx)
-    : jit_container_emitter(h, isa), reg_runtime_params_idx(reg_runtime_params_idx) {
+jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_container_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
     OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "invoked with empty body");
@@ -191,7 +191,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
 jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_kernel_emitter(h, isa, expr, abi_param2.getIdx()), reg_indexes_idx(abi_param1.getIdx()) {
+    : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "jit_kernel_static_emitter expectes KernelStatic expression");
     master_shape = body.get_master_shape();
@@ -333,7 +333,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
 
 jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_kernel_emitter(h, isa, expr, abi_param1.getIdx()) {
+    : jit_kernel_emitter(h, isa, expr) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelDynamic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "expectes KernelDynamic expression");
 

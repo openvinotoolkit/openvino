@@ -253,6 +253,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    bool m_is_dynamic = false;
 };
 
 template<typename iterator>

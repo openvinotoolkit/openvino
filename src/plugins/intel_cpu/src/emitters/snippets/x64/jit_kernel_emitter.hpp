@@ -84,8 +84,7 @@ struct jit_snippets_compile_args {
 
 class jit_kernel_emitter : public jit_container_emitter {
 public:
-    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                       const ov::snippets::lowered::ExpressionPtr& expr, size_t reg_runtime_params_idx);
+    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -127,13 +126,12 @@ protected:
 
 class jit_kernel_static_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                              const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
 private:
     void init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const override;
 
-    const size_t reg_indexes_idx{0};
+    const size_t reg_indexes_idx{1};
     std::vector<size_t> master_shape;
 
     // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
@@ -150,8 +148,7 @@ private:
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter, public jit_snippets_dynamic_emitter {
 public:
-    jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                               const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
 private:
     void init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const override;
