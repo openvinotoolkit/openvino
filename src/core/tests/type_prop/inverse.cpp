@@ -14,6 +14,16 @@ using namespace testing;
 
 class TypePropInverseV14Test : public TypePropOpTest<ov::op::v14::Inverse> {};
 
+TEST_F(TypePropInverseV14Test, default_ctor) {
+    const auto data = ov::op::v0::Constant::create(ov::element::f64, ov::Shape{2, 2}, {1.0f, 1.0f, 1.0f, 1.0f});
+    const auto op = make_op();
+    op->set_arguments(ov::OutputVector{data});
+    EXPECT_EQ(op->get_input_size(), 1);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), ov::element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({2, 2}));
+}
+
 TEST_F(TypePropInverseV14Test, input_f64_2x2_constant) {
     const auto data = ov::op::v0::Constant::create(ov::element::f64, ov::Shape{2, 2}, {1.0f, 1.0f, 1.0f, 1.0f});
     const auto op = make_op(data, false);

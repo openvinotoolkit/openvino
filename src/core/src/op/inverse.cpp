@@ -32,7 +32,9 @@ void op::v14::Inverse::Inverse::validate_and_infer_types() {
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
-    inverse::validate::input_types(this);
+    NODE_VALIDATION_CHECK(op,
+                          op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
+                          "Expected floating point type as element type for the 'data' input.");
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -51,16 +53,4 @@ bool op::v14::Inverse::get_adjoint() const {
 void op::v14::Inverse::set_adjoint(const bool adjoint) {
     m_adjoint = adjoint;
 }
-
-namespace op {
-namespace inverse {
-namespace validate {
-void input_types(const Node* op) {
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
-                          "Expected floating point type as element type for the 'data' input.");
-}
-}  // namespace validate
-}  // namespace inverse
-}  // namespace op
 }  // namespace ov

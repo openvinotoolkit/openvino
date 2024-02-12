@@ -13,8 +13,7 @@ namespace op {
 namespace v14 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Inverse* op,
-                                 const std::vector<TShape>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+                                 const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
@@ -24,15 +23,14 @@ std::vector<TRShape> shape_infer(const Inverse* op,
         NODE_VALIDATION_CHECK(op, size >= 2, "Input must be at least a 2D matrix.");
 
         if (input_shape[size - 2].is_static() && input_shape[size - 1].is_static()) {
-            NODE_VALIDATION_CHECK(op,
+            NODE_SHAPE_INFER_CHECK(op,
+                                  input_shapes,
                                   input_shape[size - 2].get_min_length() == input_shape[size - 1].get_min_length(),
                                   "Input must contain square matrices of the same shape.");
         }
-
-        return {input_shape};
-    } else {
-        return {ov::PartialShape::dynamic()};
     }
+
+    return {input_shape};
 }
 }  // namespace v14
 }  // namespace op

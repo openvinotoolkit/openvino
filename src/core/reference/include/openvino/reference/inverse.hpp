@@ -6,7 +6,7 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <openvino/core/shape.hpp>
+#include "openvino/core/shape.hpp"
 #include <vector>
 
 namespace ov {
@@ -22,10 +22,10 @@ void lu_decomposition(const T* input,
                       size_t b,
                       size_t n) {
     // Make L identity, U a copy of input and P a range(0, n)
-    size_t batch_idx = b * n * n;
+    const size_t batch_idx = b * n * n;
     for (size_t i = 0; i < n; ++i) {
-        P[i] = static_cast<T>(i);
-        L[i][i] = static_cast<T>(1);
+        P[i] = T{i};
+        L[i][i] = T{1};
 
         size_t i_idx = i * n;
         for (size_t j = 0; j < n; ++j) {
@@ -67,10 +67,10 @@ void lu_solve(T* output,
               size_t b,
               size_t n,
               size_t column) {
-    std::vector<T> B(n, static_cast<T>(0));
-    std::vector<T> X(n, static_cast<T>(0));
-    std::vector<T> Y(n, static_cast<T>(0));
-    B[column] = static_cast<T>(1);
+    std::vector<T> B(n, T{0});
+    std::vector<T> X(n, T{0});
+    std::vector<T> Y(n, T{0});
+    B[column] = T{1};
 
     // Forward substitution: Ly = Pb
     for (size_t i = 0; i < n; ++i) {
@@ -108,9 +108,9 @@ void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, 
         determinant *= U[i][i];
     }
 
-    size_t batch_idx = b * n * n;
-    for (size_t idx = 0; idx < n * n; ++idx) {
-        output[batch_idx + idx] *= determinant;
+    const size_t batch_idx = b * n * n;
+    for (auto idx = batch_idx; idx < batch_idx + n * n; ++idx) {
+        output[idx] *= determinant;
     }
 }
 
@@ -130,8 +130,8 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
     const auto batch_size = total_elements / n / n;
 
     for (size_t b = 0; b < batch_size; ++b) {
-        std::vector<std::vector<T>> L(n, std::vector<T>(n, static_cast<T>(0)));
-        std::vector<std::vector<T>> U(n, std::vector<T>(n, static_cast<T>(0)));
+        std::vector<std::vector<T>> L(n, std::vector<T>(n, T{0}));
+        std::vector<std::vector<T>> U(n, std::vector<T>(n, T{0}));
         std::vector<T> P(n);
         bool sign = true;
 
@@ -149,12 +149,4 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
 }
 }  // namespace inverse
 }  // namespace reference
-
-namespace op {
-namespace inverse {
-namespace validate {
-void input_types(const Node* op);
-}  // namespace validate
-}  // namespace inverse
-}  // namespace op
 }  // namespace ov
