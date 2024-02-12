@@ -61,11 +61,9 @@ class TestLookupTableFindOps(CommonTFLayerTest):
              all_values=[2.0, 13.0, -2.0, 0.0, 3.0, 1.0], default_value=-100.0, invalid_key=1000),
         dict(keys_type=np.int64, values_type=np.float32, all_keys=[2, 0, 3, -2, 4, 10],
              all_values=[2.0, 13.0, -2.0, 0.0, 3.0, 1.0], default_value=-100.0, invalid_key=1000),
-        pytest.param(
-            dict(keys_type=np.int32, values_type=tf.string, all_keys=[20, 10, 33, -22, 44, 11],
-                 all_values=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
-                 default_value='UNKNOWN', invalid_key=1000),
-            marks=pytest.mark.skip(reason='130688: Gather string support needed'))
+        dict(keys_type=np.int32, values_type=tf.string, all_keys=[20, 10, 33, -22, 44, 11],
+             all_values=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
+             default_value='UNKNOWN', invalid_key=1000),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
