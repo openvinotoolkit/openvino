@@ -92,22 +92,7 @@ jobs:
       - name: Samples tests
         if: fromJSON(inputs.affected-components).samples.test
         run: |
-          export WORKSPACE=$INSTALL_DIR
-          export IE_APP_PATH=$INSTALL_DIR/samples_bin
-          export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
-
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
-          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
-          source ${INSTALL_DIR}/setupvars.sh
-
-          for i in {1..20}; do TEST_DEVICE=CPU python3 -OO -m pytest --numprocesses logical ./openvino/samples_tests/smoke_tests/test_benchmark_app.py || exit $?; done
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'warn'
+          for i in {1..20}; do TEST_DEVICE=CPU python3 -m pytest --numprocesses logical ./openvino/samples_tests/smoke_tests/test_benchmark_app.py || exit $?; done
