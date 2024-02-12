@@ -1,6 +1,5 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/less_equal.hpp"
@@ -67,7 +66,6 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     set_node_name(node.get_name(), result);
     return {result};
 }
-
 
 }  // namespace op
 }  // namespace tensorflow
