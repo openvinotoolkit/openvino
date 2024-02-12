@@ -212,7 +212,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes1D_explicit = {
         { {-1}, {{7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_1d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes1D_explicit),
@@ -229,7 +229,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes1D = {
         { {-1}, {{1}, {7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_1d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_1d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes1D),
@@ -248,7 +248,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes2D_explicit = {
         { {-1, -1}, {{3, 5}} }
     }
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_2d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes2D_explicit),
@@ -265,7 +265,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes2D = {
         { {-1, -1}, {{3, 1}, {3, 5}} }
     }
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_2d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_2d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes2D),
@@ -284,7 +284,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes3D_explicit = {
         { {-1, -1, -1}, {{4, 5, 6}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_3d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes3D_explicit),
@@ -301,7 +301,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes3D = {
         { {-1, -1, -1}, {{4, 5, 1}, {1, 5, 1}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_3d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_3d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes3D),
@@ -320,7 +320,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes4D_explicit = {
         { {-1, -1, -1, -1}, {{1, 16, 1, 7}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_4d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes4D_explicit),
@@ -337,7 +337,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes4D = {
         { {-1, -1, -1, -1}, {{2, 1, 1, 3}, {1, 4, 1, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_4d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_4d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes4D),
@@ -356,7 +356,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes5D_explicit = {
         { {-1, -1, -1, -1, -1}, {{2, 3, 4, 5, 6}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_explicit_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_5d_explicit_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes5D_explicit),
@@ -373,7 +373,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes5D = {
         { {-1, -1, -1, -1, -1}, {{8, 1, 1, 7, 1}, {8, 4, 1, 7, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_5d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_5d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes5D),
@@ -391,7 +391,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShapes6D = {
         { {-1, -1, -1, -1, -1, -1}, {{8, 1, 1, 7, 1, 3}, {8, 4, 1, 7, 16, 3}} }
     },
 };
-INSTANTIATE_TEST_CASE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_broadcast_6d_numpy_compareWithRefs_dynamic,
     BroadcastLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes6D),

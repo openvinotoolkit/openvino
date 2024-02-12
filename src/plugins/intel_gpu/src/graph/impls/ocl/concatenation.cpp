@@ -17,7 +17,7 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     if (cldnn_axis >= static_cast<int64_t>(rank))
         OPENVINO_THROW("Concatenation axis exceeds number of dimensions");
 
-    // Difference in dimension ordering between IE and GPU plugin,
+    // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     if (cldnn_axis >= 2) {
         auto spatial_axis = cldnn_axis - 2;

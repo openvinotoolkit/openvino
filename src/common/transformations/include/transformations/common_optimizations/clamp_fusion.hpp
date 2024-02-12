@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ClampFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ClampFusion transformation replaces following graph:
  * Maximum->Minimum to Clamp
  * Restrictions:

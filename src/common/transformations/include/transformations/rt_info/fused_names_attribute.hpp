@@ -23,7 +23,7 @@
 namespace ov {
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief FusedName class represents runtime info attribute that stores
  * all operation names that was fully or partially fused into node
  */
@@ -73,14 +73,14 @@ public:
 };
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
 TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ov::Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief getFusedNamesVector return vector of fused names sorted in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings

@@ -11,11 +11,11 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief QuantizationGranularityAttribute defines quantization granularity of operation inputs.
  *
  * For more details about the attribute, refer to
- * [QuantizationGranularityAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationGranularity) page in the Inference Engine Developer Guide.
+ * [QuantizationGranularityAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationGranularity) page in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API QuantizationGranularityAttribute : public ov::RuntimeAttribute {
 public:

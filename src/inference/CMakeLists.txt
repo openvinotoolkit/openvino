@@ -78,7 +78,7 @@ ov_build_target_faster(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-    IMPLEMENT_INFERENCE_ENGINE_API
+    IMPLEMENT_OPENVINO_RUNTIME_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
@@ -88,7 +88,6 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/ie" # TODO: remove in 2024.0
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>)
@@ -96,7 +95,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
-# IE is public API => need to mark this library as important for ABI free
+# OpenVINO Runtime is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
 ov_set_threading_interface_for(${TARGET_NAME}_obj)
@@ -108,8 +107,7 @@ endif()
 
 add_library(${TARGET_NAME} INTERFACE)
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
-target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                                    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
+target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 

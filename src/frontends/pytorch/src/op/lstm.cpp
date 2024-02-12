@@ -95,12 +95,12 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         bidirectional ? RecurrentSequenceDirection::BIDIRECTIONAL : RecurrentSequenceDirection::FORWARD;
     int64_t weights_per_layer = has_biases ? 4 : 2;
     int64_t mult = bidirectional ? 2 : 1;
-    FRONT_END_OP_CONVERSION_CHECK(static_cast<int64_t>(all_weights.size()) == num_layers * weights_per_layer * mult,
-                                  "Unexpected length of list with weights for rnn operation.");
+    PYTORCH_OP_CONVERSION_CHECK(static_cast<int64_t>(all_weights.size()) == num_layers * weights_per_layer * mult,
+                                "Unexpected length of list with weights for rnn operation.");
 
     const auto w_hh = all_weights[1];
     const auto w_hh_pshape = w_hh.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(w_hh_pshape.rank().is_static() && w_hh_pshape[1].is_static(), "");
+    PYTORCH_OP_CONVERSION_CHECK(w_hh_pshape.rank().is_static() && w_hh_pshape[1].is_static(), "");
     const auto hidden_size = w_hh_pshape[1].get_length();
 
     const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
@@ -119,7 +119,7 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         h0 = initial_states[0];
         c0 = initial_states[1];
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported rnn variant.");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported rnn variant.");
     }
 
     Output<Node> prev_output = input;
@@ -269,7 +269,7 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
         c_res = rg.make<v1::Transpose>(c_res, order_102);
         return {prev_output, h_res, c_res};
     }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported rnn variant.");
+    PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported rnn variant.");
 }
 
 }  // namespace
@@ -289,7 +289,7 @@ OutputVector translate_lstm(const NodeContext& context) {
         const auto num_layers = context.const_input<int64_t>(5);
         // const auto dropout = context.const_input<float>(6); - skip
         const auto train = context.const_input<bool>(7);
-        FRONT_END_OP_CONVERSION_CHECK(!train, "LSTM in train mode is not supported.");
+        PYTORCH_OP_CONVERSION_CHECK(!train, "LSTM in train mode is not supported.");
         const auto bidirectional = context.const_input<bool>(8);
 
         const auto initial_states = get_list_as_outputs(hx);
@@ -316,7 +316,7 @@ OutputVector translate_lstm(const NodeContext& context) {
         const auto num_layers = context.const_input<int64_t>(4);
         // const auto dropout = context.const_input<float>(5); - skip
         const auto train = context.const_input<bool>(6);
-        FRONT_END_OP_CONVERSION_CHECK(!train, "LSTM in train mode is not supported.");
+        PYTORCH_OP_CONVERSION_CHECK(!train, "LSTM in train mode is not supported.");
         const auto bidirectional = context.const_input<bool>(7);
         const auto batch_first = context.const_input<bool>(8);
 
@@ -348,7 +348,7 @@ OutputVector translate_gru(const NodeContext& context) {
     const auto num_layers = context.const_input<int64_t>(4);
     // const auto dropout = context.const_input<float>(5); - skip
     const auto train = context.const_input<bool>(6);
-    FRONT_END_OP_CONVERSION_CHECK(!train, "GRU in train mode is not supported.");
+    PYTORCH_OP_CONVERSION_CHECK(!train, "GRU in train mode is not supported.");
     const auto bidirectional = context.const_input<bool>(7);
     const auto batch_first = context.const_input<bool>(8);
 
@@ -378,13 +378,13 @@ OutputVector translate_rnn(const NodeContext& context) {
     const auto num_layers = context.const_input<int64_t>(4);
     // const auto dropout = context.const_input<float>(5); - skip
     const auto train = context.const_input<bool>(6);
-    FRONT_END_OP_CONVERSION_CHECK(!train, "RNN in train mode is not supported.");
+    PYTORCH_OP_CONVERSION_CHECK(!train, "RNN in train mode is not supported.");
     const auto bidirectional = context.const_input<bool>(7);
     const auto batch_first = context.const_input<bool>(8);
 
     const auto weight = get_list_as_outputs(weight_v);
     const auto variant_it = RNN_VARIANT_MAP.find(context.get_op_type());
-    FRONT_END_OP_CONVERSION_CHECK(variant_it != RNN_VARIANT_MAP.end(), "Unsupported RNN variant.");
+    PYTORCH_OP_CONVERSION_CHECK(variant_it != RNN_VARIANT_MAP.end(), "Unsupported RNN variant.");
     const auto res = generic_rnn(rg,
                                  variant_it->second,
                                  input,

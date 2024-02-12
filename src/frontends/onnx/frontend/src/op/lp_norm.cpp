@@ -5,10 +5,10 @@
 #include "op/lp_norm.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "utils/norm.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
