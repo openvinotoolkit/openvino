@@ -59,6 +59,7 @@ class RuntimeExistsError extends Error {
  * @throws {RuntimeExistsError}
  */
 async function downloadRuntime(destinationPath, config = { force: false, ignoreIfExists: true, proxy: null }) {
+  const { version } = packageJson;
   const osInfo = await getOsInfo();
   const isRuntimeDirectoryExists = await checkIfDirectoryExists(destinationPath);
 
@@ -75,7 +76,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     );
   }
 
-  const runtimeArchiveUrl = getRuntimeArchiveUrl(osInfo);
+  const runtimeArchiveUrl = getRuntimeArchiveUrl(version, osInfo);
   const tmpDir = `temp-ov-runtime-archive-${new Date().getTime()}`;
   const tempDirectoryPath = path.join(os.tmpdir(), tmpDir);
 
@@ -161,19 +162,23 @@ async function checkIfDirectoryExists(directoryPath) {
  * Get OpenVINO runtime archive URL.
  *
  * @function getRuntimeArchiveUrl
+ * @param {string} version - Package version.
  * @param {OsInfo} osInfo - The OS related data.
  * @returns {string}
  */
-function getRuntimeArchiveUrl(osInfo) {
-  const packageNameTemplate = packageJson.binary['package_name'];
+function getRuntimeArchiveUrl(version, osInfo) {
+  const { 
+    host,
+    package_name: packageNameTemplate,
+    remote_path: remotePathTemplate,
+  } = packageJson.binary;
+  const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`
+  const fullPath = fullPathTemplate
+    .replace(new RegExp('{version}', 'g'), version)
+    .replace(new RegExp('{platform}', 'g'), osInfo.platform)
+    .replace(new RegExp('{arch}', 'g'), osInfo.arch);
 
-  const packageName = packageNameTemplate
-    .replace('{platform}', osInfo.platform)
-    .replace('{arch}', osInfo.arch)
-
-  const { host, remote_path } = packageJson.binary;
-
-  return new URL(`${remote_path}${packageName}`, host).toString();
+  return new URL(fullPath, host).toString();
 }
 
 /**
