@@ -13,6 +13,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_inverse(const NodeContext& context) {
+    // aten::inverse(Tensor self) -> Tensor
+    // aten::inverse(Tensor self, *, Tensor out) -> Tensor
     num_inputs_check(context, 1, 2);
     const auto input_tensor = context.get_input(0);
 
