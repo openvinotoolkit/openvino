@@ -700,7 +700,6 @@ public:
         const unsigned long M_SIZE = 37;
         const unsigned long K_SIZE = 23;
         const unsigned long N_SIZE = 29;
-        const unsigned long FEATURE_SIZE = 4;
 
         auto fill_mem = [&](cldnn::memory_ptr mem, std::vector<float>& data) {
             cldnn::mem_lock<float> mem_ptr(mem, get_test_stream());
@@ -765,7 +764,7 @@ public:
             input1_layout = layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx};
         }
 
-        auto beam_table_layout = layout{ov::PartialShape::dynamic(4), data_types::i32, format::bfyx};
+        auto beam_table_layout = layout{ov::PartialShape::dynamic(beam_table_shape.size()), data_types::i32, format::bfyx};
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
         auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx});
         auto beam_table_mem = engine.allocate_memory(layout{ov::PartialShape(beam_table_shape), data_types::i32, format::bfyx});
@@ -795,7 +794,6 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::enable_profiling(true));
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
@@ -812,7 +810,6 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.at("gemm").get_memory();
-
         cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
@@ -858,15 +855,12 @@ public:
 
         if (indirect_input0) {
             std::vector<float> ref_input_0_data_tmp = ref_input_0_data;
-            const size_t b_pitch = FEATURE_SIZE * M_SIZE * K_SIZE;
-            const size_t f_pitch = M_SIZE * K_SIZE;
+            const size_t b_pitch = M_SIZE * K_SIZE;
             for (size_t b = 0; b < BATCH_SIZE; b++) {
-                for (size_t f = 0; f < FEATURE_SIZE; f++) {
-                    for (size_t m = 0; m < M_SIZE; m++) {
-                        for (size_t k = 0; k < K_SIZE; k++) {
-                            const size_t b_new = beam_table_data[b * K_SIZE + k];
-                            ref_input_0_data[b * b_pitch + f * f_pitch + m * K_SIZE + k] = ref_input_0_data_tmp[b_new * b_pitch + f * f_pitch + m * K_SIZE + k];
-                        }
+                for (size_t m = 0; m < M_SIZE; m++) {
+                    for (size_t k = 0; k < K_SIZE; k++) {
+                        const size_t b_new = beam_table_data[b * K_SIZE + k];
+                        ref_input_0_data[b * b_pitch + m * K_SIZE + k] = ref_input_0_data_tmp[b_new * b_pitch + m * K_SIZE + k];
                     }
                 }
             }
@@ -874,15 +868,12 @@ public:
 
         if (indirect_input1) {
             std::vector<float> ref_input_1_data_tmp = ref_input_1_data;
-            const size_t b_pitch = FEATURE_SIZE * N_SIZE * K_SIZE;
-            const size_t f_pitch = N_SIZE * K_SIZE;
+            const size_t b_pitch = N_SIZE * K_SIZE;
             for (size_t b = 0; b < BATCH_SIZE; b++) {
-                for (size_t f = 0; f < FEATURE_SIZE; f++) {
-                    for (size_t k = 0; k < K_SIZE; k++) {
-                        for (size_t n = 0; n < N_SIZE; n++) {
-                            const size_t b_new = beam_table_data[b * K_SIZE + k];
-                            ref_input_1_data[b * b_pitch + f * f_pitch + k * N_SIZE + n] = ref_input_1_data_tmp[b_new * b_pitch + f * f_pitch + k * N_SIZE + n];
-                        }
+                for (size_t k = 0; k < K_SIZE; k++) {
+                    for (size_t n = 0; n < N_SIZE; n++) {
+                        const size_t b_new = beam_table_data[b * K_SIZE + k];
+                        ref_input_1_data[b * b_pitch + k * N_SIZE + n] = ref_input_1_data_tmp[b_new * b_pitch + k * N_SIZE + n];
                     }
                 }
             }
@@ -973,7 +964,6 @@ public:
             input0_layout = layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx};
             input1_layout = layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx};
         }
-
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx});
         auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx});
 
@@ -1132,15 +1122,11 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_4d) {
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_in0_indirect) {
-    this->test_transpose_matmul(4, false, true, false);
+    this->test_transpose_matmul(4, true, false, true, false);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_in1_indirect) {
-    this->test_transpose_matmul(4, false, false, true);
-}
-
-TEST_F(gemm_gpu_tests, transpose_matmul_in0_in1_indirect) {
-    this->test_transpose_matmul(4, false, true, true);
+    this->test_transpose_matmul(4, true, false, false, true);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_1d) {
