@@ -181,6 +181,16 @@ macro(ov_cpack_settings)
         set(gpu_copyright "generic")
     endif()
 
+    # intel-npu
+    if(ENABLE_INTEL_NPU OR BUILD_npu OR BUILD_vpux-plugin OR BUILD_applications.ai.vpu-accelerators.vpux-plugin)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_COMPONENT_NPU_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        _ov_add_plugin(npu OFF)
+        set(npu_copyright "generic")
+    endif()
+
     # # add pseudo plugins are recommended to core component
     # if(pseudo_plugins_recommends)
     #     # see https://superuser.com/questions/70031/what-is-the-difference-between-recommended-and-suggested-packages-ubuntu.
