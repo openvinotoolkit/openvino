@@ -87,6 +87,16 @@ public:
         return m_init_counter;
     }
 
+    std::shared_ptr<DecoderBase> get_decoder() const {
+        return m_decoder;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto new_variable = std::make_shared<Variable>(*this);
+        new_variable->set_attrs(get_attrs());
+        return new_variable;
+    }
+
 protected:
     std::string m_name;
     ov::Shape m_shape;
