@@ -26,14 +26,14 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/negative.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -55,23 +55,26 @@ OutputVector translate_binary_op(const NodeContext& node,
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) -> shared_ptr<Node> {
-        
         auto out_type = x.get_element_type();
         if (out_type.is_integral()) {
+            // when integer inputs have different signs remainder should be taken into account
+            // res = x / y; if x > 0 and y > 0
+            // res = x / y - 1; if (x < 0 XOR y < 0) and (x mod y != 0)
+
             auto div = make_shared<v1::Divide>(x, y, true);
 
-            auto zeros_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
-            auto ones_const = make_shared<v0::Constant>(out_type, Shape{}, 1);
-            
-            auto x_less_cond = make_shared<v1::Less>(x, zeros_const);
-            auto y_less_cond = make_shared<v1::Less>(y, zeros_const);
+            auto zero_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
+            auto minux_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);
+
+            auto x_less_cond = make_shared<v1::Less>(x, zero_const);
+            auto y_less_cond = make_shared<v1::Less>(y, zero_const);
             auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
-            
+
             auto mod_xy = make_shared<v1::Mod>(x, y);
-            auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zeros_const);
+            auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zero_const);
 
             auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
-            auto reminder = make_shared<v1::Select>(cond, make_shared<v0::Negative>(ones_const), zeros_const);
+            auto reminder = make_shared<v1::Select>(cond, minux_one_const, zero_const);
             return make_shared<v1::Add>(div, reminder);
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));

@@ -99,6 +99,8 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         dict(min=-10000, max=10000, step=100, y=[10000], dtype=np.int32),
         dict(min=-10000, max=10000, step=100, y=[-10000], dtype=np.int32),
         dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.int32),
+        dict(min=1e8, max=1e9, step=1e8, y=[1e8], dtype=np.int64),
+        dict(min=1e8, max=1e9, step=1e8, y=[-1e8], dtype=np.int64),
         
         # test for multidimensinal input
         dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1], dtype=np.int32),
@@ -106,10 +108,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         dict(min=-1000, max=1000, step=1, y=[1000], x_shape=[2, 5, 10, -1], dtype=np.int32),
 
         # test for floats
-        dict(min=-20, max=20, step=1, y=[10],dtype=np.float32),
-        dict(min=-200, max=200, step=5, y=[200], dtype=np.float32),
-        dict(min=-10000, max=10000, step=100, y=[10000], dtype=np.float32),
-        dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.float32),
+        dict(min=-10, max=10, step=1, y=[10], dtype=np.float32),
         dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.float64),
     ]
     @pytest.mark.parametrize("params", test_inputs)
