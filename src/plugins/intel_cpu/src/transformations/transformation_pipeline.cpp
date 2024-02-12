@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -258,7 +259,7 @@ void Transformations::UpToLpt() {
 
     const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
-    PreLpt(defaultPrecisions, isLegacyApi);
+    PreLpt(defaultPrecisions);
 
     if (useLpt)
         Lpt(defaultPrecisions);
@@ -270,7 +271,7 @@ void Transformations::CpuSpecificOpSet(void) {
     ConvertToCPUSpecificOpset(model);
 }
 
-void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
+void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
     // Decompression handling related transformations must be run separately from common preLPT pipeline
@@ -428,11 +429,27 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
             std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::ConvertLoopToLSTMSequence,
+        ov::pass::FuseReverseLSTMSequence,
+        ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
             return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
         ov::pass::LSTMCellDecomposition);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::LSTMCellFusion);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -457,7 +474,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = [isLegacyApi](const_node_ptr &node) -> bool {
+    auto nmsCallback = [](const_node_ptr &node) -> bool {
+        // TODO: remove nmsCallback at all
+        const bool isLegacyApi = false;
         return isLegacyApi ?  false : true;
     };
 
@@ -465,9 +484,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_SET_CALLBACK_X64(manager,
-        [](const_node_ptr &node) -> bool {
+        [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
+            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
+            // Matching the pattern is a little complicated, so we just check if there is any state nodes.
+            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) && model->get_variables().size() > 0;
         },
         ov::pass::ScaledDotProductAttentionDecomposition);
 
@@ -700,7 +721,7 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    tokenization_config.concurrency = config.threadsPerStream;
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).

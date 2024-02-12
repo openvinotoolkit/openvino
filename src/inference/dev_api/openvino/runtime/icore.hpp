@@ -24,6 +24,9 @@ class Plugin;
 
 }
 
+class ICompiledModel;
+class IRemoteContext;
+
 /**
  * @interface ICore
  * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
@@ -169,8 +172,6 @@ public:
      * @return A shared pointer to a created remote context.
      */
     virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const = 0;
-
-    virtual bool is_new_api() const = 0;
 
     /**
      * @brief Get a pointer to default shared context object for the specified device.

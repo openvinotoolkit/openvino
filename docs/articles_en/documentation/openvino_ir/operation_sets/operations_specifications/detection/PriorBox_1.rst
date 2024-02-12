@@ -6,7 +6,7 @@ PriorBox
 
 
 .. meta::
-  :description: Learn about PriorBox-1 - an object detection operation, 
+  :description: Learn about PriorBox-1 - an object detection operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *PriorBox-1*
@@ -22,44 +22,44 @@ PriorBox
 1.  First calculates *center_x* and *center_y* of prior box:
 
 .. math::
-   
+
   W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
-   
-   
+
+
 * If step equals 0:
-     
+
 .. math::
-     
+
    center_x=(w+0.5) \\ center_y=(h+0.5)
-   
+
 * else:
-     
+
 .. math::
-     
+
    center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
 
 2.  Then, for each :math:`s \subset \left( 0, min\_sizes \right )` calculates coordinates of prior boxes:
 
 .. math::
-   
+
   	xmin = \frac{\frac{center_x - s}{2}}{W}
-   
-   
-   
+
+
+
 .. math::
-   
+
    	ymin = \frac{\frac{center_y - s}{2}}{H}
-   
-   
-   
+
+
+
 .. math::
-   
+
    	xmax = \frac{\frac{center_x + s}{2}}{W}
-   
-   
-   
+
+
+
 .. math::
-   
+
    	ymin = \frac{\frac{center_y + s}{2}}{H}
 
 3. If *clip* attribute is set to true, each output value is clipped between :math:`\left< 0, 1 \right>`.
@@ -186,10 +186,10 @@ PriorBox
        <data aspect_ratio="2.0" clip="false" density="" fixed_ratio="" fixed_size="" flip="true" max_size="38.46" min_size="16.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2"/>
        <input>
            <port id="0">
-               <dim>2</dim>        < !-- values: [24, 42] -->
+               <dim>2</dim>        <!-- values: [24, 42] -->
            </port>
            <port id="1">
-               <dim>2</dim>        < !-- values: [384, 672] -->
+               <dim>2</dim>        <!-- values: [384, 672] -->
            </port>
        </input>
        <output>
