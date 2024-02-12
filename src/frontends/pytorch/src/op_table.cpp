@@ -101,6 +101,7 @@ OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
+OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
@@ -432,6 +433,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
+        {"aten::inverse", op::translate_inverse},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::is_nonzero", op::translate_is_nonzero},
         {"aten::item", op::translate_1to1_match_1_inputs<opset10::Squeeze>},
