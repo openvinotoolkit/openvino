@@ -7,6 +7,7 @@
 #include <openvino/core/shape.hpp>
 #include <cstdlib>
 #include <vector>
+#include <cmath>
 
 namespace ov {
 namespace reference {
