@@ -28,7 +28,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
     The class replaces the sub-graph that performs boxes post-processing and NMS with the DetectionOutput layer.
 
     The post-processing in the RetinaNet topology is performed differently from the DetectionOutput layer implementation
-    in the Inference Engine. The first one calculates (d_x1, d_y1, d_x2, d_y2) which are a factor of the prior box width
+    in the OpenVINO. The first one calculates (d_x1, d_y1, d_x2, d_y2) which are a factor of the prior box width
     and height. The DetectionOuput with "code_type" equal to "caffe.PriorBoxParameter.CORNER" just adds predicted deltas
     to the prior box coordinates. This replacer add nodes which calculate prior box widths and heights, apply variances
     to the predicated box coordinates and multiply them. With this approach the DetectionOutput layer with "code_type"
@@ -227,7 +227,7 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         applied_width_height_regressions_node = Mul(graph, {'name': 'final_regressions'}).create_node(
             [concat_width_height_node, match.single_input_node(0)[0]])
 
-        # reshape to 2D tensor as Inference Engine Detection Output layer expects
+        # reshape to 2D tensor as OpenVINO Detection Output layer expects
         reshape_regression_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                                    dict(name='reshape_regression'),
                                                                    applied_width_height_regressions_node)

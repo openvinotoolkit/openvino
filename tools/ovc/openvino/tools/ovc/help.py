@@ -37,8 +37,7 @@ def get_convert_model_help_specifics():
         'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
-                 '(.so or .dll) with extensions. To disable all extensions including '
-                 'those that are placed at the default location, pass an empty string.'},
+                 '(.so or .dll) with extensions.',
         'version':
             {'action': 'version',
              # FIXME: Why the following is not accessible from arg parser?

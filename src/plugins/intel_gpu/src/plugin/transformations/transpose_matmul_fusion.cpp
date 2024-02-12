@@ -107,8 +107,8 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
             std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
-        auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
-        auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
+        auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), matmul->get_input_source_output(0).get_index());
+        auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), matmul->get_input_source_output(1).get_index());
 
         auto gemm = std::make_shared<op::Gemm>(input_a, input_b, order_a, order_b, order_c);
         gemm->set_friendly_name(matmul->get_friendly_name());
@@ -175,8 +175,8 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
             std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
-        auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
-        auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
+        auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), matmul->get_input_source_output(0).get_index());
+        auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), matmul->get_input_source_output(1).get_index());
 
         auto gemm = std::make_shared<op::Gemm>(input_a, input_b, order_a, order_b, order_c);
         gemm->set_friendly_name(m.get_match_root()->get_friendly_name());

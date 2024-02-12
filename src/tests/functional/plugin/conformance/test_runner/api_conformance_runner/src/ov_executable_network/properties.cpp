@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelEmptyPropertiesTests,
         ::testing::Values(targetDevice));
 
-// IE Class Load network
+// OV Class Load network
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCompiledModelIncorrectDevice,
         ::testing::Values(targetDevice));
