@@ -36,27 +36,24 @@ test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')]
 
 
 class TestClassification(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'classification_sample_async'
-        super().setup_class()
+    sample_name = 'classification_sample_async'
 
     @pytest.mark.parametrize("param", test_data_fp32)
-    def test_classification_sample_async_fp32(self, param):
-        _check_output(self, param, '215')
+    def test_classification_sample_async_fp32(self, param, cache):
+        _check_output(self, param, '215', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
-    def test_classification_sample_async_fp16(self, param):
-        _check_output(self, param, '215')
+    def test_classification_sample_async_fp16(self, param, cache):
+        _check_output(self, param, '215', cache)
 
 
-def _check_output(self, param, expected_result):
+def _check_output(self, param, expected_result, cache):
     """
     Classification_sample_async has functional and accuracy tests.
     For accuracy find in output class of detected on image object
     """
     # Run _test function, that returns stdout or 0.
-    stdout = self._test(param)
+    stdout = self._test(param, cache)
     if not stdout:
         return 0
 

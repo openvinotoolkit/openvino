@@ -16,21 +16,16 @@ from common.samples_common_test_class import SamplesCommonTestClass
 
 
 class Test_sync_benchmark_cpp(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'sync_benchmark'
-        super().setup_class()
+    sample_name = 'sync_benchmark'
 
-    def test(self):
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+    def test(self, cache):
+        self._test({'m': os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')}, cache, use_preffix=False)
 
 
 class Test_sync_benchmark_py(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'sync_benchmark'
-        cls.executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.environ["IE_APP_PYTHON_PATH"]}/benchmark/{cls.sample_name}/{cls.sample_name}.py"'
+    sample_name = 'sync_benchmark'
+    executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.environ["IE_APP_PYTHON_PATH"]}/benchmark/{sample_name}/{sample_name}.py"'
 
-    def test(self, monkeypatch):
+    def test(self, monkeypatch, cache):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': os.path.join('squeezenet_v1.1', 'FP32', 'squeezenet1.1.xml')}, use_preffix=False)
+        self._test({'m': os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')}, cache, use_preffix=False)
