@@ -36,7 +36,7 @@
 
 
 .. meta::
-   :description: Get to know conversion methods for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models.
+   :description: Get to know conversion methods for specific TensorFlow, ONNX, and PyTorch models.
 
 
 .. danger::
@@ -45,19 +45,17 @@
 
    This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
 
-This section provides a set of tutorials that demonstrate conversion methods for specific 
-TensorFlow, ONNX, and PyTorch models. Note that these instructions do not cover all use 
+This section provides a set of tutorials that demonstrate conversion methods for specific
+TensorFlow, ONNX, and PyTorch models. Note that these instructions do not cover all use
 cases and may not reflect your particular needs.
-Before studying the tutorials, try to convert the model out-of-the-box by specifying only the 
+Before studying the tutorials, try to convert the model out-of-the-box by specifying only the
 ``--input_model`` parameter in the command line.
 
 .. note::
 
-   Apache MXNet, Caffe, and Kaldi are no longer directly supported by OpenVINO. 
-   They will remain available for some time, so make sure to transition to other 
-   frameworks before they are fully discontinued.
-   
-You will find a collection of :doc:`Python tutorials <tutorials>` written for running on Jupyter notebooks 
-that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for 
+   Apache MXNet, Caffe, and Kaldi are no longer directly supported by OpenVINO.
+
+You will find a collection of :doc:`Python tutorials <tutorials>` written for running on Jupyter notebooks
+that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for
 optimized deep learning inference.
 

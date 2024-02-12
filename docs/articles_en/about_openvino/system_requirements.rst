@@ -163,7 +163,6 @@ Operating systems and developer environment
    .. tab-item:: DL frameworks versions:
 
       * TensorFlow 1.15, 2.12
-      * MxNet 1.9.0
       * ONNX 1.14.1
       * PaddlePaddle 2.4
 

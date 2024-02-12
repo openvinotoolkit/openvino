@@ -4,14 +4,14 @@
 ==========================================
 
 .. meta::
-  :description: Learn about various base classes for front, middle and back phase 
+  :description: Learn about various base classes for front, middle and back phase
                 transformations applied during model conversion with Model Optimizer.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
 
 Model Optimizer provides various base classes to implement :ref:`Front Phase Transformations <mo_front_phase_transformations>`,
 :ref:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :ref:`Back Phase Transformations <mo_back_phase_transformations>`.
@@ -26,7 +26,7 @@ All classes have the following common class attributes and methods:
 7. Method ``run_before()`` returns a list of transformation classes which this transformation should be executed before.
 8. Method ``run_after()`` returns a list of transformation classes which this transformation should be executed after.
 
-.. note:: 
+.. note::
    Some of the transformation types have specific class attributes and methods, which are explained in the corresponding sections of this document.
 
 Model Optimizer builds a graph of dependencies between registered transformations and executes them in the topological
@@ -39,7 +39,7 @@ The diagram below shows anchor transformations, some of built-in transformations
 User-defined transformations are executed after the corresponding ``Start`` and before the corresponding ``Finish`` anchor
 transformations by default (if ``run_before()`` and ``run_after()`` methods have not been overridden).
 
-.. note:: 
+.. note::
    The ``PreMiddleStart`` and ``PostMiddleStart`` anchors were introduced due to historical reasons to refactor the Model Optimizer pipeline, which initially had a hardcoded order of transformations.
 
 .. _mo_front_phase_transformations:
@@ -53,7 +53,7 @@ There are several types of a front phase transformation:
 1. :ref:`Pattern-Defined Front Phase Transformations <pattern_defined_front_phase_transformations>` triggered for each sub-graph of the original graph isomorphic to the specified pattern.
 2. :ref:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific ``op`` attribute value.
 3. :ref:`Generic Front Phase Transformations <generic_front_phase_transformations>`.
-4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the ``--transformations_config`` command-line parameter:
+4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, and PaddlePaddle models), specified using the ``--transformations_config`` command-line parameter:
 
    1. :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>`.
    2. :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
@@ -72,7 +72,7 @@ This type of transformation is implemented using ``mo.front.common.replacement.F
 3. Model Optimizer executes the defined function performing graph transformation for each instance of a matched sub-graph. You can override different functions in the base transformation class so the Model Optimizer works differently:
 
    1. The ``replace_sub_graph(self, graph, match)`` override the method. In this case Model Optimizer only executes the overridden function, pass the ``graph`` object and a dictionary describing the matched sub-graph. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
-   2. The ``generate_sub_graph(self, graph, match)`` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches. 
+   2. The ``generate_sub_graph(self, graph, match)`` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches.
 
 The sub-graph pattern is defined in the ``pattern()`` function. This function should return a dictionary with two keys:
 ``nodes`` and ``edges``:
@@ -100,17 +100,17 @@ operation:
    from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
    from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
    from openvino.tools.mo.graph.graph import Graph, rename_nodes
-   
-   
+
+
    class MishFusion(FrontReplacementSubgraph):
        """
        The transformation looks for the pattern with Softplus defining the Mish function: Mish(x) = x * tanh(SoftPlus(x)).
        """
        enabled = True  # Transformation is enabled.
-   
+
        def run_after(self):  # Run this transformation after "SoftplusFusion" transformation.
            return [SoftplusFusion]
-   
+
        def pattern(self):  # Define pattern according to formulae x * tanh(SoftPlus(x)).
            return dict(
                nodes=[
@@ -122,23 +122,23 @@ operation:
                    ('softplus', 'tanh'),
                    ('tanh', 'mul'),
                ])
-   
+
        def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):  # Entry point for the transformation.
            mul = match['mul']  # Get the Node corresponding to matched "mul" node.
            mul_name = mul.soft_get('name', mul.id)
            softplus = match['softplus']  # Get the Node corresponding to the matched "softplus" node.
-   
+
            # Determine the input port of Mul which gets the 'input' node output.
            input_port_idx = int(mul.in_port(0).get_connection().get_source().node.soft_get('op') == 'Tanh')
-   
+
            # Check that the same tensor is provided as input to Mul and SoftPlus.
            if mul.in_port(input_port_idx).get_source() != softplus.in_port(0).get_source():
                return
-   
+
            mish = Mish(graph, {}).create_node()  # Create Mish operation.
            mish.in_port(0).connect(mul.in_port(input_port_idx).get_source())  # Connect input to the Mish.
            mul.out_port(0).get_connection().set_source(mish.out_port(0))  # Reconnect outgoing edge from "mul" to Mish.
-   
+
            # Rename the created Mish operation to have the name of the "mul" node, which produced the value equal to the
            # Mish output.
            rename_nodes([(mul, mul_name + '/TBR'), (mish, mul_name)])
@@ -167,31 +167,31 @@ the TensorFlow:
 
 .. code-block:: py
    :force:
-   
+
    from openvino.tools.mo.front.common.partial_infer.utils import int64_array
    from openvino.tools.mo.front.common.replacement import FrontReplacementOp
    from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
    from openvino.tools.mo.graph.graph import Node, Graph, rename_nodes
    from openvino.tools.mo.ops.concat import Concat
    from openvino.tools.mo.ops.unsqueeze import Unsqueeze
-   
-   
+
+
    class Pack(FrontReplacementOp):
-       op = "Pack"  # Trigger transformation for all nodes in the graph with the op = "Pack" attribute 
+       op = "Pack"  # Trigger transformation for all nodes in the graph with the op = "Pack" attribute
        enabled = True  # Transformation is enabled.
-   
+
        def replace_op(self, graph: Graph, node: Node):  # Entry point for the transformation.
            # Create a Concat operation with a number of inputs equal to a number of inputs to Pack.
            out_node = Concat(graph, {'axis': node.axis, 'in_ports_count': len(node.in_ports())}).create_node()
            pack_name = node.soft_get('name', node.id)
-   
+
            for ind in node.in_ports():
                # Add dimension of size 1 to all inputs of the Pack operation and add them as Concat inputs.
                unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array([node.axis])},
                                                             {'name': node.soft_get('name', node.id) + '/Unsqueeze'})
                node.in_port(ind).get_connection().set_destination(unsqueeze_node.in_port(0))
                unsqueeze_node.out_port(0).connect(out_node.in_port(ind))
-   
+
            # Rename the created Concat operation to have the name of the "pack" node, which produced the value equal to the
            # Concat output.
            rename_nodes([(node, pack_name + '/TBR'), (out_node, pack_name)])
@@ -205,7 +205,7 @@ Generic Front Phase Transformations
 
 Model Optimizer provides a mechanism to implement generic front phase transformation. This type of transformation is
 implemented using ``mo.front.common.replacement.FrontReplacementSubgraph`` or
-``mo.front.common.replacement.FrontReplacementPattern`` as base classes. Make sure the transformation is enabled before trying to execute it. 
+``mo.front.common.replacement.FrontReplacementPattern`` as base classes. Make sure the transformation is enabled before trying to execute it.
 Then, Model Optimizer executes the ``find_and_replace_pattern(self, graph)`` method and
 provides a ``Graph`` object as an input.
 
@@ -219,21 +219,21 @@ specification.
    :force:
 
    import logging as log
-   
+
    from openvino.tools.mo.front.common.partial_infer.utils import int64_array
    from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
    from openvino.tools.mo.graph.graph import Graph
    from openvino.tools.mo.ops.const import Const
    from openvino.tools.mo.utils.error import Error
-   
-   
+
+
    class SqueezeNormalize(FrontReplacementPattern):
        """
        Normalizes inputs of the Squeeze layers. The layers should have two inputs: the input with data and input with the
        dimensions to squeeze. If the second input is omitted then all dimensions of size 1 should be removed.
        """
        enabled = True  # The transformation is enabled.
-   
+
        def find_and_replace_pattern(self, graph: Graph):  # The function is called unconditionally.
            for squeeze_node in graph.get_op_nodes(op='Squeeze'):  # Iterate over all nodes with op='Squeeze'.
                # If the operation has only 1 input node and no 'squeeze_dims' Node attribute, then convert the attribute to
@@ -272,7 +272,7 @@ Consider a situation when these Inception blocks are implemented extremely effic
 Engine operation called ``InceptionBlock`` and these blocks in the model need to be replaced with instances of this operation.
 Model Optimizer provides mechanism to trigger the transformation for a sub-graph of operations defined by the node name
 regular expressions (scope). In this particular case, some of the patterns are: ``.*InceptionV4/Mixed_5b``,
-``.*InceptionV4/Mixed_5c`` and ``.*InceptionV4/Mixed_5d``. Each pattern starts with ``.*``, because the ``InceptionV4`` prefix 
+``.*InceptionV4/Mixed_5c`` and ``.*InceptionV4/Mixed_5d``. Each pattern starts with ``.*``, because the ``InceptionV4`` prefix
 is added to all nodes names during a model freeze.
 
 This type of transformation is implemented using ``mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph`` as a
@@ -371,7 +371,7 @@ contains one list corresponding to this tensor. Four input nodes of the sub-grap
 
 The order of items in the internal list describing nodes does not matter, but the order of elements in the top-level
 list is important. This order defines how Model Optimizer attaches input tensors to a new generated
-node if the sub-graph is replaced with a single node. The ``i``-th input node of the sub-graph is obtained using 
+node if the sub-graph is replaced with a single node. The ``i``-th input node of the sub-graph is obtained using
 ``match.single_input_node(i)`` call in the sub-graph transformation code. More information about API is given below. If it is
 necessary to change the order of input tensors, the configuration file can be edited in the text editor.
 
@@ -406,7 +406,7 @@ The example of a JSON configuration file for a transformation with start and end
 ``extensions/front/tf/ssd_support_api_v1.15.json``:
 
 .. code-block:: json
-   
+
    [
        {
            "custom_attributes": {
@@ -443,10 +443,10 @@ the value of the ``match_kind`` parameter, which should be equal to the ``points
 which should be a dictionary with two keys ``start_points`` and ``end_points``, defining start and end node names
 respectively.
 
-.. note:: 
+.. note::
    The ``include_inputs_to_sub_graph`` and ``include_outputs_to_sub_graph`` parameters are redundant and should be always equal to ``true``.
 
-.. note:: 
+.. note::
    This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it is not possible to specify, for example, the :doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>` node as input because it has two inputs: data tensor and tensor with weights.
 
 For other examples of transformations with points, refer to the
@@ -463,14 +463,14 @@ but require a JSON configuration file to enable it similarly to
 :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
 
 The base class for this type of transformation is
-``mo.front.common.replacement.FrontReplacementFromConfigFileGeneral``. Model Optimizer executes the 
+``mo.front.common.replacement.FrontReplacementFromConfigFileGeneral``. Model Optimizer executes the
 ``transform_graph(self, graph, replacement_descriptions)`` method and provides the ``Graph`` object and dictionary with values
 parsed from the `custom_attributes` attribute of the provided JSON configuration file.
 
 The example of the configuration file for this type of transformation is ``extensions/front/tf/yolo_v1_tiny.json``:
 
 .. code-block:: json
-   
+
    [
      {
        "id": "TFYOLO",
@@ -488,7 +488,7 @@ and the corresponding transformation file is ``./extensions/front/YOLO.py``:
 
 .. code-block:: py
    :force:
-   
+
    from openvino.tools.mo.front.no_op_eraser import NoOpEraser
    from openvino.tools.mo.front.standalone_const_eraser import StandaloneConstEraser
    from openvino.tools.mo.ops.regionyolo import RegionYoloOp
@@ -496,18 +496,18 @@ and the corresponding transformation file is ``./extensions/front/YOLO.py``:
    from openvino.tools.mo.graph.graph import Node, Graph
    from openvino.tools.mo.ops.result import Result
    from openvino.tools.mo.utils.error import Error
-   
-   
+
+
    class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
        """
        Replaces all Result nodes in graph with YoloRegion->Result nodes chain.
        YoloRegion node attributes are taken from configuration file
        """
        replacement_id = 'TFYOLO'  # The identifier matching the "id" attribute in the JSON file.
-   
+
        def run_after(self):
            return [NoOpEraser, StandaloneConstEraser]
-   
+
        def transform_graph(self, graph: Graph, replacement_descriptions):
            op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
            for op_output in op_outputs:
@@ -572,7 +572,7 @@ There are two types of back phase transformations:
 1. :ref:`Pattern-Defined Back Phase Transformations <pattern_defined_back_phase_transformations>` triggered for each sub-graph of the original graph, isomorphic to the specified pattern.
 2. :ref:`Generic Back Phase Transformations <generic_back_phase_transformations>`.
 
-.. note:: 
+.. note::
    The graph layout during the back phase is always NCHW. However, during the front and middle phases it could be NHWC if the original model was using it. For more details, refer to :ref:`Model Conversion Pipeline <mo_model_conversion_pipeline>`.
 
 .. _pattern_defined_back_phase_transformations:
