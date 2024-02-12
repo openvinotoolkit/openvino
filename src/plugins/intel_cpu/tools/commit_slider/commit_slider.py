@@ -44,6 +44,11 @@ elif args.isWorkingDir:
 
     commitList.reverse()
     p = Mode.factory(cfgData)
+
+    p.commonLogger.info(
+                "prepare run.\n cfg={}\n list {}:{}".format(
+                    cfgData, commitList[0], commitList[-1])
+            )
     p.run(commitList, cfgData)
     p.printResult()
 

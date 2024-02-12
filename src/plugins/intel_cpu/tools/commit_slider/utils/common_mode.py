@@ -106,10 +106,6 @@ class Mode(ABC):
                 )
 
     def prepareRun(self, list, cfg):
-        self.commonLogger.info(
-                    "prepare run. start, list {}:{}".format(
-                        list[0], list[-1])
-                )
         self.normalizeCfg(cfg)
         cfg["serviceConfig"] = {}
         # check prerun-cashed commits
@@ -125,10 +121,6 @@ class Mode(ABC):
                 list = newList
         else:
             self.preliminaryCheck(list, cfg)
-        self.commonLogger.info(
-                    "prepare run. end, list {}:{}".format(
-                        list[0], list[-1])
-                )
         return list
 
     def normalizeCfg(self, cfg):
