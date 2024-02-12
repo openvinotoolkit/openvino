@@ -5,9 +5,9 @@ import itertools
 import os
 import re
 import warnings
-import defusedxml.ElementTree as ET
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import InferAPI
@@ -150,10 +150,15 @@ class CommonLayerTest:
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
             ie_out_name = framework_out_name
-
-            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
-                            atol=framework_eps,
-                            rtol=framework_eps):
+            if infer_res[ie_out_name].dtype.type == np.str_ or infer_res[ie_out_name].dtype.type == str:
+                ov_result = infer_res[ie_out_name].astype(bytes)
+                fw_result = framework_res[framework_out_name].astype(bytes)
+                if not np.array_equal(ov_result, fw_result):
+                    is_ok = False
+                    print("Not equal elements in string tensor results")
+            elif not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
+                              atol=framework_eps,
+                              rtol=framework_eps):
                 is_ok = False
                 print("Max diff is {}".format(
                     np.array(
