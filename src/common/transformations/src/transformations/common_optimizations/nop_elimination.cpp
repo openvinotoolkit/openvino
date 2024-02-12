@@ -865,12 +865,25 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
         if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
             return false;
         }
+
+        auto align_vectors = [](std::vector<int64_t>& vec_1,
+                                std::vector<int64_t>& vec_2) {
+            auto max_size = std::max(vec_1.size(), vec_2.size());
+            while (vec_1.size() < max_size) {
+                vec_1.push_back(0);
+            }
+            while (vec_2.size() < max_size) {
+                vec_2.push_back(0);
+            }
+            return;
+        };
         auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
         if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
-            const auto& values = begin_constant_node->cast_vector<int64_t>();
+            auto values = begin_constant_node->cast_vector<int64_t>();
             auto begin_mask = strided_slice_node->get_begin_mask();
-            const auto dim_size = std::min(begin_mask.size(), values.size());
-            for (size_t i = 0; i < dim_size; ++i) {
+            // align begin_mask and values_vec by length
+            align_vectors(values, begin_mask);
+            for (size_t i = 0; i < begin_mask.size(); ++i) {
                 // if mask == 1 then ignore the begin_mask_value else check
                 // if values[i] == 0 then take whole tensor else take part of a tensor
                 if (!begin_mask[i] && values[i]) {
@@ -883,10 +896,11 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
 
         auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
         if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
-            const auto& values = end_constant_node->cast_vector<int64_t>();
+            auto values = end_constant_node->cast_vector<int64_t>();
             auto end_mask = strided_slice_node->get_end_mask();
-            const auto dim_size = std::min(end_mask.size(), values.size());
-            for (size_t i = 0; i < dim_size; ++i) {
+            // align end_mask and values_vec by length
+            align_vectors(values, end_mask);
+            for (size_t i = 0; i < end_mask.size(); ++i) {
                 // if mask == 1 then ignore the begin_mask_value else check
                 // if values[i] == max then take whole tensor else take part of a tensor
                 if (!end_mask[i] && values[i] != std::numeric_limits<int64_t>::max()) {

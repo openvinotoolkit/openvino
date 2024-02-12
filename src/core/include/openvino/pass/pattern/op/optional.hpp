@@ -25,12 +25,21 @@ public:
     /// \param patterns The pattern to match a graph.
     Optional(
         const std::vector<DiscreteTypeInfo>& type_infos,
-        const OutputVector& patterns = {},
+        const Output<Node>& pattern,
         const pattern::op::ValuePredicate& pred =
             [](const Output<Node>& output) {
                 return true;
             })
-        : Pattern(patterns, pred),
+        : Pattern({pattern}, pred),
+          optional_types(type_infos){};
+    
+    Optional(
+        const std::vector<DiscreteTypeInfo>& type_infos,
+        const pattern::op::ValuePredicate& pred =
+            [](const Output<Node>& output) {
+                return true;
+            })
+        : Pattern({}, pred),
           optional_types(type_infos){};
 
     bool match_value(pattern::Matcher* matcher,
@@ -61,7 +70,7 @@ template <class... NodeTypes>
 std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, OutputVector{input}, pred);
+    return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
 }
 
 template <class... NodeTypes>
