@@ -133,7 +133,7 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0
+          export ASAN_OPTIONS=halt_on_error=0:quarantine_size_mb=128
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
@@ -154,7 +154,7 @@ jobs:
           CXX: clang++
 
       - name: Cmake build - OpenVINO
-        run: ASAN_OPTIONS=halt_on_error=0 cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: ASAN_OPTIONS=halt_on_error=0:quarantine_size_mb=128 cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Cmake install - OpenVINO
         run: |
