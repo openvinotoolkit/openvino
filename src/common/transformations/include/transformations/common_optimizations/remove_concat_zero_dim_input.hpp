@@ -17,7 +17,7 @@ class OPENVINO_API RemoveConcatZeroDimInput;
 class OPENVINO_API DisableRemoveConcatZeroDimInput;
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RemoveConcatZeroDimInput transformation
  * removes input of Concat if the tensor size is equal to 0
  */

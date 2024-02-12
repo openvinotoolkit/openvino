@@ -39,7 +39,7 @@ void OVInferRequestBatchedTests::TearDown() {
     if (m_need_reset_core) {
         ie->set_property({ov::cache_dir()});
         ie.reset();
-        PluginCache::get().reset();
+        ov::test::utils::PluginCache::get().reset();
         ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
         ov::test::utils::removeDir(m_cache_dir);
     }

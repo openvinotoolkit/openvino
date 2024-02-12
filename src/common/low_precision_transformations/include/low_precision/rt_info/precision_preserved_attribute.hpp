@@ -13,12 +13,12 @@
 
 namespace ov {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PrecisionPreservedAttribute defines the precision preserved operation. If the attribute is absent, then an operation is
  * not precision preserved.
  *
  * For more details about the attribute, refer to
- * [PrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_PrecisionPreserved) page in the Inference Engine Developer Guide.
+ * [PrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_PrecisionPreserved) page in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
 public:

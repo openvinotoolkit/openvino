@@ -9,11 +9,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;

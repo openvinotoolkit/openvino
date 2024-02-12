@@ -12,7 +12,7 @@ from openvino.tools.mo.ops.pad import Pad
 
 class ONNXPadToPad(FrontReplacementOp):
     """
-    This transformation converts ONNXPad operation (ONNX semantic) to Pad operation (Inference Engine semantic).
+    This transformation converts ONNXPad operation (ONNX semantic) to Pad operation (OpenVINO semantic).
     Refer to the Op implementation for the operations semantics description.
     """
     op = 'ONNXPad'

@@ -39,12 +39,21 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.epsilon = primitive->epsilon;
+        params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        return impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
     }
 };
 

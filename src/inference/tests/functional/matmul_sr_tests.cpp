@@ -8,11 +8,9 @@
 #include <memory>
 #include <string>
 
-#include "cnn_network_ngraph_impl.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ie_common.h"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"

@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API MimicSetBatchSize;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MimicSetBatchSize transformation relaxes hard-coded output batch dimension of Reshape operation.
  * For Reshape with input shape [in_batch, ...] and pattern value [out_batch, ...] it generates a sub-graph
  * which basically keeps ratio of input and output batch size and performs the following calculation:

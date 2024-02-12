@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API SliceToStridedSlice;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SliceToStridedSlice transformation convert v8::Slice to v1::StridedSlice
  */
 class ov::pass::SliceToStridedSlice : public ov::pass::MatcherPass {
