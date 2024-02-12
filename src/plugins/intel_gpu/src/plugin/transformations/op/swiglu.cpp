@@ -3,10 +3,10 @@
 //
 
 #include "intel_gpu/op/swiglu.hpp"
-#include "validation_util.hpp"
-#include "variadic_split_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "variadic_split_shape_inference.hpp"
 
 namespace ov {
 namespace intel_gpu {

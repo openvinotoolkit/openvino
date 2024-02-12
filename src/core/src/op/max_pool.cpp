@@ -7,8 +7,8 @@
 #include "itt.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/max_pool.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

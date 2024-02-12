@@ -5,7 +5,9 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
@@ -23,7 +25,6 @@
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
@@ -117,9 +118,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
             symbolic_set_up_for_shape(dt, shape);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output.get_tensor().set_tensor_type(output.get_element_type(), shape);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::descriptor::set_tensor_type(output.get_tensor(), output.get_element_type(), shape);
         }
     }
     return true;

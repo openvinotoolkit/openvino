@@ -15,6 +15,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 
 class FunctionsComparator {
 public:
@@ -470,7 +471,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
                 private AttributeStorage<std::shared_ptr<ov::op::util::Variable>>,
                 private AttributeStorage<ov::PartialShape>,
-                private AttributeStorage<ov::Dimension> {
+                private AttributeStorage<ov::Dimension>,
+                private AttributeStorage<std::shared_ptr<ov::StringAlignedBuffer>> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -504,7 +506,8 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ov::op::util::Variable>>().get_attributes_number() +
-               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number() +
+               storage<std::shared_ptr<ov::StringAlignedBuffer>>().get_attributes_number();
     }
 };
 
@@ -966,6 +969,7 @@ private:
     void verify(const std::string& name, const AttrValue& attr_value);
 
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ov::AlignedBuffer>& buffer);
+    void verify_string_aligned_buffer(const std::string& name, const std::shared_ptr<ov::StringAlignedBuffer>& buffer);
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 

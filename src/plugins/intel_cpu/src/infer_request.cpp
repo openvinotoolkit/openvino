@@ -26,14 +26,12 @@ namespace intel_cpu {
 SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_compiled_model(compiled_model) {
-    m_is_legacy_api = m_compiled_model->get_graph()._graph.getConfig().isLegacyApi;
-
     for (const auto& in : get_inputs()) {
-        auto port_name = get_port_name(in, m_is_legacy_api);
+        auto port_name = get_port_name(in);
         m_input_ports_map[port_name] = in;
     }
     for (const auto& out : get_outputs()) {
-        auto port_name = get_port_name(out, m_is_legacy_api);
+        auto port_name = get_port_name(out);
         m_output_ports_map[port_name] = out;
     }
     create_infer_request();
@@ -84,7 +82,7 @@ void SyncInferRequest::commit_states() {
 void SyncInferRequest::redefine_memory_for_input_nodes() {
     const auto cpuInputNodes = m_graph->GetInputNodesMap();
     for (const auto& port : get_inputs()) {
-        std::string name = get_port_name(port, m_is_legacy_api);
+        std::string name = get_port_name(port);
         if (name.empty()) {
             OPENVINO_THROW("compiled model doesn't contain this input port.");
         }
@@ -101,7 +99,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
 void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
     for (auto input : get_inputs()) {
-        std::string input_name = get_port_name(input, m_is_legacy_api);
+        std::string input_name = get_port_name(input);
         if (input_name.empty()) {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);
@@ -345,7 +343,7 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
 }
 
 const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
-    auto name = get_port_name(port, m_is_legacy_api);
+    auto name = get_port_name(port);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         return m_input_ports_map.at(name);
@@ -368,7 +366,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && in_port.get_shape().size() > 0) {
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
-    auto name = get_port_name(in_port, m_is_legacy_api);
+    auto name = get_port_name(in_port);
     auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
@@ -616,7 +614,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             }
             // update tensors in case of multiple output ports with the same name
             for (const auto& out : get_outputs()) {
-                auto port_name = get_port_name(out, m_is_legacy_api);
+                auto port_name = get_port_name(out);
                 if ((name == port_name) && tensor && port != out) {
                     ov::ISyncInferRequest::set_tensor(out, tensor);
                 }
@@ -631,7 +629,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
 
 void SyncInferRequest::push_input_data() {
     for (auto input : get_inputs()) {
-        std::string input_name = get_port_name(input, m_is_legacy_api);
+        std::string input_name = get_port_name(input);
         if (input_name.empty()) {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);

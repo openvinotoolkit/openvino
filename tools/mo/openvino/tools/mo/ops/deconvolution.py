@@ -102,7 +102,7 @@ class Deconvolution(Op):
                                                        ('output_feature_channel', 'input:1'),
                                                        ])
         
-        # is needed to permute Deconv weights from the original TF [H, W, C_OUT, C_IN] into IE [C_IN, C_OUT, H, W]
+        # is needed to permute Deconv weights from the original TF [H, W, C_OUT, C_IN] into OV [C_IN, C_OUT, H, W]
         # but for other nodes in weights subgraph permutations must turned off
         # by marking with MarkSubGraphsWithCorrectLayout even if graph layout is NCHW.
         PermuteAttrs.set_permutation(node.in_node(1), node, node.soft_get('get_weights_permute', None))
