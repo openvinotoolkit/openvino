@@ -99,4 +99,4 @@ jobs:
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
 
-          for i in {1..20}; do TEST_DEVICE=CPU python3 -m pytest --numprocesses logical $INSTALL_TEST_DIR/smoke_tests/test_benchmark_app.py || exit $?; done
+          TEST_DEVICE=CPU python3 -m pytest --numprocesses logical -x $INSTALL_TEST_DIR/smoke_tests/test_benchmark_app.py
