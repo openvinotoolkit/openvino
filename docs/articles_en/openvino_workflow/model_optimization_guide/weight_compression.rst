@@ -54,6 +54,10 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
     * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
 
+  * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all layers including embeddings and the last prediction layer in LLMs. 
+
+  * ``awq`` - boolean parameter that enables AWQ method for more accurate INT4 weight quantization. Especially helpful for full model quantization to 4 bits. Requires dataset.
+
 
 The example below shows data-free 4-bit weight quantization applied on top of OpenVINO IR:
 
@@ -74,7 +78,8 @@ For data-aware weight compression refer to the following `example <https://githu
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
 
 
-The table below shows examples of Text Generation models with different optimization settings:
+The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup when no dataset is used at optimization step.
+The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
 
 .. list-table::
    :widths: 40 55 25 25
@@ -144,6 +149,42 @@ The table below shows examples of Text Generation models with different optimiza
      - INT4_SYM,group_size=64,ratio=0.8
      - 2.98
      - 8.0
+
+
+The following table shows accuracy metric in a data-aware 4-bit weight quantization setup measured on `wikitext dataset <https://arxiv.org/pdf/1609.07843.pdf>`__.
+.. list-table::
+   :widths: 40 55 25 25
+   :header-rows: 1
+
+   * - Model
+     - Optimization
+     - Perplexity
+     - Model Size (Gb)
+   * - meta-llama/llama-7b-chat-hf
+     - FP32
+     - 11.87
+     - 10.3
+   * - meta-llama/llama-7b-chat-hf
+     - INT4_SYM,group_size=128,ratio=1.0,awq=True
+     - 5.07
+     - 2.6
+   * - stabilityai_stablelm-3b-4e1t
+     - FP32
+     - 11.87
+     - 10.3
+   * - stabilityai_stablelm-3b-4e1t
+     - INT4_SYM,group_size=64,ratio=1.0,awq=True
+     - 5.07
+     - 2.6
+   * - HuggingFaceH4/zephyr-7b-beta
+     - FP32
+     - 11.87
+     - 10.3
+   * - HuggingFaceH4/zephyr-7b-beta
+     - INT4_SYM,group_size=128,ratio=0.8
+     - 5.07
+     - 2.6
+   
    
 
 Additional Resources

@@ -11,8 +11,8 @@ comes to generative models, OpenVINO supports:
 
 * Conversion, optimization and inference for text, image and audio generative models, for
   example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.
-* Int8 weight compression for text generation models.
-* Storage format reduction (fp16 precision for non-compressed models and int8 for compressed
+* 8-bit and 4-bit weight compression for text generation models.
+* Storage format reduction (fp16 precision for non-compressed models and int8/int4 for compressed
   models).
 * Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics,
   discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
@@ -144,15 +144,20 @@ also available for CLI interface as the ``--int8`` option.
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression,
-which is supported by OpenVINO. It can be applied to Optimum objects as follows:
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ also provides 4-bit weight compression with ``load_in_4bit`` 
+option and ``OVWeightQuantizationConfig``class to control weight quantization parameters. 
 
 .. code-block:: python
 
-    from nncf import compress_weights, CompressWeightsMode
+    from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
+    import nncf
 
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False)
-    model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
+    model = OVModelForCausalLM.from_pretrained(
+        model_id,
+        export=True,
+        load_in_4bit=True,
+        quantization_config=OVWeightQuantizationConfig(mode=nncf.CompressWeightsMode.INT4_ASYM, ratio=0.8, dataset="ptb"),
+    ) 
 
 
 The optimized model can be saved as usual with a call to ``save_pretrained()``.
