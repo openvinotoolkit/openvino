@@ -155,6 +155,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_PROTOBUF=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
