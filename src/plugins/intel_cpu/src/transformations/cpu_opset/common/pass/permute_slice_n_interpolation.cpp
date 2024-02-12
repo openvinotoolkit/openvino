@@ -23,10 +23,11 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
     auto input_m = pass::pattern::wrap_type<op::v0::Parameter>(pass::pattern::type_matches_any(param_precisions));
     auto const_m = pass::pattern::wrap_type<op::v0::Constant>();
     auto slice_m = pass::pattern::wrap_type<op::v8::Slice>({input_m, const_m, const_m, const_m, const_m}, ov::pass::pattern::consumers_count(1));
-    auto transpose_m = pass::pattern::wrap_type<op::v1::Transpose>({slice_m, const_m});
+    auto transpose_m = pass::pattern::wrap_type<op::v1::Transpose>({slice_m, const_m}, ov::pass::pattern::consumers_count(1));
     auto interpolate_m = pass::pattern::wrap_type<op::v0::Interpolate,
                                                   op::v4::Interpolate,
-                                                  op::v11::Interpolate>({transpose_m, const_m, const_m, const_m});
+                                                  op::v11::Interpolate>({transpose_m, const_m, const_m, const_m},
+                                                  pass::pattern::consumers_count(1));
 
     matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
