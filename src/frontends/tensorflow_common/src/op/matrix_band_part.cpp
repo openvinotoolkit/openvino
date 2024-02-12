@@ -1,3 +1,7 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/less_equal.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -14,7 +18,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector matrix_band_part(const NodeContext& node) {
+OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     // Input tensor and parameters
     auto input = node.get_input(0);
 
