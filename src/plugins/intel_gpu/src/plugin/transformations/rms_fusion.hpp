@@ -12,7 +12,7 @@ namespace intel_gpu {
 class RMSFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RMSFusion", "0");
-    RMSFusion();
+    RMSFusion(uint64_t max_work_group_size);
 };
 
 }   // namespace intel_gpu
