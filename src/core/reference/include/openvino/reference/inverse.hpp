@@ -35,7 +35,7 @@ void lu_decomposition(const T* input,
         // Partial Pivoting
         size_t pivot_row = k;
         for (size_t i = k + 1; i < n; ++i) {
-            if (abs(U[i][k]) > abs(U[pivot_row][k])) {
+            if (std::abs(U[i][k]) > std::abs(U[pivot_row][k])) {
                 pivot_row = i;
             }
         }
