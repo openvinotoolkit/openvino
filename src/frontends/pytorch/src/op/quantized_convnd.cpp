@@ -23,16 +23,16 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     auto input = context.get_input(0);
     auto packed_params_node =
         std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
-    FRONT_END_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
+    PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
-    FRONT_END_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
-                                  "Packed params input node does not contain information about op type.");
-    FRONT_END_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
-                                  "Incorrect packed params input node operator type, expected prim::GetAttr.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
+                                "Packed params input node does not contain information about op type.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
+                                "Incorrect packed params input node operator type, expected prim::GetAttr.");
     auto packed_params = packed_params_node->inputs();
 
-    FRONT_END_OP_CONVERSION_CHECK(packed_params.size() == 6,
-                                  "Packed parameters for quantized conv should contain 6 items.");
+    PYTORCH_OP_CONVERSION_CHECK(packed_params.size() == 6,
+                                "Packed parameters for quantized conv should contain 6 items.");
     // Packed params: weight, bias, stride, padding, dilation, groups
     auto weight = packed_params[0].get_source_output();
     auto bias = packed_params[1].get_source_output();

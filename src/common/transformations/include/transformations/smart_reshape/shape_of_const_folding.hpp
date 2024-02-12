@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ShapeOfConstFolding constantfolds ShapeOf->Constant subgraph
  */
 class TRANSFORMATIONS_API ShapeOfConstFolding : public MatcherPass {

@@ -4,8 +4,6 @@
 
 #include "cache_guard.hpp"
 
-#include "ie_common.h"
-
 namespace ov {
 
 CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
