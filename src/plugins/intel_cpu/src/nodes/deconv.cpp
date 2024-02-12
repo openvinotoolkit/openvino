@@ -518,7 +518,7 @@ void Deconvolution::getSupportedDescriptors() {
         const auto& rank = getInputShapeAtPort(0).getRank();
         auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
                       : rank == 4 ? dnnl::memory::format_tag::nhwc
-                                  : dnnl::memory::format_tag::ntc;
+                                  : dnnl::memory::format_tag::nwc;
         MemoryDescPtr in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
         createDescriptor({in_candidate}, {out_candidate});
