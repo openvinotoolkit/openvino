@@ -5,9 +5,9 @@ import itertools
 import os
 import re
 import warnings
-import defusedxml.ElementTree as ET
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import InferAPI
