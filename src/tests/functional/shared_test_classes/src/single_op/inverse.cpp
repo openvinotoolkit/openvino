@@ -59,7 +59,7 @@ void InverseLayerTest::SetUp() {
 
     auto inverse = std::make_shared<ov::op::v14::Inverse>(inputs[0], adjoint);
 
-    ov::ResultVector results{std::make_shared<ov::opset10::Result>(inverse)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(inverse)};
     function = std::make_shared<ov::Model>(results, params, "Inverse");
 }
 

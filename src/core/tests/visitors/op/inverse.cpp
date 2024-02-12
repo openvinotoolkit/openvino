@@ -9,12 +9,11 @@
 #include "openvino/op/unique.hpp"
 #include "visitors/visitors.hpp"
 
-using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, inverse) {
     NodeBuilder::opset().insert<ov::op::v14::Inverse>();
-    const auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
 
     const auto op = std::make_shared<ov::op::v14::Inverse>(data, true);
     NodeBuilder builder(op, {data});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -14,7 +14,7 @@ using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 static const TypeToNameMap& get_type_to_name_tbl() {
     static const TypeToNameMap type_to_name_tbl = {
         {"Constant", Type::Input},
-        {"Parameter", Type::Input},
+        {"Parameter", Type::Input}, 
         {"Result", Type::Output},
         {"Eye", Type::Eye},
         {"Convolution", Type::Convolution},
