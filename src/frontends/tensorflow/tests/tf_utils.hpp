@@ -25,7 +25,8 @@ std::shared_ptr<Model> convert_model(const std::string& model_path,
                                      const std::vector<ov::PartialShape>& input_shapes = {},
                                      const std::vector<std::string>& input_names_to_freeze = {},
                                      const std::vector<void*>& freeze_values = {},
-                                     const bool disable_mmap = false);
+                                     const bool disable_mmap = false,
+                                     const std::vector<std::string>& output_names = {});
 
 }  // namespace tests
 }  // namespace tensorflow

@@ -201,3 +201,26 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
     }
 }
+
+TEST(FrontEndConvertModelTest, test_uninitialized_variablev2) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("unitialized_variablev2/unitialized_variablev2.pb",
+                              nullptr,
+                              {"x"},
+                              {element::f32},
+                              {Shape{3, 2}},
+                              {},
+                              {},
+                              false,
+                              {"mul"});
+        FAIL() << "The model with VariableV2 node must not be converted due to incorrect uninitialized VariableV2.";
+    } catch (const OpConversionFailure& error) {
+        std::string error_message = error.what();
+        std::string ref_message = "Variable or resource `variable_yy2` is not initialized, model is inconsistent";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of the model with VariableV2 failed by wrong reason.";
+    }
+}
