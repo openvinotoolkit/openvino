@@ -62,7 +62,7 @@ def download(test_data_dir, file_path):
             assert file_path.exists()
             return file_path
         except BaseException as error:
-            if not (isinstance(error, FileNotFoundError) or isinstance(error, PermissionError)):
+            if not (isinstance(error, FileExistsError) or isinstance(error, PermissionError)):
                 print(error)
                 raise
         time.sleep(1.0)
