@@ -402,7 +402,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // To preserve correct math for integer division we need to insert explicit Floor operation.
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
+
     CPU_REGISTER_PASS_COMMON(manager, PermuteSliceAndInterpolation);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(manager,

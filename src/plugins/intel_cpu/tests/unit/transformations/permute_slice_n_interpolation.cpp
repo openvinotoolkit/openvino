@@ -11,12 +11,7 @@
 
 using namespace testing;
 
-class PermuteSliceInterpolateTest: public TransformationTestsF {
-public:
-    PermuteSliceInterpolateTest() {
-        disable_result_friendly_names_check();
-    }
-};
+class PermuteSliceInterpolateTest: public TransformationTestsF {};
 
 TEST_F(PermuteSliceInterpolateTest, 3D) {
     const ov::Shape in_shape{1, 200, 4};
