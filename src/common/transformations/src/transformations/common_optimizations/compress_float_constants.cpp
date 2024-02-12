@@ -3,12 +3,20 @@
 //
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/reference/convert.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -62,7 +70,69 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
         return new_constant;
     }
 }
+
+using namespace ov::pass;
+
+class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
+public:
+    DetectFakeQuantizeOrFakeConvert() {
+        auto root = pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
+
+        ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(root, "DetectFakeQuantizeOrFakeConvert");
+        register_matcher(m, callback);
+    }
+};
+
+class DetectCompressedWeights : public MatcherPass {
+public:
+    DetectCompressedWeights() {
+        auto weights = pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({ov::element::i4,
+                                                                                           ov::element::u4,
+                                                                                           ov::element::i8,
+                                                                                           ov::element::u8,
+                                                                                           ov::element::nf4,
+                                                                                           ov::element::f8e4m3,
+                                                                                           ov::element::f8e5m2}));
+        auto convert = pattern::wrap_type<ov::op::v0::Convert>({weights});
+        auto zero_point_const = pattern::wrap_type<ov::op::v0::Constant>();
+        auto zero_point = pattern::optional<ov::op::v0::Convert>(zero_point_const);
+        auto subtract = pattern::wrap_type<ov::op::v1::Subtract>({convert, zero_point});
+        auto subtract_or_convert = std::make_shared<pattern::op::Or>(ov::OutputVector{convert, subtract});
+        auto multiply =
+            pattern::wrap_type<ov::op::v1::Multiply>({subtract_or_convert, pattern::wrap_type<ov::op::v0::Constant>()});
+
+        ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(multiply, "DetectCompressedWeights");
+        register_matcher(m, callback);
+    }
+};
+
+bool is_model_optimized(const std::shared_ptr<ov::Model>& model) {
+    Manager manager;
+    auto detect_optimized_model = manager.register_pass<GraphRewrite>();
+    detect_optimized_model->add_matcher<DetectFakeQuantizeOrFakeConvert>();
+    detect_optimized_model->add_matcher<DetectCompressedWeights>();
+    return manager.run_passes(model);
+}
+
 }  // namespace
+
+
+void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) {
+    if (!is_model_optimized(model)) {
+        Manager manager;
+        manager.register_pass<MarkPrecisionSensitiveConstants>();
+        manager.register_pass<CompressFloatConstants>(postponed);
+        manager.run_passes(model);
+    }
+}
 
 ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);

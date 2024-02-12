@@ -14,6 +14,8 @@ class TRANSFORMATIONS_API CompressFloatConstantsImpl;
 class TRANSFORMATIONS_API AddOldApiMapToParameters;
 class TRANSFORMATIONS_API CompressFloatConstants;
 
+void TRANSFORMATIONS_API compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed = false);
+
 }  // namespace pass
 }  // namespace ov
 
