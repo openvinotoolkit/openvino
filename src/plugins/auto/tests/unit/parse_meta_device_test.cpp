@@ -36,9 +36,8 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _, _)).WillByDefault(Throw(ov::Exception("")));
-        ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
-            .WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _, _)).WillByDefault(ov::Throw(""));
+        ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _)).WillByDefault(ov::Throw(""));
         ON_CALL(*plugin, parse_meta_devices)
             .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
                 return plugin->Plugin::parse_meta_devices(priorityDevices, config);

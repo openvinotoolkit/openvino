@@ -21,9 +21,9 @@ OutputVector translate_layer_norm(const NodeContext& context) {
     num_inputs_check(context, 5, 6);
     auto eps = context.const_input<float>(4);
     auto normalized_shape = context.const_input<Shape>(1);
-    FRONT_END_OP_CONVERSION_CHECK(normalized_shape.size() == 1,
-                                  "Translation for aten::layer_norm supports only single normalized_shape value, "
-                                  "which means normalizing over the last dimension.");
+    PYTORCH_OP_CONVERSION_CHECK(normalized_shape.size() == 1,
+                                "Translation for aten::layer_norm supports only single normalized_shape value, "
+                                "which means normalizing over the last dimension.");
     // TODO: support any dimension
     auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto out_node =

@@ -118,7 +118,7 @@ protected:
                 return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         compare(expectedOutputs, actualOutputs);
     }

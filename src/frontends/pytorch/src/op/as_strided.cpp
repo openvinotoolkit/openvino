@@ -32,8 +32,8 @@ OutputVector translate_as_strided(const NodeContext& context) {
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto input_strides = decoder->get_input_strides(0);
-    FRONT_END_OP_CONVERSION_CHECK(input_strides.size() != 0,
-                                  "aten::as_strided: Couldn't retrive input stride information from torchscript.");
+    PYTORCH_OP_CONVERSION_CHECK(input_strides.size() != 0,
+                                "aten::as_strided: Couldn't retrive input stride information from torchscript.");
 
     std::vector<size_t> idxs(input_strides.size());
     iota(idxs.begin(), idxs.end(), 0);
@@ -77,8 +77,8 @@ OutputVector translate_as_strided(const NodeContext& context) {
     if (!context.input_is_none(3)) {
         offset = context.get_input(3);
     }
-    FRONT_END_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
-                                  "aten::as_strided: Vector for strides and sizes need to have equal length.");
+    PYTORCH_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
+                                "aten::as_strided: Vector for strides and sizes need to have equal length.");
     auto strides_size = strides.size() - 1;
     auto i = 0;
     auto strides_length_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides.size()}));

@@ -33,7 +33,7 @@ def get_simplified_ie_version(version=None):
     if version is None:
         version = get_version()
 
-    # To support legacy IE versions
+    # To support legacy OV versions
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))

@@ -4,14 +4,9 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-
-#include "any_copy.hpp"
 #include "cache_guard.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
-#include "ie_cache_manager.hpp"
-#include "ie_icore.hpp"
+#include "cache_manager.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -51,9 +46,7 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
-std::string find_plugins_xml(const std::string& xmlFile);
-
-class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
+class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> plugins;
     // Mutex is needed to prevent changes of dev mutexes map from different threads
@@ -150,8 +143,6 @@ private:
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
-    const bool m_new_api;
-
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(ov::Plugin& plugin,
                                                           const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& parsedConfig,
@@ -189,14 +180,8 @@ private:
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
-    // Legacy API
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
-        const InferenceEngine::CNNNetwork& model,
-        ov::Plugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig);
-
 public:
-    CoreImpl(bool _newAPI);
+    CoreImpl();
 
     ~CoreImpl() override = default;
 
@@ -216,63 +201,6 @@ public:
      * @brief Register plugins according to the build configuration
      */
     void register_compile_time_plugins();
-
-    //
-    // ICore public API
-    //
-
-    InferenceEngine::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override;
-
-    InferenceEngine::CNNNetwork ReadNetwork(const std::string& model,
-                                            const InferenceEngine::Blob::CPtr& weights,
-                                            bool frontendMode = false) const override;
-
-    bool isNewAPI() const override;
-
-    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
-                                                             const std::string& deviceNameOrig,
-                                                             const std::map<std::string, std::string>& config) override;
-
-    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(
-        const std::string& modelPath,
-        const std::string& deviceName,
-        const std::map<std::string, std::string>& config,
-        const std::function<void(const InferenceEngine::CNNNetwork&)>& val = nullptr) override;
-
-    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(
-        const std::string& modelStr,
-        const InferenceEngine::Blob::CPtr& weights,
-        const std::string& deviceName,
-        const std::map<std::string, std::string>& config,
-        const std::function<void(const InferenceEngine::CNNNetwork&)>& val = nullptr) override;
-
-    InferenceEngine::SoExecutableNetworkInternal ImportNetwork(
-        std::istream& networkModel,
-        const std::string& deviceName,
-        const std::map<std::string, std::string>& config) override;
-
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                     const std::string& deviceName,
-                                                     const std::map<std::string, std::string>& config) const override;
-
-    Any GetMetric(const std::string& deviceName, const std::string& name, const AnyMap& options = {}) const override;
-
-    Any GetConfig(const std::string& deviceName, const std::string& name) const override;
-
-    /**
-     * @brief Returns devices available for neural networks inference
-     *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, NPU }
-     * If there more than one device of specific type, they are enumerated with .# suffix.
-     */
-    std::vector<std::string> GetAvailableDevices() const override;
-
-    std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
-                                                          const std::map<std::string, std::string>& configs) override;
-
-    bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
-
-    std::map<std::string, ov::Version> GetVersions(const std::string& deviceName) const;
 
     // Common API
 
@@ -359,9 +287,9 @@ public:
 
     ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config, const bool keep_core_property = true) const override;
 
-    bool is_new_api() const override;
-
     ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
+
+    std::map<std::string, ov::Version> get_versions(const std::string& deviceName) const;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.

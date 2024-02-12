@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConcatFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConcatFusion transformation fuses sequence of Concats
  */
 
