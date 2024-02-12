@@ -9,7 +9,7 @@ Inverse
 
 **Versioned name**: *Inverse-14*
 
-**Category**: *Linear Algebra*
+**Category**: *Matrix*
 
 **Short description**: *Inverse* operation computes either the inverse or adjoint (conjugate transposes) of one or more square invertible matrices.
 
