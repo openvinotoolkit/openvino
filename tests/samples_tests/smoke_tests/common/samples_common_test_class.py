@@ -52,7 +52,7 @@ def download(test_data_dir, file_path):
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
     for _ in range(9999):  # Give up after about 3 hours
-        with contextlib.suppress(FileExistsError, PermissionError):
+        try:
             with lock_path.open('x'):
                 if not file_path.exists():
                     response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
@@ -61,6 +61,10 @@ def download(test_data_dir, file_path):
             lock_path.unlink(missing_ok=True)
             assert file_path.exists()
             return file_path
+        except BaseException as error:
+            if not (isinstance(error, FileNotFoundError) or isinstance(error, PermissionError)):
+                print(error)
+                raise
         time.sleep(1.0)
 
 
