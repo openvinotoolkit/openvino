@@ -116,8 +116,7 @@ void max_pool_2d(const Values_t* data,
                  const Strides& kernel_dilations,
                  const Shape& pads_begin,
                  const Shape& pads_end,
-                 const size_t indices_offset,
-                 const ov::op::RoundingType rounding_type) {
+                 const size_t indices_offset) {
     validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
 
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
@@ -235,8 +234,7 @@ void max_pool(const Values_t* data,
               const Strides& dilations,
               const Shape& pads_begin,
               const Shape& pads_end,
-              const int64_t axis,
-              const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR) {
+              const int64_t axis = 0) {
     const auto data_batch_elems = shape_size(std::begin(data_shape) + 1, std::end(data_shape));
     const auto data_channel_elems = shape_size(std::begin(data_shape) + 2, std::end(data_shape));
 
@@ -257,7 +255,6 @@ void max_pool(const Values_t* data,
             const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
             if (data_shape.size() == 3) {
-                std::cout << "\n\ndata_shape.size() == 3\n\n";
                 kernel::max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -270,7 +267,6 @@ void max_pool(const Values_t* data,
                                                          pads_end[0],
                                                          indices_offset);
             } else if (data_shape.size() == 4) {
-                std::cout << "\n\ndata_shape.size() == 4\n\n";
                 kernel::max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -281,10 +277,8 @@ void max_pool(const Values_t* data,
                                                          dilations,
                                                          pads_begin,
                                                          pads_end,
-                                                         indices_offset,
-                                                         rounding_type);
+                                                         indices_offset);
             } else if (data_shape.size() == 5) {
-                std::cout << "\n\ndata_shape.size() == 5\n\n";
                 kernel::max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -324,11 +318,9 @@ void max_pool(const Value_t* data,
               const Shape& kernel,
               const Strides& strides,
               const Shape& pads_begin,
-              const Shape& pads_end,
-              const ov::op::RoundingType rounding_type) {
+              const Shape& pads_end) {
     std::vector<int32_t> indices(shape_size(out_shape));
     const Strides dilations(kernel.size(), 1);
-    const int64_t axis {0};
     max_pool<Value_t, int32_t>(data,
                                values,
                                indices.data(),
@@ -338,9 +330,7 @@ void max_pool(const Value_t* data,
                                strides,
                                dilations,
                                pads_begin,
-                               pads_end,
-                               axis,
-                               rounding_type);
+                               pads_end);
 }
 }  // namespace reference
 }  // namespace ov
