@@ -1,15 +1,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
+ message("flatbuf_cmake 0")
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_CPP_STD ${CMAKE_CXX_STANDARD})
 
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
+    message("flatbuf_cmake 1")
     set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
 else()
+    message("flatbuf_cmake 2")
     set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 endif()
 
@@ -20,15 +22,18 @@ add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 # build flatc using cross-compilation
 
 if(FLATBUFFERS_BUILD_FLATC)
+    message("flatbuf_cmake 3")
     if(CMAKE_COMPILER_IS_GNUCXX)
+        message("flatbuf_cmake 4")
         set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
     endif()
-
+    message("flatbuf_cmake 5")
     set(flatbuffers_COMPILER $<TARGET_FILE:flatc> PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY flatc PARENT_SCOPE)
 else()
     set(HOST_FLATC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
-
+    
+    message("flatbuf_cmake 6")
     ov_native_compile_external_project(
         TARGET_NAME host_flatc
         NATIVE_INSTALL_DIR "${HOST_FLATC_INSTALL_DIR}"
@@ -40,6 +45,7 @@ else()
         NATIVE_SOURCE_SUBDIR "flatbuffers"
         NATIVE_TARGETS flatc)
 
+    message("flatbuf_cmake 7")
     set(flatbuffers_COMPILER "${HOST_FLATC_INSTALL_DIR}/bin/flatc")
     add_executable(flatbuffers::flatc IMPORTED GLOBAL)
     set_property(TARGET flatbuffers::flatc APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
@@ -54,6 +60,7 @@ else()
     set(flatbuffers_DEPENDENCY host_flatc PARENT_SCOPE)
     set(flatbuffers_COMPILER "${flatbuffers_COMPILER}" PARENT_SCOPE)
 endif()
+message("flatbuf_cmake 8")
 
 # set parent scope
 
