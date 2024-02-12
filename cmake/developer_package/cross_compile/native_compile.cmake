@@ -35,19 +35,19 @@ function(ov_native_compile_external_project)
 
         # set root path
         if(YOCTO_AARCH64)
-            message("ov_native_compile_external_project 3 YOCTO_AARCH64 - root_path $ENV{OECORE_NATIVE_SYSROOT} ")
+            message("ov_native_compile_external_project 3 YOCTO_AARCH64 - root_path ENV OECORE_NATIVE_SYSROOT ")
             set(root_path "$ENV{OECORE_NATIVE_SYSROOT}")
         elseif(EMSCRIPTEN)
-            message("ov_native_compile_external_project 4 EMSCRIPTEN - root_path $ENV{EMSDK}")
+            message("ov_native_compile_external_project 4 EMSCRIPTEN - root_path ENV EMSDK")
             set(root_path "$ENV{EMSDK}")
         endif()
 
         # filter out PATH from yocto locations
         string(REPLACE ":" ";" custom_path "$ENV{PATH}")
         foreach(path IN LISTS custom_path)
-            message("ov_native_compile_external_project 5 foreach(path IN LISTS custom_path)")
+            message("ov_native_compile_external_project 5 foreach path IN LISTS custom_path")
             if(DEFINED root_path AND NOT path MATCHES "^${root_path}")
-                message("ov_native_compile_external_project 6 DEFINED root_path AND NOT ... APPEND clean_path "${path} ")
+                message("ov_native_compile_external_project 6 DEFINED root_path AND NOT ... APPEND clean_path ${path} ")
                 list(APPEND clean_path "${path}")
             endif()
         endforeach()
@@ -123,8 +123,8 @@ function(ov_native_compile_external_project)
         list(APPEND ARG_CMAKE_ARGS "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}")
     endif()
     
-    message("ov_native_compile_external_project 21 \n - SOURCE_DIR: ${CMAKE_CURRENT_SOURCE_DIR} \n - PREFIX: ${CMAKE_CURRENT_BINARY_DIR} \n - BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}/build") 
-    message("ov_native_compile_external_project 21 \n - CMAKE_COMMAND: ${NATIVE_CMAKE_COMMAND} -E env ${cmake_env} ${NATIVE_CMAKE_COMMAND} \n - CMAKE_ARGS: ${ARG_CMAKE_ARGS}")  
+    message("ov_native_compile_external_project 21 \n - SOURCE_DIR: ${CMAKE_CURRENT_SOURCE_DIR} \n - PREFIX: ${CMAKE_CURRENT_BINARY_DIR} \n - BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}/build")
+    message("ov_native_compile_external_project 21 \n - CMAKE_COMMAND: ${NATIVE_CMAKE_COMMAND} -E env ${cmake_env} ${NATIVE_CMAKE_COMMAND} \n - CMAKE_ARGS: ${ARG_CMAKE_ARGS}")
     message("ov_native_compile_external_project 21 \n - CMAKE_GENERATOR: ${CMAKE_GENERATOR} \n ARG_NATIVE_TARGETS: ${ARG_NATIVE_TARGETS}")
     
     ExternalProject_Add(${ARG_TARGET_NAME}
