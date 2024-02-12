@@ -518,3 +518,79 @@ TEST(type_prop, max_pool_v14_4D_with_dilations_and_auto_pad_same_upper) {
     EXPECT_EQ(mp->get_pads_begin(), (Shape{2, 3}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{2, 3}));
 }
+
+TEST(type_prop, max_pool_v14_4D_static_dims_ceil_mode) {
+    const PartialShape arg_shape{1, 3, 8, 8};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape =
+        PartialShape{1, 3, 5, 5};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_static_dims_ceil_mode2) {
+    const PartialShape arg_shape{1, 3, 3, 3};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape =
+        PartialShape{1, 3, 2, 2};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_static_dims_ceil_mode3) {
+    const PartialShape arg_shape{1, 3, 4, 4};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape =
+        PartialShape{1, 3, 3, 3};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_static_dims_floor_mode3) {
+    const PartialShape arg_shape{1, 3, 4, 4};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::FLOOR;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape =
+        PartialShape{1, 3, 3, 3};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}

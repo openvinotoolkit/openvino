@@ -85,6 +85,7 @@ void max_pool_1d(const Values_t* data,
                  const size_t pads_end,
                  const size_t indices_offset) {
     int kernel_position = 0 - static_cast<int>(pads_begin);
+    std::cout << "\n\n\nHERE1D I AM\n\n\n";
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
         Values_t max_elem = std::numeric_limits<Values_t>::lowest();
@@ -115,7 +116,8 @@ void max_pool_2d(const Values_t* data,
                  const Strides& kernel_dilations,
                  const Shape& pads_begin,
                  const Shape& pads_end,
-                 const size_t indices_offset) {
+                 const size_t indices_offset,
+                 const ov::op::RoundingType rounding_type) {
     validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
 
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
@@ -137,8 +139,6 @@ void max_pool_2d(const Values_t* data,
                     const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[kernel_H],
                                                       kernel_col * kernel_dilations[kernel_W]};
 
-                    // ignore the elements in the padding area if rounding_type is set to FLOOR
-                    //if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape) && rounding_type == op::RoundingType::FLOOR) {
                     if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
                         // index of the flattened tensor element under the current row & column of the kernel
                         const size_t data_elem_index =
@@ -173,7 +173,7 @@ void max_pool_3d(const Values_t* data,
                  const Shape& pads_end,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
-
+    std::cout << "\n\n\nHERE3D I AM\n\n\n";
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;
@@ -235,7 +235,8 @@ void max_pool(const Values_t* data,
               const Strides& dilations,
               const Shape& pads_begin,
               const Shape& pads_end,
-              const int64_t axis = 0) {
+              const int64_t axis,
+              const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR) {
     const auto data_batch_elems = shape_size(std::begin(data_shape) + 1, std::end(data_shape));
     const auto data_channel_elems = shape_size(std::begin(data_shape) + 2, std::end(data_shape));
 
@@ -256,6 +257,7 @@ void max_pool(const Values_t* data,
             const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
             if (data_shape.size() == 3) {
+                std::cout << "\n\ndata_shape.size() == 3\n\n";
                 kernel::max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -268,6 +270,7 @@ void max_pool(const Values_t* data,
                                                          pads_end[0],
                                                          indices_offset);
             } else if (data_shape.size() == 4) {
+                std::cout << "\n\ndata_shape.size() == 4\n\n";
                 kernel::max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -278,8 +281,10 @@ void max_pool(const Values_t* data,
                                                          dilations,
                                                          pads_begin,
                                                          pads_end,
-                                                         indices_offset);
+                                                         indices_offset,
+                                                         rounding_type);
             } else if (data_shape.size() == 5) {
+                std::cout << "\n\ndata_shape.size() == 5\n\n";
                 kernel::max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
                                                          out_channel_first_elem,
                                                          indices_channel_first_elem,
@@ -319,9 +324,11 @@ void max_pool(const Value_t* data,
               const Shape& kernel,
               const Strides& strides,
               const Shape& pads_begin,
-              const Shape& pads_end) {
+              const Shape& pads_end,
+              const ov::op::RoundingType rounding_type) {
     std::vector<int32_t> indices(shape_size(out_shape));
     const Strides dilations(kernel.size(), 1);
+    const int64_t axis {0};
     max_pool<Value_t, int32_t>(data,
                                values,
                                indices.data(),
@@ -331,7 +338,9 @@ void max_pool(const Value_t* data,
                                strides,
                                dilations,
                                pads_begin,
-                               pads_end);
+                               pads_end,
+                               axis,
+                               rounding_type);
 }
 }  // namespace reference
 }  // namespace ov

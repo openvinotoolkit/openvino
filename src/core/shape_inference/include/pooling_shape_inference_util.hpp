@@ -193,6 +193,20 @@ void append_spatial_shape(const TOp* op,
             dim = dim - kernel_dilated;
             dim = dim_divide(dim, stride[i]);
             dim += 1;
+            std::cout << "\nBefore ceil_mode:\n";
+            if (is_ceil_mode && data_dim->is_static()) {
+                // Ensure the last pooling doesn't start in padding.
+                // if ((stride[i] * (dim - 1)) >= (*data_dim + pads_begin[i] + pads_end[i])) {
+                const auto expr1 = stride[i] * dim.get_length();
+                const auto expr2 = data_dim->get_length() + pads_begin[i] + pads_end[i];
+                std::cout << "expr1: " << expr1 << "\nexpr2: " << expr2 << std::endl;
+                //if ((stride[i] * (dim.get_length() - 1)) >= (data_dim->get_length() + pads_begin[i] + pads_end[i])) {
+                //if ((stride[i] * dim.get_length()) >= (data_dim->get_length() + pads_begin[i] + pads_end[i])) {
+                if (expr1 > expr2) {
+                    dim = dim - 1;
+                    std::cout << "\n DIM REDUCED BY 1\n";
+                }
+            }
             out_shape.push_back(std::move(dim));
         } else {
             // If dimension is interval and is auto pad then result is dynamic shape as padding values are not correct.

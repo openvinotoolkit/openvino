@@ -101,7 +101,7 @@ from openvino.runtime.opset4.ops import lstm_cell
 from openvino.runtime.opset5.ops import lstm_sequence
 from openvino.runtime.opset1.ops import matmul
 from openvino.runtime.opset8.ops import matrix_nms
-from openvino.runtime.opset8.ops import max_pool
+from openvino.runtime.opset14.ops import max_pool
 from openvino.runtime.opset1.ops import maximum
 from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish

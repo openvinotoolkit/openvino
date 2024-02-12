@@ -68,7 +68,8 @@ struct Evaluate : element::NoAction<bool> {
                              const Shape& kernel,
                              const Strides& strides,
                              const Shape& pads_begin,
-                             const Shape& pads_end) {
+                             const Shape& pads_end,
+                             const ov::op::RoundingType rounding_type) {
         reference::max_pool(in.data<const T>(),
                             out.data<T>(),
                             in_shape,
@@ -76,7 +77,8 @@ struct Evaluate : element::NoAction<bool> {
                             kernel,
                             strides,
                             pads_begin,
-                            pads_end);
+                            pads_end,
+                            rounding_type);
         return true;
     }
 };
@@ -102,7 +104,8 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
                       get_kernel(),
                       get_strides(),
                       get_pads_begin(),
-                      get_pads_end());
+                      get_pads_end(),
+                      get_rounding_type());
 }
 
 bool MaxPool::has_evaluate() const {
