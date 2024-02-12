@@ -21,6 +21,16 @@ add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 
 # build flatc using cross-compilation
 
+
+# print all FLATBUFFERS-related CMake ENV
+get_cmake_property(_variableNames VARIABLES)
+
+foreach (_variableName ${_variableNames})
+    if (_variableName MATCHES "^FLATBUFFERS.*")
+        message(STATUS "${_variableName}=${${_variableName}}")
+    endif()
+endforeach()
+
 if(FLATBUFFERS_BUILD_FLATC)
     message("flatbuf_cmake 3")
     if(CMAKE_COMPILER_IS_GNUCXX)
@@ -61,6 +71,7 @@ else()
     set(flatbuffers_COMPILER "${flatbuffers_COMPILER}" PARENT_SCOPE)
 endif()
 message("flatbuf_cmake 8")
+
 
 # set parent scope
 
