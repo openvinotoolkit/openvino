@@ -17,7 +17,7 @@ TRANSFORMATIONS_API void enable_divide_conversion(const std::shared_ptr<Node>& n
 TRANSFORMATIONS_API bool divide_is_nonconvertible(const std::shared_ptr<Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief NonconvertibleDivide class represents runtime info attribute that marks
  * a Divide as prohibitted to transform it to power.
  */
