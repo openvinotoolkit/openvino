@@ -40,7 +40,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-api', api) if api else '',
         *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
-        '-niter', '1'
+        '-t', '1'
     )
     assert 'FPS' in output
     if tmp_path:
