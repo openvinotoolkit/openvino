@@ -2,7 +2,7 @@ These tests execute OV samples on pregenerated IR. Test data is downloaded on fi
 
 <INSTALL_DIR> - OpenVINO install directory
 
-You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE (for `Test_model_creation_sample`) and SHARE
+You can run tests not only from the <INSTALL_DIR>, but in this case you need to remember to adjust the environment variables like as WORKSPACE (for `Test_model_creation_sample`)
 
 To install smoke tests:
 ``` bash

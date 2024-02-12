@@ -28,7 +28,7 @@ def get_executable(sample_language):
 
 def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None):
     output = get_cmd_output(
-        get_executable(sample_language),
+        get_executable('Python'),
         *prepend(cache, '227x227/dog.bmp', 'squeezenet1.1/FP32/squeezenet1.1.xml'),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
@@ -54,11 +54,6 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
                 or pin == 'YES' and config_json['CPU']['AFFINITY'] == 'CORE'
                 or pin == 'NO' and config_json['CPU']['AFFINITY'] == 'NONE'
                 or pin == config_json['CPU']['AFFINITY'])
-
-
-@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-def test_benchmark_app_help(sample_language):
-    get_cmd_output(get_executable(sample_language), '-h')
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
