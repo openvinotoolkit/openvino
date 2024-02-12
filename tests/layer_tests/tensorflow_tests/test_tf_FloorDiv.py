@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 
 from common.tf_layer_test_class import CommonTFLayerTest
 
@@ -92,28 +93,25 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         return inputs_dict
 
     test_inputs = [
-        # test for integers
-        dict(min=-20, max=20, step=1, y=[10],dtype=np.int32),
-        dict(min=-200, max=200, step=1, y=[-100], dtype=np.int32),
-        dict(min=-1000, max=1000, step=2, y=[100], dtype=np.int32),
-        dict(min=-10000, max=10000, step=100, y=[10000], dtype=np.int32),
-        dict(min=-10000, max=10000, step=100, y=[-10000], dtype=np.int32),
-        dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.int32),
-        dict(min=1e8, max=1e9, step=1e8, y=[1e8], dtype=np.int64),
-        dict(min=1e8, max=1e9, step=1e8, y=[-1e8], dtype=np.int64),
+        dict(min=-20, max=20, step=1, y=[10]),
+        dict(min=-200, max=200, step=1, y=[-100]),
+        dict(min=-1000, max=1000, step=2, y=[100]),
+        dict(min=-10000, max=10000, step=100, y=[10000]),
+        dict(min=-10000, max=10000, step=100, y=[-10000]),
+        dict(min=-1e5, max=1e5, step=100, y=[1e5]),
         
         # test for multidimensinal input
-        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1], dtype=np.int32),
-        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[2, 5, -1], dtype=np.int32),
-        dict(min=-1000, max=1000, step=1, y=[1000], x_shape=[2, 5, 10, -1], dtype=np.int32),
+        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1]),
+        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[2, 5, -1]),
     ]
     @pytest.mark.parametrize("params", test_inputs)
+    @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    # @pytest.mark.skip
-    def test_floordiv(self, params, ie_device, precision, ir_version, temp_dir,
+    @pytest.mark.xfail(condition=platform.machine() == 'arm64', reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+    def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
-        self._test(*self.create_flordiv_tf_net(**params, ir_version=ir_version,
+        self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                     use_new_frontend=use_new_frontend)

@@ -36,7 +36,7 @@ class TestDiv(CommonTFLayerTest):
         dict(input_shape=[10, 20], input_type=np.float32),
         dict(input_shape=[2, 3, 4], input_type=np.float32),
         pytest.param(dict(input_shape=[8, 5], input_type=np.int32),
-                              marks=pytest.mark.xfail(reason='Ticket TBD - Divide inconsistent behavior on different systems')),
+                              marks=pytest.mark.xfail(reason='Ticket CVS-122715 - Divide inconsistent behavior on different systems')),
         dict(input_shape=[], input_type=np.float32),
     ]
 
