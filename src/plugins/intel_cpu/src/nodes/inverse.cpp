@@ -48,7 +48,7 @@ void Inverse::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges.");
     }
-    if (getChildEdges().size() != 1) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges.");
     }
 }
