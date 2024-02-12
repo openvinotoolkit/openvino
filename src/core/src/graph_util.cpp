@@ -329,10 +329,6 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
 
-namespace {
-
-}  // namespace
-
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     // TODO: Implement on-the-fly compression in pass::Serialize

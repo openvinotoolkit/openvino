@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -12,13 +11,14 @@
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/reference/convert.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
@@ -123,7 +123,6 @@ bool is_model_optimized(const std::shared_ptr<ov::Model>& model) {
 }
 
 }  // namespace
-
 
 void ov::pass::compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) {
     if (!is_model_optimized(model)) {
