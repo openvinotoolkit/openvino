@@ -13,6 +13,7 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -273,9 +274,7 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
 }
 
 void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::descriptor::set_tensor_type(get_output_descriptor(i).get_tensor(), element_type, pshape);
 }
 
 std::string ov::Node::description() const {

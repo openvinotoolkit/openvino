@@ -13,12 +13,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TransposeTransformation propagates dequantization operations through Transpose operation.
  *
  * For more details about the transformation, refer to
  * [TransposeTransformation](@ref openvino_docs_OV_UG_lpt_TransposeTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API TransposeTransformation : public LayerTransformation {
 public:

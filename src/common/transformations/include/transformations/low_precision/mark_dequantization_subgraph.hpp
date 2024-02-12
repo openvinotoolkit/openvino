@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkDequantizationSubgraph marks dequantization subgraph, that is:
  *     Convert->Subtract(optional)->Multiply
  * in two ways:

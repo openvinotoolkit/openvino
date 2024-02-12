@@ -45,8 +45,8 @@ def make_node_names_unique(nodes: list, node_names: set):
 
 class NamesUniquenessCheck(BackReplacementPattern):
     """
-    If there are several layers with the same name in the original model and they are saved in the IR, IE will fail with
-    the invalid IR error. IE checks the uniqueness of the names and, if it is not true, throws an exception. The way how
+    If there are several layers with the same name in the original model and they are saved in the IR, OV will fail with
+    the invalid IR error. OV checks the uniqueness of the names and, if it is not true, throws an exception. The way how
     to fix it on the MO side is to rename this nodes (one node will remain with the original name). Since we prefer to
     save framework names for the output nodes, nodes with op=Result will not be renamed, except the case when there are
     several Result nodes with the same name.

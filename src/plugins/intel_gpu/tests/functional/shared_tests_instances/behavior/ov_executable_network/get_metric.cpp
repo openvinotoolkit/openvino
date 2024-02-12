@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelSetIncorrectConfigTest,
                          ::testing::Values("GPU"));
 
 
-// IE Class Load network
+// OV Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("GPU"));
 
 const std::vector<ov::AnyMap> incorrect_device_priorities_properties = {{ov::device::priorities("NONE")},

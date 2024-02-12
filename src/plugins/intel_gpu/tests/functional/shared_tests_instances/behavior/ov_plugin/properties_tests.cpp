@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
                          ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU")));
 
 // //
-// // IE Class GetMetric
+// // OV Class GetMetric
 // //
 
 INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
@@ -726,7 +726,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair("GPU", "1")));
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,
