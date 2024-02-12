@@ -61,7 +61,7 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             // res = x / y; if x > 0 and y > 0
             // res = x / y - 1; if (x < 0 XOR y < 0) and (x mod y != 0)
 
-            auto div = make_shared<v1::Divide>(x, y, true);
+            auto div = make_shared<v1::Divide>(x, y, false);
 
             auto zero_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
             auto minux_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);

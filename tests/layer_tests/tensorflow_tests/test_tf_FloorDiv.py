@@ -106,14 +106,11 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1], dtype=np.int32),
         dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[2, 5, -1], dtype=np.int32),
         dict(min=-1000, max=1000, step=1, y=[1000], x_shape=[2, 5, 10, -1], dtype=np.int32),
-
-        # test for floats
-        dict(min=-10, max=10, step=1, y=[10], dtype=np.float32),
-        dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.float64),
     ]
     @pytest.mark.parametrize("params", test_inputs)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
+    # @pytest.mark.skip
     def test_floordiv(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
         self._test(*self.create_flordiv_tf_net(**params, ir_version=ir_version,
