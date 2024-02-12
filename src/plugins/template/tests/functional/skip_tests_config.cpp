@@ -121,7 +121,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
         // Interpreter backend doesn't implement evaluate method for OP Multiply (by GroupNormalizationDecomposition)
         R"(.*ReferenceGroupNormalization.*_f64*)",
-        // Precision not high enough to get exact result for the complex test cases 
+        // Precision not high enough to get exact result for the complex test cases
         // (both tiny values and very high values necessary)
         R"(.*ReferenceInverse.*bf16.*[4,4].*)"};
 
