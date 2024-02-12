@@ -135,9 +135,13 @@ jobs:
       # Build
       #
 
+      - name: Show suppresion file
+        run: cat ${SANITIZER_IGNORE}
+
       - name: CMake configure - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0:suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export ASAN_OPTIONS=halt_on_error=0:detect_leaks=1
+          export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
@@ -158,7 +162,10 @@ jobs:
           CXX: clang++
 
       - name: Cmake build - OpenVINO
-        run: ASAN_OPTIONS=halt_on_error=0:suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1 cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: |
+          export ASAN_OPTIONS=halt_on_error=0:detect_leaks=1
+          export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Cmake install - OpenVINO
         run: |
