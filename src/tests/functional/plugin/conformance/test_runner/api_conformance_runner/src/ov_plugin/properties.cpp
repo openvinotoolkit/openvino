@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         OVCheckMetricsPropsTests_ModelDependceProps::getTestCaseName);
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(
@@ -104,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(targetDevice));
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(

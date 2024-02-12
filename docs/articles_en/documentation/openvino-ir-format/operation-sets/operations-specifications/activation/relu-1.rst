@@ -5,7 +5,7 @@ ReLU
 
 
 .. meta::
-  :description: Learn about ReLU-1 - an element-wise, activation operation, which 
+  :description: Learn about ReLU-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *ReLU-1*

@@ -28,7 +28,7 @@ class ICompiledModel;
 
 /**
  * @defgroup ov_dev_api OpenVINO Plugin API
- * @brief Defines Inference Engine Plugin API which can be used in plugin development
+ * @brief Defines OpenVINO Plugin API which can be used in plugin development
  *
  * @{
  * @defgroup ov_dev_api_plugin_api Plugin base classes

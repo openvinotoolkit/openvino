@@ -115,8 +115,6 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
             auto device_properties = result_properties.find(ov::device::properties.name());
             if (device_properties == result_properties.end()) {
                 result_properties[ov::device::properties.name()] = ov::AnyMap{};
-            } else if (device_properties->second.is<std::string>()) {  // because of legacy API 1.0
-                device_properties->second = device_properties->second.as<ov::AnyMap>();
             }
             auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
             auto secondary_properties_it = secondary_properties.find(subprop_device_name);
@@ -124,9 +122,6 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
                 // 2.1.1. No device name in map yet, insert all config as is
                 secondary_properties[subprop_device_name] = secondary_property->second;
             } else {
-                if (secondary_properties_it->second.is<std::string>()) {  // because of legacy API 1.0
-                    secondary_properties_it->second = secondary_properties_it->second.as<ov::AnyMap>();
-                }
                 // 2.1.2. Device name is present in config file, merge properties according to:
                 // ov::device::properties(<device_name>) overrides ov::device::properties(ov::AnyMap{})
                 auto& secondary_device_properties = secondary_properties_it->second.as<ov::AnyMap>();
@@ -149,9 +144,6 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         }
 
         // 2. device properties DEVICE_PROPERTIES are found
-        if (property->second.is<std::string>()) {  // because of legacy API 1.0
-            property->second = property->second.as<ov::AnyMap>();
-        }
         auto& secondary_properties = property->second.as<ov::AnyMap>();
 
         for (auto secondary_property = secondary_properties.begin();
@@ -850,6 +842,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OPENVINO_ASSERT(context, "Remote context must not be empty.");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }
