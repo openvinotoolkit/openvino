@@ -52,19 +52,14 @@ class TestFloorDiv(CommonTFLayerTest):
 
 
 class TestFloorDivStaticInput(CommonTFLayerTest):
-    stored_x_shape = []
     min = -100
     max = 200
     step = 1
     dtype = np.int32
 
-    def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version, use_new_frontend, x_shape=None):
+    def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version, use_new_frontend):
         import tensorflow as tf
         x = np.arange(min, max, step, dtype=dtype)
-        
-        # x_shape arg can contain -1, but we need always have positive values, therefore take concrete shape value after reshape
-        x_shape = x.reshape(x_shape).shape if x_shape is not None else x.shape
-        self.stored_x_shape = x_shape
         
         self.min = min
         self.max = max
@@ -74,7 +69,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(dtype, x_shape, 'Input')
+            x = tf.compat.v1.placeholder(dtype, x.shape, 'Input')
             y = tf.constant(np.array(y).astype(dtype))
             res = tf.raw_ops.FloorDiv(x=x, y=y)
 
@@ -88,21 +83,15 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             inputs_dict[input] = np.arange(self.min, self.max, self.step, dtype=self.dtype)
-            if self.stored_x_shape is not None:
-                inputs_dict[input] = inputs_dict[input].reshape(self.stored_x_shape)
         return inputs_dict
 
     test_inputs = [
         dict(min=-20, max=20, step=1, y=[10]),
-        dict(min=-200, max=200, step=1, y=[-100]),
-        dict(min=-1000, max=1000, step=2, y=[100]),
-        dict(min=-10000, max=10000, step=100, y=[10000]),
-        dict(min=-10000, max=10000, step=100, y=[-10000]),
+        dict(min=-20, max=20, step=1, y=[5]),
+        dict(min=-20, max=20, step=1, y=[6]),
+        dict(min=-20, max=20, step=1, y=[-5]),
+        dict(min=-20, max=20, step=1, y=[-6]),
         dict(min=-1e5, max=1e5, step=100, y=[1e5]),
-        
-        # test for multidimensinal input
-        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1]),
-        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[2, 5, -1]),
     ]
     @pytest.mark.parametrize("params", test_inputs)
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])

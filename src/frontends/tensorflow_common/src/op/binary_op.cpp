@@ -64,7 +64,7 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             auto div = make_shared<v1::Divide>(x, y, false);
 
             auto zero_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
-            auto minux_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);
+            auto minus_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);
 
             auto x_less_cond = make_shared<v1::Less>(x, zero_const);
             auto y_less_cond = make_shared<v1::Less>(y, zero_const);
@@ -74,7 +74,7 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zero_const);
 
             auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
-            auto reminder = make_shared<v1::Select>(cond, minux_one_const, zero_const);
+            auto reminder = make_shared<v1::Select>(cond, minus_one_const, zero_const);
             return make_shared<v1::Add>(div, reminder);
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
