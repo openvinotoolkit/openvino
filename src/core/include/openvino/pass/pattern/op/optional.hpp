@@ -32,7 +32,7 @@ public:
             })
         : Pattern({pattern}, pred),
           optional_types(type_infos){};
-    
+
     Optional(
         const std::vector<DiscreteTypeInfo>& type_infos,
         const pattern::op::ValuePredicate& pred =

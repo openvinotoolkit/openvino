@@ -866,8 +866,7 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
             return false;
         }
 
-        auto align_vectors = [](std::vector<int64_t>& vec_1,
-                                std::vector<int64_t>& vec_2) {
+        auto align_vectors = [](std::vector<int64_t>& vec_1, std::vector<int64_t>& vec_2) {
             auto max_size = std::max(vec_1.size(), vec_2.size());
             while (vec_1.size() < max_size) {
                 vec_1.push_back(0);
