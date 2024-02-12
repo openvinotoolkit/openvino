@@ -140,10 +140,11 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0:detect_leaks=1
+          export ASAN_OPTIONS=halt_on_error=0
           export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
+            -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
@@ -163,7 +164,7 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0:detect_leaks=1
+          export ASAN_OPTIONS=halt_on_error=0
           export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
