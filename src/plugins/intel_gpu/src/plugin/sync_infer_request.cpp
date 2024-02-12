@@ -377,7 +377,6 @@ void SyncInferRequest::wait() {
 
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
-        bool convert_needed = is_convert_required(output_memory->get_layout().data_type, output_tensor.get()->get_element_type());
         if (!is_remote && output_memory) {
             auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
             bool same_mem = same_host_mem(output_memory, dst_ptr);
@@ -399,10 +398,6 @@ void SyncInferRequest::wait() {
                 std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
             } else {
                 copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
-            }
-        } else if (is_remote && convert_needed) {
-            if (auto ev = copy_output_data(output_memory, *output_tensor)) {
-                copy_events.push_back(ev);
             }
         }
     }
