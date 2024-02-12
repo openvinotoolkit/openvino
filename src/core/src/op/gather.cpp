@@ -5,7 +5,7 @@
 #include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {

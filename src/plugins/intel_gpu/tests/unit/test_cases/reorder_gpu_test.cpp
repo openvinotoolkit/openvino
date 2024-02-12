@@ -1719,7 +1719,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
     };
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -1747,7 +1747,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
         softmax("output", input_info("r1"))
     };
 

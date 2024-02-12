@@ -7,10 +7,10 @@
 #include <limits>
 
 #include "core/null_node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 

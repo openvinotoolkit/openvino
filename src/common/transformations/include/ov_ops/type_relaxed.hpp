@@ -80,48 +80,9 @@ public:
     }
 
 protected:
-    void remember_input_data_types(Node& node, element::TypeVector& old_input_types) {
-        // Remember all input data types
-        for (size_t i = 0; i < node.get_input_size(); ++i) {
-            old_input_types.push_back(node.get_input_element_type(i));
-        }
+    void remember_input_data_types(Node& node, element::TypeVector& old_input_types);
 
-        // Reset input data types to m_output_data_type.
-        for (size_t i = 0; i < node.get_input_size(); ++i) {
-            auto origin_input_type = get_origin_input_type(i);
-            if (origin_input_type != element::undefined) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
-                OPENVINO_SUPPRESS_DEPRECATED_END
-            }
-        }
-    }
-
-    void restore_input_data_types(Node& node, const element::TypeVector& old_input_types) {
-        // Restore original input data types
-        for (size_t i = 0; i < node.get_input_size(); ++i) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
-            OPENVINO_SUPPRESS_DEPRECATED_END
-        }
-
-        if (m_original_output_data_types.empty()) {
-            m_original_output_data_types = element::TypeVector(node.get_output_size());
-        }
-
-        // Save inferred output types
-        for (size_t i = 0; i < node.get_output_size(); ++i) {
-            m_original_output_data_types[i] = node.get_output_element_type(i);
-        }
-
-        // Override (some) output types
-        for (size_t i = 0; i < node.get_output_size(); ++i) {
-            auto overridden_output_type = get_overridden_output_type(i);
-            if (overridden_output_type != element::undefined) {
-                node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
-            }
-        }
-    }
+    void restore_input_data_types(Node& node, const element::TypeVector& old_input_types);
 
     void visit_attributes(AttributeVisitor& visitor) {
         bool type_relax = true;
@@ -152,31 +113,19 @@ protected:
 /// in case when inputs have types that are not compatible with BaseOp infer function. In this case
 /// before TypeRelaxed is constructed the BaseOp contructor requires modified data types.
 /// So it should be
-class TemporaryReplaceOutputType {
+class OPENVINO_API TemporaryReplaceOutputType {
     Output<Node> m_output;
     element::Type orig_type;
 
 public:
     /// Replace element type for a given output port by tmp_type
-    TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
-        // save original element type in order to restore it in the destructor
-        orig_type = m_output.get_element_type();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(tmp_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type);
 
     /// Return the output port that was used in the constructor
-    Output<Node> get() const {
-        return m_output;
-    }
+    Output<Node> get() const;
 
     /// Restores the original element type for the output
-    ~TemporaryReplaceOutputType() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(orig_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    ~TemporaryReplaceOutputType();
 };
 
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
@@ -338,13 +287,8 @@ bool TypeRelaxed<BaseOp>::evaluate_upper(TensorVector& outputs) const {
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
     element::TypeVector old_input_types;
-
     remember_input_data_types(*this, old_input_types);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     restore_input_data_types(*this, old_input_types);
 }
 
