@@ -40,7 +40,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-api', api) if api else '',
         *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
-        '-t', '1'
+        '-niter', '10'
     )
     assert 'FPS' in output
     if tmp_path:
@@ -61,7 +61,7 @@ def test(counter, cache):
     get_cmd_output(
         'benchmark_app',
         *prepend(cache, '227x227/dog.bmp', 'squeezenet1.1/FP32/squeezenet1.1.xml'),
-        '-niter', '1'
+        '-t', '1'
     )
 
 
