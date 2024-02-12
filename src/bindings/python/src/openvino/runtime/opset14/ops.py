@@ -76,3 +76,47 @@ def max_pool(
             "axis": axis,
         },
     )
+
+@nameable_op
+def avg_pool(
+    data_batch: NodeInput,
+    strides: List[int],
+    pads_begin: TensorShape,
+    pads_end: TensorShape,
+    kernel_shape: TensorShape,
+    exclude_pad: bool,
+    rounding_type: str = "floor",
+    auto_pad: Optional[str] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return average pooling node.
+
+    :param data_batch:      The input node providing data.
+    :param strides:         The window movement strides.
+    :param pads_begin:      The input data optional padding below filled with zeros.
+    :param pads_end:        The input data optional padding below filled with zeros.
+    :param kernel_shape:    The pooling window shape.
+    :param exclude_pad:     Whether or not to include zero padding in average computations.
+    :param rounding_type:   Determines used rounding schema when computing output shape. Acceptable
+                            values are: ['floor', 'ceil']
+    :param auto_pad:        Determines how the padding is calculated. Acceptable values:
+                            [None, 'same_upper', 'same_lower', 'valid']
+    :param name:            Optional name for the new output node.
+
+    :return: New node with AvgPool operation applied on its data.
+    """
+    if auto_pad is None:
+        auto_pad = "explicit"
+    return _get_node_factory_opset14().create(
+        "AvgPool",
+        [as_node(data_batch)],
+        {
+            "strides": strides,
+            "pads_begin": pads_begin,
+            "pads_end": pads_end,
+            "kernel": kernel_shape,
+            "exclude-pad": exclude_pad,
+            "rounding_type": rounding_type.upper(),
+            "auto_pad": auto_pad.upper(),
+        },
+    )

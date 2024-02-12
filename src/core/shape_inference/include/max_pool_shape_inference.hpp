@@ -76,6 +76,6 @@ std::vector<TRShape> shape_infer(const MaxPool* op,
 
     return {2, pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
 }
-}  // namespace v8
+}  // namespace v14
 }  // namespace op
 }  // namespace ov

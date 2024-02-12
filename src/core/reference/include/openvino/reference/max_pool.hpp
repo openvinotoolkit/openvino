@@ -85,7 +85,6 @@ void max_pool_1d(const Values_t* data,
                  const size_t pads_end,
                  const size_t indices_offset) {
     int kernel_position = 0 - static_cast<int>(pads_begin);
-    std::cout << "\n\n\nHERE1D I AM\n\n\n";
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
         Values_t max_elem = std::numeric_limits<Values_t>::lowest();
@@ -138,6 +137,7 @@ void max_pool_2d(const Values_t* data,
                     const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[kernel_H],
                                                       kernel_col * kernel_dilations[kernel_W]};
 
+                    // ignore the elements in the padding area
                     if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
                         // index of the flattened tensor element under the current row & column of the kernel
                         const size_t data_elem_index =
@@ -172,7 +172,6 @@ void max_pool_3d(const Values_t* data,
                  const Shape& pads_end,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
-    std::cout << "\n\n\nHERE3D I AM\n\n\n";
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;

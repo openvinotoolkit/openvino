@@ -357,15 +357,15 @@ std::shared_ptr<Node> MaxPool::clone_with_new_inputs(const OutputVector& new_arg
     OV_OP_SCOPE(v14_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<v14::MaxPool>(new_args.at(0),
-                                         m_strides,
-                                         m_dilations,
-                                         m_pads_begin,
-                                         m_pads_end,
-                                         m_kernel,
-                                         m_rounding_type,
-                                         m_auto_pad,
-                                         m_index_element_type,
-                                         m_axis);
+                                          m_strides,
+                                          m_dilations,
+                                          m_pads_begin,
+                                          m_pads_end,
+                                          m_kernel,
+                                          m_rounding_type,
+                                          m_auto_pad,
+                                          m_index_element_type,
+                                          m_axis);
 }
 
 namespace maxpool {
@@ -479,6 +479,6 @@ bool MaxPool::has_evaluate() const {
     }
 }
 
-}  // namespace v8
+}  // namespace v14
 }  // namespace op
 }  // namespace ov

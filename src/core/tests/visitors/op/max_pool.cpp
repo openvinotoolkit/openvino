@@ -85,14 +85,14 @@ TEST(attributes, max_pool_v14_op) {
     const element::Type& index_element_type = element::i32;
 
     const auto max_pool = make_shared<ov::op::v14::MaxPool>(data,
-                                                           strides,
-                                                           dilations,
-                                                           pads_begin,
-                                                           pads_end,
-                                                           kernel,
-                                                           rounding_mode,
-                                                           auto_pad,
-                                                           index_element_type);
+                                                            strides,
+                                                            dilations,
+                                                            pads_begin,
+                                                            pads_end,
+                                                            kernel,
+                                                            rounding_mode,
+                                                            auto_pad,
+                                                            index_element_type);
     NodeBuilder builder(max_pool, {data});
     auto g_max_pool = ov::as_type_ptr<ov::op::v14::MaxPool>(builder.create());
 

@@ -193,7 +193,6 @@ void append_spatial_shape(const TOp* op,
             dim = dim - kernel_dilated;
             dim = dim_divide(dim, stride[i]);
             dim += 1;
-            std::cout << "\nBefore ceil_mode:\n";
             if (is_ceil_mode && data_dim->is_static()) {
                 // Ensure the last pooling doesn't start in padding.
                 const auto expr1 = stride[i] * dim.get_length();
