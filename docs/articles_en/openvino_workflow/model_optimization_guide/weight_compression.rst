@@ -152,6 +152,7 @@ The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com
 
 
 The following table shows accuracy metric in a data-aware 4-bit weight quantization setup measured on `wikitext dataset <https://arxiv.org/pdf/1609.07843.pdf>`__.
+
 .. list-table::
    :widths: 40 55 25 25
    :header-rows: 1
