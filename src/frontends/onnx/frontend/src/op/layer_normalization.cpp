@@ -11,6 +11,9 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -19,6 +22,10 @@ using namespace ov::op::v1;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
+inline ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
+    return std::make_shared<Squeeze>(std::make_shared<v3::ShapeOf>(std::make_shared<v3::ShapeOf>(source)));
+}
+
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -26,6 +33,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
+    // Operator definition: https://github.com/onnx/onnx/blob/main/onnx/defs/nn/defs.cc#L2562:L2611
     const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node,
@@ -50,18 +58,26 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     if (needs_type_casting)
         data = std::make_shared<Convert>(data, stash_type);
 
-    auto axis_value = node.get_attribute_value<std::int64_t>("axis", -1);
-    float epsilon = node.get_attribute_value<float>("epsilon", 1e-5);
-    auto axis = Constant::create(element::i64, {1}, {axis_value});
+    float epsilon = node.get_attribute_value<float>("epsilon", 1e-5f);
+
+    auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
+    // ONNX operator semantics says that `axis` attribute points to the first normalization dimension. We have to
+    // figure out all dimensions for normalization:
+    // axis < 0:  range(axis, 0)     Example: axis = -2; Axes: [-2, -1]
+    // axis >= 0: range(axis, rank)  Example: axis = 2, rank = 4; Axes: [2, 3]
+    auto axes = std::make_shared<v4::Range>(Constant::create(element::i64, {}, {axis}),
+                                            (axis < 0 ? Constant::create(element::i64, {}, {0})->output(0) : rank(data)),
+                                            Constant::create(element::i64, {}, {1}),
+                                            element::i64);
+
     const auto normalize_variance = true;
     ov::Output<ov::Node> normalized =
-        std::make_shared<v6::MVN>(data, axis, normalize_variance, epsilon, MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<v6::MVN>(data, axes, normalize_variance, epsilon, MVNEpsMode::INSIDE_SQRT);
 
     if (needs_type_casting)
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
-    const auto& scale = inputs.at(1);
-    auto scaled = std::make_shared<Multiply>(normalized, scale);
+    auto scaled = std::make_shared<Multiply>(normalized, inputs.at(1));
     auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, inputs.at(2))->output(0) : scaled->output(0));
     return ov::OutputVector{biased};
 }
