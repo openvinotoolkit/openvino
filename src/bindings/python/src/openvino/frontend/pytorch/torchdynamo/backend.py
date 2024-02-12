@@ -154,7 +154,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
         with torch.no_grad():
             model.eval()
         partitioner = Partitioner(options)
-        compiled_model = partitioner.make_partitions(model)
+        compiled_model = partitioner.make_partitions(model, options)
 
         if executor_parameters is not None and 'model_hash_str' in executor_parameters:
             # Check if the model is fully supported.
