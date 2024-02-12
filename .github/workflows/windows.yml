@@ -252,8 +252,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@v3
         with:
           name: openvino_js_package
@@ -326,9 +325,12 @@ jobs:
 
       - name: Samples tests
         run: |
-          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
+          # Install Python benchmark_app by installing openvino-*.whl
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt "$ovCoreWheelPath"
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
+          $Env:PYTHONCOERCECLOCALE="warn"
+          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
@@ -364,8 +366,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-    if: ${{ 'false' }} # 128689
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
       - name: Fetch OpenVINO JS sources

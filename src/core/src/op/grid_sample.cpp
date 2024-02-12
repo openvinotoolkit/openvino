@@ -7,8 +7,8 @@
 #include "element_visitor.hpp"
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/grid_sample.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

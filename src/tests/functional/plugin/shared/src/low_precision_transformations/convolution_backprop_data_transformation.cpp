@@ -31,9 +31,6 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {
-    rel_threshold = 3.1;
-    abs_threshold = 800.1;
-
     ov::element::Type netPrecision;
     std::pair<ov::PartialShape, bool> inputShapeAndHandling;
     ov::Shape outputShape;

@@ -131,15 +131,15 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         pipeline(model, device, isCacheEnabled, inputPrecision, outputPrecision, reshapeShapes, dataShapes);
     } catch (const ov::Exception &iex) {
         std::cerr
-                << "Inference Engine pipeline failed with Inference Engine exception:\n"
+                << "OpenVINO pipeline failed with OpenVINO exception:\n"
                 << iex.what();
         return 1;
     } catch (const std::exception &ex) {
-        std::cerr << "Inference Engine pipeline failed with exception:\n"
+        std::cerr << "OpenVINO pipeline failed with exception:\n"
                   << ex.what();
         return 2;
     } catch (...) {
-        std::cerr << "Inference Engine pipeline failed\n";
+        std::cerr << "OpenVINO pipeline failed\n";
         return 3;
     }
     return 0;

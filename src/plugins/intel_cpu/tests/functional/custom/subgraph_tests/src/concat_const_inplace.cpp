@@ -5,6 +5,7 @@
 #include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -52,7 +53,9 @@ public:
         // convolution
         std::vector<float> weightValuesFP32(12);
         ov::Shape convFilterShape = {1, 12, 1, 1};
-        FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+        for (size_t i = 0; i < weightValuesFP32.size(); i++) {
+            weightValuesFP32.data()[i] = sin(static_cast<float>(i));
+        }
         auto weightsNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, convFilterShape, weightValuesFP32);
         std::shared_ptr<ov::Node> conv = std::make_shared<ov::op::v1::Convolution>(concat,
                                                                                    weightsNode,

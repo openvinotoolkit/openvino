@@ -12,7 +12,6 @@
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 
 namespace ov {
 namespace test {

@@ -5,8 +5,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
-using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
-
 namespace ov {
 namespace test {
 typedef std::tuple<Shape,          // Input shape

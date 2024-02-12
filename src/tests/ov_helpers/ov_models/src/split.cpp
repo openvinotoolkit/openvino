@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
+std::shared_ptr<ov::Node> makeSplit(const ov::Output<ov::Node>& in,
                                     const ov::element::Type& type,
                                     size_t numSplits,
                                     int64_t axis) {

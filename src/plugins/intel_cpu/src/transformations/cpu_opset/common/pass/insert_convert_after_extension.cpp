@@ -34,8 +34,10 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
 
                 auto& convertTensor = convert->output(0).get_tensor();
 
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto legacy_name = op::util::create_ie_output_name(output);
                 descriptor::set_ov_tensor_legacy_name(convertTensor, legacy_name);
+                OPENVINO_SUPPRESS_DEPRECATED_END
 
                 if (!output.get_names().empty()) {
                     convertTensor.set_names(output.get_names());

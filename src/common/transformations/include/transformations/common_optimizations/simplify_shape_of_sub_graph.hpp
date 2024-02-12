@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GroupedGatherElimination transformation replaces group of Gather
  * operations with the first Gather in this group and updated indices input
  * in case all Gathers in the group are consumed by the same Concat in incremental order.
@@ -35,7 +35,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifyShapeOfSubGraph transformation runs specific optimizations of shape sub-graphs
  */
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
@@ -49,7 +49,7 @@ private:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GatherNopElimination transformation optimizes out useless Gather operations
  */
 class ov::pass::GatherNopElimination : public ov::pass::MatcherPass {
@@ -59,7 +59,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifyGatherShapeOf optimizes `gather->shapeof` into `shapeof->gather` for 0D indices.
  * Other cases into Concat of shapeof/gather(data) + shapeof(indices) transformation optimizes out
  * useless Gather operations
@@ -71,7 +71,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifySecondInputOfReshape optimizes `shapeof->gather` into zero values for
  * reshape pattern values if possible.
  */

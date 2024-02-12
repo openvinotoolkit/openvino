@@ -114,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
                          OVSetUnsupportPropCompileModelWithoutConfigTests::getTestCaseName);
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("MULTI", "AUTO"));

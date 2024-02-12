@@ -8,22 +8,19 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector einsum(const Node& node) {
+ov::OutputVector einsum(const ov::frontend::onnx::Node& node) {
     const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
-    return ov::OutputVector{std::make_shared<v7::Einsum>(node.get_ng_inputs(), equation)};
+    return {std::make_shared<v7::Einsum>(node.get_ov_inputs(), equation)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

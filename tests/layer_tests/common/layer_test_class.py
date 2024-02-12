@@ -91,7 +91,7 @@ class CommonLayerTest:
         else:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
-        # IE infer:
+        # OV infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
