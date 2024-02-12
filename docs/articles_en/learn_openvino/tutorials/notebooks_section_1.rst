@@ -12,6 +12,12 @@ Convert & Optimize
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 .. showcase::
+   :title: 127-tensorflow-bit-image-classification-nncf-quantization
+   :img: _static/images/notebook_eye.png
+
+   BiT Image Classification OpenVINO IR model Quantization with NNCF.
+
+.. showcase::
    :title: 126-tensorflow-hub
    :img: _static/images/notebook_eye.png
 
