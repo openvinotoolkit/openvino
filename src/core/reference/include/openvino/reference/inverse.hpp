@@ -25,7 +25,7 @@ void lu_decomposition(const T* input,
     // Make L identity, U a copy of input and P a range(0, n)
     const auto batch_idx = b * n * n;
     for (size_t i = 0; i < n; ++i) {
-        P[i] = T{i};
+        P[i] = static_cast<T>(i);
         L[i][i] = T{1};
 
         auto i_idx = i * n;

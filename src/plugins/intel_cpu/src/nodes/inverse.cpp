@@ -239,7 +239,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
 }
 
 template <typename T>
-void Inverse::to_adjoint(T* output, std::vector<T>& U, bool& sign, size_t b) {
+void Inverse::to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b) {
     T determinant = sign ? static_cast<T>(1) : static_cast<T>(-1);
 
     for (size_t i = 0; i < m_side; ++i) {
