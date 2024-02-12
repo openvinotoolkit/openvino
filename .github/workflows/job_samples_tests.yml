@@ -127,8 +127,7 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests --numprocesses logical \
-            --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
+          for i in {1..20}; do PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests --numprocesses logical --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml || exit $?; done
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
