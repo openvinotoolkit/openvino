@@ -254,6 +254,14 @@ function downloadFile(url, filename, destination, proxy = null) {
   });
 }
 
+/**
+ * Unarchive tar and tar.gz archives.
+ *
+ * @function unarchive
+ * @param {tarFilePath} tarFilePath - Path to archive.
+ * @param {dest} tarFilePath - Path where to unpack.
+ * @returns {Promise<void>}
+ */
 function unarchive(tarFilePath, dest) {
   return new Promise((resolve, reject) => {
     createReadStream(tarFilePath)
