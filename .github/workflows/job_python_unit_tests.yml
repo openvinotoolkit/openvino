@@ -109,8 +109,10 @@ jobs:
         run: |
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           #Initialize pdm environment
-            pdm use -v ${{ env.PYTHON_VERSION }}
-            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo -G tests_layer -p ${PDM_PROJECT}
+            pdm venv create --name for-test ${{ env.PYTHON_VERSION }}
+            pdm use --venv for-test
+            #pdm use -v ${{ env.PYTHON_VERSION }}
+            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}
           fi
 
           # Install the core OV wheel
@@ -182,6 +184,12 @@ jobs:
 
       - name: Install Python Layer tests dependencies
         run: |
+          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
+          #Initialize pdm environment
+            pdm venv create --name layer-test ${{ env.PYTHON_VERSION }}
+            pdm use --venv layer-test
+            pdm lock -v --strategy no_cross_platform -G tests_layer -p ${PDM_PROJECT}
+          fi
           # layer test requirements
           ${PYTHON_INSTALL_LAYER_REQS}
 
