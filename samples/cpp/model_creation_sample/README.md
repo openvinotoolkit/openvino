@@ -43,8 +43,4 @@ The following C++ API is used in the application:
 |                           | ``ov::Model``,                          |                                       |
 |                           | ``ov::ParameterVector::vector``         |                                       |
 
-<<<<<<< HEAD
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.3/openvino_inference_engine_samples_hello_classification_README.html).
-=======
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.2/openvino_sample_hello_classification.html).
->>>>>>> cf2b238df2 (Merge samples)
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html).

@@ -123,8 +123,7 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests \
-            --env_conf $INSTALL_TEST_DIR/smoke_tests/env_config.yml \
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests --numprocesses logical \
             --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results

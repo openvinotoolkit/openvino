@@ -10,15 +10,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import contextlib
+import io
 import os
 import itertools
-import sys
-import csv
 import re
-import pytest
-import numpy as np
-import pathlib
+import subprocess
+import sys
 import requests
+import time
+import numpy as np
 import zipfile
 
 import logging as log
@@ -26,6 +27,51 @@ from common.common_utils import shell
 from shutil import which
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+
+def get_devices():
+    return os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
+
+
+def get_cmd_output(*cmd):
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        if isinstance(error, subprocess.CalledProcessError):
+            print(f"'{' '.join(map(str, cmd))}' returned {error.returncode}. Output:")
+        else:
+            print(f"'{' '.join(map(str, cmd))}' timed out after {error.timeout} seconds. Output:")
+        print(error.output)
+        raise
+    return output
+
+
+def download(test_data_dir, file_path):
+    if file_path.exists():
+        return file_path
+    lock_path = test_data_dir / 'download.lock'
+    with contextlib.suppress(FileNotFoundError, PermissionError):
+        lock_path.unlink()
+    for _ in range(9999):  # Give up after about 3 hours
+        with contextlib.suppress(FileExistsError, PermissionError):
+            with lock_path.open('x'):
+                if not file_path.exists():
+                    response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
+                        zfile.extractall(test_data_dir)
+            lock_path.unlink(missing_ok=True)
+            assert file_path.exists()
+            return file_path
+        time.sleep(1.0)
+
+
+def prepend(cache, inp='', model=''):
+    test_data_dir = cache.mkdir('test_data_dir')
+    unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
+    if inp:
+        inp = '-i', download(test_data_dir, unpacked / 'validation_set' / inp)
+    if model:
+        model = '-m', download(test_data_dir, unpacked / 'models' / 'public' / model)
+    return *inp, *model
 
 
 class Environment:
@@ -96,38 +142,13 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
 
     return test_args
 
-def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
-    if os.path.exists(samples_path) or os.path.exists(samples_path[:-4]):
-        return		
-    try:
-        print("\nStart downloading samples_smoke_tests_data.zip...")
-        samples_request = requests.get(url, stream=True)
-        with open(samples_path, 'wb') as samples_file:
-            for elem in samples_request.iter_content(chunk_size=size_of_chunk):
-                samples_file.write(elem)
-        print("\nsamples_smoke_tests_data.zip downloaded successfully")
-        samples_file.close()
-        print("\nExtracting of samples_smoke_tests_data.zip...")
-        with zipfile.ZipFile(samples_path, 'r') as samples_zip:
-            samples_zip.extractall(Environment.env['smoke_tests_path'])
-        nameFolder = str(Environment.env['samples_data_zip'])[Environment.env['samples_data_zip'].rfind('/')+1:][:-4]
-        smoke_tests_path = os.path.join(Environment.env['smoke_tests_path'])
-        if os.path.exists(os.path.join(smoke_tests_path,nameFolder)):
-            os.rename(os.path.join(smoke_tests_path, nameFolder), os.path.join(smoke_tests_path, 'samples_smoke_tests_data') )
-        if os.path.exists(samples_path):
-            print("\nRemoving samples_smoke_tests_data.zip...")
-            os.remove(samples_path)	
-
-    except Exception as error:
-        print(error)
-        print(f"Exception during downloading samples_smoke_tests_data.zip")
 
 class SamplesCommonTestClass():
 
     @classmethod
-    def made_executable_path(cls, path1, path2, sample_type='C++'):
+    def made_executable_path(cls, path1, path2, sample_type):
         if hasattr(cls, 'executable_path'):
-            return
+            return cls.executable_path
 
         executable_path = os.path.join(path1, path2, path2) if 'python' in sample_type.lower() \
             else os.path.join(path1, path2)
@@ -146,24 +167,12 @@ class SamplesCommonTestClass():
         # This exeption is made for benchmark_app, because it locates in another place.
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
             executable_path = which(str('benchmark_app'))
-        cls.executable_path = executable_path
+        return executable_path
 
     @staticmethod
-    def reset_models_path(model):
-        pathList = model.split(os.sep)
-        modelName = pathList[len(pathList)-1]
-        precision = pathList[len(pathList)-2]
-        for root, subFolder, files in os.walk(Environment.env['models_path']):
-            for item in files:
-                if item.endswith(modelName) :
-                    if precision in root :
-                        model = str(os.path.join(root,item))
-                    else :
-                        model = os.path.join(Environment.env['models_path'], model)
-        return model
-
-    @staticmethod
-    def join_env_path(param, executable_path, complete_path=True):
+    def join_env_path(param, cache, executable_path, complete_path=True):
+        test_data_dir = cache.mkdir('test_data_dir')
+        unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
@@ -172,10 +181,10 @@ class SamplesCommonTestClass():
                 param['i'] = list([param['i']])
         for k in param.keys():
             if ('i' == k) and complete_path:
-                param['i'] = [os.path.join(Environment.env['test_data'], e) for e in param['i']]
-                param['i'] = ' '.join(param['i'])
-            elif ('m' == k):
-                param['m'] = SamplesCommonTestClass.reset_models_path(param['m'])
+                param['i'] = [str(download(test_data_dir, unpacked / 'validation_set' / e)) for e in param['i']]
+                param['i'] = ' '.join(map(str, param['i']))
+            elif 'm' == k and not param['m'].endswith('/samples/cpp/model_creation_sample/lenet.bin"'):
+                param['m'] = download(test_data_dir, unpacked / 'models' / 'public' / param['m'])
 
     @staticmethod
     def get_cmd_line(param, use_preffix=True, long_hyphen=None):
@@ -192,33 +201,11 @@ class SamplesCommonTestClass():
         return line
 
     @staticmethod
-    def check_is_perf(stdout):
-        # This function check if FPS in stdout. If yes - then need to run this sample for perfomance
-        for line in stdout:
-            if 'fps' in line.lower():
-                return True
-        return False
-
-    @staticmethod
-    def check_has_niter(param):
-        # Check if niter has already in params, so it was set before
-        if 'niter' in param:
-            return True
-        return False
-
-    @staticmethod
     def find_fps(stdout):
         stdout = stdout.split('\n')
         for line in stdout:
             if 'fps' in line.lower():
                 return float(re.findall(r"\d+\.\d+", line)[0])
-
-    @staticmethod
-    def write_csv(sample_name, sample_type, cmd_perf, fps_perf):
-        csv_path = Environment.env['perf_csv_name']
-        with open(csv_path, 'a', newline='') as f:
-            perf_writer = csv.writer(f, delimiter='|', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            perf_writer.writerow([sample_name, sample_type, cmd_perf.rstrip(), fps_perf])
 
     @staticmethod
     def get_hello_cmd_line(param, use_preffix=True, long_hyphen=None):
@@ -253,15 +240,7 @@ class SamplesCommonTestClass():
                     line += '{} '.format(param[key])
         return line
 
-    @classmethod
-    def setup_class(cls):
-        getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
-        assert os.path.exists(Environment.env['models_path']), \
-            "Path for public models {} is not exist!".format(Environment.env['models_path'])
-        assert os.path.exists(Environment.env['test_data']), \
-            "Path for test data {} is not exist!".format(Environment.env['test_data'])
-
-    def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
+    def _test(self, param, cache, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
         """
         :param param:
         :param use_preffix: use it when sample doesn't require keys (i.e. hello_classification <path_to_model> <path_to_image>
@@ -277,10 +256,10 @@ class SamplesCommonTestClass():
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
         if 'python' in sample_type.lower():
-            self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
+            executable_path = self.made_executable_path(os.environ['IE_APP_PYTHON_PATH'], self.sample_name,
                                       sample_type=sample_type)
         else:
-            self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
+            executable_path = self.made_executable_path(os.environ['IE_APP_PATH'], self.sample_name, sample_type=sample_type)
 
         if 'bitstream' in param_cp:
             del param_cp['bitstream']
@@ -291,7 +270,7 @@ class SamplesCommonTestClass():
         if get_cmd_func is None:
             get_cmd_func = self.get_cmd_line
 
-        self.join_env_path(param_cp, executable_path=self.executable_path, complete_path=complete_path)
+        self.join_env_path(param_cp, cache, executable_path=executable_path, complete_path=complete_path)
 
         # Updating all attributes in the original dictionary (param), because param_cp was changes (join_env_path)
         for key in param.keys():
@@ -303,41 +282,9 @@ class SamplesCommonTestClass():
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
 
-        log.info("Running command: {} {}".format(self.executable_path, cmd_line))
-        retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+        log.info("Running command: {} {}".format(executable_path, cmd_line))
+        retcode, stdout, stderr = shell([executable_path, cmd_line])
 
-        # Execute performance:
-        if Environment.env['performance'] and retcode == 0:
-            perf_iter = int(Environment.env['performance'])
-            # Check if samples are for performance testing: if FPS in output
-            is_perf = self.check_is_perf(stdout.split('\n'))
-            is_niter = self.check_has_niter(param_cp)
-            if not is_perf:
-                # Skipping all tests for this sample, because no of them are ready for performance.
-                # Add name of sample to global pytest variable, then skip it in setup method
-                if 'list_of_skipped_samples' in Environment.env:
-                    Environment.env['list_of_skipped_samples'].append(self.sample_name)
-                else:
-                    Environment.env.update({'list_of_skipped_samples': [self.sample_name]})
-                pytest.skip('[INFO] Sample {} not executed for performance'.format(self.executable_path))
-            else:
-                log.info('Running perfomance for {} iteraction'.format(perf_iter))
-                # Perf_iter = 0 when it isn't neccessary to add niter key
-                if perf_iter > 0:
-                    if is_niter:
-                        log.warning('Changed value of niter param to {}'.format(perf_iter))
-                        param_cp['niter'] = perf_iter
-                    else:
-                        log.warning('Added key: niter to param with value: {}'.format(perf_iter))
-                        param_cp.update({'niter': perf_iter})
-                cmd_perf = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
-                retcode_perf, stdout_perf, stderr_perf = shell([self.executable_path, cmd_perf])
-                if (retcode_perf != 0):
-                    log.error(stderr_perf)
-                assert retcode_perf == 0, "Execution sample for performance failed"
-                fps_perf = self.find_fps(stdout_perf)
-                self.write_csv(sample_name=self.sample_name, sample_type=sample_type, cmd_perf=cmd_perf, fps_perf=fps_perf)
-                log.info('Perf results: {}'.format(fps_perf))
         if get_shell_result:
             return retcode, stdout, stderr
         # Check return code
