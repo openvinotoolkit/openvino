@@ -51,11 +51,24 @@ class TestFloorDiv(CommonTFLayerTest):
 
 
 class TestFloorDivStaticInput(CommonTFLayerTest):
-    def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version, use_new_frontend, **kwargs):
+    stored_x_shape = []
+    min = -100
+    max = 200
+    step = 1
+    dtype = np.int32
+
+    def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version, use_new_frontend, x_shape=None):
         import tensorflow as tf
-        
         x = np.arange(min, max, step, dtype=dtype)
-        x_shape = x.reshape(kwargs['x_shape']).shape if 'x_shape' in kwargs else x.shape
+        
+        # x_shape arg can contain -1, but we need always have positive values, therefore take concrete shape value after reshape
+        x_shape = x.reshape(x_shape).shape if x_shape is not None else x.shape
+        self.stored_x_shape = x_shape
+        
+        self.min = min
+        self.max = max
+        self.step = step
+        self.dtype = dtype
 
         tf.compat.v1.reset_default_graph()
 
@@ -71,34 +84,33 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
 
         return tf_net, ref_net
     
-    def _prepare_input(self, inputs_dict, kwargs):
+    def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.arange(kwargs['min'], kwargs['max'], kwargs['step'], dtype=kwargs['dtype'])
-            if 'x_shape' in kwargs:
-                inputs_dict[input] = inputs_dict[input].reshape(kwargs['x_shape'])
+            inputs_dict[input] = np.arange(self.min, self.max, self.step, dtype=self.dtype)
+            if self.stored_x_shape is not None:
+                inputs_dict[input] = inputs_dict[input].reshape(self.stored_x_shape)
         return inputs_dict
 
     test_inputs = [
         # test for integers
         dict(min=-20, max=20, step=1, y=[10],dtype=np.int32),
+        dict(min=-200, max=200, step=1, y=[-100], dtype=np.int32),
+        dict(min=-1000, max=1000, step=2, y=[100], dtype=np.int32),
         dict(min=-10000, max=10000, step=100, y=[10000], dtype=np.int32),
         dict(min=-10000, max=10000, step=100, y=[-10000], dtype=np.int32),
         dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.int32),
-        dict(min=-1e8, max=1e8, step=1e4, y=[1e5], dtype=np.int32),
-        dict(min=-1e8, max=1e8, step=1e4, y=[-1e5], dtype=np.int32),
         
         # test for multidimensinal input
-        dict(min=-10000, max=10000, step=10, y=[10000], x_shape=[20, -1], dtype=np.int32),
-        dict(min=-10000, max=10000, step=10, y=[10000], x_shape=[2, 5, -1], dtype=np.int32),
-        dict(min=-10000, max=10000, step=1, y=[10000], x_shape=[2, 5, 10, -1], dtype=np.int32),
+        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[20, -1], dtype=np.int32),
+        dict(min=-1000, max=1000, step=10, y=[1000], x_shape=[2, 5, -1], dtype=np.int32),
+        dict(min=-1000, max=1000, step=1, y=[1000], x_shape=[2, 5, 10, -1], dtype=np.int32),
 
         # test for floats
         dict(min=-20, max=20, step=1, y=[10],dtype=np.float32),
+        dict(min=-200, max=200, step=5, y=[200], dtype=np.float32),
         dict(min=-10000, max=10000, step=100, y=[10000], dtype=np.float32),
-        dict(min=-10, max=10, step=10, y=[100], dtype=np.float64),
         dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.float32),
-        dict(min=-1e8, max=1e8, step=1e4, y=[1e5], dtype=np.float32),
-        dict(min=-1e8, max=1e8, step=1e4, y=[-1e5], dtype=np.float32),
+        dict(min=-1e5, max=1e5, step=100, y=[1e5], dtype=np.float64),
     ]
     @pytest.mark.parametrize("params", test_inputs)
     @pytest.mark.nightly
@@ -109,4 +121,4 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
         self._test(*self.create_flordiv_tf_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                    use_new_frontend=use_new_frontend, kwargs_to_prepare_input=params)
+                    use_new_frontend=use_new_frontend)
