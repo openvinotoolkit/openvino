@@ -35,6 +35,8 @@ bool evaluate_node<ov::op::v14::Inverse>(std::shared_ptr<ov::Node> node,
     case ov::element::Type_t::bf16:
         return evaluate<ov::element::Type_t::bf16>(ov::as_type_ptr<ov::op::v14::Inverse>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled input data type ", node->get_input_element_type(0).get_type_name(), " in evaluate_node().");
+        OPENVINO_THROW("Unhandled input data type ",
+                       node->get_input_element_type(0).get_type_name(),
+                       " in evaluate_node().");
     }
 }
