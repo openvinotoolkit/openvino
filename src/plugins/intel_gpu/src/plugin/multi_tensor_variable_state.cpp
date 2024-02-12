@@ -108,18 +108,22 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 
 ov::SoPtr<ov::ITensor> VariableStateIndirectKVCache::get_state() const {
     auto kv_layout = m_hidden_states[0]->get_layout();
-    auto kv_mem = m_hidden_states[0]->get_memory();
     auto bt_mem = m_hidden_states[1]->get_memory();
-    auto tensor = m_context->create_host_tensor(m_hidden_states[0]->get_user_specified_type(), kv_layout.get_shape());
+    if (kv_layout.get_partial_shape()[m_beam_idx].get_length() > 1 && bt_mem) {
+        auto kv_mem = m_hidden_states[0]->get_memory();
+        auto tensor = m_context->create_host_tensor(m_hidden_states[0]->get_user_specified_type(), kv_layout.get_shape());
 
-    auto& engine = m_context->get_engine();
-    auto tmp_mem = engine.allocate_memory(kv_layout, engine.get_lockable_preferred_memory_allocation_type(), false);
+        auto& engine = m_context->get_engine();
+        auto tmp_mem = engine.allocate_memory(kv_layout, engine.get_lockable_preferred_memory_allocation_type(), false);
 
-    rearrange_cache(kv_mem, bt_mem, tmp_mem, m_context->get_engine().get_service_stream());
+        rearrange_cache(kv_mem, bt_mem, tmp_mem, m_context->get_engine().get_service_stream());
 
-    convert_and_copy(tmp_mem, tensor._ptr.get(), m_context->get_engine().get_service_stream());
+        convert_and_copy(tmp_mem, tensor._ptr.get(), m_context->get_engine().get_service_stream());
 
-    return tensor;
+        return tensor;
+    } else {
+        return m_hidden_states[0]->get_state();
+    }
 }
 
 void VariableStateIndirectKVCache::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {
