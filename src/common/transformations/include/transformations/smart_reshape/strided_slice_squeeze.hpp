@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API SharedSqueeze;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief StridedSliceSqueeze transformation looks for SS -> Squeeze and corrects SS inputs and attributes for SS output
  * to be squeeze-able
  */
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief StridedSliceSqueeze transformation looks for Squeeze -> SSe and corrects SS inputs and attributes for SS
  * output to be squeeze-able
  */
@@ -45,7 +45,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SharedSqueeze transformation looks for shared Squeezes and leaves only one Squeeze reconnecting all the
  * outputs to it
  */

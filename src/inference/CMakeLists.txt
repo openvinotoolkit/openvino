@@ -78,7 +78,7 @@ ov_build_target_faster(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-    IMPLEMENT_INFERENCE_ENGINE_API
+    IMPLEMENT_OPENVINO_RUNTIME_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
@@ -95,7 +95,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
-# IE is public API => need to mark this library as important for ABI free
+# OpenVINO Runtime is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
 ov_set_threading_interface_for(${TARGET_NAME}_obj)

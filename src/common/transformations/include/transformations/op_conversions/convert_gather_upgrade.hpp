@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ConvertGather7ToGather8;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertGather1ToGather7 converts v1::Gather into v7::Gather.
  */
 class ov::pass::ConvertGather1ToGather7 : public ov::pass::MatcherPass {
@@ -28,7 +28,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertGather7ToGather8 converts v7::Gather into v8::Gather.
  */
 class ov::pass::ConvertGather7ToGather8 : public ov::pass::MatcherPass {

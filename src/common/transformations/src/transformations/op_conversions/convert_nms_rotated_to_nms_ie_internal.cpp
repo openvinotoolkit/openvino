@@ -87,14 +87,18 @@ ov::pass::ConvertNMSRotatedToNMSIEInternal::ConvertNMSRotatedToNMSIEInternal() {
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_rotated->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_rotated->output(0).get_element_type());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             output_0.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_rotated->output(0)));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_rotated->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_rotated->output(2).get_element_type());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_rotated->output(2)));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
