@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/core/shape.hpp>
+#include <cstdlib>
 #include <vector>
 
 namespace ov {
