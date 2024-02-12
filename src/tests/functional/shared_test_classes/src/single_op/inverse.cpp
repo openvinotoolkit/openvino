@@ -67,51 +67,8 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& target_shap
     inputs.clear();
     const auto& func_inputs = function->inputs();
 
-    auto& probs = func_inputs[0];
-    inputs.insert({probs.get_node_shared_ptr(), m_input});
-}
-
-void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected,
-                                         const std::vector<ov::Tensor>& actual) {
-    auto shape = expected[0].get_shape();
-    auto element_type = expected[0].get_element_type();
-
-    if (shape.size() == 3) {
-        for (size_t b = 0 ; b < shape.front(); ++b) {
-            for (size_t x = 0; x < shape.back(); ++x) {
-                for(size_t y = 0; y < shape.back(); y++) {
-                    std::cout << ((float*)(expected[0].data()))[b * shape.back() * shape.back() + x * shape.back() + y] << " ";
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-            for (size_t x = 0; x < shape.back(); ++x) {
-                for(size_t y = 0; y < shape.back(); y++) {
-                    std::cout << ((float*)(actual[0].data()))[b * shape.back() * shape.back() + x * shape.back() + y] << " ";
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-        }
-    } else if (shape.size() == 2) {
-        for (size_t x = 0; x < shape.back(); ++x) {
-            for(size_t y = 0; y < shape.back(); y++) {
-                std::cout << ((float*)(expected[0].data()))[x * shape.back() + y] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for (size_t x = 0; x < shape.back(); ++x) {
-            for(size_t y = 0; y < shape.back(); y++) {
-                std::cout << ((float*)(actual[0].data()))[x * shape.back() + y] << " ";
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-
-    SubgraphBaseTest::compare(expected, actual);
+    auto& data = func_inputs[0];
+    inputs.insert({data.get_node_shared_ptr(), m_input});
 }
 }  // namespace test
 }  // namespace ov

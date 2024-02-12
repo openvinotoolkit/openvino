@@ -59,10 +59,10 @@ private:
     void inverse();
 
     template <typename T>
-    void lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
+    void lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, bool& sign, size_t b);
 
     template <typename T>
-    void to_adjoint(T* output, std::vector<T>& U, size_t b);
+    void to_adjoint(T* output, std::vector<T>& U, bool& sign, size_t b);
 
     template <typename T>
     void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);

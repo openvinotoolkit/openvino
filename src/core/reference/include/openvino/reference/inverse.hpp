@@ -31,7 +31,7 @@ void lu_decomposition(const T* input,
         }
     }
 
-    for (size_t k = 0; k < n - 1; ++k) {
+    for (size_t k = 0; k < n; ++k) {
         // Partial Pivoting
         size_t pivot_row = k;
         for (size_t i = k + 1; i < n; ++i) {
@@ -40,11 +40,13 @@ void lu_decomposition(const T* input,
             }
         }
 
-        if (pivot_row != k) sign = !sign;
-
-        // Swap rows in U and P
-        std::swap(U[k], U[pivot_row]);
-        std::swap(P[k], P[pivot_row]);
+        if (pivot_row != k) {
+            // Swap rows in L, U (A) and P
+            std::swap(U[k], U[pivot_row]);
+            std::swap(L[k], L[pivot_row]);
+            std::swap(P[k], P[pivot_row]);
+            sign = !sign;
+        }
 
         for (size_t i = k + 1; i < n; ++i) {
             L[i][k] = U[i][k] / U[k][k];

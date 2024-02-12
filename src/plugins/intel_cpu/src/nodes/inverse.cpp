@@ -10,6 +10,9 @@
 
 #include "utils/bfloat16.hpp"
 
+// Parallel LU decomposition algorithm with partial pivoting
+// Based on the lectures by Prof. Dr. Thomas Huckle, Parallel Numerics
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -122,7 +125,8 @@ void Inverse::inverse() {
     std::vector<T> P(m_side, static_cast<T>(0));
 
     for (size_t b = 0; b < m_batches_count; ++b) {
-        lu_decomposition(data, L, U, P, b);
+        bool sign = true;
+        lu_decomposition(data, L, U, P, sign, b);
 
         for (size_t column = 0; column < m_side; ++column) {
             lu_solve(output, L, U, P, b, column);
@@ -130,13 +134,18 @@ void Inverse::inverse() {
 
         if (m_adjoint) {
             // Multiply by det(A) = det(U)
-            to_adjoint(output, U, b);
+            to_adjoint(output, U, sign, b);
         }
     }
 }
 
 template <typename T>
-void Inverse::lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
+void Inverse::lu_decomposition(const T* data,
+                               std::vector<T>& L,
+                               std::vector<T>& U,
+                               std::vector<T>& P,
+                               bool& sign,
+                               size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
     size_t batch_idx = b * m_side_squared;
 
@@ -145,38 +154,38 @@ void Inverse::lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>&
         U[i] = data[batch_idx + i];
     });
 
-    // parallel_for(m_side, [&](size_t i) {
-    //     L[i * m_side + i] = static_cast<T>(1);
-    //     P[i] = static_cast<T>(i);
-    // });
-
-    for(size_t i = 0; i < m_side; ++i) {
+    parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = static_cast<T>(1);
         P[i] = static_cast<T>(i);
-    }
+    });
 
     for (size_t k = 0; k < m_side - 1; ++k) {
-        // Find maximum value pivot
         size_t pivot_row = k;
-        size_t pivot_idx = pivot_row * m_side;
-
-        for (size_t i = (k + 1) * m_side, j = k + 1; i < m_side_squared; i += m_side, ++j) {
-            if (abs(U[i + k]) > abs(U[pivot_idx + k])) {
-                pivot_row = j;
-            }
-        }
-
-        // Swap rows in U and P
-        std::swap(P[k], P[pivot_row]);
         size_t k_idx = k * m_side;
-        parallel_for(m_side, [&](size_t i) {
-            T val = U[pivot_idx + i];
-            U[pivot_idx + i] = U[k_idx + i];
-            U[k_idx + i] = val;
-        });
+        size_t pivot_idx = pivot_row * m_side;
 
         size_t remaining_columns = m_side - k;
         size_t remaining_rows = remaining_columns - 1;
+
+        // Find maximum value pivot - non-parallel
+        for (size_t i = (k + 1) * m_side, j = k + 1; i < m_side_squared; i += m_side, ++j) {
+            if (abs(U[i + k]) > abs(U[pivot_idx + k])) {
+                pivot_row = j;
+                pivot_idx = pivot_row * m_side;
+            }
+        }
+
+        // Swap rows in L, U and P
+        std::swap(P[k], P[pivot_row]);
+        parallel_for(m_side, [&](size_t i) {
+            T L_val = L[pivot_idx + i];
+            L[pivot_idx + i] = L[k_idx + i];
+            L[k_idx + i] = L_val;
+
+            T U_val = U[pivot_idx + i];
+            U[pivot_idx + i] = U[k_idx + i];
+            U[k_idx + i] = U_val;
+        });
 
         parallel_for(remaining_rows, [&](size_t i) {
             size_t i_idx = (i + k + 1) * m_side;
@@ -199,16 +208,8 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
     std::vector<T> Y(m_side, static_cast<T>(0));
     B[column] = static_cast<T>(1);
 
-    // Forward substitution: Ly = Pb
-    // parallel_for(m_side, [&](size_t i) {
-    //     Y[i] = B[P[i]];
-    //     size_t i_idx = i * m_side;
-    //     for (size_t j = 0; j < i; ++j) {
-    //         Y[i] = Y[i] - L[i_idx + j] * Y[j];
-    //     }
-    // });
-
-    for (size_t i = 0; i < m_side; ++i){
+    // Forward substitution: Ly = Pb - not possible to be parallel
+    for (size_t i = 0; i < m_side; ++i) {
         Y[i] = B[P[i]];
         size_t i_idx = i * m_side;
         for (size_t j = 0; j < i; ++j) {
@@ -216,17 +217,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
         }
     }
 
-    // Backward substitution: Ux = y
-    // parallel_for(m_side, [&](size_t i) {
-    //     size_t i_adj = m_side - i - 1;
-    //     size_t i_idx = i_adj * m_side;
-    //     X[i_adj] = Y[i_adj];
-    //     for (size_t j = i_adj + 1; j < m_side; ++j) {
-    //         X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
-    //     }
-    //     X[i_adj] = X[i_adj] / U[i_idx + i];
-    // });
-
+    // Backward substitution: Ux = y - not possible to be parallel
     for (size_t i = 0; i < m_side; ++i) {
         size_t i_adj = m_side - i - 1;
         size_t i_idx = i_adj * m_side;
@@ -234,7 +225,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
         for (size_t j = i_adj + 1; j < m_side; ++j) {
             X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
         }
-        X[i_adj] = X[i_adj] / U[i_idx + i];
+        X[i_adj] = X[i_adj] / U[i_idx + i_adj];
     }
 
     // Substitute back to get result
@@ -245,8 +236,8 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
 }
 
 template <typename T>
-void Inverse::to_adjoint(T* output, std::vector<T>& U, size_t b) {
-    T determinant = 1;
+void Inverse::to_adjoint(T* output, std::vector<T>& U, bool& sign, size_t b) {
+    T determinant = sign ? static_cast<T>(1) : static_cast<T>(-1);
 
     for (size_t i = 0; i < m_side; ++i) {
         determinant = determinant * U[i * m_side + i];
