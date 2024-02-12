@@ -53,6 +53,7 @@ def parse_and_check_command_line():
 
 def main():
     statistics = None
+    print('AAAAAAAAAAAAAAAAAAAAAA')
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
         next_step()
@@ -525,25 +526,6 @@ def main():
                 else:
                     input_tensor.data[:] = data_tensor.data
 
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
-                                      [
-                                          ('topology', topology_name),
-                                          ('target device', device_name),
-                                          ('API', args.api_type),
-                                          ('inference_only', benchmark.inference_only),
-                                          ('precision', "UNSPECIFIED"),
-                                          ('batch size', str(batch_size)),
-                                          ('number of iterations', str(benchmark.niter)),
-                                          ('number of parallel infer requests', str(benchmark.nireq)),
-                                          ('duration (ms)', str(get_duration_in_milliseconds(benchmark.duration_seconds))),
-                                       ])
-
-            for nstreams in device_number_streams.items():
-                statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
-                                         [
-                                            (f"number of {nstreams[0]} streams", str(nstreams[1])),
-                                         ])
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
@@ -557,11 +539,6 @@ def main():
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
         duration_ms = f"{benchmark.first_infer(requests):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                    [
-                                        ('first inference time (ms)', duration_ms)
-                                    ])
 
         pcseq = args.pcseq
         if static_mode or len(benchmark.latency_groups) == 1:
@@ -569,127 +546,6 @@ def main():
 
         fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, pcseq)
 
-        # ------------------------------------ 11. Dumping statistics report -------------------------------------------
-        next_step()
-
-        if args.dump_config:
-            dump_config(args.dump_config, config)
-            logger.info(f"OpenVINO configuration settings were dumped to {args.dump_config}")
-
-        if args.exec_graph_path:
-            dump_exec_graph(compiled_model, args.exec_graph_path)
-
-        if perf_counts:
-            perfs_count_list = []
-            for request in requests:
-                perfs_count_list.append(request.profiling_info)
-
-            if args.perf_counts_sort:
-                total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
-                if statistics:
-                    statistics.dump_performance_counters_sorted(total_sorted_list)
-
-            elif args.perf_counts:
-                print_perf_counters(perfs_count_list)
-
-            if statistics:
-                # if not args.perf_counts_sort:
-                statistics.dump_performance_counters(perfs_count_list)
-
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('total execution time (ms)', f'{get_duration_in_milliseconds(total_duration_sec):.2f}'),
-                                          ('total number of iterations', str(iteration)),
-                                      ])
-            if MULTI_DEVICE_NAME not in device_name:
-                latency_prefix = None
-                if args.latency_percentile == 50:
-                    latency_prefix = 'latency (ms)'
-                elif args.latency_percentile != 50:
-                    latency_prefix = 'latency (' + str(args.latency_percentile) + ' percentile) (ms)'
-                if latency_prefix:
-                    statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                            [
-                                                (latency_prefix, f'{median_latency_ms:.2f}'),
-                                            ])
-                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("avg latency", f'{avg_latency_ms:.2f}'),
-                                          ])
-                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("min latency", f'{min_latency_ms:.2f}'),
-                                          ])
-                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("max latency", f'{max_latency_ms:.2f}'),
-                                          ])
-                if pcseq:
-                    for group in benchmark.latency_groups:
-                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("group", str(group)),
-                                          ])
-                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("avg latency", f'{group.avg:.2f}'),
-                                          ])
-                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("min latency", f'{group.min:.2f}'),
-                                          ])
-                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ("max latency", f'{group.max:.2f}'),
-                                          ])
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('throughput', f'{fps:.2f}'),
-                                      ])
-            statistics.dump()
-
-        try:
-            exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
-            logger.info(f'Execution Devices:{exeDevice}')
-        except:
-            pass
-        logger.info(f'Count:            {iteration} iterations')
-        logger.info(f'Duration:         {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
-        if MULTI_DEVICE_NAME not in device_name:
-            logger.info('Latency:')
-            if args.latency_percentile == 50:
-                logger.info(f'   Median:        {median_latency_ms:.2f} ms')
-            elif args.latency_percentile != 50:
-                logger.info(f'   {args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
-            logger.info(f'   Average:       {avg_latency_ms:.2f} ms')
-            logger.info(f'   Min:           {min_latency_ms:.2f} ms')
-            logger.info(f'   Max:           {max_latency_ms:.2f} ms')
-
-            if pcseq:
-                logger.info("Latency for each data shape group:")
-                for idx,group in enumerate(benchmark.latency_groups):
-                    logger.info(f"{idx+1}.{str(group)}")
-                    if args.latency_percentile == 50:
-                        logger.info(f'   Median:     {group.median:.2f} ms')
-                    elif args.latency_percentile != 50:
-                        logger.info(f'   {args.latency_percentile} percentile:     {group.median:.2f} ms')
-                    logger.info(f'   Average:    {group.avg:.2f} ms')
-                    logger.info(f'   Min:        {group.min:.2f} ms')
-                    logger.info(f'   Max:        {group.max:.2f} ms')
-
-        logger.info(f'Throughput:   {fps:.2f} FPS')
-
-        del compiled_model
-
-        next_step.step_id = 0
     except Exception as e:
         logger.exception(e)
-
-        if statistics:
-            statistics.add_parameters(
-                StatisticsReport.Category.EXECUTION_RESULTS,
-                [('error', str(e))]
-            )
-            statistics.dump()
-        sys.exit(1)
+        raise
