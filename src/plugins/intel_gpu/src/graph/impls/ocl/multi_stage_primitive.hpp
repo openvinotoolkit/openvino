@@ -112,6 +112,13 @@ protected:
         _kernels.clear();
         if (!_kernels_data.empty() && !_kernels_data[0].kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
+            size_t total_kernels = std::accumulate(_kernels_data.begin(), _kernels_data.end(), (size_t)0,
+                [](size_t acc, const kernel_selector::kernel_data& kd) {
+                    return acc + kd.kernels.size();
+                });
+            OPENVINO_ASSERT(total_kernels == compiled_kernels.size(), "[GPU] Mismatch between number of expected and actually compiled kernels.\n",
+                                                                      "Expected: ", total_kernels, "\n"
+                                                                      "Got: ", compiled_kernels.size());
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),

@@ -42,8 +42,8 @@ public:
     ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape);
 
 private:
-    size_t m_beam_idx = 0;
-    size_t m_concat_idx = 0;
+    size_t m_beam_axis = 0;
+    size_t m_concat_axis = 0;
 };
 
 }  // namespace intel_gpu

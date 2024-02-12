@@ -88,11 +88,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         kernel_arguments_data args;
         args.shape_info = instance.shape_info_memory_ptr();
         if (stage == concat_stage) {
-            args.shape_info = instance.shape_info_memory_ptr();
             args.inputs = { instance.input_memory_ptr(0), instance.input_memory_ptr(1) };
             args.outputs = { instance.output_memory_ptr(0) };
         } else if (stage == beam_table_stage) {
-            args.shape_info = instance.shape_info_memory_ptr();
             args.inputs = { beam_table_prev, instance.input_memory_ptr(2) };
             args.outputs = { beam_table_new };
         }
@@ -246,7 +244,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     static bt_kernel_params_t get_bt_update_kernel_params(const kernel_impl_params& impl_param, bool is_state_set = false) {
-        const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::beam_table_update_params>(impl_param, true);
         auto optional_params = get_default_optional_params<kernel_selector::beam_table_update_optional_params>(impl_param.get_program());
 

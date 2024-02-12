@@ -33,11 +33,11 @@ MultiTensorState::MultiTensorState(const std::vector<VariableStateInfo>& infos,
 VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateInfo& info,
                                                            RemoteContextImpl::Ptr context,
                                                            std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
-                                                           size_t beam_idx,
-                                                           size_t concat_idx)
+                                                           size_t beam_axis,
+                                                           size_t concat_axis)
     : MultiTensorState { {info}, context, shape_predictor}
-    , m_beam_idx(beam_idx)
-    , m_concat_idx(concat_idx) {
+    , m_beam_axis(beam_axis)
+    , m_concat_axis(concat_axis) {
     cldnn::layout beam_table_layout(get_beam_table_shape(info.m_layout.get_partial_shape()), ov::element::i32, cldnn::format::bfyx);
     VariableStateInfo beam_table_state_info(info.m_id + "/beam_table", beam_table_layout);
     m_hidden_states.push_back(std::make_shared<VariableState>(beam_table_state_info, context, shape_predictor));
@@ -74,18 +74,20 @@ void copy_element(const void* src, void* dst, size_t src_offset, size_t dst_offs
     static_cast<T*>(dst)[dst_offset] = static_cast<const T*>(src)[src_offset];
 }
 
-static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_mem, cldnn::memory::ptr kv_out_mem, cldnn::stream& stream) {
+static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_mem, cldnn::memory::ptr kv_out_mem, cldnn::stream& stream, size_t concat_axis) {
     auto kv_layout = kv_in_mem->get_layout();
     auto kv_shape = kv_layout.get_shape();
     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> kv_in_ptr(kv_in_mem, stream);
     cldnn::mem_lock<int32_t, cldnn::mem_lock_type::read> bt_in_ptr(bt_mem, stream);
     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> kv_out_ptr(kv_out_mem, stream);
 
+    OPENVINO_ASSERT(kv_shape.size() == 4);
+
     for (size_t b = 0; b < kv_shape[0]; b++) {
         for (size_t f = 0; f < kv_shape[1]; f++) {
             for (size_t y = 0; y < kv_shape[2]; y++) {
                 for (size_t x = 0; x < kv_shape[3]; x++) {
-                    size_t b_kv = bt_in_ptr[b* kv_shape[2] + y];
+                    size_t b_kv = bt_in_ptr[b* kv_shape[concat_axis] + y];
 
                     auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
                     auto out_idx = std::vector<int>{static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
@@ -109,14 +111,14 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 ov::SoPtr<ov::ITensor> VariableStateIndirectKVCache::get_state() const {
     auto kv_layout = m_hidden_states[0]->get_layout();
     auto bt_mem = m_hidden_states[1]->get_memory();
-    if (kv_layout.get_partial_shape()[m_beam_idx].get_length() > 1 && bt_mem) {
+    if (kv_layout.get_partial_shape()[m_beam_axis].get_length() > 1 && bt_mem) {
         auto kv_mem = m_hidden_states[0]->get_memory();
         auto tensor = m_context->create_host_tensor(m_hidden_states[0]->get_user_specified_type(), kv_layout.get_shape());
 
         auto& engine = m_context->get_engine();
         auto tmp_mem = engine.allocate_memory(kv_layout, engine.get_lockable_preferred_memory_allocation_type(), false);
 
-        rearrange_cache(kv_mem, bt_mem, tmp_mem, m_context->get_engine().get_service_stream());
+        rearrange_cache(kv_mem, bt_mem, tmp_mem, m_context->get_engine().get_service_stream(), m_concat_axis);
 
         convert_and_copy(tmp_mem, tensor._ptr.get(), m_context->get_engine().get_service_stream());
 
@@ -141,8 +143,8 @@ size_t VariableStateIndirectKVCache::get_actual_mem_size() const {
 ov::PartialShape VariableStateIndirectKVCache::get_beam_table_shape(const ov::PartialShape& kv_cache_shape) {
     auto rank = kv_cache_shape.size();
     ov::PartialShape beam_table_shape(std::vector<size_t>(rank, 1));
-    beam_table_shape[m_beam_idx] = kv_cache_shape[m_beam_idx];
-    beam_table_shape[m_concat_idx] = kv_cache_shape[m_concat_idx];
+    beam_table_shape[m_beam_axis] = kv_cache_shape[m_beam_axis];
+    beam_table_shape[m_concat_axis] = kv_cache_shape[m_concat_axis];
     return beam_table_shape;
 }
 

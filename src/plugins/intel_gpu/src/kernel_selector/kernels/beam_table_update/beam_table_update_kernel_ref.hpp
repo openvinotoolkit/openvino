@@ -17,7 +17,6 @@ struct beam_table_update_optional_params : optional_params {
     beam_table_update_optional_params() : optional_params(KernelType::BEAM_TABLE_UPDATE) {}
 };
 
-
 class BeamTableUpdateKernelRef : public KernelBaseOpenCL {
 public:
     BeamTableUpdateKernelRef() : KernelBaseOpenCL{"beam_table_update_ref"} {}
