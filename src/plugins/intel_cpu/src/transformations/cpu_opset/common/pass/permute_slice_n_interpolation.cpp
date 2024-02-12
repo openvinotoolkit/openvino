@@ -37,6 +37,7 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         auto transpose    = pattern_map.at(transpose_m).get_node_shared_ptr();
         auto slice        = pattern_map.at(slice_m).get_node_shared_ptr();
 
+        // Check Slice axes
         auto in_rank = slice->get_input_partial_shape(0).rank();
         if (in_rank == Rank::dynamic()) {
             return false;
@@ -48,6 +49,11 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         if (!one_of(in_rank.get_length(), 3L, 4L, 5L)
                 || axes.size() != 1L
                 || axes[0] != (in_rank.get_length() - 1L)) {
+            return false;
+        }
+        // Check Transpose order
+        auto order = (as_type<op::v0::Constant>(transpose->get_input_node_ptr(1)))->cast_vector<int64_t>();
+        if (!one_of(order, std::vector<int64_t>{0, 2, 1}, std::vector<int64_t>{0, 3, 1, 2}, std::vector<int64_t>{0, 4, 1, 2, 3})) {
             return false;
         }
 
