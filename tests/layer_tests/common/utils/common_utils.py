@@ -99,6 +99,11 @@ def allclose(cur_array, ref_array, atol, rtol):
     :return: bool value means that values of tensors are equal with tolerance or not
     """
     if cur_array.dtype.type == str or cur_array.dtype.type == np.str_:
+        # TF can represent string tensors in different format: array of bytestreams
+        # so we have to align formats of both string tensors, for example, to unicode
+        if cur_array.dtype.type != ref_array.dtype.type:
+            cur_array = cur_array.astype('U')
+            ref_array = ref_array.astype('U')
         return np.array_equal(cur_array, ref_array)
     elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)
