@@ -21,7 +21,6 @@
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
-#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
 namespace {
 
@@ -333,7 +332,6 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     ov::pass::Manager manager;
     if (compress_to_fp16) {
-        manager.register_pass<ov::pass::MarkSugraphsToKeepInMixedPrecision>();
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>(/*postponed=*/true);
     }

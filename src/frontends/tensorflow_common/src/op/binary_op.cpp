@@ -32,6 +32,8 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/negative.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -53,12 +55,24 @@ OutputVector translate_binary_op(const NodeContext& node,
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) -> shared_ptr<Node> {
+        
         auto out_type = x.get_element_type();
         if (out_type.is_integral()) {
-            auto float_x = make_shared<v0::Convert>(x, element::f32);
-            auto float_y = make_shared<v0::Convert>(y, element::f32);
-            return make_shared<v0::Convert>(make_shared<v0::Floor>(make_shared<v1::Divide>(float_x, float_y)),
-                                            out_type);
+            auto div = make_shared<v1::Divide>(x, y, true);
+
+            auto zeros_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
+            auto ones_const = make_shared<v0::Constant>(out_type, Shape{}, 1);
+            
+            auto x_less_cond = make_shared<v1::Less>(x, zeros_const);
+            auto y_less_cond = make_shared<v1::Less>(y, zeros_const);
+            auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
+            
+            auto mod_xy = make_shared<v1::Mod>(x, y);
+            auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zeros_const);
+
+            auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
+            auto reminder = make_shared<v1::Select>(cond, make_shared<v0::Negative>(ones_const), zeros_const);
+            return make_shared<v1::Add>(div, reminder);
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
         }
