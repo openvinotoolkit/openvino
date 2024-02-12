@@ -173,7 +173,7 @@ function getRuntimeArchiveUrl(osInfo) {
 
   const { host, remote_path } = packageJson.binary;
 
-  return new URL(path.join(remote_path, packageName), host).toString();
+  return new URL(`${remote_path}${packageName}`, host).toString();
 }
 
 /**
