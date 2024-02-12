@@ -18,23 +18,20 @@ from common.samples_common_test_class import SamplesCommonTestClass
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data = get_tests(cmd_params={'sample_type': ['Python', 'C++']})
+test_data = get_tests({'sample_type': ['Python', 'C++']}, use_device=False)
 
 class TestHelloQueryDevice(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'hello_query_device'
-        super().setup_class()
+    sample_name = 'hello_query_device'
 
     @pytest.mark.parametrize("param", test_data)
-    def test_hello_query_device(self, param):
+    def test_hello_query_device(self, param, cache):
         """
         Hello Query Device test has functional and accuracy tests.
         For accuracy find in output line available devices
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, use_preffix=False)
+        stdout = self._test(param, cache, use_preffix=False)
         if not stdout:
             return 0
         stdout = stdout.split('\n')
