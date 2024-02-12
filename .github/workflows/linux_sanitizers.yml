@@ -98,7 +98,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt update && apt install --assume-yes --no-install-recommends default-jdk protobuf-compiler
           
           # use clang as a default compiler
           apt --assume-yes install clang lld
