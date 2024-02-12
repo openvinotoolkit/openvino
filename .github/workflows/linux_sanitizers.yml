@@ -57,7 +57,8 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       NEOReadDebugKeys: 1
       DisableDeepBind: 1
-      SANITIZER_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
+      LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
+      ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
 
     steps:
       - name: Set apt retries
@@ -135,16 +136,22 @@ jobs:
       # Build
       #
 
-      - name: Show suppresion file
-        run: cat ${SANITIZER_IGNORE}
+      - name: Show suppression file and lib
+        continue-on-error: true
+        run: |
+          cat ${LSAN_IGNORE}
+          cat ${ASAN_IGNORE}
+          ls -la /lib/x86_64-linux-gnu/libasan.so.5
+          ls -la /lib/x86_64-linux-gnu/libstdc++.so.6
 
       - name: CMake configure - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0
-          export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
+          export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export PYTHONMALLOC=malloc 
+          export LD_PRELOAD=/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
-            -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
@@ -164,8 +171,10 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: |
-          export ASAN_OPTIONS=halt_on_error=0
-          export LSAN_OPTIONS=suppressions=${SANITIZER_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
+          export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export PYTHONMALLOC=malloc
+          export LD_PRELOAD=/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Cmake install - OpenVINO
