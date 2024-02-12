@@ -135,16 +135,12 @@ ov::TensorVector infer_model_via_template(const std::shared_ptr<ov::Model>& mode
     ov::Core core;
 
     // Register Template plugin
-    const auto devices = core.get_available_devices();
-    if (std::find(devices.begin(), devices.end(), std::string(ov::test::utils::DEVICE_TEMPLATE)) == devices.end()) {
-        auto plugin_path =
-            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                               std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
-        if (!ov::util::file_exists(plugin_path)) {
-            throw std::runtime_error("Plugin: " + plugin_path + " does not exists!");
-        }
-        core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
-    }
+#ifndef OPENVINO_STATIC_LIBRARY
+    std::string pluginName = ov::test::utils::TEMPLATE_LIB;
+    pluginName += OV_BUILD_POSTFIX;
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
+                         ov::test::utils::DEVICE_TEMPLATE);
+#endif  // !OPENVINO_STATIC_LIBRARY
 
     auto compiled_model = core.compile_model(model,
                                              ov::test::utils::DEVICE_TEMPLATE,
