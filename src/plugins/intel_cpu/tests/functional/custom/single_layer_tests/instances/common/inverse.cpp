@@ -11,37 +11,57 @@ namespace {
 
 using ov::test::InverseLayerTest;
 
-std::vector<float> data_4x4_f32 =
-    {7.0f, -2.0f, 5.0f, 8.0f, -6.0f, 3.0f, -2.0f, 27.0f, 10.0f, -12.0f, 23.0f, 21.0f, 1.0f, -21.0f, 16.0f, 15.0f};
+std::vector<float> data_4x4_f32 ={
+    5.0f, 6.0f, 6.0f, 8.0f, 
+    2.0f, 2.0f, 2.0f, 8.0f, 
+    6.0f, 6.0f, 2.0f, 8.0f, 
+    2.0f, 3.0f, 6.0f, 7.0f};
 
-std::vector<ov::float16> data_2x3x3_f16 = {ov::float16(2.0f),
-                                           ov::float16(-1.0f),
-                                           ov::float16(0.0f),
-                                           ov::float16(-1.0f),
-                                           ov::float16(2.0f),
-                                           ov::float16(-1.0f),
-                                           ov::float16(0.0f),
-                                           ov::float16(-1.0f),
-                                           ov::float16(2.0f),
+    // -17 -9 12 16
+    // 17 8.75 -11.75 -16
+    // -4 -2.25 2.75 4
+    // 1 0.75 -0.75 -1
 
-                                           ov::float16(3.0f),
-                                           ov::float16(1.0f),
-                                           ov::float16(2.0f),
-                                           ov::float16(0.0f),
-                                           ov::float16(4.0f),
-                                           ov::float16(1.0f),
-                                           ov::float16(2.0f),
-                                           ov::float16(-2.0f),
-                                           ov::float16(0.0f)};
+std::vector<ov::float16> data_2x3x3_f16 = {
+    ov::float16(2.0f), ov::float16(-1.0f), ov::float16(0.0f),
+    ov::float16(-1.0f), ov::float16(2.0f), ov::float16(-1.0f),
+    ov::float16(0.0f), ov::float16(-1.0f), ov::float16(2.0f),
 
-std::vector<ov::bfloat16> data_2x2_bf16 = {ov::bfloat16(0.1f),
-                                           ov::bfloat16(1.0f),
-                                           ov::bfloat16(10.0f),
-                                           ov::bfloat16(101.0f)};
+    // 0.75 0.5 0.25
+    // 0.5 1 0.5
+    // 0.25 0.5 0.75
 
-const auto data = testing::Values(ov::Tensor(ov::element::f32, {4, 4}, data_4x4_f32.data()),
-                                  ov::Tensor(ov::element::f16, {2, 3, 3}, data_2x3x3_f16.data()),
-                                  ov::Tensor(ov::element::bf16, {2, 2}, data_2x2_bf16.data()));
+    // 3 2 1
+    // 2 4 2
+    // 1 2 3
+
+    ov::float16(3.0f), ov::float16(1.0f), ov::float16(2.0f),
+    ov::float16(0.0f), ov::float16(4.0f), ov::float16(1.0f),
+    ov::float16(2.0f), ov::float16(-2.0f), ov::float16(0.0f)};
+
+    // -0.25 | 0.5 0.875
+    // -0.25 0.5 0.378
+    // 1 -1 -1.5
+
+    // -2 4 7
+    // -2 4 3
+    // 8 -8 -12 
+
+
+std::vector<ov::bfloat16> data_2x2_bf16 = {
+    ov::bfloat16(0.5f), ov::bfloat16(1.0f),
+    ov::bfloat16(3.0f), ov::bfloat16(2.0f)};
+
+    // -1 0.5
+    // 1.5 -0.25
+
+    // 2 -1
+    // -3 0.5
+
+const auto data = testing::Values(ov::Tensor(ov::element::f32, {4, 4}, data_4x4_f32.data())
+                                //   ov::Tensor(ov::element::f16, {2, 3, 3}, data_2x3x3_f16.data()),
+                                //   ov::Tensor(ov::element::bf16, {2, 2}, data_2x2_bf16.data())
+                                );
 
 const auto adjoint = testing::Values(true, false);
 

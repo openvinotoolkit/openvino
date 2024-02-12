@@ -123,7 +123,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceGroupNormalization.*_f64*)",
         // Precision not high enough to get exact result for this test case (both tiny values and very high values
         // necessary)
-        R"(.*ReferenceInverse.*bf16.*adjoint_1.*)"};
+        // R"(.*ReferenceInverse.*bf16.*adjoint_1.*)"
+        };
 
 #ifdef _WIN32
     // CVS-63989

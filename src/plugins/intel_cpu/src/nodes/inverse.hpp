@@ -56,7 +56,7 @@ private:
 
     // Helper functions
     template <typename T>
-    void execute_internal();
+    void inverse();
 
     template <typename T>
     void lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
