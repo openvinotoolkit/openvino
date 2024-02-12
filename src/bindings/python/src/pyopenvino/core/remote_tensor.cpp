@@ -12,7 +12,9 @@
 namespace py = pybind11;
 
 void regclass_RemoteTensor(py::module m) {
-    py::class_<RemoteTensorWrapper, std::shared_ptr<RemoteTensorWrapper>> cls(m, "RemoteTensor", py::base<ov::Tensor>());
+    py::class_<RemoteTensorWrapper, std::shared_ptr<RemoteTensorWrapper>> cls(m,
+                                                                              "RemoteTensor",
+                                                                              py::base<ov::Tensor>());
 
     cls.def("get_device_name", [](RemoteTensorWrapper& self) {
         return self.tensor.get_device_name();
@@ -59,22 +61,20 @@ void regclass_RemoteTensor(py::module m) {
 
 #ifdef PY_ENABLE_GPU
 void regclass_ClImage2DTensor(py::module m) {
-    py::class_<ClImage2DTensorWrapper,
-               RemoteTensorWrapper,
-               std::shared_ptr<ClImage2DTensorWrapper>>
-        cls(m, "ClImage2DTensor");
+    py::class_<ClImage2DTensorWrapper, RemoteTensorWrapper, std::shared_ptr<ClImage2DTensorWrapper>> cls(
+        m,
+        "ClImage2DTensor");
 
     cls.def_property_readonly("data", [](ClImage2DTensorWrapper& self) {
         Common::utils::raise_not_implemented();
     });
 }
 
-#ifndef _WIN32
+#    ifndef _WIN32
 void regclass_VASurfaceTensor(py::module m) {
-    py::class_<VASurfaceTensorWrapper,
-               ClImage2DTensorWrapper,
-               std::shared_ptr<VASurfaceTensorWrapper>>
-        cls(m, "VASurfaceTensor");
+    py::class_<VASurfaceTensorWrapper, ClImage2DTensorWrapper, std::shared_ptr<VASurfaceTensorWrapper>> cls(
+        m,
+        "VASurfaceTensor");
 
     cls.def_property_readonly("surface_id", [](VASurfaceTensorWrapper& self) {
         return self.surface_id();
@@ -96,5 +96,5 @@ void regclass_VASurfaceTensor(py::module m) {
         return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
     });
 }
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU
+#    endif  // _WIN32
+#endif      // PY_ENABLE_GPU

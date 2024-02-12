@@ -3,7 +3,6 @@
 //
 
 #include "pyopenvino/core/core.hpp"
-#include "pyopenvino/core/remote_context.hpp"
 
 #include <pybind11/stl.h>
 
@@ -12,6 +11,7 @@
 #include <pyopenvino/core/tensor.hpp>
 
 #include "common.hpp"
+#include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -255,6 +255,8 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("properties"));
 
+#ifdef PY_ENABLE_GPU
+#    ifndef _WIN32
     cls.def(
         "create_va_context",
         [](ov::Core& self, const std::string& device_name, VADisplayWrapper& display, int target_tile_id) {
@@ -267,10 +269,15 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("display"),
         py::arg("target_tile_id") = -1);
+#    endif  // _WIN32
+#endif      // PY_ENABLE_GPU
 
-    cls.def("get_default_context", [](ov::Core& self, const std::string& device_name) {
-        return RemoteContextWrapper(self.get_default_context(device_name));
-    }, py::arg("device_name"));
+    cls.def(
+        "get_default_context",
+        [](ov::Core& self, const std::string& device_name) {
+            return RemoteContextWrapper(self.get_default_context(device_name));
+        },
+        py::arg("device_name"));
 
     cls.def("get_versions",
             &ov::Core::get_versions,

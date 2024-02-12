@@ -44,15 +44,12 @@ void regclass_RemoteContext(py::module m) {
         py::arg("shape"));
 }
 
-
 #ifdef PY_ENABLE_GPU
 void regclass_ClContext(py::module m) {
-    py::class_<ClContextWrapper, RemoteContextWrapper, std::shared_ptr<ClContextWrapper>> cls(
-        m,
-        "ClContext");
+    py::class_<ClContextWrapper, RemoteContextWrapper, std::shared_ptr<ClContextWrapper>> cls(m, "ClContext");
 }
 
-#ifndef _WIN32
+#    ifndef _WIN32
 void regclass_VADisplayWrapper(py::module m) {
     py::class_<VADisplayWrapper, std::shared_ptr<VADisplayWrapper>> cls(m, "VADisplayWrapper");
 
@@ -67,20 +64,15 @@ void regclass_VADisplayWrapper(py::module m) {
 }
 
 void regclass_VAContext(py::module m) {
-    py::class_<VAContextWrapper,
-               ClContextWrapper,
-               std::shared_ptr<VAContextWrapper>>
-        cls(m, "VAContext");
+    py::class_<VAContextWrapper, ClContextWrapper, std::shared_ptr<VAContextWrapper>> cls(m, "VAContext");
 
     cls.def(
         "create_tensor_nv12",
-        [](VAContextWrapper& self,
-           const size_t height,
-           const size_t width,
-           const uint32_t nv12_surface) {
-            ov::AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
-                                    {ov::intel_gpu::dev_object_handle.name(), nv12_surface},
-                                    {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
+        [](VAContextWrapper& self, const size_t height, const size_t width, const uint32_t nv12_surface) {
+            ov::AnyMap tensor_params = {
+                {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
+                {ov::intel_gpu::dev_object_handle.name(), nv12_surface},
+                {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
             auto y_tensor = self.context.create_tensor(ov::element::u8, {1, height, width, 1}, tensor_params);
             tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
             auto uv_tensor = self.context.create_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, tensor_params);
@@ -107,5 +99,5 @@ void regclass_VAContext(py::module m) {
         py::arg("surface"),
         py::arg("plane") = 0);
 }
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU
+#    endif  // _WIN32
+#endif      // PY_ENABLE_GPU
