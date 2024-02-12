@@ -389,16 +389,22 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
     endif()
 
     if(Flatbuffers_FOUND)
+        message("Flatbuffers_FOUND 1")
         # we don't actually use library files (.so | .dylib | .a) itself, only headers
         if(TARGET flatbuffers::flatbuffers_shared)
+            message("Flatbuffers_FOUND 2")
             set(flatbuffers_LIBRARY flatbuffers::flatbuffers_shared)
         elseif(TARGET flatbuffers::flatbuffers)
+            message("Flatbuffers_FOUND 3")
             set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
         else()
+            message("Flatbuffers_FOUND 4")
             message(FATAL_ERROR "Internal error: Failed to detect flatbuffers library target")
         endif()
+        message("Flatbuffers_FOUND 5")
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
+        message("Flatbuffers_NOT_FOUND")
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
 
         # used by NPU repo
@@ -408,6 +414,7 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
 
     # set additional variables, used in other places of our cmake scripts
     set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES>)
+    message("Flatbuffers_= ${flatbuffers_LIBRARY}")
 endif()
 
 #
