@@ -3,6 +3,7 @@
 //
 
 #include "pyopenvino/core/core.hpp"
+#include "pyopenvino/core/remote_context.hpp"
 
 #include <pybind11/stl.h>
 
@@ -235,11 +236,11 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
-           const ov::RemoteContext& context,
+           const RemoteContextWrapper& context,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
-            return self.compile_model(model, context, _properties);
+            return self.compile_model(model, context.context, _properties);
         },
         py::arg("model"),
         py::arg("context"),
@@ -249,12 +250,27 @@ void regclass_Core(py::module m) {
         "create_context",
         [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            return self.create_context(device_name, _properties);
+            return RemoteContextWrapper(self.create_context(device_name, _properties));
         },
         py::arg("device_name"),
         py::arg("properties"));
 
-    cls.def("get_default_context", &ov::Core::get_default_context, py::arg("device_name"));
+    cls.def(
+        "create_va_context",
+        [](ov::Core& self, const std::string& device_name, VADisplayWrapper& display, int target_tile_id) {
+            ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
+                                         {ov::intel_gpu::va_device.name(), device_name},
+                                         {ov::intel_gpu::tile_id.name(), target_tile_id}};
+            auto ctx = self.create_context(device_name, context_params);
+            return VAContextWrapper(ctx);
+        },
+        py::arg("device_name"),
+        py::arg("display"),
+        py::arg("target_tile_id") = -1);
+
+    cls.def("get_default_context", [](ov::Core& self, const std::string& device_name) {
+        return RemoteContextWrapper(self.get_default_context(device_name));
+    }, py::arg("device_name"));
 
     cls.def("get_versions",
             &ov::Core::get_versions,

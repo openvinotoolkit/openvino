@@ -34,10 +34,6 @@ def test_get_default_context_gpu():
     context = core.get_default_context("GPU")
     assert isinstance(context, ov.RemoteContext)
     assert "GPU" in context.get_device_name()
-    # TODO: check context.get_params() and bind related properties:
-    #       * CONTEXT_TYPE
-    #       * OCL_CONTEXT
-    #       * OCL_QUEUE
 
 
 @pytest.mark.skipif(
@@ -49,27 +45,23 @@ def test_create_device_tensor_gpu():
     context = core.get_default_context("GPU")
     assert isinstance(context, ov.RemoteContext)
     assert "GPU" in context.get_device_name()
-    # Test RemoteTensor class:
+
     tensor = context.create_device_tensor(ov.Type.f32, ov.Shape([1, 2, 3]), {})
     assert isinstance(tensor, ov.Tensor)
     assert isinstance(tensor, ov.RemoteTensor)
     assert "GPU" in tensor.get_device_name()
-    # TODO: check tensor.get_params() and bind related properties:
-    #       * MEM_HANDLE
-    #       * OCL_CONTEXT
-    #       * SHARED_MEM_TYPE
     assert tensor.get_shape() == ov.Shape([1, 2, 3])
     assert tensor.get_element_type() == ov.Type.f32
     assert tensor.get_size() == 6
     assert tensor.get_byte_size() == 24
     assert list(tensor.get_strides()) == [24, 12, 4]
-    # Resize tensor:
+
     tensor.set_shape([1, 1, 1])
     assert tensor.get_shape()
     assert tensor.get_size() == 1
     assert tensor.get_byte_size() == 4
     assert list(tensor.get_strides()) == [4, 4, 4]
-    # Test RemoteTensor class NotImplemented methods:
+
     with pytest.raises(TypeError) as constructor_error:
         _ = ov.RemoteTensor(np.ones((1, 2, 3)))
     assert "No constructor defined!" in str(constructor_error.value)
@@ -108,12 +100,11 @@ def test_compile_with_context():
     reason="Test can be only performed on GPU device!",
 )
 def test_cl_context():
-    # Check if the API was built with OpenCL:
     try:
         from openvino import ClContext
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for OpenCL.",
+            "OpenVINO was built without support for GPU.",
         )
 
 
@@ -122,12 +113,11 @@ def test_cl_context():
     reason="Test can be only performed on GPU device!",
 )
 def test_cl_image_2d_tensor():
-    # Check if the API was built with OpenCL:
     try:
         from openvino import ClImage2DTensor
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for OpenCL.",
+            "OpenVINO was built without support for GPU.",
         )
 
 
@@ -136,12 +126,11 @@ def test_cl_image_2d_tensor():
     reason="Test can be only performed on GPU device!",
 )
 def test_va_wrapper():
-    # Check if the API was built with libva:
     try:
         from openvino import VADisplayWrapper
     except ImportError:
         pytest.skip(
-            "OpenVINO was built without support for libva.",
+            "OpenVINO was built without support for GPU.",
         )
     display = VADisplayWrapper(None)
     assert isinstance(display, VADisplayWrapper)
@@ -154,12 +143,10 @@ def test_va_wrapper():
     reason="Test can be only performed on GPU device!",
 )
 def test_va_context():
-    # Check if the API was built with libva:
     try:
         from openvino import VADisplayWrapper
         from openvino import VAContext
     except ImportError:
-
         pytest.skip(
-            "OpenVINO was built without support for libva.",
+            "OpenVINO was built without support for GPU.",
         )
