@@ -57,18 +57,18 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
 }
 
 bool PriorBoxClustered::needShapeInfer() const {
-    auto memory = getChildEdgeAt(0)->getMemoryPtr();
+    auto memory = getDstMemoryAtPort(0);
     if (memory->getShape().isDynamic()) {
         return true;
     }
 
-    const auto& outputShape = memory->getShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->getData());
+    const auto& output_shape = memory->getShape().getStaticDims();
+    const int* in_data = getSrcDataAtPortAs<int>(0);
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
 
-    return outputShape[1] != output;
+    return output_shape[1] != output;
 }
 
 bool PriorBoxClustered::needPrepareParams() const {
@@ -94,11 +94,11 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const int* in_image = getSrcDataAtPortAs<int>(1);
     int img_height = in_image[0];
     int img_width = in_image[1];
 
@@ -109,7 +109,7 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = getDstDataAtPortAs<float>(0);
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();

@@ -27,13 +27,13 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateSharedValue transformation propagates shared value AttributeType attribute instances
  * through precision preserved operations.
  *
  * For more details about the transformation, refer to
  * [PropagateSharedValue](@ref openvino_docs_OV_UG_lpt_PropagateSharedValue) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <class AttributeType>
 class ov::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {

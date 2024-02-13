@@ -117,9 +117,8 @@ jobs:
 
           # Install the core OV wheel
           ${PYTHON_INSTALL_PREFIX} ${INSTALL_DIR}/tools/openvino-*.whl
-          
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
-          
+
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
             extras_to_install="mxnet,$extras_to_install"
           fi
@@ -170,7 +169,7 @@ jobs:
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
-             fromJSON(inputs.affected-components).ONNX_FE.test) && 
+             fromJSON(inputs.affected-components).ONNX_FE.test) &&
              runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
@@ -199,7 +198,7 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
-          
+
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
             # Find gomp lib
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
@@ -217,14 +216,15 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          
+
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
             # Find gomp lib
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
             export LD_PRELOAD=${GOMP_LIB}
           fi
           
-          ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xm
+  
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -254,7 +254,7 @@ jobs:
           PYTORCH_TRACING_MODE: EXPORT
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' }}
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
           ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -263,7 +263,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' }}
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
           ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:

@@ -1,5 +1,5 @@
 ir_version: 3
-producer_name: "onnx tests"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
     input: "A"

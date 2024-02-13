@@ -17,7 +17,6 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <numeric>
 #include <ostream>
 #include <set>
@@ -31,3 +30,4 @@
 #include <vector>
 
 #include "openvino/core/type/float16.hpp"
+#include "openvino/openvino.hpp"

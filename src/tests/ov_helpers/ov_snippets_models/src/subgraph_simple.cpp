@@ -1,9 +1,10 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_simple.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {

@@ -121,7 +121,7 @@ jobs:
           apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -325,7 +325,7 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 30 }}
     defaults:
       run:
         shell: bash
@@ -486,7 +486,7 @@ jobs:
     name: TensorFlow Hub Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
     with:
       runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
@@ -500,7 +500,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
@@ -592,7 +592,7 @@ jobs:
           apt -y --no-install-recommends install software-properties-common curl
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
@@ -631,6 +631,97 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
 
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI ]
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
+    env:
+      INSTALL_DIR: /__w/openvino/openvino/install
+      OPENVINO_TOKENIZERS_REPO: /__w/openvino/openvino/openvino_tokenizers
+      EXTENSION_BUILD_DIR: /__w/openvino/openvino/build
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python
+            install_build_dependencies.sh
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'false'
+
+      - name: Clone OpenVINO Tokenizers
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_tokenizers'
+          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
+          ref: 'master'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: ./install_build_dependencies.sh
+
+      - name: Install python dependencies
+        run: |
+          # wheel packaging
+          python3 -m pip install -r ${OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
+
+      #
+      # Build
+      #
+
+      - name: Build tokenizers wheel
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
+        env:
+          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+          CMAKE_GENERATOR: 'Unix Makefiles'
+
+      #
+      # Upload build artifacts
+      #
+
+      - name: Upload openvino tokenizers wheel
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
+
   GPU_Stub:
     needs: [ Build, Smart_CI ]
     runs-on: ubuntu-latest
@@ -645,7 +736,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
+            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

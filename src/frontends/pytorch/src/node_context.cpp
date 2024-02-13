@@ -156,9 +156,7 @@ std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size
             return {};
         input_val = concat_list_construct(input_val);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto constant = get_constant_from_source(input_val);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto constant = ov::util::get_constant_from_source(input_val);
     FRONT_END_GENERAL_CHECK(constant, "Input with index ", index, " cannot be interpreted as Constant: ", input_val);
     return constant;
 }

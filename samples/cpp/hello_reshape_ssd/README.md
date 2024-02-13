@@ -19,7 +19,7 @@ The following C++ API is used in the application:
 | Feature                  | API                                                         | Description                                    |
 | -------------------------| ------------------------------------------------------------|------------------------------------------------|
 | Node operations          | ``ov::Node::get_type_info``,                                | Get a node info                                |
-|                          | ``ngraph::op::DetectionOutput::get_type_info_static``,      |                                                |
+|                          | ``ov::op::DetectionOutput::get_type_info_static``,          |                                                |
 |                          | ``ov::Output::get_any_name``,                               |                                                |
 |                          | ``ov::Output::get_shape``                                   |                                                |
 | Model Operations         | ``ov::Model::get_ops``,                                     | Get model nodes, reshape input                 |

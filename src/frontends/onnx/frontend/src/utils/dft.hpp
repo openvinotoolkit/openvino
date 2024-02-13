@@ -6,8 +6,9 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace dft {
 
 ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
@@ -16,5 +17,6 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               bool is_inversed,
                               bool is_one_sided);
 }  // namespace  dft
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

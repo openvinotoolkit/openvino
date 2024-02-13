@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "pooling/pooling_kernel_base.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling_inst.h"
 #include "pooling_shape_inference_util.hpp"
 #include "primitive_base.hpp"
-#include "validation_util.hpp"
 
 namespace cldnn {
 namespace ocl {
