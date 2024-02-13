@@ -35,11 +35,11 @@ The adjugate matrix exists if and only if the inverse matrix exists.
 
 **Inputs**:
 
-* **1**: `input` - A tensor of shape [..., M, M] and type `T_IN` representing the input square matrices. The inner-most 2 dimensions form square matrices and must be of the same size. **Required.**
+* **1**: `input` - A tensor of shape [B1, B2, ..., Bn, ROW, COL] and type `T` representing the input square matrices. The inner-most 2 dimensions form square matrices and must be of the same size. **Required.**
 
 **Outputs**:
 
-* **1**: `output` - A tensor with the same type `T_IN` as the input and same shape [..., M, M] as the input, representing the inverse matrices (or adjugate matrices) of the input matrices.
+* **1**: `output` - A tensor with the same type `T` as the input and same shape [B1, B2, ..., Bn, ROW, COL] as the input, representing the inverse matrices (or adjugate matrices) of the input matrices.
 
 **Attributes**:
 
@@ -57,15 +57,15 @@ The adjugate matrix exists if and only if the inverse matrix exists.
 
 **Types**
 
-* **T_IN**: any supported floating-point type.
+* **T**: any supported floating-point type.
 
-**Example**:
+*Example 2: 2D input matrix.*
 
 .. code-block:: xml
     :force:
 
     <layer ... name="Inverse" type="Inverse">
-        <data />
+        <data/>
         <input>
             <port id="0" precision="FP32">
                 <dim>2</dim> <!-- batch size of 2 -->
@@ -78,6 +78,56 @@ The adjugate matrix exists if and only if the inverse matrix exists.
                 <dim>2</dim> <!-- batch size of 2 -->
                 <dim>3</dim> <!-- matrix size of 3x3 -->
                 <dim>3</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 2: 3D input tensor with one batch dimension and adjoint=true.*
+
+.. code-block:: xml
+    :force:
+
+    <layer ... name="Inverse" type="Inverse">
+        <data adjoint="true"/>
+        <input>
+            <port id="0" precision="FP32">
+                <dim>2</dim> <!-- batch size of 2 -->
+                <dim>3</dim> <!-- matrix size of 3x3 -->
+                <dim>3</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="FP32" names="Inverse:0">
+                <dim>2</dim> <!-- batch size of 2 -->
+                <dim>3</dim> <!-- matrix size of 3x3 -->
+                <dim>3</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 3: 5D input tensor with three batch dimensions.*
+
+.. code-block:: xml
+    :force:
+
+    <layer ... name="Inverse" type="Inverse">
+        <data/>
+        <input>
+            <port id="0" precision="FP32">
+                <dim>5</dim> <!-- batch size of 5 -->
+                <dim>4</dim> <!-- batch size of 4 -->
+                <dim>3</dim> <!-- batch size of 3 -->
+                <dim>2</dim> <!-- matrix size of 2x2 -->
+                <dim>2</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="FP32" names="Inverse:0">
+                <dim>5</dim> <!-- batch size of 5 -->
+                <dim>4</dim> <!-- batch size of 4 -->
+                <dim>3</dim> <!-- batch size of 3 -->
+                <dim>2</dim> <!-- matrix size of 2x2 -->
+                <dim>2</dim>
             </port>
         </output>
     </layer>
