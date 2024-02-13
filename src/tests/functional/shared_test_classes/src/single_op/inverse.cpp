@@ -46,32 +46,26 @@ void InverseLayerTest::SetUp() {
     std::tie(input_shape, element_type, adjoint, test_static, m_seed, targetDevice) = GetParam();
 
     std::vector<InputShape> in_shapes;
-    ov::ParameterVector in_params;
-    std::vector<std::shared_ptr<ov::Node>> inputs;
-
     if (!test_static) {
-        in_shapes.push_back({{}, {{input_shape}}});
-        in_params.push_back(std::make_shared<ov::op::v0::Parameter>(element_type, input_shape));
-        in_params.back()->set_friendly_name("data");
-        inputs.push_back(in_params.back());
+        in_shapes.push_back({{}, {input_shape}});
     } else {
-        size_t count = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
-
-        inputs.push_back(ov::op::v0::Constant::create(element_type, input_shape, {0}));
+        in_shapes.push_back({input_shape, {input_shape}});
     }
-
     init_input_shapes(in_shapes);
 
-    auto inverse = std::make_shared<ov::op::v14::Inverse>(inputs[0], adjoint);
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape);
+    data->set_friendly_name("data");
+
+    auto inverse = std::make_shared<ov::op::v14::Inverse>(data, adjoint);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(inverse)};
-    function = std::make_shared<ov::Model>(results, in_params, "InverseTestCPU");
+    function = std::make_shared<ov::Model>(results, ParameterVector{data}, "InverseTestCPU");
 }
 
 template <typename T>
 void fill_data(T* dst, const size_t count, const unsigned int seed) {
     std::mt19937 gen(seed);
-    std::uniform_real_distribution<float> dis(-10.0f, 10.0f);
+    std::uniform_real_distribution<float> dis(0.0f, 10.0f);
 
     for (size_t i = 0; i < count; i++) {
         dst[i] = static_cast<T>(dis(gen));
@@ -81,31 +75,30 @@ void fill_data(T* dst, const size_t count, const unsigned int seed) {
 void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& func_inputs = function->inputs();
+    const auto& func_input = func_inputs[0];
+    const auto& name = func_input.get_node()->get_friendly_name();
+    const auto& in_prc = func_input.get_element_type();
+    auto tensor = ov::Tensor(in_prc, targetInputStaticShapes[0]);
+    size_t count = std::accumulate(targetInputStaticShapes[0].begin(),
+                                   targetInputStaticShapes[0].end(),
+                                   1,
+                                   std::multiplies<size_t>());
 
-    for (size_t i = 0llu; i < func_inputs.size(); ++i) {
-        const auto& func_input = func_inputs[i];
-        const auto& name = func_input.get_node()->get_friendly_name();
-        const auto& in_prc = func_input.get_element_type();
-        auto tensor = ov::Tensor(in_prc, targetInputStaticShapes[i]);
-        size_t count = std::accumulate(targetInputStaticShapes[i].begin(),
-                                       targetInputStaticShapes[i].end(),
-                                       1,
-                                       std::multiplies<size_t>());
-
-        switch (in_prc) {
-        case ov::element::f32:
-            fill_data(tensor.data<ov::element_type_traits<ov::element::f32>::value_type>(), count, m_seed);
-            break;
-        case ov::element::f16:
-            fill_data(tensor.data<ov::element_type_traits<ov::element::f16>::value_type>(), count, m_seed);
-            break;
-        case ov::element::bf16:
-            fill_data(tensor.data<ov::element_type_traits<ov::element::bf16>::value_type>(), count, m_seed);
-            break;
-        default:
-            OPENVINO_THROW("Inverse does not support precision ", in_prc, " for the 'data' input.");
-        }
+    switch (in_prc) {
+    case ov::element::f32:
+        fill_data(tensor.data<ov::element_type_traits<ov::element::f32>::value_type>(), count, m_seed);
+        break;
+    case ov::element::f16:
+        fill_data(tensor.data<ov::element_type_traits<ov::element::f16>::value_type>(), count, m_seed);
+        break;
+    case ov::element::bf16:
+        fill_data(tensor.data<ov::element_type_traits<ov::element::bf16>::value_type>(), count, m_seed);
+        break;
+    default:
+        OPENVINO_THROW("Inverse does not support precision ", in_prc, " for the 'data' input.");
     }
+
+    inputs.insert({func_input.get_node_shared_ptr(), tensor});
 }
 }  // namespace test
 }  // namespace ov
