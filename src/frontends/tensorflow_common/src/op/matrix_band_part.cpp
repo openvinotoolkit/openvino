@@ -48,11 +48,28 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     auto unsqueeze_range_n = make_shared<v0::Unsqueeze>(range_n, make_shared<v0::Constant>(element::i64, Shape{1}, {0}));
 
     // Create indicator function using logical operations
-    auto in_band_rows = make_shared<v1::LogicalAnd>(make_shared<v1::LessEqual>(unsqueeze_range_m, m),
-                                                    make_shared<v1::GreaterEqual>(unsqueeze_range_m, make_shared<v0::Constant>(element::i64, Shape{}, {0})));
+    // Create indicator function using logical operations
+    auto in_band_rows = make_shared<v1::LogicalAnd>(
+        make_shared<v1::LogicalOr>(
+            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
+            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(m, n), make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}))
+        ),
+        make_shared<v1::LogicalOr>(
+            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
+            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(n, m), make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}))
+        )
+    );
 
-    auto in_band_cols = make_shared<v1::LogicalAnd>(make_shared<v1::LessEqual>(unsqueeze_range_n, n),
-                                                    make_shared<v1::GreaterEqual>(unsqueeze_range_n, make_shared<v0::Constant>(element::i64, Shape{}, {0})));
+    auto in_band_cols = make_shared<v1::LogicalAnd>(
+        make_shared<v1::LogicalOr>(
+            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
+            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(m, n), make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}))
+        ),
+        make_shared<v1::LogicalOr>(
+            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
+            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(n, m), make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}))
+        )
+    );
 
     auto in_band_indicator = make_shared<v1::LogicalAnd>(in_band_rows, in_band_cols);
 
