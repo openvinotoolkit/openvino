@@ -16,7 +16,6 @@ import subprocess
 from common.samples_common_test_class import prepend
 
 
-
 @pytest.mark.parametrize('counter', range(9999))
 def test(counter, cache):
     try:

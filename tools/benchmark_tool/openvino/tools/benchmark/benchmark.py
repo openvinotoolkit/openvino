@@ -18,6 +18,7 @@ class Benchmark:
                  duration_seconds: int = None, api_type: str = 'async', inference_only = None):
         self.device = device
         self.core = Core()
+        self.core.set_property({"ENABLE_MMAP": False})
         self.nireq = number_infer_requests if api_type == 'async' else 1
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
