@@ -114,16 +114,18 @@ Glossary of terms used in OpenVINO™
 |   Represents data element type. For example, f32 is 32-bit floating point, f16 is 16-bit floating point.
 
 | *plugin / Inference Device / Inference Mode*
-|   OpenVINO makes hardware available for inference based on several core components. They used to be called "plugins" in earlier versions of documentation and you may still find this term in some articles. Because of their role in the software, they are now referred to as Devices and Modes ("virtual" devices). For a detailed description of the concept, refer to [Inference Modes](@ref openvino_docs_Runtime_Inference_Modes_Overview) and [Inference Devices](@ref openvino_docs_OV_UG_Working_with_devices).
+|   OpenVINO makes hardware available for inference based on several core components.
+    They used to be called "plugins" in earlier versions of documentation and you may
+    still find this term in some articles. Because of their role in the software,
+    they are now referred to as Devices and Modes ("virtual" devices). For a detailed
+    description of the concept, refer to
+    :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 
 | *Tensor*
-|   A memory container used for storing inputs and outputs of the model, as well as weights and biases of the operations.
+|   A memory container used for storing inputs and outputs of the model, as well as
+    weights and biases of the operations.
 
 
 See Also
 #################################################
 * :doc:`Available Operations Sets <openvino_docs_ops_opset>`
-* :doc:`Terminology <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
-
-
-

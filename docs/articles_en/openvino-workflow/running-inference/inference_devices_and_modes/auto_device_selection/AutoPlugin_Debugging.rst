@@ -5,7 +5,7 @@ Debugging Auto-Device Plugin
 
 
 .. meta::
-   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™
+   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™ 
                  Profiler to control trace data during execution of AUTO plugin.
 
 
@@ -32,29 +32,29 @@ There are six levels of logs, which can be called explicitly or set via the ``OP
 
    .. tab-item:: Python
       :sync: py
-
+   
       .. doxygensnippet:: docs/snippets/ov_auto.py
          :language: python
          :fragment: [part6]
 
    .. tab-item:: C++
       :sync: cpp
-
+   
       .. doxygensnippet:: docs/snippets/AUTO6.cpp
          :language: cpp
          :fragment: [part6]
-
+   
    .. tab-item:: OS environment variable
       :sync: os-environment-variable
-
+   
       .. code-block:: sh
-
-         When defining it via the variable,
+   
+         When defining it via the variable, 
          a number needs to be used instead of a log level name, e.g.:
-
+         
          Linux
          export OPENVINO_LOG_LEVEL=0
-
+         
          Windows
          set OPENVINO_LOG_LEVEL=0
 
@@ -96,7 +96,7 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
 1. Open Intel® VTune™ Profiler GUI on the host machine with the following command:
 
    .. code-block:: sh
-
+   
       cd /vtune install dir/intel/oneapi/vtune/2021.6.0/env
       source vars.sh
       vtune-gui

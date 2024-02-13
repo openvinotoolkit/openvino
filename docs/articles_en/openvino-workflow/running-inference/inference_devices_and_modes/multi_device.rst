@@ -49,7 +49,7 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 
 Specifying the device list explicitly is required by MULTI, as it defines the devices available for inference and sets their priorities.
 
-Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
+Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 
 The following commands are accepted by the API:
 
@@ -148,7 +148,7 @@ For best performance when using the MULTI execution mode you should consider a f
 Additional Resources
 ####################
 
-- :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+- :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 - :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`
 
 
