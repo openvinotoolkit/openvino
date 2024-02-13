@@ -482,10 +482,22 @@ void SubgraphBaseTest::validate() {
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
-    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
-    t_device.join();
-    t_ref.join();
+    if (targetDevice == "TEMPLATE") {
+        // TODO: Fix it in CVS-129397
+        // This is workaround to reduce occurrence of SIGABRT on Windows build when using TEMPLATE device
+        actualOutputs = get_plugin_outputs();
+        expectedOutputs = calculate_refs();
+    } else {
+        std::thread t_device([&] {
+            actualOutputs = get_plugin_outputs();
+        });
+        std::thread t_ref([&] {
+            expectedOutputs = calculate_refs();
+        });
+
+        t_device.join();
+        t_ref.join();
+    }
 #endif
 
     if (expectedOutputs.empty()) {
