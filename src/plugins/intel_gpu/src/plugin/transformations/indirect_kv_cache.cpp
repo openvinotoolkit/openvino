@@ -66,7 +66,7 @@ IndirectKVCache::IndirectKVCache() {
 
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node = pattern_map.at(gather_input).get_node_shared_ptr();
-        auto gather_node = pattern_map.at(gather_past).get_node_shared_ptr();
+        auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
         ov::replace_node(gather_node, gather_input_node);
 
         auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
@@ -74,7 +74,7 @@ IndirectKVCache::IndirectKVCache() {
                                                                beam_idx_node,
                                                                kv_cache_node->get_variable(),
                                                                kv_cache_node->get_concat_axis(),
-                                                               kv_cache_node->get_gather_axis(),
+                                                               gather_node->get_axis(),
                                                                kv_cache_node->get_output_element_type(0));
 
         indirect_kv_cache->set_friendly_name(kv_cache_node->get_friendly_name());
