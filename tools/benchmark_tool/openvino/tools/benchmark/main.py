@@ -53,7 +53,6 @@ def parse_and_check_command_line():
 
 def main():
     statistics = None
-    print('AAAAAAAAAAAAAAAAAAAAAA')
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
         next_step()
@@ -539,12 +538,7 @@ def main():
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
         duration_ms = f"{benchmark.first_infer(requests):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
-
-        pcseq = args.pcseq
-        if static_mode or len(benchmark.latency_groups) == 1:
-            pcseq = False
-
-        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, pcseq)
+        benchmark.sync_inference(requests[0], data_queue)
 
     except Exception as e:
         logger.exception(e)

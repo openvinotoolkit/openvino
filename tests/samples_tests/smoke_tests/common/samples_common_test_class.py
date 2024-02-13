@@ -51,7 +51,7 @@ def download(test_data_dir, file_path):
     lock_path = test_data_dir / 'download.lock'
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
-    for _ in range(99999):  # Give up after about 3 hours
+    for _ in range(9999):  # Give up after about 3 hours
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('bx'):
                 if not file_path.exists():
@@ -64,12 +64,14 @@ def download(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-def prepend(cache, model, inp=''):
-    test_data_dir = cache.mkdir('test_data')
+def prepend(cache, inp='', model=''):
+    test_data_dir = cache.mkdir('test_data_dir')
     unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
     if inp:
         inp = '-i', download(test_data_dir, unpacked / 'validation_set' / inp)
-    return '-m', download(test_data_dir, unpacked / 'models' / 'public' / model), *inp
+    if model:
+        model = '-m', download(test_data_dir, unpacked / 'models' / 'public' / model)
+    return *inp, *model
 
 
 class Environment:
@@ -169,7 +171,7 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def join_env_path(param, cache, executable_path, complete_path=True):
-        test_data_dir = cache.mkdir('test_data')
+        test_data_dir = cache.mkdir('test_data_dir')
         unpacked = test_data_dir / 'samples_smoke_tests_data_2021.4'
         if 'i' in param:
             # If batch > 1, then concatenate images

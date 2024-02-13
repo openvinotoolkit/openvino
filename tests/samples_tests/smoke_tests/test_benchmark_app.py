@@ -19,7 +19,7 @@ from common.samples_common_test_class import prepend
 @pytest.mark.parametrize('counter', range(9999))
 def test(counter, cache):
     try:
-        subprocess.check_output(['benchmark_app', *prepend(cache, 'squeezenet1.1/FP32/squeezenet1.1.xml'), '-t', '1', '-api', 'sync'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+        subprocess.check_output(['benchmark_app', *prepend(cache, model='squeezenet1.1/FP32/squeezenet1.1.xml'), '-t', '1', '-api', 'sync'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(error.output)
         raise
