@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/type/element_type.hpp"
 #include "shared_test_classes/single_op/inverse.hpp"
 
 namespace ov {
