@@ -5,7 +5,7 @@ Convolution
 
 
 .. meta::
-  :description: Learn about Convolution-1 - a 1D, 2D or 3D convolution operation, which 
+  :description: Learn about Convolution-1 - a 1D, 2D or 3D convolution operation, which
                 can be performed on input and kernel tensors in OpenVINO.
 
 **Versioned name**: *Convolution-1*
@@ -19,33 +19,33 @@ Convolution
 For the convolutional layer, the number of output features in each dimension is calculated using the formula:
 
 .. math::
-   
+
    n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
 
 The receptive field in each layer is calculated using the formulas:
 
 * Jump in the output feature map:
-  
+
   .. math::
-     
+
      j_{out} = j_{in} \cdot s
-  
+
 * Size of the receptive field of output feature:
-  
+
   .. math::
-     
+
      r_{out} = r_{in} + ( k - 1 ) \cdot j_{in}
-  
+
 * Center position of the receptive field of the first output feature:
-  
+
   .. math::
-     
+
      start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) \cdot j_{in}
-  
+
 * Output is calculated using the following formula:
-  
+
   .. math::
-     
+
      out = \sum_{i = 0}^{n}w_{i}x_{i} + b
 
 **Attributes**:
@@ -83,7 +83,7 @@ The receptive field in each layer is calculated using the formulas:
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    
+
     * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
@@ -98,7 +98,7 @@ The receptive field in each layer is calculated using the formulas:
 * **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is ``[N, C_IN, Z, Y, X]`` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
 * **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is ``[C_OUT, C_IN, Z, Y, X]`` (number of output channels, number of input channels, spatial axes Z, Y, X). **Required.**
 * **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
-  
+
   * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
   * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
   * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
@@ -117,7 +117,7 @@ The receptive field in each layer is calculated using the formulas:
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="Convolution" ...>
        <data dilations="1" pads_begin="0" pads_end="0" strides="2" auto_pad="valid"/>
        <input>
@@ -146,7 +146,7 @@ The receptive field in each layer is calculated using the formulas:
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="Convolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
        <input>
@@ -177,7 +177,7 @@ The receptive field in each layer is calculated using the formulas:
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="Convolution" ...>
        <data dilations="2,2,2" pads_begin="0,0,0" pads_end="0,0,0" strides="3,3,3" auto_pad="explicit"/>
        <input>
