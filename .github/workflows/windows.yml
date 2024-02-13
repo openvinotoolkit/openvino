@@ -410,8 +410,7 @@ jobs:
     runs-on: aks-win-4-cores-8gb
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
-      OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
-      OPENVINO_TOKENIZERS_REPO: "${{ github.workspace }}\\openvino_contrib\\modules\\custom_operations"
+      OPENVINO_TOKENIZERS_REPO: "${{ github.workspace }}\\openvino_tokenizers"
       EXTENSION_BUILD_DIR: "${{ github.workspace }}\\build\\openvino_tokenizers"
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
@@ -434,8 +433,8 @@ jobs:
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          repository: 'openvinotoolkit/openvino_tokenizers'
+          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: 'master'
 
       - name: Download OpenVINO package
