@@ -29,7 +29,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         // if the original const is int32_t and the value is max,
         // it should be kept to set the shape as unbounded dynamic shape.
         if ((type == ov::element::i32 && casted_val == INT_MAX) || (type == ov::element::u32 && casted_val == UINT_MAX))
-            return static_cast<int64_t>(LONG_MAX);
+            return static_cast<int64_t>(0x7FFFFFFFFFFFFFFF);
         return casted_val;
     };
 
