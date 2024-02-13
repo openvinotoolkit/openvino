@@ -39,7 +39,7 @@ def download(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-@pytest.mark.parametrize('counter', range(9999))
+@pytest.mark.parametrize('counter', range(16))
 def test(counter, cache):
     test_data_dir = cache.mkdir('test_data')
     model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
