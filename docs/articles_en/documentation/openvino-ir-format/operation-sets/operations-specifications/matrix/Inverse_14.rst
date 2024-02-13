@@ -17,9 +17,11 @@ Inverse
 
 The inverse matrix A^(-1) of a square matrix A is defined as:
 
-\[ A \cdot A^{-1} = A^{-1} \cdot A = I \]
+.. math::
 
-where \( I \) is the n-dimensional identity matrix.
+   A \cdot A^{-1} = A^{-1} \cdot A = I
+
+where **I** is the n-dimensional identity matrix.
 
 The inverse matrix exists if and only if the input matrix is invertible. In that case, the inverse is unique. If the matrix is not invertible however, the operation may raise an exception or return an undefined result.
 
@@ -27,9 +29,11 @@ This operation can be used to compute the adjugate matrix instead of the inverse
 
 The adjugate matrix adj(A) of a square matrix A is defined as:
 
-\[ adj(A) = det(A) \cdot A^{-1} \]
+.. math::
 
-where \( A^{-1} \) is the matrix inverse of A, and \( det(A) \) is the determinant of A.
+   adj(A) = det(A) \cdot A^{-1}
+
+where **A^{-1}** is the matrix inverse of A, and **det(A)** is the determinant of A.
 
 The adjugate matrix exists if and only if the inverse matrix exists.
 
@@ -45,21 +49,21 @@ The adjugate matrix exists if and only if the inverse matrix exists.
 
 *  ``adjoint``
 
-    * **Description**: Modifies the return value of the operation. If true, the operation returns the adjoint (conjugate transpose) of the input matrices instead of finding the inverse.
-    * **Range of values**: `true`, `false`
+  * **Description**: Modifies the return value of the operation. If true, the operation returns the adjoint (conjugate transpose) of the input matrices instead of finding the inverse.
+  * **Range of values**: `true`, `false` 
 
-        * ``true`` - output adjugate matrix.
-        * ``false`` - output inverse matrix.
+    * ``true`` - output adjugate matrix.
+    * ``false`` - output inverse matrix. 
 
-    * **Type**: `bool`
-    * **Default value**: `false`
-    * **Required**: *No*
+  * **Type**: `bool`
+  * **Default value**: `false`
+  * **Required**: *No*
 
 **Types**
 
 * **T**: any supported floating-point type.
 
-*Example 2: 2D input matrix.*
+*Example 1: 2D input matrix.*
 
 .. code-block:: xml
     :force:
