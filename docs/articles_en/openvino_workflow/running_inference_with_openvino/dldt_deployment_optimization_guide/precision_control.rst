@@ -59,6 +59,6 @@ Inference Precision
 Additional Resources
 ####################
 
-* :doc:`Supported Devices <openvino_docs_OV_UG_Working_with_devices>`
+* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 
 

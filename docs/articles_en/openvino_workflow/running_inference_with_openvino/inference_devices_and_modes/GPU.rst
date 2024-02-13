@@ -476,7 +476,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 Additional Resources
 #######################################
 
-* :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
+* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 * :doc:`Optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
 * `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 

@@ -204,5 +204,5 @@ You can also point to more than two devices: ``-d HETERO:GPU,CPU``
 Additional Resources
 ####################
 
-* :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 

@@ -5,18 +5,18 @@ Automatic Batching
 
 
 .. meta::
-   :description: The Automatic Batching Execution mode in OpenVINO Runtime 
-                 performs automatic batching to improve device utilization 
+   :description: The Automatic Batching Execution mode in OpenVINO Runtime
+                 performs automatic batching to improve device utilization
                  by grouping inference requests.
 
 
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, without programming effort from the user.
-With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
+With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code.
 
 Auto Batching can be used :ref:`directly as a virtual device <auto-batching-as-device>` or as an :ref:`option for inference on CPU/GPU/NPU <auto-batching-as-option>` (by means of configuration/hint). These 2 ways are provided for the user to enable the BATCH devices **explicitly** or **implicitly**, with the underlying logic remaining the same. An example of the difference is that the CPU device doesn’t support implicitly to enable BATCH device, commands such as ``./benchmark_app -m <model> -d CPU -hint tput`` will not apply BATCH device **implicitly**, but ``./benchmark_app -m <model> -d "BATCH:CPU(16)`` can **explicitly** load BATCH device.
 
-Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To get corresponding performance improvements, the application **must be running multiple inference requests simultaneously**. 
-Auto-batching can also be used via a particular *virtual* device.       
+Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To get corresponding performance improvements, the application **must be running multiple inference requests simultaneously**.
+Auto-batching can also be used via a particular *virtual* device.
 
 This article provides a preview of the Automatic Batching function, including how it works, its configurations, and testing performance.
 
@@ -24,28 +24,28 @@ How Automatic Batching Works
 ############################
 
 .. tab-set::
-   
+
    .. tab-item:: Enabling Automatic Batching
       :sync: enabling-automatic-batching
-         
+
       Batching is a straightforward way of leveraging the compute power of GPU and saving on communication overheads. Automatic Batching is "implicitly" triggered on the GPU when ``ov::hint::PerformanceMode::THROUGHPUT`` is specified for the ``ov::hint::performance_mode`` property for the ``compile_model`` or ``set_property`` calls.
 
       .. tab-set::
-   
+
          .. tab-item:: Python
             :sync: py
-      
+
             .. doxygensnippet:: docs/snippets/ov_auto_batching.py
                :language: Python
                :fragment: [compile_model]
-            
+
          .. tab-item:: C++
             :sync: cpp
-               
+
             .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
                :language: cpp
                :fragment: [compile_model]
-         
+
       To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as ``BATCH:GPU``.
 
    .. tab-item:: Disabling Automatic Batching
@@ -54,17 +54,17 @@ How Automatic Batching Works
       Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by ``ov::hint::PerformanceMode::THROUGHPUT``. To do that, set ``ov::hint::allow_auto_batching`` to **false** in addition to the ``ov::hint::performance_mode``, as shown below:
 
       .. tab-set::
-   
+
          .. tab-item:: Python
             :sync: py
-      
+
             .. doxygensnippet:: docs/snippets/ov_auto_batching.py
                :language: Python
                :fragment: [compile_model_no_auto_batching]
 
          .. tab-item:: C++
             :sync: cpp
-               
+
             .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
                :language: cpp
                :fragment: [compile_model_no_auto_batching]
@@ -99,10 +99,10 @@ This "automatic batch size selection" works on the presumption that the applicat
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: Python
          :fragment: [query_optimal_num_requests]
-   
+
    .. tab-item:: C++
       :sync: cpp
-         
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [query_optimal_num_requests]
@@ -127,10 +127,10 @@ For example, when the application processes only 4 video streams, there is no ne
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: Python
          :fragment: [hint_num_requests]
-   
+
    .. tab-item:: C++
       :sync: cpp
-         
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [hint_num_requests]
@@ -153,7 +153,7 @@ The below examples show how AUTO Batching can be used in the form of device that
    ./benchmark_app -m <model> -d "BATCH:CPU(16)"
 
 
-* ``BATCH`` -- load BATCH device explicitly, 
+* ``BATCH`` -- load BATCH device explicitly,
 * ``:GPU(16)`` -- BATCH devices configuration, which tell BATCH device to apply GPU device with batch size = 16.
 
 .. _auto-batching-as-option:
@@ -167,7 +167,7 @@ In the following example, BATCH device will be configured to another device in c
 
    ./benchmark_app -m <model> -d GPU -hint tput
    ./benchmark_app -m <model> -d AUTO -hint tput
-   ./benchmark_app -m <model> -d AUTO -hint ctput  
+   ./benchmark_app -m <model> -d AUTO -hint ctput
    ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
 
 .. note::
@@ -199,7 +199,7 @@ The following are limitations of the current AUTO Batching implementations:
 - Although it is less critical for the throughput-oriented scenarios, the load time with Auto-batching increases by almost double.
 - Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
 -  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
-- When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
+- When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.
 - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
 
 
@@ -209,13 +209,13 @@ Testing Performance with Benchmark_app
 Using the :doc:`benchmark_app sample <openvino_sample_benchmark_tool>` is the best way to evaluate the performance of Automatic Batching:
 
 - The most straightforward way is using the performance hints:
-  
+
   - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
 - You can also use the "explicit" device notion to override the strict rules of the implicit reshaping by the batch dimension:
-  
+
   - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
 - or override the automatically deduced batch size as well:
-  
+
   - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
   - This example also applies to CPU or any other device that generally supports batch execution.
   - Keep in mind that some shell versions (e.g. ``bash``) may require adding quotes around complex device names, i.e. ``-d "BATCH:GPU(16)"`` in this example.
@@ -225,21 +225,21 @@ Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Ba
 
 .. code-block:: sh
 
-   [ INFO ] First inference took 1000.18ms 
+   [ INFO ] First inference took 1000.18ms
 
 This value also exposed as the final execution statistics on the ``benchmark_app`` exit:
-   
+
 .. code-block:: sh
 
-   [ INFO ] Latency: 
+   [ INFO ] Latency:
    [ INFO ]  Max:      1000.18 ms
 
-This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution. 
+This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution.
 
 Additional Resources
 ####################
 
-* :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 
 
 

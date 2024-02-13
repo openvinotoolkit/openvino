@@ -17,11 +17,11 @@ Optimize Inference
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
    Optimizing memory usage <openvino_docs_memory_optimization_guide>
-   
+
 
 .. meta::
-   :description: Improving inference performance involves model and runtime 
-                 optimizations that can be done independently. Inference 
+   :description: Improving inference performance involves model and runtime
+                 optimizations that can be done independently. Inference
                  speed depends on latency and throughput.
 
 
@@ -34,7 +34,8 @@ It is also important to understand how the full-stack application would use the 
 
 For more information on this topic, see the following articles:
 
-* :ref:`feature support by device <devicesupport-feature-support-matrix>`
+* :doc:`Supported Devices <openvino_supported_devices>`
+* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 * :ref:`Inputs Pre-processing with the OpenVINO <inputs_pre_processing>`
 * :ref:`Async API <async_api>`
 * :ref:`The 'get_tensor' Idiom <tensor_idiom>`

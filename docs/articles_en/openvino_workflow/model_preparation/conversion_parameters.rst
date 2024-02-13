@@ -67,7 +67,7 @@ Providing just a path to the model or model object as ``openvino.convert_model``
           ovc path_to_your_model --compress_to_fp16=False
 
 For details on how plugins handle compressed ``FP16`` models, see
-:doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
+:doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 
 .. note::
 
