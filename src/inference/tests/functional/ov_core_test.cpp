@@ -13,7 +13,7 @@
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
-static void create_plugin_xml(const std::string& file_name, const std::string& plugin_name="1") {
+static void create_plugin_xml(const std::string& file_name, const std::string& plugin_name = "1") {
     std::ofstream file(file_name);
 
     file << "<ie><plugins><plugin location=\"";
