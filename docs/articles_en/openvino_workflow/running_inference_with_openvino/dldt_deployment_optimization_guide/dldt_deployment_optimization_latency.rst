@@ -11,8 +11,8 @@ Optimizing for Latency
    openvino_docs_OV_UG_Model_caching_overview
 
 .. meta::
-   :description: OpenVINO provides methods that help to preserve minimal 
-                 latency despite the number of inference requests and 
+   :description: OpenVINO provides methods that help to preserve minimal
+                 latency despite the number of inference requests and
                  improve throughput without degrading latency.
 
 
@@ -34,15 +34,15 @@ Typically, human expertise is required to get more "throughput" out of the devic
 * feature support by device
 
 
-When multiple models are to be used simultaneously, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional ``ov::hint::model_priority`` may help to define relative priorities of the models. Refer to the documentation on the :ref:`OpenVINO feature support for devices <devicesupport-feature-support-matrix>` to check if your device supports the feature.
+When multiple models are to be used simultaneously, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional ``ov::hint::model_priority`` may help to define relative priorities of the models. Refer to the documentation on the :ref:`OpenVINO feature support for devices <openvino_supported_devices>` to check if your device supports the feature.
 
 **First-Inference Latency and Model Load/Compile Time**
 
-In some cases, model loading and compilation contribute to the "end-to-end" latency more than usual. 
+In some cases, model loading and compilation contribute to the "end-to-end" latency more than usual.
 For example, when the model is used exactly once, or when it is unloaded and reloaded in a cycle, to free the memory for another inference due to on-device memory limitations.
 
 Such a "first-inference latency" scenario may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require a certain level of model compilation upon loading.
-The :doc:`model caching <openvino_docs_OV_UG_Model_caching_overview>` option is a way to lessen the impact over multiple application runs. If model caching is not possible, for example, it may require write permissions for the application, the CPU offers the fastest model load time almost every time. 
+The :doc:`model caching <openvino_docs_OV_UG_Model_caching_overview>` option is a way to lessen the impact over multiple application runs. If model caching is not possible, for example, it may require write permissions for the application, the CPU offers the fastest model load time almost every time.
 
 To improve common "first-inference latency" scenario, model reading was replaced with model mapping (using `mmap`) into a memory. But in some use cases (first of all, if model is located on removable or network drive) mapping may lead to latency increase. To switch mapping to reading, specify ``ov::enable_mmap(false)`` property for the ``ov::Core``.
 

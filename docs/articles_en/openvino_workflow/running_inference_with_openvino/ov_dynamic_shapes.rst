@@ -11,8 +11,8 @@ Dynamic Shapes
    openvino_docs_OV_UG_NoDynamicShapes
 
 .. meta::
-   :description: The Reshape method in OpenVINO Runtime API can handle dynamic 
-                 shapes of models that support changing input shapes before 
+   :description: The Reshape method in OpenVINO Runtime API can handle dynamic
+                 shapes of models that support changing input shapes before
                  model compilation.
 
 
@@ -61,7 +61,7 @@ Configuring the Model
 Model input dimensions can be specified as dynamic using the model.reshape method. To set a dynamic dimension, use ``-1``, ``ov::Dimension()`` (C++), or ``ov.Dimension()`` (Python) as the value for that dimension.
 
 .. note::
-   
+
    Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Conversion API to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
 The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.3/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
@@ -74,7 +74,7 @@ The examples below show how to set dynamic dimensions with a model that has a st
        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
           :language: cpp
           :fragment: [reshape_undefined]
-       
+
        With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
 
     .. tab-item:: C++
@@ -146,37 +146,37 @@ Static and dynamic dimensions can also be set when converting the model with ``c
 Dimension Bounds
 ----------------
 
-The lower and/or upper bounds of a dynamic dimension can also be specified. They define a range of allowed values for the dimension. Dimension bounds can be set by passing the lower and upper bounds into the ``reshape`` method using the options shown below. 
+The lower and/or upper bounds of a dynamic dimension can also be specified. They define a range of allowed values for the dimension. Dimension bounds can be set by passing the lower and upper bounds into the ``reshape`` method using the options shown below.
 
 .. tab-set::
 
     .. tab-item:: Python
         :sync: py
-        
+
         Each of these options are equivalent:
-        
+
         - Pass the lower and upper bounds directly into the ``reshape`` method, e.g. ``model.reshape([1, 10), (8,512)])``
         - Pass the lower and upper bounds using ov.Dimension, e.g. ``model.reshape([ov.Dimension(1, 10), (8, 512)])``
         - Pass the dimension ranges as strings, e.g. ``model.reshape(“1..10, 8..512”)``
-        
+
         The examples below show how to set dynamic dimension bounds for a mobilenet-v2 model with a default static shape of ``[1,3,224,224]``.
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
            :language: python
            :fragment: reshape_bounds
-    
+
     .. tab-item:: C++
         :sync: cpp
-        
+
         The dimension bounds can be coded as arguments for ``ov::Dimension``, as shown in these examples:
-        
+
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:reshape_bounds
-    
+
     .. tab-item:: C
         :sync: c
-        
+
         The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.3/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
@@ -192,7 +192,7 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :ref:`feature support table <devicesupport-feature-support-matrix>`.
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <openvino_supported_devices>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
@@ -218,7 +218,7 @@ The sample below shows how a model can accept different input shapes. In the fir
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:set_input_tensor
-    
+
     .. tab-item:: C
         :sync: c
 

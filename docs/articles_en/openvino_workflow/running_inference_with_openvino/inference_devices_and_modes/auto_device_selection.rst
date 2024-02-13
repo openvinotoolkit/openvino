@@ -247,7 +247,8 @@ See the following code for using AUTO and specifying devices:
 
 
 
-Note that OpenVINO Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. More details on enumerating devices can be found in :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
+Note that OpenVINO Runtime lets you use "GPU" as an alias for "GPU.0" in function calls.
+More details on enumerating devices can be found in :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
 
 Checking Available Devices
 --------------------------
@@ -508,6 +509,6 @@ Additional Resources
 
 - :doc:`Debugging AUTO <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>`
 - :doc:`Running on Multiple Devices Simultaneously <openvino_docs_OV_UG_Running_on_multiple_devices>`
-- :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
+- :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
 
 

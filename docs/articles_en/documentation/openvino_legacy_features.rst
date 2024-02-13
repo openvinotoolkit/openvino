@@ -88,8 +88,7 @@ offering.
 |   *New solution:* the tool is no longer needed
 |   *Old solution:* deprecated in OpenVINO 2023.0
 |
-|   Compile tool is now deprecated. If you need to compile a model for inference on
-    a specific device, use the following script:
+|   If you need to compile a model for inference on a specific device, use the following script:
 
 .. tab-set::
 
@@ -107,9 +106,6 @@ offering.
          :language: cpp
          :fragment: [export_compiled_model]
 
-|   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
-|   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`
-|   :doc:`See how to integrate and save preprocessing steps into OpenVINO IR <openvino_docs_OV_UG_Preprocess_Usecase_save>`
 
 | **DL Workbench**
 |   *New solution:* DevCloud version

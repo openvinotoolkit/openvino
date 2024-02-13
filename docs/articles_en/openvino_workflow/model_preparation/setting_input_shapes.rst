@@ -5,7 +5,9 @@ Setting Input Shapes
 
 
 .. meta::
-   :description: Learn how to increase the efficiency of a model by providing an additional shape definition with the ``input`` parameter of ``openvino.convert_model`` and ``ovc``.
+   :description: Learn how to increase the efficiency of a model by providing an additional
+                 shape definition with the ``input`` parameter of ``openvino.convert_model``
+                 and ``ovc``.
 
 
 ``openvino.convert_model`` supports conversion of models with dynamic input shapes that
@@ -15,14 +17,16 @@ one inference request to another, it is recommended to **set up static shapes**
 Doing so at the model preparation stage, not at runtime, can be beneficial in terms of
 performance and memory consumption.
 
-For more information on changing input shapes in runtime, refer to the 
+For more information on changing input shapes in runtime, refer to the
 :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
-To learn more about dynamic shapes in runtime, refer to the 
+To learn more about dynamic shapes in runtime, refer to the
 :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
 
-The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. 
-See the :doc:`Feature support matrix <openvino_docs_OV_UG_Working_with_devices>` for reference.
-In this case, the ``input`` parameter and the :doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined dimensions.
+The OpenVINO Runtime API may present certain limitations in inferring models with undefined
+dimensions on some hardware. See the :doc:`Feature support matrix <openvino_supported_devices>`
+for reference. In this case, the ``input`` parameter and the
+:doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined
+dimensions.
 
 For example, run model conversion for the TensorFlow MobileNet model with the single input
 and specify the input shape of ``[2,300,300,3]``:
