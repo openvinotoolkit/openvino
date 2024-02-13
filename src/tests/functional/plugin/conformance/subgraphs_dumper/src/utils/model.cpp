@@ -76,5 +76,47 @@ get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_ch
     return;
 }
 
+bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
+                           const std::shared_ptr<ov::Model> &second_model) {
+    size_t fist_paired_op_cnt = 0;
+    size_t second_paired_op_cnt = 0;
+
+    for (auto& node : fist_model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::AssignBase>(node))
+            fist_paired_op_cnt++;
+    }
+
+    for (auto& node : second_model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::AssignBase>(node))
+            second_paired_op_cnt++;
+    }
+
+    return fist_paired_op_cnt == second_paired_op_cnt;
+}
+
+bool build_control_dependency(std::shared_ptr<ov::Model> &model) {
+    std::map<std::string, std::pair<std::shared_ptr<ov::op::util::ReadValueBase>, std::shared_ptr<ov::op::util::AssignBase>>> dependency_pairs;
+    for (auto& node : model->get_ordered_ops()) {
+        if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+            dependency_pairs[read_value->get_variable_id()].first = read_value;
+        }
+
+        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
+            dependency_pairs[assign->get_variable_id()].second = assign;
+        }
+    }
+
+    for (auto& pair : dependency_pairs) {
+        auto nodes = pair.second;
+        if (nodes.first == nullptr || nodes.second == nullptr) {
+            return false;
+        }
+        nodes.second->add_control_dependency(nodes.first);
+    }
+    return true;
+}
+
 }  // namespace util
 }  // namespace ov

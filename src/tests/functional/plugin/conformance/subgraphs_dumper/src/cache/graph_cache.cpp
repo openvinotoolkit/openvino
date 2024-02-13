@@ -84,7 +84,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
         std::string serialized_model_path = "";
         for (const auto& extractor : m_manager.get_extractors()) {
             auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
-            if (ov::util::file_exists(serialized_model_path)) {
+            if (ov::util::file_exists(tmp_serialized_model_path)) {
                 serialized_model_path = tmp_serialized_model_path;
                 break;
             }
@@ -147,7 +147,9 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                             cached_model.first->get_results().size();
                         auto extracted_model_op_cnt =
                             extracted_model->get_ops().size() - input_info.size() - extracted_model->get_results().size();
-                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt) {
+
+                        bool is_same_paired_op_cnt = ov::util::is_same_paired_op_cnt(extracted_model, cached_model.first);
+                        if (matched_ops.size() > 0.75 * extracted_model_op_cnt && is_same_paired_op_cnt) {
                             if (cached_model_op_cnt > extracted_model_op_cnt) {
                                 return;
                             }
