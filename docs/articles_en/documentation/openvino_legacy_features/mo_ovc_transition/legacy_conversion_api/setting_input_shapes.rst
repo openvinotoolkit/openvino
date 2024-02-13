@@ -7,12 +7,12 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the  :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the  :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` article.
 
 With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 
 
-.. meta:: 
+.. meta::
    :description: Learn how to increase the efficiency of a model with MO by providing an additional shape definition with the input_shape and static_shape parameters.
 
 
@@ -27,7 +27,7 @@ To set up static shapes, model conversion API provides the ``input_shape`` param
 For more information on input shapes under runtime, refer to the :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
 To learn more about dynamic shapes in runtime, refer to the :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
 
-The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. See the :doc:`Features support matrix <openvino_docs_OV_UG_Working_with_devices>` for reference.
+The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware.
 In this case, the ``input_shape`` parameter and the :doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined dimensions.
 
 For example, run model conversion for the TensorFlow MobileNet model with the single input
