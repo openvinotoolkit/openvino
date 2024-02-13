@@ -56,7 +56,7 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
   * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all layers including embeddings and the last prediction layer in LLMs. 
 
-  * ``awq`` - boolean parameter that enables AWQ method for more accurate INT4 weight quantization. Especially helpful for full model quantization to 4 bits. Requires dataset.
+  * ``awq`` - boolean parameter that enables AWQ method for more accurate INT4 weight quantization. Especially helpful when weights of all the layers quantized to 4 bits. The method is not friendly to dynamic quantization of activations. Requires dataset.
 
 
 The example below shows data-free 4-bit weight quantization applied on top of OpenVINO IR:
@@ -87,7 +87,7 @@ The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com
 
    * - Model
      - Optimization
-     - Perplexity
+     - Perplexity\*
      - Model Size (Gb)
    * - databricks/dolly-v2-3b
      - FP32
@@ -159,7 +159,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
 
    * - Model
      - Optimization
-     - Perplexity
+     - Perplexity\*
      - Model Size (Gb)
    * - meta-llama/llama-7b-chat-hf
      - FP32
@@ -185,9 +185,13 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - INT4_SYM,group_size=128,ratio=0.8
      - 5.07
      - 2.6
+
+
+\*Perplexity metric in both cases was measured with Dynamic Quantization feature disabled in the OpenVINO runtime.
    
 
-Auto-tuning of weight compression parameters
+
+Auto-tuning of Weight Compression Parameters
 ############################################
 
 The important question that may arise is how to find a configuration of weight compression parameters that is best suited to a particular model.
