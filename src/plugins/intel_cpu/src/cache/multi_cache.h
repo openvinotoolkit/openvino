@@ -41,10 +41,15 @@ public:
     *       Also the builder type is used for the ValueType deduction
     * @return result of the operation which is a pair of the requested object of ValType and the status of whether the cache hit or miss occurred
     */
-
-    template<typename KeyType, typename BuilderType, typename ValueType = typename std::result_of<BuilderType&(const KeyType&)>::type>
-    typename CacheEntry<KeyType, ValueType>::ResultType
-    getOrCreate(const KeyType& key, BuilderType builder) {
+    template <typename KeyType,
+              typename BuilderType,
+#if __cplusplus > 201703L
+              typename ValueType = std::invoke_result_t<BuilderType&, const KeyType&>
+#else
+              typename ValueType = typename std::result_of<BuilderType&(const KeyType&)>::type
+#endif
+              >
+    typename CacheEntry<KeyType, ValueType>::ResultType getOrCreate(const KeyType& key, BuilderType builder) {
         auto entry = getEntry<KeyType, ValueType>();
         return entry->getOrCreate(key, std::move(builder));
     }
