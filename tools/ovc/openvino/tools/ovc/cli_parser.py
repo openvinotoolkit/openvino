@@ -251,22 +251,6 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         setattr(namespace, self.dest, list_of_paths)
 
 
-def readable_file_or_object(path: str):
-    """
-    Check that specified path is a readable file.
-    :param path: path to check
-    :return: path if the file is readable
-    """
-    if not isinstance(path, (str, pathlib.Path)):
-        return path
-    if not os.path.isfile(path):
-        raise Error('The "{}" is not existing file'.format(path))
-    elif not os.access(path, os.R_OK):
-        raise Error('The "{}" is not readable'.format(path))
-    else:
-        return path
-
-
 def readable_file_or_dir_or_object(path: str):
     """
     Check that specified path is a readable file or directory.
@@ -296,20 +280,6 @@ def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
         paths_list = [readable_file_or_dir_or_object(path) for path in str(paths).split(',')]
 
     return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
-
-
-def readable_files_or_empty(paths: [str, list, tuple]):
-    """
-    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    if isinstance(paths, (list, tuple)):
-        return [readable_file_or_object(path) for path in paths]
-    if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
-        return paths_list
-    return paths
 
 
 def add_args_by_description(args_group, params_description):
