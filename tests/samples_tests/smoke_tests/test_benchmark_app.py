@@ -19,19 +19,15 @@ import multiprocessing
 import pathlib
 
 
-def verify_single_process(model):
-    import openvino as ov
-    core = ov.Core()
-    core.set_property({"ENABLE_MMAP": False})
-    core.read_model(model)
-
-
 def download(test_data_dir, file_path):
     if not file_path.exists():
         response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
             zfile.extractall(test_data_dir)
-    verify_single_process(file_path)
+    with file_path.open(encoding='utf-8') as xml:
+        print(xml.read())
+    with file_path.with_suffix('.bin').open('br') as bin:
+        print(bin.read())
     return file_path
 
 
@@ -44,7 +40,7 @@ def starter(model):
 
 
 def main():
-    test_data_dir = pathlib.Path('.')
+    test_data_dir = pathlib.Path('c:/Users/vzlobin/r/openvino/.pytest_cache/d/test_data/')
     model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
     pool = multiprocessing.Pool(processes=16)
     pool.map(starter, [model] * 999)
