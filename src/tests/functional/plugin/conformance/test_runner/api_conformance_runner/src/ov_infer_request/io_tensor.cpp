@@ -15,7 +15,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::Values(ov::AnyMap({}))),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 std::vector<ov::element::Type> ovIOTensorElemTypes = {
@@ -37,14 +37,14 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorSetPr
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 std::vector<ov::element::Type> ovIOTensorElemTypesOptional = {
@@ -55,13 +55,13 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestIOTensorSetPrecisionTes
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypesOptional),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypesOptional),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

@@ -343,7 +343,7 @@ namespace {
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(conformance::targetDevice),                           \
-                                                ::testing::Values(conformance::pluginConfig)),                          \
+                                                ::testing::Values(utils::pluginConfig)),                          \
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
@@ -354,7 +354,7 @@ INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
                                            ::testing::Values(conformance::targetDevice),
-                                           ::testing::Values(conformance::pluginConfig)),
+                                           ::testing::Values(utils::pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

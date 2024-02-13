@@ -9,6 +9,7 @@
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
+
 namespace {
 const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
@@ -30,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVCompiledGraphImportExportTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelImportExportTestP,

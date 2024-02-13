@@ -15,6 +15,8 @@
 
 #include "conformance.hpp"
 
+using namespace ov::test::utils;
+
 namespace ov {
 namespace test {
 namespace op_conformance {
@@ -121,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(conformance::targetDevice),
-                                 ::testing::Values(conformance::pluginConfig)),
+                                 ::testing::Values(utils::pluginConfig)),
                          OpImplCheckTest::getTestCaseName);
 }   // namespace
 }   // namespace op_conformance

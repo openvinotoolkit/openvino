@@ -6,19 +6,11 @@
 
 #include "conformance.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
 namespace conformance {
-
-inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::AnyMap>& config = {}) {
-    std::vector<ov::AnyMap> resultConfig;
-    for (auto configItem : config) {
-        configItem.insert(ov::test::conformance::pluginConfig.begin(), ov::test::conformance::pluginConfig.end());
-        resultConfig.push_back(configItem);
-    }
-    return resultConfig;
-}
 
 inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{

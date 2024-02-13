@@ -48,8 +48,6 @@ void RegisterTestCustomQueries(void) {
 
 using namespace ov::test::conformance;
 
-bool ov::test::behavior::APIBaseTest::is_print_k = true;
-
 int main(int argc, char* argv[]) {
 #ifdef ENABLE_CONFORMANCE_PGQL
     ::PostgreSQLLink::set_manual_start(true);
@@ -78,6 +76,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
+    ov::test::utils::is_print_rel_influence_coef = true;
     ov::test::utils::disable_tests_skipping = true;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
@@ -109,7 +108,7 @@ int main(int argc, char* argv[]) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_config_path.empty()) {
-        ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);
+        ov::test::utils::pluginConfig = ov::test::utils::readPluginConfig(FLAGS_config_path);
     }
 
     ::testing::InitGoogleTest(&argc, argv);
