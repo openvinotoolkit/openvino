@@ -56,4 +56,4 @@ def main():
     args, is_network_compiled = parse_and_check_command_line()
     core = openvino.Core()
     core.set_property({"ENABLE_MMAP": False})
-    core.read_model(args.model)
+    core.read_model(args.path_to_model)
