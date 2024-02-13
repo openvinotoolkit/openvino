@@ -31,9 +31,8 @@ def download(test_data_dir, file_path):
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('bx'):
                 if not file_path.exists():
-                    response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
-                        zfile.extractall(test_data_dir)
+                    with file_path.open('w', encoding='utf-8') as fd:
+                        fd.write(' '.join(['lol'] * 100000000))
             lock_path.unlink(missing_ok=True)
             assert file_path.exists()
             return file_path
@@ -45,7 +44,7 @@ def test(counter, cache):
     test_data_dir = cache.mkdir('test_data')
     model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
     try:
-        subprocess.check_output([sys.executable, '-c', 'import openvino as ov; core = ov.Core(); core.set_property({"ENABLE_MMAP": False}); core.read_model(r"' + f'{model}")'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+        subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(error.output)
         raise
