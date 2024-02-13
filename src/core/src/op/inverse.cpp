@@ -12,9 +12,9 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/inverse.hpp"
 
-namespace ov {
-
 // ------------------------------ v14 ------------------------------
+
+namespace ov {
 
 op::v14::Inverse::Inverse(const Output<Node>& data, const bool adjoint) : Op({data}), m_adjoint(adjoint) {
     constructor_validate_and_infer_types();

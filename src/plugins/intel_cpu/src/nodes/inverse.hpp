@@ -7,7 +7,6 @@
 #include <string>
 
 #include "node.h"
-#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,18 +23,13 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needPrepareParams() const override;
     void prepareParams() override;
 
-    bool isExecutable() const override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
-
-protected:
-    bool needShapeInfer() const override;
 
 private:
     /// Inverse params
@@ -65,6 +59,13 @@ private:
 
     template <typename T>
     void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
+
+    template <typename T>
+    struct InverseExecute {
+        void operator()(Inverse* node) {
+            node->inverse<T>();
+        }
+    };
 };
 
 }  // namespace node

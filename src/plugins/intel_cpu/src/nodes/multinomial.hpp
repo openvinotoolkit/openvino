@@ -7,8 +7,8 @@
 #include <random>
 #include <string>
 
-#include "node.h"
 #include "openvino/core/parallel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -51,6 +51,7 @@ private:
     static constexpr size_t OUTPUT_PORT = 0lu;
     bool m_const_inputs[2] = {false, false};
     bool m_const_batch = false;
+    VectorDims m_output_shape = {};
 
     /// General algorithm variables
     ov::element::Type m_probs_precision;
