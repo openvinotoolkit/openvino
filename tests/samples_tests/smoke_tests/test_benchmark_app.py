@@ -22,7 +22,7 @@ import time
 import zipfile
 
 
-def download(test_data_dir, file_path):
+def bare(test_data_dir, file_path):
     if file_path.exists():
         return file_path
     lock_path = test_data_dir / 'download.lock'
@@ -41,11 +41,40 @@ def download(test_data_dir, file_path):
 
 
 @pytest.mark.parametrize('counter', range(9999))
-def test(counter, cache):
+def test_bare(counter, cache):
     test_data_dir = cache.mkdir('test_data')
     model = download(test_data_dir, pathlib.Path('test.txt'))
     try:
         subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        print(error.output)
+        raise
+
+def download(test_data_dir, file_path):
+    if file_path.exists():
+        return file_path
+    lock_path = test_data_dir / 'download.lock'
+    with contextlib.suppress(FileNotFoundError, PermissionError):
+        lock_path.unlink()
+    for _ in range(9999):  # Give up after about 3 hours
+        with contextlib.suppress(FileExistsError, PermissionError):
+            with lock_path.open('bx'):
+                if not file_path.exists():
+                    response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
+                        zfile.extractall(test_data_dir)
+            lock_path.unlink(missing_ok=True)
+            assert file_path.exists()
+            return file_path
+        time.sleep(1.0)
+
+
+@pytest.mark.parametrize('counter', range(9999))
+def test(counter, cache):
+    test_data_dir = cache.mkdir('test_data')
+    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+    try:
+        subprocess.check_output([sys.executable, '-c', 'import openvino as ov; core = ov.Core(); core.set_property({"ENABLE_MMAP": False}); core.read_model(r"' + f'{model}")'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(error.output)
         raise
