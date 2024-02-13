@@ -204,10 +204,26 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     attrs.dataSize = dataPrecision.size();
 
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
+    const auto& src_data_dims = getInputShapeAtPort(DATA_ID).getDims();
+
+    int data_inplace_port = !isDynamicNode()
+        && !attrs.isStridedSliceOp
+        && (attrs.axes.size() == 1)
+        && (attrs.begin[0] == 0)
+        && (attrs.stride[0] == 1)
+        ? DATA_ID : -1;
+    if (data_inplace_port >= 0) {
+        for (int i = 0; i < attrs.axes[0]; i++) {
+            if (src_data_dims[i] != 1LU) {
+                data_inplace_port = -1;
+                break;
+            }
+        }
+    }
 
     NodeConfig config;
     config.inConfs.resize(getParentEdges().size());
-    config.inConfs[DATA_ID].inPlace(-1);
+    config.inConfs[DATA_ID].inPlace(data_inplace_port);
     config.inConfs[BEGIN_ID].inPlace(-1);
     config.inConfs[END_ID].inPlace(-1);
     config.inConfs[DATA_ID].constant(isConstantInput[DATA_ID]);
@@ -267,10 +283,13 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 }
 
 bool StridedSlice::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
+    return !isInPlace() && !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }
 
 void StridedSlice::createPrimitive() {
+    if (isInPlace()) {
+        return;
+    }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         if (needPrepareParams()) {
             prepareParams();
@@ -280,6 +299,9 @@ void StridedSlice::createPrimitive() {
 }
 
 bool StridedSlice::needPrepareParams() const {
+    if (isInPlace()) {
+        return false;
+    }
     return true;
 }
 
@@ -304,6 +326,10 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
+    if (isInPlace()) {
+        return;
+    }
+
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
@@ -311,6 +337,9 @@ void StridedSlice::execute(dnnl::stream strm) {
 }
 
 void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
+    if (isInPlace()) {
+        return;
+    }
     execute(strm);
 }
 
