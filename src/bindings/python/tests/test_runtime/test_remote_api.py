@@ -95,45 +95,9 @@ def test_compile_with_context():
     assert isinstance(compiled, ov.CompiledModel)
 
 
-@pytest.mark.skipif(
-    "GPU" not in os.environ.get("TEST_DEVICE", ""),
-    reason="Test can be only performed on GPU device!",
-)
-def test_cl_context():
-    try:
-        from openvino import ClContext
-    except ImportError:
-        pytest.skip(
-            "OpenVINO was built without support for GPU.",
-        )
-
-
-@pytest.mark.skipif(
-    "GPU" not in os.environ.get("TEST_DEVICE", ""),
-    reason="Test can be only performed on GPU device!",
-)
-def test_cl_image_2d_tensor():
-    try:
-        from openvino import ClImage2DTensor
-    except ImportError:
-        pytest.skip(
-            "OpenVINO was built without support for GPU.",
-        )
-
-
-@pytest.mark.skipif(
-    "GPU" not in os.environ.get("TEST_DEVICE", ""),
-    reason="Test can be only performed on GPU device!",
-)
 def test_va_wrapper():
-    try:
-        from openvino import VADisplayWrapper
-    except ImportError:
-        pytest.skip(
-            "OpenVINO was built without support for GPU.",
-        )
-    display = VADisplayWrapper(None)
-    assert isinstance(display, VADisplayWrapper)
+    display = ov.VADisplayWrapper(None)
+    assert isinstance(display, ov.VADisplayWrapper)
     with pytest.warns(RuntimeWarning, match="Release of VADisplay was not succesful!"):
         display.release()
 
@@ -143,10 +107,8 @@ def test_va_wrapper():
     reason="Test can be only performed on GPU device!",
 )
 def test_va_context():
-    try:
-        from openvino import VADisplayWrapper
-        from openvino import VAContext
-    except ImportError:
-        pytest.skip(
-            "OpenVINO was built without support for GPU.",
-        )
+    core = ov.Core()
+    display = ov.VADisplayWrapper(None)
+    with pytest.raises(RuntimeError) as context_error:
+        _ = core.create_va_context("GPU", display)
+    assert "user handle is nullptr!" in str(context_error.value)
