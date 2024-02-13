@@ -1,5 +1,5 @@
 {
-  "name": "openvinojs-node-demo",
+  "name": "openvino-node-demo",
   "version": "1.0.0",
   "license": "Apache-2.0",
   "devDependencies": {
@@ -8,7 +8,7 @@
     "eslint": "^8.39.0",
     "https-proxy-agent": "^7.0.2",
     "opencv-wasm": "^4.3.0-10",
-    "openvinojs-node": "file:../../../src/bindings/js/node/"
+    "openvino-node": "file:../../../src/bindings/js/node/"
   },
   "scripts": {
     "lint": "eslint ."
