@@ -16,6 +16,7 @@ import os
 import pytest
 import subprocess
 import sys
+import pathlib
 import requests
 import time
 import zipfile
@@ -42,7 +43,7 @@ def download(test_data_dir, file_path):
 @pytest.mark.parametrize('counter', range(16))
 def test(counter, cache):
     test_data_dir = cache.mkdir('test_data')
-    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+    model = download(test_data_dir, pathlib.Path('test.txt'))
     try:
         subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
