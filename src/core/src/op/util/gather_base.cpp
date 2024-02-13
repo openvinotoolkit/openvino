@@ -182,6 +182,34 @@ void GatherBase::set_batch_dims(int64_t batch_dims) {
     m_batch_dims = batch_dims;
 }
 
+bool GatherBase::has_evaluate() const {
+    switch (get_input_element_type(0)) {
+    case element::boolean:
+    case element::f16:
+    case element::f32:
+    case element::i8:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u32:
+    case element::u64:
+    case element::string:
+        break;
+    default:
+        return false;
+    }
+
+    switch (get_input_element_type(1)) {
+    case element::i32:
+    case element::i64:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
+}
+
 bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(util_GatherBase_evaluate);
 
