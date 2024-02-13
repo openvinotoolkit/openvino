@@ -80,7 +80,7 @@ TEST(attributes, max_pool_v14_op) {
     const auto pads_begin = Shape{1, 1};
     const auto pads_end = Shape{1, 1};
     const auto kernel = Shape{2, 2};
-    const auto rounding_mode = op::RoundingType::CEIL;
+    const auto rounding_mode = op::RoundingType::CEIL_TORCH;
     const auto auto_pad = op::PadType::EXPLICIT;
     const element::Type& index_element_type = element::i32;
 

@@ -47,7 +47,7 @@ def max_pool(
     :param  pads_end:            The number of pixels to add at the end along each axis.
     :param  kernel_shape:        The pooling operation kernel shape.
     :param  rounding_type:       Determines used rounding schema when computing output shape.
-                                 Acceptable values are: ['floor', 'ceil']. Defaults to 'floor'.
+                                 Acceptable values are: ['floor', 'ceil', 'ceil_torch']. Defaults to 'floor'.
     :param  auto_pad:            Determines how the padding is calculated. Acceptable values:
                                  [None, 'same_upper', 'same_lower', 'valid']. Defaults to None.
     :param  index_element_type:  The data type used for the indices output of this operator.
@@ -98,9 +98,9 @@ def avg_pool(
     :param kernel_shape:    The pooling window shape.
     :param exclude_pad:     Whether or not to include zero padding in average computations.
     :param rounding_type:   Determines used rounding schema when computing output shape. Acceptable
-                            values are: ['floor', 'ceil']
+                            values are: ['floor', 'ceil', 'ceil_torch']. Defaults to 'floor'.
     :param auto_pad:        Determines how the padding is calculated. Acceptable values:
-                            [None, 'same_upper', 'same_lower', 'valid']
+                            [None, 'same_upper', 'same_lower', 'valid']. Defaults to None.
     :param name:            Optional name for the new output node.
 
     :return: New node with AvgPool operation applied on its data.

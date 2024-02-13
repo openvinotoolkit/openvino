@@ -5,6 +5,7 @@
 #pragma once
 
 #include "dimension_util.hpp"
+#include "openvino/opsets/opset14.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -38,6 +39,7 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
     const auto& kernel = op->get_kernel();
     const auto num_spatial = kernel.size();
     const auto& strides = op->get_strides();
+    const auto& rounding_type = op->get_rounding_type();
 
     NODE_VALIDATION_CHECK(op,
                           strides.size() == num_spatial,
@@ -62,6 +64,11 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
                           std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
                           "Kernel dilations has zero dimension(s). ",
                           dilations);
+    NODE_VALIDATION_CHECK(
+        op,
+        !(!ov::is_type<opset14::AvgPool>(op) && !ov::is_type<opset14::MaxPool>(op) &&
+         rounding_type == ov::op::RoundingType::CEIL_TORCH),
+        "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions.");
 }
 }  // namespace validate
 
@@ -151,6 +158,27 @@ void valid_dilated_kernel_with_padding(const TOp* op,
                                        const size_t pad_end,
                                        const size_t axis) {}
 
+template <class TDim, class TContainer>
+inline void disallow_pooling_start_in_padding(const Strides& stride,
+                                              TDim& dim,
+                                              const TDim* data_dim,
+                                              const TContainer& pads_begin,
+                                              const TContainer& pads_end,
+                                              const size_t i) {
+    // Ensure the last pooling doesn't start in padding.
+    if (stride[i] * dim.get_length() > data_dim->get_length() + pads_begin[i] + pads_end[i]) {
+        dim = dim - 1;
+    }
+}
+
+template <class TDim, class TContainer>
+inline void allow_pooling_start_in_padding(const Strides& stride,
+                                           TDim& dim,
+                                           const TDim* data_dim,
+                                           const TContainer& pads_begin,
+                                           const TContainer& pads_end,
+                                           const size_t i) {}
+
 /**
  * @brief Append spatial shape to the end of output shape for pooling operator shape inference result.
  *
@@ -170,7 +198,8 @@ void append_spatial_shape(const TOp* op,
                           TRShape& out_shape) {
     using namespace ov::util;
     const auto spatial_num = data_shape.size() - spatial_dim_offset;
-    const auto is_ceil_mode = op->get_rounding_type() == RoundingType::CEIL;
+    const auto is_ceil_mode =
+        op->get_rounding_type() == RoundingType::CEIL || op->get_rounding_type() == RoundingType::CEIL_TORCH;
     const auto is_auto_pad = (op->get_auto_pad() == PadType::SAME_UPPER) || (op->get_auto_pad() == PadType::SAME_LOWER);
 
     using TDim = typename TShape::value_type;
@@ -179,6 +208,11 @@ void append_spatial_shape(const TOp* op,
     auto data_dim = &data_shape[spatial_dim_offset];
     const auto& kernel = op->get_kernel();
     const auto& stride = op->get_strides();
+
+    // Torch CEIL rounding disallows the last pooling operation from starting in the pads area.
+    auto set_pooling_ceil_behavior = op->get_rounding_type() == RoundingType::CEIL_TORCH && data_dim->is_static()
+                                         ? &disallow_pooling_start_in_padding<TDim, TContainer>
+                                         : &allow_pooling_start_in_padding<TDim, TContainer>;
 
     for (size_t i = 0; i < spatial_num; ++i, ++data_dim) {
         if (data_dim->is_static() || !is_auto_pad) {
@@ -193,14 +227,7 @@ void append_spatial_shape(const TOp* op,
             dim = dim - kernel_dilated;
             dim = dim_divide(dim, stride[i]);
             dim += 1;
-            if (is_ceil_mode && data_dim->is_static()) {
-                // Ensure the last pooling doesn't start in padding.
-                const auto expr1 = stride[i] * dim.get_length();
-                const auto expr2 = data_dim->get_length() + pads_begin[i] + pads_end[i];
-                if (expr1 > expr2) {
-                    dim = dim - 1;
-                }
-            }
+            set_pooling_ceil_behavior(stride, dim, data_dim, pads_begin, pads_end, i);
             out_shape.push_back(std::move(dim));
         } else {
             // If dimension is interval and is auto pad then result is dynamic shape as padding values are not correct.
