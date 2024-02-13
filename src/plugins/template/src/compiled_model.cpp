@@ -27,6 +27,23 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
       m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
+    std::cout << "[ INFO ] Template config\n";
+    std::cout << "\t streams = " << cfg.streams << std::endl;
+    std::cout << "\t threads = " << cfg.threads << std::endl;
+    std::cout << "\t threads_per_stream = " << cfg.threads_per_stream << std::endl;
+    std::cout << "\t performance_mode = " << cfg.performance_mode << std::endl;
+    std::cout << "\t num_requests = " << cfg.num_requests << std::endl;
+    std::cout << "\t disable_transformations = " << cfg.disable_transformations << std::endl;
+    std::cout << "\t exclusive_async_requests = " << cfg.exclusive_async_requests << std::endl;
+
+    const auto& ecfg = cfg.streams_executor_config;
+    std::cout << "[ INFO ] Template streams executor config\n";
+    std::cout << "\t streams = " << ecfg.get_streams() << std::endl;
+    std::cout << "\t _threadsPerStream = " << ecfg.get_threads_per_stream() << std::endl;
+    std::cout << "\t _threadBindingStep = " << ecfg.get_thread_binding_step() << std::endl;
+    std::cout << "\t _threadBindingOffset = " << ecfg.get_thread_binding_offset() << std::endl;
+    std::cout << "\t _threads = " << ecfg.get_threads() << std::endl;
+
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, m_wait_executor should also be created per device.
