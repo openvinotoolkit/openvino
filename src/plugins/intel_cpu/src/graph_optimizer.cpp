@@ -543,9 +543,17 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         NodePtr subtractNode = mulParent;
         if (!expectedNode(subtractNode, Type::Eltwise))
             continue;
-        auto subtractConstNode = subtractNode->getParentEdgeAt(1)->getParent();
+        NodePtr subtractConvertNode, subtractConstNode;
+        NodePtr subtractParent = subtractNode->getParentEdgeAt(1)->getParent();
+        if (expectedNode(subtractParent, Type::Convert)) {
+            subtractConvertNode = subtractParent;
+            subtractParent = subtractConvertNode->getParentEdgeAt(0)->getParent();
+        }
+        subtractConstNode = subtractParent;
         if (!expectedNode(subtractConstNode, Type::Input))
             continue;
+
+        const bool withSubtractConvert = subtractConvertNode != nullptr;
 
         auto convertNode = subtractNode->getParentEdgeAt(0)->getParent();
         if (!expectedNode(convertNode, Type::Convert))
@@ -597,6 +605,11 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
 
+        if (withSubtractConvert) {
+            gatherNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConvertEdge);
+        }
         gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
         auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(subtractConstEdge);
@@ -604,6 +617,8 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(multiplyConstEdge);
 
+        if (withSubtractConvert)
+            graph.DropNode(subtractConvertNode);
         graph.DropNode(convertNode);
         graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);
