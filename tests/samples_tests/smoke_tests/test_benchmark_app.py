@@ -43,7 +43,7 @@ def bare(test_data_dir, file_path):
 @pytest.mark.parametrize('counter', range(9999))
 def test_bare(counter, cache):
     test_data_dir = cache.mkdir('test_data')
-    model = download(test_data_dir, pathlib.Path('test.txt'))
+    model = bare(test_data_dir, pathlib.Path('test.txt'))
     try:
         subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
