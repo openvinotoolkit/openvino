@@ -16,7 +16,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::Values(ov::AnyMap({}))),
                             OVInferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace

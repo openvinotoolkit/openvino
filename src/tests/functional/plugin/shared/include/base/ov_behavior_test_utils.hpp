@@ -57,7 +57,6 @@ protected:
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
 
 public:
-    static bool is_print_k;
     APIBaseTest() = default;
 
     virtual void set_api_entity() { api_entity = ov::test::utils::ov_entity::undefined; }
@@ -66,7 +65,7 @@ public:
         set_api_entity();
         auto test_name = this->GetFullTestName();
         k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
-        if (is_print_k)
+        if (ov::test::utils::is_print_rel_influence_coef)
             std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();

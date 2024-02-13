@@ -21,12 +21,13 @@
 
 #include "read_ir_test/read_ir.hpp"
 
+using namespace ov::test::utils;
+
 namespace ov {
 namespace test {
 namespace op_conformance {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
-    using namespace ov::test::utils;
     std::pair<std::string, std::string> model_pair;
     std::string path_to_model, path_to_ref_tensor, deviceName;
     ov::AnyMap config;
@@ -343,7 +344,7 @@ namespace {
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(conformance::targetDevice),                           \
-                                                ::testing::Values(conformance::pluginConfig)),                          \
+                                                ::testing::Values(utils::pluginConfig)),                          \
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
@@ -354,7 +355,7 @@ INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
                                            ::testing::Values(conformance::targetDevice),
-                                           ::testing::Values(conformance::pluginConfig)),
+                                           ::testing::Values(utils::pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

@@ -16,8 +16,26 @@ namespace ov {
 namespace test {
 namespace utils {
 
+ov::AnyMap pluginConfig = {};
+
 ov::Core create_core(const std::string& target_device) {
     ov::Core ov_core;
+
+    if (!pluginConfig.empty()) {
+        if (!target_device.empty()) {
+            auto properties = ov_core.get_property(target_device, ov::supported_properties);
+            for (auto& property : pluginConfig) {
+                if (std::find(properties.begin(), properties.end(), property.first) == properties.end()) {
+                    std::string msg = "Property " + property.first +  ", which was tryed to set in --config file, is not supported by " + target_device;
+                    throw std::runtime_error(msg);
+                }
+            }
+            ov_core.set_property(target_device, pluginConfig);
+        } else {
+            ov_core.set_property(pluginConfig);
+        }
+    }
+
     // Register Template plugin as a reference provider
     const auto devices = ov_core.get_available_devices();
     if (std::find(devices.begin(), devices.end(), std::string(ov::test::utils::DEVICE_TEMPLATE)) == devices.end()) {
@@ -47,6 +65,7 @@ ov::Core create_core(const std::string& target_device) {
 #endif
         }
     }
+
     return ov_core;
 }
 
