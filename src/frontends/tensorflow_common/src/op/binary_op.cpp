@@ -8,6 +8,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -34,7 +35,6 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/ceiling.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -69,9 +69,10 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             auto y_less_cond = make_shared<v1::Less>(y, zero_const);
             auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
 
-            // to ensure that Div(x, y) is a truncative divide we should Ceil for for negative numbers
+            // TODO: workaround until CVS-132377 is resolved.
+            // Need to ensure that Div(x, y) is a truncative Div we should Ceil for for negative numbers.
             auto div = make_shared<v1::Divide>(x, y, false);
-            auto trunc_div = make_shared<v1::Select>(xor_cond, make_shared<v0::Ceiling>(div), make_shared<v0::Floor>(div));
+            auto trunc_div = make_shared<v1::Select>(xor_cond, make_shared<v0::Ceiling>(div), div);
 
             auto mod_xy = make_shared<v1::Mod>(x, y);
             auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zero_const);
