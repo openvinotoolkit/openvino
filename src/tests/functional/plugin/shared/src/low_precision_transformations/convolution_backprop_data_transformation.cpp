@@ -41,11 +41,11 @@ void ConvolutionBackpropDataTransformation::SetUp() {
 
     std::shared_ptr<ov::Node> weights;
 
-    const auto inputShape = inputShapeAndHandling.first;
-
+    const auto& inputShape = inputShapeAndHandling.first;
+    const auto rank = inputShape.rank();
     init_input_shapes(inputShape);
 
-    ov::Shape weightsShape(4, 1ul);
+    ov::Shape weightsShape(rank.get_length(), 1ul);
     weightsShape[0] = inputShape[1].get_length();
     weightsShape[1] = inputShape[1].get_length() / 2;
 
