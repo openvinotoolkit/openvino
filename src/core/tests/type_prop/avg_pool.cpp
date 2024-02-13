@@ -707,3 +707,26 @@ TEST(type_prop, avg_pool_kernel_dilation_not_compatible_with_padding_end) {
                     ov::NodeValidationFailure,
                     HasSubstr("Kernel after dilation is sometimes entirely in the padding area for axis 0"));
 }
+
+TEST(type_prop, avg_pool_ceil_torch_xfail) {
+    const ov::PartialShape arg_shape{5, ov::Dimension::dynamic(), 8, ov::Dimension::dynamic(), 4};
+    const ov::Shape kernel{9, 3, 4};
+    const ov::Strides window_movement_strides{1, 1, 1};
+    const ov::Shape pads_begin{0, 0, 0};
+    const ov::Shape pads_end{1, 0, 0};
+
+    const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
+
+    OV_EXPECT_THROW(
+        auto ap = make_shared<ov::op::v1::AvgPool>(param,
+                                                   window_movement_strides,
+                                                   pads_begin,
+                                                   pads_end,
+                                                   kernel,
+                                                   true,
+                                                   ov::op::RoundingType::CEIL_TORCH);
+        ,
+        ov::NodeValidationFailure,
+        HasSubstr(
+            "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions."));
+}

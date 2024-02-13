@@ -4,6 +4,7 @@
 
 #include "openvino/op/max_pool.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "dimension_util.hpp"
 #include "openvino/op/parameter.hpp"
@@ -193,6 +194,23 @@ TEST(type_prop, max_pool_default_values) {
     EXPECT_EQ(mp->get_auto_pad(), op::PadType::EXPLICIT);
 }
 
+TEST(type_prop, max_pool_ceil_torch_xfail) {
+    const PartialShape arg_shape{1, 3, 32, Dimension::dynamic()};
+    const Strides strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL_TORCH;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+
+    EXPECT_THROW(
+        auto mp =
+            make_shared<op::v1::MaxPool>(arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad),
+        ov::NodeValidationFailure);
+}
+
 TEST(type_prop, max_pool_v8_3D_no_dilations) {
     const PartialShape arg_shape{1, 7, 13};
     const Strides strides{1};
@@ -354,6 +372,28 @@ TEST(type_prop, max_pool_v8_4D_with_dilations_and_auto_pad_same_upper) {
     EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
     EXPECT_EQ(mp->get_pads_begin(), (Shape{2, 3}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{2, 3}));
+}
+
+TEST(type_prop, max_pool_v8_ceil_torch_xfail) {
+    const PartialShape arg_shape{1, 3, 13, 13};
+    const Strides strides{1, 1};
+    const Strides dilations{2, 3};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{3, 3};
+    const auto rounding_mode = op::RoundingType::CEIL_TORCH;
+    const auto auto_pad = op::PadType::SAME_UPPER;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    EXPECT_THROW(const auto op = make_shared<op::v8::MaxPool>(arg,
+                                                              strides,
+                                                              dilations,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              kernel_shape,
+                                                              rounding_mode,
+                                                              auto_pad),
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, max_pool_v14_3D_no_dilations) {

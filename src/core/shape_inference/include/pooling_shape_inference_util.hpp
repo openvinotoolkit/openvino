@@ -67,7 +67,7 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
     NODE_VALIDATION_CHECK(
         op,
         !(!ov::is_type<opset14::AvgPool>(op) && !ov::is_type<opset14::MaxPool>(op) &&
-         rounding_type == ov::op::RoundingType::CEIL_TORCH),
+          rounding_type == ov::op::RoundingType::CEIL_TORCH),
         "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions.");
 }
 }  // namespace validate

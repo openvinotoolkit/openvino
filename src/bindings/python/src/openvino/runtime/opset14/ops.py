@@ -77,6 +77,7 @@ def max_pool(
         },
     )
 
+
 @nameable_op
 def avg_pool(
     data_batch: NodeInput,
