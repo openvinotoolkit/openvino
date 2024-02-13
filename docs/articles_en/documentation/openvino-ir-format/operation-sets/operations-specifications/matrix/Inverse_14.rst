@@ -47,7 +47,7 @@ The adjugate matrix exists if and only if the inverse matrix exists.
 
 **Attributes**:
 
-*  ``adjoint``
+* *adjoint*
 
   * **Description**: Modifies the return value of the operation. If true, the operation returns the adjoint (conjugate transpose) of the input matrices instead of finding the inverse.
   * **Range of values**: `true`, `false` 
@@ -72,16 +72,14 @@ The adjugate matrix exists if and only if the inverse matrix exists.
         <data/>
         <input>
             <port id="0" precision="FP32">
-                <dim>2</dim> <!-- batch size of 2 -->
                 <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim>
+                <dim>3</dim> 
             </port>
         </input>
         <output>
             <port id="1" precision="FP32" names="Inverse:0">
-                <dim>2</dim> <!-- batch size of 2 -->
                 <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim>
+                <dim>3</dim> 
             </port>
         </output>
     </layer>
