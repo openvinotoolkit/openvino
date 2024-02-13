@@ -6,9 +6,9 @@
 
 #include <iterator>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/region_yolo.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

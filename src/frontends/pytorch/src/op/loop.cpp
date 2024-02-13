@@ -15,10 +15,10 @@ namespace op {
 
 OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Loop must have at least 2 inputs.");
+    PYTORCH_OP_CONVERSION_CHECK(inputs.size() >= 2, "Loop must have at least 2 inputs.");
     auto loop = std::make_shared<ov::op::v5::Loop>(inputs[0], inputs[1]);
     auto decoder = context.get_decoder();
-    FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1, "Loop must have 1 subgraph.");
+    PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1, "Loop must have 1 subgraph.");
     auto subgraph_decoder = decoder->get_subgraph_decoder(0);
     auto body = context.convert_subgraph(0);
     loop->set_function(body);
@@ -28,20 +28,20 @@ OutputVector translate_loop(const NodeContext& context) {
     // process outputs first
     auto session = context.get_session();
     auto body_results = body->get_results();
-    FRONT_END_OP_CONVERSION_CHECK(body_results.size() > 0, "At least one output from loop is required - condition.");
+    PYTORCH_OP_CONVERSION_CHECK(body_results.size() > 0, "At least one output from loop is required - condition.");
     std::map<size_t, Output<Node>> output_idxs;
     // 0 output is condition, do not need to connect it
     for (size_t i = 1; i < body_results.size(); i++) {
         auto result = body_results[i];
         auto out_idx = session->decode_tensor_name(result->input(0).get_source_output());
-        FRONT_END_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
-                                      "More then one body output with same tensor name.");
+        PYTORCH_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
+                                    "More then one body output with same tensor name.");
         output_idxs[out_idx] = result;
     }
 
     auto body_parameters = body->get_parameters();
     // #0 body parameter is counter;
-    FRONT_END_OP_CONVERSION_CHECK(body_parameters.size() > 0, "At least one input to Loop body is required");
+    PYTORCH_OP_CONVERSION_CHECK(body_parameters.size() > 0, "At least one input to Loop body is required");
     // Set counter type and shape
     body_parameters[0]->set_element_type(element::i32);
     body_parameters[0]->set_partial_shape(PartialShape{});

@@ -8,9 +8,9 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_prod.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

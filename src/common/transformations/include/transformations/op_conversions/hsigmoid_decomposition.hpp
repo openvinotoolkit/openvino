@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API HSigmoidDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief HSigmoidDecomposition transformation into sub-graph (min(Relu(x + 3), 6) * const(1/6).
  */
 class ov::pass::HSigmoidDecomposition : public ov::pass::MatcherPass {
