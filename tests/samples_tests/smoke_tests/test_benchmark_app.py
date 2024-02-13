@@ -40,7 +40,7 @@ def download(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-@pytest.mark.parametrize('counter', range(16))
+@pytest.mark.parametrize('counter', range(9999))
 def test(counter, cache):
     test_data_dir = cache.mkdir('test_data')
     model = download(test_data_dir, pathlib.Path('test.txt'))
