@@ -97,7 +97,6 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(condition=platform.machine() == 'arm64', reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
     def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
         self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,
