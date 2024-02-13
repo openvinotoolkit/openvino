@@ -65,10 +65,11 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     // figure out all dimensions for normalization:
     // axis < 0:  range(axis, 0)     Example: axis = -2; Axes: [-2, -1]
     // axis >= 0: range(axis, rank)  Example: axis = 2, rank = 4; Axes: [2, 3]
-    auto axes = std::make_shared<v4::Range>(Constant::create(element::i64, {}, {axis}),
-                                            (axis < 0 ? Constant::create(element::i64, {}, {0})->output(0) : rank(data)),
-                                            Constant::create(element::i64, {}, {1}),
-                                            element::i64);
+    auto axes =
+        std::make_shared<v4::Range>(Constant::create(element::i64, {}, {axis}),
+                                    (axis < 0 ? Constant::create(element::i64, {}, {0})->output(0) : rank(data)),
+                                    Constant::create(element::i64, {}, {1}),
+                                    element::i64);
 
     const auto normalize_variance = true;
     ov::Output<ov::Node> normalized =
