@@ -11,19 +11,18 @@ using namespace ov::test;
 namespace ov {
 namespace test {
 std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<InverseTestParams>& obj) {
-    std::string test_type;
-    ov::Tensor input;
+    ov::Shape input_shape;
+    ov::element::Type element_type;
     bool adjoint;
     std::string device_name;
 
-    std::tie(test_type, input, adjoint, device_name) = obj.param;
+    std::tie(input_shape, element_type, adjoint, device_name) = obj.param;
 
     const char separator = '_';
     std::ostringstream result;
-    result << test_type << separator;
-    result << "input_shape=" << input.get_shape().to_string() << separator;
-    result << "type=" << input.get_element_type() << separator;
-    result << "adjoint=" << adjoint << separator;
+    result << "IS=" << input_shape.to_string() << separator;
+    result << "type=" << element_type.to_string() << separator;
+    result << "adjoint=" << ov::test::utils::bool2str(adjoint) << separator;
     result << "device=" << device_name;
 
     return result.str();
@@ -32,43 +31,17 @@ std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<Inver
 void InverseLayerTest::SetUp() {
     InverseTestParams test_params;
 
-    std::string test_type;
-    ov::Tensor input;
+    ov::Shape input_shape;
+    ov::element::Type element_type;
     bool adjoint;
 
-    std::tie(test_type, input, adjoint, targetDevice) = GetParam();
+    std::tie(input_shape, element_type, adjoint, targetDevice) = GetParam();
 
-    m_input = input;
-
-    InputShape input_shape;
-    const ov::Shape input_tensor_shape = input.get_shape();
-    if (test_type == "static") {
-        input_shape = {ov::PartialShape(input_tensor_shape), {input_tensor_shape}};
-    } else {  // dynamic
-        input_shape = {ov::PartialShape::dynamic(ov::Rank(input_tensor_shape.size())), {input_tensor_shape}};
-    }
-    init_input_shapes({input_shape});
-
-    ov::ParameterVector params;
-    std::vector<std::shared_ptr<ov::Node>> inputs;
-
-    auto input_param = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input_shape.first);
-    input_param->set_friendly_name("input");
-    inputs.push_back(input_param);
-    params.push_back(input_param);
-
-    auto inverse = std::make_shared<ov::op::v14::Inverse>(inputs[0], adjoint);
+    auto input = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape);
+    auto inverse = std::make_shared<ov::op::v14::Inverse>(input, adjoint);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(inverse)};
-    function = std::make_shared<ov::Model>(results, params, "Inverse");
-}
-
-void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& target_shapes) {
-    inputs.clear();
-    const auto& func_inputs = function->inputs();
-
-    auto& data = func_inputs[0];
-    inputs.insert({data.get_node_shared_ptr(), m_input});
+    function = std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "Inverse");
 }
 }  // namespace test
 }  // namespace ov
