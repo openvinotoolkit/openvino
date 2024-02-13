@@ -430,7 +430,7 @@ jobs:
           self-hosted-runner: 'true'
           show-cache-info: 'false'
 
-      - name: Clone OpenVINO Contrib
+      - name: Clone OpenVINO Tokenizers
         uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_tokenizers'
