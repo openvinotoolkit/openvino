@@ -157,8 +157,8 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
-    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), false);
-    ASSERT_EQ(gather_inst->can_be_optimized(), false);
+    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), true);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
 
     auto KV_SIZE = 24;
     auto BATCH_SIZE = 1;
@@ -179,7 +179,7 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
     network.set_input_data("present", present_mem);
     network.set_input_data("beam_idx", beam_idx_mem);
     network.execute();
-    ASSERT_EQ(gather_inst->can_be_optimized(), false);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
     auto gather_output_mem = network.get_output_memory("gather");
     cldnn::mem_lock<float, mem_lock_type::read> gather_output_ptr(gather_output_mem, get_test_stream());
     for (size_t i = 0; i < gather_output_mem->get_layout().count(); ++i) {

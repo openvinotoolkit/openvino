@@ -22,7 +22,7 @@ set(_DEFINE_AVX512F  "HAVE_AVX512F" ${_DEFINE_AVX2})
 ov_avx512_optimization_flags(_FLAGS_AVX512F)
 ov_avx2_optimization_flags  (_FLAGS_AVX2)
 ov_sse42_optimization_flags (_FLAGS_SSE42)
-set(_FLAGS_AVX "")  ## TBD is not defined for IE project yet
+set(_FLAGS_AVX "")  ## TBD is not defined for OV project yet
 set(_FLAGS_ANY "")  ##
 
 ## way to duplicate file via cmake tool set
