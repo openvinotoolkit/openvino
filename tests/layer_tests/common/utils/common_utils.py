@@ -98,6 +98,14 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
+    try:
+        # a scalar case of string type
+        # need to repack TF output to python string
+        if isinstance(ref_array, bytes):
+            ref_array = np.array(str(ref_array, 'utf-8'))
+    except:
+        pass
+
     if cur_array.dtype.type == str or cur_array.dtype.type == np.str_:
         # TF can represent string tensors in different format: array of bytestreams
         # so we have to align formats of both string tensors, for example, to unicode
