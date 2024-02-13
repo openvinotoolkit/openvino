@@ -659,7 +659,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         if (convert_needed) {
             m_plugin_inputs[name] = { create_device_tensor(pshape,
                                                            cldnn::element_type_to_data_type(element_type),
-                                                           true), TensorOwner::PLUGIN };
+                                                           false), TensorOwner::PLUGIN };
         } else {
             m_plugin_inputs[name] = user_tensor_wrapper;
         }
