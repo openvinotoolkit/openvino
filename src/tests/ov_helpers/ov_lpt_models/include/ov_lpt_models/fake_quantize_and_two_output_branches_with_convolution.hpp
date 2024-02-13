@@ -11,7 +11,7 @@
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -28,14 +28,14 @@ public:
         const ov::element::Type precision,
         const ov::Shape& inputShape,
         const ov::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const ov::element::Type precisionBeforeOp,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOp,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter2);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter1,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter2);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

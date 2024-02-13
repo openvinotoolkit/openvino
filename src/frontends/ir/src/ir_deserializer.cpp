@@ -21,9 +21,13 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
+
+using namespace ov::util;
 
 ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_node& node,
                                                                const pugi::xml_node& body_node) {
@@ -35,13 +39,13 @@ ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_n
     auto extend_io_map = io_map;
 
     FOREACH_CHILD (layer, body_node.child("layers"), "layer") {
-        auto type = pugixml::utils::get_str_attr(layer, "type");
+        auto type = pugixml::get_str_attr(layer, "type");
 
         if (type == "Parameter") {
-            auto id = static_cast<size_t>(pugixml::utils::get_uint64_attr(layer, "id"));
+            auto id = static_cast<size_t>(pugixml::get_uint64_attr(layer, "id"));
             extend_io_map.inputs.insert({id, -1});  // try add as unconnected
         } else if (type == "Result") {
-            auto id = static_cast<size_t>(pugixml::utils::get_uint64_attr(layer, "id"));
+            auto id = static_cast<size_t>(pugixml::get_uint64_attr(layer, "id"));
             extend_io_map.outputs.insert({id, -1});  // try add as unconnected
         }
     }
@@ -60,24 +64,23 @@ std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>> ov::Xml
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD (input, node.child(port_map_name.c_str()), "input") {
-        int64_t ext_port_id = pugixml::utils::get_int64_attr(input, "external_port_id");
+        int64_t ext_port_id = pugixml::get_int64_attr(input, "external_port_id");
         input_map.emplace(ext_port_id, input);
     }
 
     for (const auto& input : input_map) {
         auto& xml_input = input.second;
         auto axis_attr = xml_input.attribute("axis");
-        int64_t ti_input_index = pugixml::utils::get_int64_attr(xml_input, "external_port_id");
-        size_t body_parameter_index =
-            static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_input, "internal_layer_id"));
+        int64_t ti_input_index = pugixml::get_int64_attr(xml_input, "external_port_id");
+        size_t body_parameter_index = static_cast<size_t>(pugixml::get_uint64_attr(xml_input, "internal_layer_id"));
 
         // if axis is set, then slicing is enabled. Create ov::TensorIterator::SlicedInput.
         if (!axis_attr.empty()) {
-            size_t axis = static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_input, "axis"));
-            int64_t start = pugixml::utils::get_int64_attr(xml_input, "start", 0);
-            int64_t stride = pugixml::utils::get_int64_attr(xml_input, "stride", 1);
-            int64_t end = pugixml::utils::get_int64_attr(xml_input, "end", -1);
-            int64_t part_size = pugixml::utils::get_int64_attr(xml_input, "part_size", 1);
+            size_t axis = static_cast<size_t>(pugixml::get_uint64_attr(xml_input, "axis"));
+            int64_t start = pugixml::get_int64_attr(xml_input, "start", 0);
+            int64_t stride = pugixml::get_int64_attr(xml_input, "stride", 1);
+            int64_t end = pugixml::get_int64_attr(xml_input, "end", -1);
+            int64_t part_size = pugixml::get_int64_attr(xml_input, "part_size", 1);
 
             const auto input_index = up_io_map.inputs.at(body_parameter_index);
 
@@ -92,10 +95,10 @@ std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>> ov::Xml
             // otherwise find corresponding back edge and create ov::TensorIterator::MergedInput
             bool is_back_edge_exist = false;
             FOREACH_CHILD (xml_edge, node.child("back_edges"), "edge") {
-                size_t to_layer = static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_edge, "to-layer"));
+                size_t to_layer = static_cast<size_t>(pugixml::get_uint64_attr(xml_edge, "to-layer"));
 
                 if (to_layer == body_parameter_index) {
-                    size_t from_layer = static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_edge, "from-layer"));
+                    size_t from_layer = static_cast<size_t>(pugixml::get_uint64_attr(xml_edge, "from-layer"));
 
                     const auto input_index = up_io_map.inputs.at(body_parameter_index);
                     const auto output_index = up_io_map.outputs.at(from_layer);
@@ -133,7 +136,7 @@ ov::XmlDeserializer::parse_output_description(const pugi::xml_node& node,
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
     FOREACH_CHILD (output, node.child(port_map_name.c_str()), "output") {
-        int64_t ext_port_id = pugixml::utils::get_int64_attr(output, "external_port_id");
+        int64_t ext_port_id = pugixml::get_int64_attr(output, "external_port_id");
         output_map.emplace(ext_port_id, output);
     }
 
@@ -141,20 +144,19 @@ ov::XmlDeserializer::parse_output_description(const pugi::xml_node& node,
     for (const auto& output : output_map) {
         auto& xml_output = output.second;
         auto axis_attr = xml_output.attribute("axis");
-        size_t body_result_index =
-            static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_output, "internal_layer_id"));
+        size_t body_result_index = static_cast<size_t>(pugixml::get_uint64_attr(xml_output, "internal_layer_id"));
 
         // if external_port_id < 0 it means that this body result isn't connected to the Loop output
         // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
-        if (pugixml::utils::get_int64_attr(xml_output, "external_port_id") >= 0) {
+        if (pugixml::get_int64_attr(xml_output, "external_port_id") >= 0) {
             // if axis is set, then concatenation is enabled. Create
             // ov::TensorIterator::ConcatOutput.
             if (!axis_attr.empty()) {
-                int64_t axis = pugixml::utils::get_int64_attr(xml_output, "axis");
-                int64_t start = pugixml::utils::get_int64_attr(xml_output, "start", 0);
-                int64_t stride = pugixml::utils::get_int64_attr(xml_output, "stride", 1);
-                int64_t end = pugixml::utils::get_int64_attr(xml_output, "end", -1);
-                int64_t part_size = pugixml::utils::get_int64_attr(xml_output, "part_size", 1);
+                int64_t axis = pugixml::get_int64_attr(xml_output, "axis");
+                int64_t start = pugixml::get_int64_attr(xml_output, "start", 0);
+                int64_t stride = pugixml::get_int64_attr(xml_output, "stride", 1);
+                int64_t end = pugixml::get_int64_attr(xml_output, "end", -1);
+                int64_t part_size = pugixml::get_int64_attr(xml_output, "part_size", 1);
 
                 const auto output_index = up_io_map.outputs.at(body_result_index);
 
@@ -192,20 +194,19 @@ ov::op::v5::Loop::SpecialBodyPorts ov::XmlDeserializer::parse_purpose_attribute(
     // order
     std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD (input, node.child("port_map"), "input") {
-        int64_t ext_port_id = pugixml::utils::get_int64_attr(input, "external_port_id");
+        int64_t ext_port_id = pugixml::get_int64_attr(input, "external_port_id");
         input_map.emplace(ext_port_id, input);
     }
     std::map<int64_t, pugi::xml_node> output_map;
     FOREACH_CHILD (output, node.child("port_map"), "output") {
-        int64_t ext_port_id = pugixml::utils::get_int64_attr(output, "external_port_id");
+        int64_t ext_port_id = pugixml::get_int64_attr(output, "external_port_id");
         output_map.emplace(ext_port_id, output);
     }
 
     for (const auto& input : input_map) {
         auto& xml_input = input.second;
-        auto purpose = pugixml::utils::get_str_attr(xml_input, "purpose", "");
-        size_t body_parameter_index =
-            static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_input, "internal_layer_id"));
+        auto purpose = pugixml::get_str_attr(xml_input, "purpose", "");
+        size_t body_parameter_index = static_cast<size_t>(pugixml::get_uint64_attr(xml_input, "internal_layer_id"));
         if (purpose == "current_iteration") {
             result.current_iteration_input_idx = up_io_map.inputs.at(body_parameter_index);
         }
@@ -213,9 +214,8 @@ ov::op::v5::Loop::SpecialBodyPorts ov::XmlDeserializer::parse_purpose_attribute(
 
     for (const auto& output : output_map) {
         auto& xml_output = output.second;
-        auto purpose = pugixml::utils::get_str_attr(xml_output, "purpose", "");
-        size_t body_parameter_index =
-            static_cast<size_t>(pugixml::utils::get_uint64_attr(xml_output, "internal_layer_id"));
+        auto purpose = pugixml::get_str_attr(xml_output, "purpose", "");
+        size_t body_parameter_index = static_cast<size_t>(pugixml::get_uint64_attr(xml_output, "internal_layer_id"));
         if (purpose == "execution_condition") {
             result.body_condition_output_idx = up_io_map.outputs.at(body_parameter_index);
         }
@@ -325,7 +325,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
     } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         std::string value;
         pugi::xml_node dn = m_node.child("data");
-        auto type = pugixml::utils::get_str_attr(m_node, "type");
+        auto type = pugixml::get_str_attr(m_node, "type");
 
         if (dn.empty())
             OPENVINO_THROW("No attrtibutes defined for ", type, " op!");
@@ -339,8 +339,8 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             std::vector<int64_t> shape;
             std::string el_type_str;
 
-            size_t offset = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "offset"));
-            size_t size = static_cast<size_t>(pugixml::utils::get_uint64_attr(dn, "size"));
+            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
             if (!getStrAttribute(dn, "element_type", el_type_str))
                 return;
             if (!getParameters<int64_t>(dn, "shape", shape))
@@ -352,16 +352,47 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
             if (m_weights->size() < offset + size)
                 OPENVINO_THROW("Incorrect weights in bin file!");
-            if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
-                OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
-
             char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+
+            if (el_type == element::string) {
+                auto buffer =
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+                a->set(buffer);
+            } else {
+                if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                    OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
+
+                auto buffer =
+                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+                a->set(buffer);
+            }
+        }
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        pugi::xml_node dn = m_node.child("data");
+        const auto& type = pugixml::get_str_attr(m_node, "type");
+        if (name == "value" && type == "Const") {
+            std::vector<int64_t> shape;
+            std::string el_type_str;
+
+            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+            if (!getStrAttribute(dn, "element_type", el_type_str))
+                return;
+            if (!getParameters<int64_t>(dn, "shape", shape))
+                return;
+
+            if (!m_weights)
+                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+            if (m_weights->size() < offset + size)
+                OPENVINO_THROW("Incorrect weights in bin file!");
+            char* data = m_weights->get_ptr<char>() + offset;
+            auto buffer =
+                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
-        const auto& type = pugixml::utils::get_str_attr(m_node, "type");
-        const auto& version = pugixml::utils::get_str_attr(m_node, "version");
+        const auto& type = pugixml::get_str_attr(m_node, "type");
+        const auto& version = pugixml::get_str_attr(m_node, "version");
 
         ov::op::util::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
@@ -452,10 +483,10 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
 
     // Read all edges and store them for further usage
     FOREACH_CHILD (_ec, root.child("edges"), "edge") {
-        size_t fromLayer = static_cast<size_t>(pugixml::utils::get_uint64_attr(_ec, "from-layer"));
-        size_t fromPort = static_cast<size_t>(pugixml::utils::get_uint64_attr(_ec, "from-port"));
-        size_t toLayer = static_cast<size_t>(pugixml::utils::get_uint64_attr(_ec, "to-layer"));
-        size_t toPort = static_cast<size_t>(pugixml::utils::get_uint64_attr(_ec, "to-port"));
+        size_t fromLayer = static_cast<size_t>(pugixml::get_uint64_attr(_ec, "from-layer"));
+        size_t fromPort = static_cast<size_t>(pugixml::get_uint64_attr(_ec, "from-port"));
+        size_t toLayer = static_cast<size_t>(pugixml::get_uint64_attr(_ec, "to-layer"));
+        size_t toPort = static_cast<size_t>(pugixml::get_uint64_attr(_ec, "to-port"));
         edges[toLayer].push_back({fromLayer, fromPort, toPort});
     }
 
@@ -513,7 +544,17 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         }
 
         if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
-            func_nodes.sinks.emplace_back(sink);
+            auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+            if (subgraph_op) {
+                for (const auto& body_model : subgraph_op->get_functions()) {
+                    if (body_model->get_sinks().size()) {
+                        func_nodes.sinks.emplace_back(sink);
+                        break;
+                    }
+                }
+            } else {
+                func_nodes.sinks.emplace_back(sink);
+            }
         }
 
         if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
@@ -526,7 +567,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     auto function = std::make_shared<ov::Model>(func_nodes.results,
                                                 func_nodes.sinks,
                                                 func_nodes.parameters,
-                                                pugixml::utils::get_str_attr(root, "name", ""));
+                                                pugixml::get_str_attr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
         if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(sink)) {
             assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
@@ -571,9 +612,9 @@ private:
 
     ov::Any parse_value(const pugi::xml_node& node) const {
         if (has_attr(node)) {
-            return pugixml::utils::get_str_attr(node, "value");
+            return pugixml::get_str_attr(node, "value");
         } else if (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters")) {
-            return pugixml::utils::get_str_attr(node, "unset_cli_parameters");
+            return pugixml::get_str_attr(node, "unset_cli_parameters");
         } else {
             return parse_node(node);
         }
@@ -622,7 +663,7 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
         if (data.empty())
             continue;
         if (!data.attribute("value").empty()) {
-            rt_info[data.name()] = pugixml::utils::get_str_attr(data, "value");
+            rt_info[data.name()] = pugixml::get_str_attr(data, "value");
         } else {
             // Use meta data for set of parameters
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
@@ -646,7 +687,7 @@ void ov::XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>
                     std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
                     rt_info["conversion_parameters"] = meta;
                 } else if (!data.attribute("value").empty()) {
-                    rt_info[data.name()] = pugixml::utils::get_str_attr(data, "value");
+                    rt_info[data.name()] = pugixml::get_str_attr(data, "value");
                 } else {
                     OPENVINO_THROW("Unsupported legacy argument: ", data.name());
                 }
@@ -667,7 +708,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
                               bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
-        port.portId = static_cast<size_t>(pugixml::utils::get_uint64_attr(parentNode, "id"));
+        port.portId = static_cast<size_t>(pugixml::get_uint64_attr(parentNode, "id"));
 
         FOREACH_CHILD (node, parentNode, "dim") {
             int64_t dim = 0;
@@ -687,7 +728,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
         ov::element::Type type(ov::element::Type_t::undefined);
         // Input port hasn't precision
         if (!input) {
-            const std::string& preStr = pugixml::utils::get_str_attr(parentNode, "precision");
+            const std::string& preStr = pugixml::get_str_attr(parentNode, "precision");
             type = ov::element::Type(preStr);
         }
         port.precision = type;
@@ -711,12 +752,12 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
     };
     GenericLayerParams params;
 
-    params.layerId = static_cast<size_t>(pugixml::utils::get_uint64_attr(node, "id"));
-    params.version = pugixml::utils::get_str_attr(node, "version");
+    params.layerId = static_cast<size_t>(pugixml::get_uint64_attr(node, "id"));
+    params.version = pugixml::get_str_attr(node, "version");
 
-    params.type = pugixml::utils::get_str_attr(node, "type");
+    params.type = pugixml::get_str_attr(node, "type");
 
-    params.name = pugixml::utils::get_str_attr(node, "name");
+    params.name = pugixml::get_str_attr(node, "name");
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
@@ -916,7 +957,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                 }
             } else {
                 // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
-                // when loading new IR with new attribute in old IE version.
+                // when loading new IR with new attribute in old OV version.
             }
         }
     };

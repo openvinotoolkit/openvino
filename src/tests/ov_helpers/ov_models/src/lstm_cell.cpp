@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<Node>>& in,
+std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<ov::Node>>& in,
                                    const std::vector<ov::Shape>& constants,
                                    std::size_t hidden_size,
                                    const std::vector<std::string>& activations,
@@ -76,20 +76,21 @@ std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<Node>>& in,
                                                               activations,
                                                               clip);
         } else {
-            std::shared_ptr<Node> seq_lengths;
+            std::shared_ptr<ov::Node> seq_lengths;
             switch (mode) {
             case ov::test::utils::SequenceTestsMode::PURE_SEQ:
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST: {
                 std::vector<float> lengths(in[0].get_partial_shape()[0].get_min_length(),
                                            in[0].get_partial_shape()[1].get_min_length());
-                seq_lengths = ov::test::utils::deprecated::make_constant(element::i64, constants[3], lengths, false);
+                seq_lengths =
+                    ov::test::utils::deprecated::make_constant(ov::element::i64, constants[3], lengths, false);
                 break;
             }
             case ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
             case ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST: {
                 for (size_t i = 0; i <= in[0].get_shape().at(0); ++i) {
                     std::vector<float> lengths;
-                    seq_lengths = ov::test::utils::deprecated::make_constant(element::i64,
+                    seq_lengths = ov::test::utils::deprecated::make_constant(ov::element::i64,
                                                                              constants[3],
                                                                              lengths,
                                                                              true,

@@ -24,17 +24,18 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_API
+        IMPLEMENT_OPENVINO_RUNTIME_API
         CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\")
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>>)
+target_include_directories(${TARGET_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

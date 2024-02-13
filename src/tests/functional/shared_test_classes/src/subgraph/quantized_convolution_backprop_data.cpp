@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
@@ -48,7 +47,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     ov::element::Type element_type = ov::element::undefined;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;

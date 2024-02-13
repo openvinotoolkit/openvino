@@ -37,8 +37,8 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
            # because in case of .rpm package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # temporary block nvidia
-           NOT item STREQUAL "nvidia" AND
+           # temporary block NVIDIA and NPU
+           NOT item MATCHES "^(nvidia|npu)$" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -276,7 +276,6 @@ macro(ov_cpack_settings)
         ov_rpm_add_rpmlint_suppression("${python_component}"
             # all directories
             "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/openvino/*"
-            "non-standard-dir-perm /usr/lib64/${pyversion}/site-packages/ngraph/*"
             )
     endif()
 

@@ -35,6 +35,14 @@ std::function<bool(std::shared_ptr<Node>)> has_class() {
 
     return pred;
 }
+template <typename T>
+std::function<bool(std::shared_ptr<Node>)> class_other_than() {
+    auto pred = [](std::shared_ptr<Node> node) -> bool {
+        return !ov::is_type<T>(node);
+    };
+
+    return pred;
+}
 
 OPENVINO_API
 std::function<bool(Output<Node>)> consumers_count(size_t n);
@@ -62,6 +70,9 @@ std::function<bool(Output<Node>)> type_matches(const element::Type& type);
 
 OPENVINO_API
 std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Type>& types);
+
+OPENVINO_API
+std::function<bool(Output<Node>)> all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates);
 
 namespace op {
 using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;

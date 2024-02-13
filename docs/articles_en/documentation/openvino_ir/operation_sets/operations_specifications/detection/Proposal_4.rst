@@ -5,7 +5,7 @@ Proposal
 
 
 .. meta::
-  :description: Learn about Proposal-4 - an object detection operation, 
+  :description: Learn about Proposal-4 - an object detection operation,
                 which can be performed on three required input tensors.
 
 **Versioned name**: *Proposal-4*
@@ -31,7 +31,7 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 
    * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
    * finds out score in the first input tensor
-  
+
 3. Filters out boxes with size less than *min_size*
 4. Sorts all proposals (*box*, *score*) by score from highest to lowest
 5. Takes top *pre_nms_topn* proposals

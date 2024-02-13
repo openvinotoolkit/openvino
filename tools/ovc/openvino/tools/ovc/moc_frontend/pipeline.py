@@ -104,7 +104,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
             except NotImplementedFailure as e:
                 # some frontends might not implement this method
-                log.warn('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
+                log.warning('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
                     new_input['input_name'], str(e)))
 
     enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()

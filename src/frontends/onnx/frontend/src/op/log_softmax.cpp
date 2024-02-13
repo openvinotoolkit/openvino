@@ -1,29 +1,34 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/log_softmax.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+using ov::Shape;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace {
-std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
+std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
-    const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
-    const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-    return std::make_shared<default_opset::Reshape>(result, data_shape, false);
+    const auto result = std::make_shared<v5::LogSoftmax>(coerced_data, 1);
+    const auto data_shape = std::make_shared<v3::ShapeOf>(data);
+    return std::make_shared<v1::Reshape>(result, data_shape, false);
 }
 
-OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t DEFAULT_AXIS) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     const auto data = inputs.at(0);
     const auto data_rank = data.get_partial_shape().rank();
 
@@ -31,24 +36,20 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
     const auto axis = node.get_attribute_value<int64_t>("axis", DEFAULT_AXIS);
 
-    std::shared_ptr<ngraph::Node> result;
+    std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
-        result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
         break;
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        result = std::make_shared<default_opset::LogSoftmax>(data, 0);
+        ov::util::normalize_axis(node.get_description(), axis, data_rank);
+        result = std::make_shared<v5::LogSoftmax>(data, 0);
         break;
     }
     default: {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto normalized_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;
@@ -61,21 +62,18 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
 namespace op {
 namespace set_1 {
-OutputVector log_softmax(const Node& node) {
-    return ngraph::onnx_import::log_softmax(node, 1);
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
+    return ov::frontend::onnx::log_softmax(node, 1);
 }
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector log_softmax(const Node& node) {
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
-    return {std::make_shared<default_opset::LogSoftmax>(node.get_ng_inputs()[0], axis)};
+    return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
 }  // namespace set_13
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

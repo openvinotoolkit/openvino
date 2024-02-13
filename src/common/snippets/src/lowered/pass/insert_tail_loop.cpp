@@ -24,7 +24,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
     // First step: set new dim value to the corresponding entry_points' dimensions
     if (new_dim_value != existing_subtensor_value) {
         for (const auto& port : loop_info->get_entry_points()) {
-            if (port.is_incremented) {
+            const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
+            if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
                 const auto& expr = port.expr_port->get_expr();
                 const auto node = expr->get_node();
                 auto desc = port.expr_port->get_descriptor_ptr();
@@ -48,7 +49,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
     }
 
     auto update_only_dim_idx_with_subtensor_value = [&](const LinearIR::LoopManager::LoopPort& port) {
-        if (port.is_incremented) {
+        const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
+         if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
             auto desc = port.expr_port->get_descriptor_ptr();
             const auto expr = port.expr_port->get_expr();
             const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
@@ -127,12 +129,14 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
         (*expr_it)->updateShapes();
 }
 
-LinearIR::container InsertTailLoop::copy_loop(const LinearIR& linear_ir, const size_t loop_id) {
+LinearIR::constExprIt InsertTailLoop::insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos, true);
+    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
+
     ExressionMap expression_map;
-    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_begin_pos, std::next(loop_end_pos), expression_map);
+    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_bounds.first, std::next(loop_bounds.second), expression_map);
+    const auto new_loop_begin_pos = linear_ir.insert(insert_pos, loop_copy_range.begin(), loop_copy_range.end());
+    const auto new_loop_end_pos = insert_pos;
 
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);
     std::vector<LinearIR::LoopManager::LoopPort> new_entry_points, new_exit_points;
@@ -156,20 +160,13 @@ LinearIR::container InsertTailLoop::copy_loop(const LinearIR& linear_ir, const s
             loop_manager->update_loops_port(outer_loop_ids, expr->get_output_port(i), {expr->get_output_port(i), new_expr->get_output_port(i)}, false);
     }
 
-    const auto new_loop_begin_pos = loop_copy_range.begin();
-    const auto new_loop_end_pos = loop_copy_range.end();
-    const auto new_id = loop_manager->replace_with_new_loop(linear_ir,
-                                                            std::next(new_loop_begin_pos),
-                                                            std::prev(new_loop_end_pos),
-                                                            original_loop_info->get_work_amount(),
-                                                            original_loop_info->get_increment(),
-                                                            new_entry_points,
-                                                            new_exit_points,
-                                                            loop_id);
+    const auto new_id = loop_manager->replace_with_new_loop(linear_ir, new_loop_begin_pos, new_loop_end_pos,
+                                                            original_loop_info->get_work_amount(), original_loop_info->get_increment(),
+                                                            new_entry_points, new_exit_points, loop_id);
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_end_pos)->get()->get_node());
     OPENVINO_ASSERT(loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
     loop_end->set_id(new_id);
-    return loop_copy_range;
+    return new_loop_begin_pos;
 }
 
 void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
@@ -186,17 +183,16 @@ void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
     auto original_loop_info = loop_manager->get_loop_info(original_loop_id);
     auto tail_loop_info = original_loop_info;
     if (need_vector_loop) {
-        const auto new_loop_range = copy_loop(linear_ir, original_loop_id);
-        const auto new_loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_range.end())->get()->get_node());
-        OPENVINO_ASSERT(new_loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
-        tail_loop_info = original_loop_info;
-        original_loop_info = loop_manager->get_loop_info(new_loop_end->get_id());
-
         // Note: new loop body is inserted before the original loop
         // So new loop becomes a main vector loop, the original loop becomes tail loop
         // This is done in such way to have original ops from the main body at the end:
         // this allows us to conveniently interact with outer loops in further passes
-        linear_ir.insert(begin, new_loop_range.begin(), new_loop_range.end());
+        const auto new_loop_begin_pos = insert_copy_loop(linear_ir, original_loop_id, begin);
+        const auto new_loop_begin = ov::as_type_ptr<op::LoopBegin>(new_loop_begin_pos->get()->get_node());
+        OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
+        const auto new_loop_end = new_loop_begin->get_loop_end();
+        tail_loop_info = original_loop_info;
+        original_loop_info = loop_manager->get_loop_info(new_loop_end->get_id());
 
         const auto new_vector_loop_wa = original_loop_info->get_work_amount() - tail_size;
         original_loop_info->set_work_amount(new_vector_loop_wa);
@@ -251,14 +247,13 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                                           LinearIR::constExprIt tail_end,
                                           const size_t tail_size) {
     const auto& config = linear_ir.get_config();
-    auto insertFill = [tail_size](const ov::Input<ov::Node>& input) -> std::shared_ptr<ov::Node> {
+    auto insertFill = [tail_size](const ov::Input<ov::Node>& input, const ExpressionPort& source) -> std::shared_ptr<ov::Node> {
         std::shared_ptr<ov::Node> fill = nullptr;
         auto& rt = input.get_rt_info();
         auto fill_rt = rt.find("set_fill");
         if (fill_rt != rt.end()) {
             const auto fill_value = fill_rt->second.as<uint32_t>();
-            fill = std::make_shared<ov::snippets::op::Fill>(input.get_source_output(), tail_size, fill_value);
-            input.get_node()->set_argument(input.get_index(), fill);
+            fill = std::make_shared<ov::snippets::op::Fill>(source.get_expr()->get_node()->output(source.get_index()), tail_size, fill_value);
         }
         return fill;
     };
@@ -279,9 +274,9 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
         if (config.m_need_fill_tail_register &&
             (ov::is_type<ov::op::v1::Maximum>(op) ||
              ov::is_type<ov::op::v1::Add>(op))) {
-            for (size_t i = 0; i < op->inputs().size(); ++i) {
-                if (auto fill = insertFill(op->input(i))) {
-                    const auto& input = expr->get_input_port_connector(i);
+            for (size_t i = 0; i < expr->get_input_count(); ++i) {
+                const auto& input = expr->get_input_port_connector(i);
+                if (auto fill = insertFill(op->input(i), input->get_source())) {
                     const auto consumers = input->get_consumers();
                     // If there are several consumers, fill expression must be inserted before first of them
                     auto fst_consumer = std::min_element(consumers.cbegin(), consumers.cend(), [&](ExpressionPort lhs, ExpressionPort rhs) {
@@ -289,15 +284,13 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                         auto rhs_it = linear_ir.find(rhs.get_expr());
                         return std::distance(linear_ir.cbegin(), lhs_it) < std::distance(linear_ir.cbegin(), rhs_it);
                     });
-                    const auto insert_pos = linear_ir.find(fst_consumer->get_expr());
-                    auto fill_expr = linear_ir.create_expression(fill, {input});
-                    linear_ir.insert(insert_pos, fill_expr);
-                    linear_ir.replace_input(consumers, fill_expr->get_output_port_connector(0));
+                    const auto fill_expr = *linear_ir.insert_node(fill, std::vector<ExpressionPort>{ input->get_source() }, expr->get_loop_ids(), true,
+                                                                  linear_ir.find(fst_consumer->get_expr()), consumers);
+
                     // in_reg == out_reg since we want to modify vector reg inplace
                     const auto reg = expr->get_input_port_descriptor(0)->get_reg();
                     fill_expr->get_input_port_descriptor(0)->set_reg(reg);
                     fill_expr->get_output_port_descriptor(0)->set_reg(reg);
-                    fill_expr->set_loop_ids(expr->get_loop_ids());
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::op::MemoryAccess>(op)) {

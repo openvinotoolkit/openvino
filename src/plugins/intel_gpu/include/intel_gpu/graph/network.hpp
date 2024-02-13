@@ -123,7 +123,7 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
@@ -220,6 +220,7 @@ public:
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
+    std::vector<primitive_id> get_kv_cache_ids() const { return kv_cache_ids; }
 
     const ExecutionConfig& get_config() const { return _config; }
 
@@ -255,6 +256,7 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<primitive_id> kv_cache_ids;
 
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;

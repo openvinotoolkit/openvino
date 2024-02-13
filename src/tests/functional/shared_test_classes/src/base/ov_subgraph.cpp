@@ -79,8 +79,14 @@ void SubgraphBaseTest::run() {
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = ov::test::utils::PassRate::Statuses::FAILED;
-            errorMessage = ex.what();
+            if (callback_exception != nullptr) {
+                // exception will be checked by callback.
+                callback_exception(ex);
+                return;
+            } else {
+                status = ov::test::utils::PassRate::Statuses::FAILED;
+                errorMessage = ex.what();
+            }
         } catch (...) {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
@@ -90,10 +96,10 @@ void SubgraphBaseTest::run() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -164,7 +170,7 @@ void SubgraphBaseTest::query_model() {
                 actual.insert(res.first);
             }
             if (expected != actual) {
-                IE_THROW() << "Expected and actual are different";
+                OPENVINO_THROW("Expected and actual are different");
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
@@ -179,10 +185,10 @@ void SubgraphBaseTest::query_model() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -241,10 +247,10 @@ void SubgraphBaseTest::import_export() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -476,10 +482,22 @@ void SubgraphBaseTest::validate() {
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
-    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
-    t_device.join();
-    t_ref.join();
+    if (targetDevice == "TEMPLATE") {
+        // TODO: Fix it in CVS-129397
+        // This is workaround to reduce occurrence of SIGABRT on Windows build when using TEMPLATE device
+        actualOutputs = get_plugin_outputs();
+        expectedOutputs = calculate_refs();
+    } else {
+        std::thread t_device([&] {
+            actualOutputs = get_plugin_outputs();
+        });
+        std::thread t_ref([&] {
+            expectedOutputs = calculate_refs();
+        });
+
+        t_device.join();
+        t_ref.join();
+    }
 #endif
 
     if (expectedOutputs.empty()) {

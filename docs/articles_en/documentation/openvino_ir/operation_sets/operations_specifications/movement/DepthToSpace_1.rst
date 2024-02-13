@@ -5,7 +5,7 @@ DepthToSpace
 
 
 .. meta::
-  :description: Learn about DepthToSpace-1 - a data movement operation, 
+  :description: Learn about DepthToSpace-1 - a data movement operation,
                 which can be performed on a single input tensor.
 
 **Versioned name**: *DepthToSpace-1*
@@ -21,7 +21,7 @@ DepthToSpace
 The operation is equivalent to the following transformation of the input tensor ``data`` with ``K`` spatial dimensions of shape ``[N, C, D1, D2, ..., DK]`` to *Y* output tensor. If ``mode = blocks_first``:
 
 .. code-block:: cpp
-   
+
    x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
    x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
    y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
@@ -29,7 +29,7 @@ The operation is equivalent to the following transformation of the input tensor 
 If ``mode = depth_first``:
 
 .. code-block:: cpp
-   
+
    x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
    x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
    y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
@@ -70,7 +70,7 @@ If ``mode = depth_first``:
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="DepthToSpace" ...>
        <data block_size="2" mode="blocks_first"/>
        <input>
@@ -83,10 +83,10 @@ If ``mode = depth_first``:
        </input>
        <output>
            <port id="1">
-               <dim>5</dim>  < !-- data.shape[0] -->
-               <dim>7</dim>  < !-- data.shape[1] / (block_size ^ 2) -->
-               <dim>4</dim>  < !-- data.shape[2] * block_size -->
-               <dim>6</dim>  < !-- data.shape[3] * block_size -->
+               <dim>5</dim>  <!-- data.shape[0] -->
+               <dim>7</dim>  <!-- data.shape[1] / (block_size ^ 2) -->
+               <dim>4</dim>  <!-- data.shape[2] * block_size -->
+               <dim>6</dim>  <!-- data.shape[3] * block_size -->
            </port>
        </output>
    </layer>

@@ -14,7 +14,6 @@
 #include "openvino/op/select.hpp"
 #include "openvino/reference/mod.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace util {

@@ -54,10 +54,16 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    Quantize Speech Recognition Models with accuracy control using NNCF PTQ API.
 
 .. showcase::
+   :title: 121-legacy-mo-convert-to-openvino
+   :img: _static/images/notebook_eye.png
+
+   Learn about OpenVINO™ model conversion API.
+
+.. showcase::
    :title: 121-convert-to-openvino
    :img: _static/images/notebook_eye.png
 
-   Learn OpenVINO model conversion API.
+   Learn about model conversion in OpenVINO™.
 
 .. showcase::
    :title: 120-tensorflow-object-detection-to-openvino
@@ -106,12 +112,6 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    :img: _static/images/notebook_eye.png
 
    Use Neural Network Compression Framework (NNCF) to quantize PyTorch model in post-training mode (without model fine-tuning).
-
-.. showcase::
-   :title: 111-yolov5-quantization-migration
-   :img: _static/images/notebook_eye.png
-
-   Migrate YOLOv5 POT API based quantization pipeline on Neural Network Compression Framework (NNCF).
 
 .. showcase::
    :title: 110-ct-segmentation-quantize-nncf
