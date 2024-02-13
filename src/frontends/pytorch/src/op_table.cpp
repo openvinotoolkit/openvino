@@ -639,6 +639,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::ListConstruct", op::translate_list_construct},
         {"prim::ListUnpack", op::translate_list_unpack},
         {"prim::Loop", op::translate_loop},
+        // prim::max - Supported in limited set of patterns
+        // prim::min - Supported in limited set of patterns
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::requires_grad", op::return_false_scalar},

@@ -356,3 +356,49 @@ def test_shared_consts_reused():
                     const_names.remove(name)
                     assert len(n.output(0).get_target_inputs()) == 2, f"Constant {n} is not reused"
     assert len(const_names) == 0, f"Not all constants were found: {const_names}"
+
+
+class TestModel1(torch.nn.Module):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.pool = torch.nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        return {"x1": self.pool(x), "x2": x * 5}
+
+
+def test_output_dict_names():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    input = torch.ones((1, 3, 224, 224))
+    model = TestModel1()
+    decoder = TorchScriptPythonDecoder(
+        model, example_input=(torch.randn(1, 3, 224, 224),))
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    om = fe.convert(im)
+    assert om.outputs[0].any_name == "x1" and om.outputs[1].any_name == "x2", "Output dict names are not expected"
+
+
+class TestModel2(torch.nn.Module):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.pool = torch.nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, x):
+        return self.pool(x), x * 5
+
+
+def test_output_tuple_names():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    input = torch.ones((1, 3, 224, 224))
+    model = TestModel2()
+    decoder = TorchScriptPythonDecoder(
+        model, example_input=(torch.randn(1, 3, 224, 224),))
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    om = fe.convert(im)
+    assert len(om.outputs[0].names) == 0 and len(om.outputs[1].names) == 0, "Output tuple names must be empty"
