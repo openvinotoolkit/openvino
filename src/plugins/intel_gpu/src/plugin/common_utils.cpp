@@ -139,7 +139,7 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, cons
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream) {
-    const bool blocking = false;
+    const bool blocking = true;
     auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_layout().data_type;
 
