@@ -114,14 +114,14 @@ tests_mo = [
 ]
 
 tests_layer = [
-    "numpy",
+    "numpy>=1.16.6,<1.27",
     "onnxruntime",
-    "requests",
-    "torch",
+    "requests>=2.25.1",
+    "torch>=1.13,<2.2",
     "torchvision",
     "transformers",
     "packaging",
-    "pytest",
+    "pytest>=5.0,<7.5",
     "tensorflow-addons; python_version <= '3.10'",
     "jax<=0.4.14; sys_platform == 'linux' and platform_machine == 'x86_64'", # https://jax.readthedocs.io/en/latest/installation.html#pip-installation-cpu - wheels are for "x86_64" only
     "jaxlib<=0.4.14; sys_platform == 'linux' and platform_machine == 'x86_64'", # https://jax.readthedocs.io/en/latest/installation.html#pip-installation-cpu - wheels are for "x86_64" only
