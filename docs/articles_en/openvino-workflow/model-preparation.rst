@@ -207,8 +207,7 @@ public repositories:
          # Check model page for information about input shape: https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5
          model.build([None, 224, 224, 3])
 
-         model.save('mobilenet_v1_100_224')  # use a temporary directory
-         ov_model = ov.convert_model('mobilenet_v1_100_224')
+         ov_model = ov.convert_model(model)
 
          ###### Option 1: Save to OpenVINO IR:
 
