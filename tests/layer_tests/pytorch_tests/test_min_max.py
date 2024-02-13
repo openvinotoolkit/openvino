@@ -245,13 +245,13 @@ class TestMinimumMaximum(PytorchLayerTest):
                 self.r_dtype = r_dtype
                 if out:
                     self.forward = self.forward_out
-            
+
             def forward_out(self, x, y, z):
                 return self.op(x.to(self.l_dtype), y.to(self.r_dtype), out=z), z
 
             def forward(self, x, y):
                 return self.op(x.to(self.l_dtype), y.to(self.r_dtype))
-        
+
         l_dtype = dtypes_map[dtypes[0]]
         r_dtype = dtypes_map[dtypes[1]]
         model_cls = aten_minimum_maximum(op, l_dtype, r_dtype, out)
@@ -281,7 +281,7 @@ class TestMinimumMaximum(PytorchLayerTest):
         ):
         self._test(*self.create_model(op_type, dtypes=(input_dtype, input_dtype), out=True),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"input_dtype": input_dtype, "second_input_dtype": input_dtype, 
+                   {"input_dtype": input_dtype, "second_input_dtype": input_dtype,
                     "out": True}
                    )
 
@@ -315,13 +315,13 @@ class TestAminAmax(PytorchLayerTest):
                 self.keep_dims = keep_dims
                 if out:
                     self.forward = self.forward_out
-            
+
             def forward_out(self, x, y):
-                return self.op(x, self.axis, self.keep_dims, out=y), y 
+                return self.op(x, self.axis, self.keep_dims, out=y), y
 
             def forward(self, x):
                 return self.op(x, self.axis, self.keep_dims)
-        
+
 
         model_cls = aten_amin_amax(op, axis, keep_dims, out)
 
@@ -332,6 +332,7 @@ class TestAminAmax(PytorchLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
+    @pytest.mark.precommit_fx_backend
     def test_amin_amax(self, op_type, input_dtype, axis, keep_dims, out, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=

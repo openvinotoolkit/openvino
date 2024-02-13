@@ -11,6 +11,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,6 +27,15 @@ OutputVector translate_log(const NodeContext& context) {
     auto x = context.get_input(0);
     x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
     auto log = context.mark_node(std::make_shared<v0::Log>(x));
+    return {log};
+};
+
+OutputVector translate_log_sigmoid(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto x = context.get_input(0);
+    x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+    auto sigmoid = context.mark_node(std::make_shared<v0::Sigmoid>(x));
+    auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
     return {log};
 };
 
