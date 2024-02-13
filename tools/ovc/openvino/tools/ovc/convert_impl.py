@@ -18,7 +18,7 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
-from openvino.tools.ovc.moc_frontend.check_config import new_extensions_used
+from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
@@ -172,7 +172,7 @@ def prepare_ir(argv: argparse.Namespace):
                                                         argv.share_weights)
         t.send_event("ovc", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
-        if new_extensions_used(argv):
+        if any_extensions_used(argv):
             for extension in argv.extension:
                 if not isinstance(extension, ModuleExtension):
                     moc_front_end.add_extension(extension)
