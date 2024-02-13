@@ -70,7 +70,7 @@ The example below shows data-free 4-bit weight quantization applied on top of Op
          :language: python
          :fragment: [compression_4bit]
 
-For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__.
+For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
 
 .. note::
 
@@ -151,7 +151,7 @@ The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com
      - 8.0
 
 
-The following table shows accuracy metric in a data-aware 4-bit weight quantization setup measured on `wikitext dataset <https://arxiv.org/pdf/1609.07843.pdf>`__.
+The following table shows accuracy metric in a data-aware 4-bit weight quantization setup measured on `Wikitext dataset <https://arxiv.org/pdf/1609.07843.pdf>`__.
 
 .. list-table::
    :widths: 40 55 25 25
@@ -186,13 +186,25 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - 5.07
      - 2.6
    
-   
+
+Auto-tuning of weight compression parameters
+############################################
+
+The important question that may arise is how to find a configuration of weight compression parameters that is best suited to a particular model.
+We provide an `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ 
+for that matter where the weight compression parameters are being searched from the subset of values. To speed up the search we use self-designed 
+validation pipeline that we called `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__ 
+that can quickly evaluate the changes in accuracy of the optimized model compared to the baseline.
+
 
 Additional Resources
 ####################
 
-- `Data-aware weight compression <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__
+- `Data-aware Weight Compression Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__
+- `Tune weight Compression Parameters Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__ 
+- `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`
-- `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
+
 
