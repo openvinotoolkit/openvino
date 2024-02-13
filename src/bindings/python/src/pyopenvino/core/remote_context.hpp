@@ -43,7 +43,6 @@ class VADisplayWrapper {
 public:
     VADisplayWrapper(/* VADisplay */ void* device) {
         va_display = device;
-        fd = -1;
     }
 
     void* get_display_ptr() {
@@ -58,7 +57,6 @@ public:
     }
 
 private:
-    int fd;
     void* va_display;
 };
 

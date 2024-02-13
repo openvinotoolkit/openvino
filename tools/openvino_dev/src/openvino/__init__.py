@@ -47,6 +47,18 @@ try:
     from openvino.runtime import save_model
     from openvino.runtime import layout_helpers
 
+    from openvino._pyopenvino import RemoteContext
+    from openvino._pyopenvino import RemoteTensor
+
+    # OpenCL related:
+    from openvino._pyopenvino import ClContext
+    from openvino._pyopenvino import ClImage2DTensor
+
+    # libva related:
+    from openvino._pyopenvino import VADisplayWrapper
+    from openvino._pyopenvino import VAContext
+    from openvino._pyopenvino import VASurfaceTensor
+
     # Set version for openvino package
     from openvino.runtime import get_version
     __version__ = get_version()
