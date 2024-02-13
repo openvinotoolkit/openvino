@@ -38,16 +38,13 @@ OutputVector translate_log_softmax_common(const NodeContext& context, bool is_fx
     return {log_softmax};
 };
 
-OutputVector translate_log_softmax(const NodeContext& context){
+OutputVector translate_log_softmax(const NodeContext& context) {
     return translate_log_softmax_common(context, false);
 }
 
-OutputVector translate_log_softmax_fx(const NodeContext& context){
+OutputVector translate_log_softmax_fx(const NodeContext& context) {
     return translate_log_softmax_common(context, true);
 }
-
-
-
 
 }  // namespace op
 }  // namespace pytorch
