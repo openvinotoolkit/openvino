@@ -57,7 +57,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
     }
-    if (0 != cfg.streams) {
+    if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
     } else {
@@ -73,7 +73,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (m_cfg.streams != 0) {
+    if (m_cfg.streamExecutorConfig.get_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -109,7 +109,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streams != 1 ? m_socketWeights[socketId] : nullptr;
+                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
                     auto isQuantizedFlag =
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
