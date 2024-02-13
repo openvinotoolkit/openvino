@@ -11,7 +11,6 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -22,12 +21,9 @@ std::string find_plugins_xml(const std::string& xml_file) {
         // Default plugin xml file name, will search in OV folder.
         xml_file_name = "plugins.xml";
     } else {
-        // User can set any path for plugins xml file but need guarantee security issue if apply file path out of OV
-        // folder.
-        // If the xml file exists or file path contains file separator, return file path;
-        // Else search it in OV folder with no restriction on file name and extension.
-        if (ov::util::file_exists(xml_file_name) ||
-            xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
+        // If file path contains file separator, return file path;
+        // Otherwise search it in OV folder with no restriction on file name and extension.
+        if (xml_file_name.find(util::FileTraits<char>().file_separator) != xml_file_name.npos) {
             return xml_file_name;
         }
     }
