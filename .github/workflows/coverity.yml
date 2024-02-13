@@ -149,7 +149,7 @@ jobs:
 
       - name: Show Coverity configure logs
         continue-on-error: true
-        run: cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
 
       - name: Upload Coverity logs
         uses: actions/upload-artifact@v3
