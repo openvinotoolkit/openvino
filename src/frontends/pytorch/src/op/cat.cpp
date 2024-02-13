@@ -107,7 +107,7 @@ OutputVector translate_stack(const NodeContext& context) {
             context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
         list_elems.push_back(stack_input);
     }
-    auto axis = 0;
+    int64_t axis = 0;
     if (context.get_input_size() > 2)
         axis = context.const_input<int64_t>(context.get_input_size() - 1);
     return translate_cat_common(context, list_elems, axis, true);
