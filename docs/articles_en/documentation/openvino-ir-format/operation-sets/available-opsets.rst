@@ -38,7 +38,7 @@ This topic provides a complete list of available sets of operations supported in
     * - OpenVINO™ Version
       - Actual Operations Set
     * - 2024.0
-      - :doc:`opset13 <openvino_docs_ops_opset14>`
+      - :doc:`opset14 <openvino_docs_ops_opset14>`
     * - 2023.2
       - :doc:`opset13 <openvino_docs_ops_opset13>`
     * - 2023.1
