@@ -65,17 +65,19 @@ bool ov::util::node_requires_precision_conversion(const ov::Node* const node) {
     }
 #undef WHITELIST
 
+    bool has_unsupported_type = false;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         if (ov::util::is_type_unsupported(node->get_input_element_type(i))) {
-            return true;
+            has_unsupported_type = true;
         }
     }
     for (size_t i = 0; i < node->get_output_size(); i++) {
         if (ov::util::is_type_unsupported(node->get_output_element_type(i))) {
-            return true;
+            has_unsupported_type = true;
         }
     }
-    return false;
+
+    return has_unsupported_type && node->has_evaluate();
 }
 
 static bool convert_range_precision(const std::shared_ptr<ov::Node>& node) {
