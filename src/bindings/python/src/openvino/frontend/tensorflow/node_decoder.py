@@ -26,6 +26,7 @@ def tf_type_to_ov_type(tf_type_int):
 
 def tf_attr_to_numpy(attr):
     attr_type = attr.WhichOneof("value")
+    # described in https://www.tensorflow.org/api_docs/python/tf/compat/v1/AttrValue
     if attr_type == "func":
         return attr.func.name
     elif attr_type == "s":
