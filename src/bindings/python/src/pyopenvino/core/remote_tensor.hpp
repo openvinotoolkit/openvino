@@ -27,7 +27,6 @@ public:
 
 void regclass_RemoteTensor(py::module m);
 
-#ifdef PY_ENABLE_GPU
 class ClImage2DTensorWrapper : public RemoteTensorWrapper {
 public:
     ClImage2DTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
@@ -37,7 +36,6 @@ public:
 
 void regclass_ClImage2DTensor(py::module m);
 
-#ifndef _WIN32
 class VASurfaceTensorWrapper : public ClImage2DTensorWrapper {
 public:
     VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): ClImage2DTensorWrapper{_tensor} {}
@@ -54,5 +52,3 @@ public:
 };
 
 void regclass_VASurfaceTensor(py::module m);
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU

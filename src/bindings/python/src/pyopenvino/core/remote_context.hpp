@@ -15,12 +15,6 @@
 #include "openvino/core/except.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
 
-#ifdef PY_ENABLE_GPU
-#ifndef _WIN32
-#    include <va/va.h>
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU
-
 namespace py = pybind11;
 
 class RemoteContextWrapper {
@@ -36,7 +30,6 @@ public:
 
 void regclass_RemoteContext(py::module m);
 
-#ifdef PY_ENABLE_GPU
 class ClContextWrapper : public RemoteContextWrapper {
 public:
     ClContextWrapper(ov::RemoteContext& _context): RemoteContextWrapper{_context} {}
@@ -46,15 +39,14 @@ public:
 
 void regclass_ClContext(py::module m);
 
-#ifndef _WIN32
 class VADisplayWrapper {
 public:
-    VADisplayWrapper(VADisplay device) {
+    VADisplayWrapper(/* VADisplay */ void* device) {
         va_display = device;
         fd = -1;
     }
 
-    VADisplay get_display_ptr() {
+    void* get_display_ptr() {
         return va_display;
     }
 
@@ -67,7 +59,7 @@ public:
 
 private:
     int fd;
-    VADisplay va_display;
+    void* va_display;
 };
 
 void regclass_VADisplayWrapper(py::module m);
@@ -80,5 +72,3 @@ public:
 };
 
 void regclass_VAContext(py::module m);
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU

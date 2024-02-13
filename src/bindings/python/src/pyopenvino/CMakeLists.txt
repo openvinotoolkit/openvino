@@ -64,10 +64,6 @@ pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-if(ENABLE_INTEL_GPU)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC PY_ENABLE_GPU)
-endif()
-
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

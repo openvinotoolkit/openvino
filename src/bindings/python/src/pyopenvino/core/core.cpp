@@ -255,13 +255,11 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("properties"));
 
-#ifdef PY_ENABLE_GPU
-#    ifndef _WIN32
     cls.def(
         "create_va_context",
         [](ov::Core& self, const std::string& device_name, VADisplayWrapper& display, int target_tile_id) {
             ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
-                                         {ov::intel_gpu::va_device.name(), device_name},
+                                         {ov::intel_gpu::va_device.name(), display.get_display_ptr()},
                                          {ov::intel_gpu::tile_id.name(), target_tile_id}};
             auto ctx = self.create_context(device_name, context_params);
             return VAContextWrapper(ctx);
@@ -269,8 +267,6 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("display"),
         py::arg("target_tile_id") = -1);
-#    endif  // _WIN32
-#endif      // PY_ENABLE_GPU
 
     cls.def(
         "get_default_context",

@@ -54,19 +54,13 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 
 # OpenCL related:
-try:
-    from openvino._pyopenvino import ClContext
-    from openvino._pyopenvino import ClImage2DTensor
-except ImportError:
-    pass
+from openvino._pyopenvino import ClContext
+from openvino._pyopenvino import ClImage2DTensor
 
 # libva related:
-try:
-    from openvino._pyopenvino import VADisplayWrapper
-    from openvino._pyopenvino import VAContext
-    from openvino._pyopenvino import VASurfaceTensor
-except ImportError:
-    pass
+from openvino._pyopenvino import VADisplayWrapper
+from openvino._pyopenvino import VAContext
+from openvino._pyopenvino import VASurfaceTensor
 
 # Set version for openvino package
 from openvino.runtime import get_version

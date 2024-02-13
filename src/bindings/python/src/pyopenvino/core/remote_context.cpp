@@ -44,16 +44,14 @@ void regclass_RemoteContext(py::module m) {
         py::arg("shape"));
 }
 
-#ifdef PY_ENABLE_GPU
 void regclass_ClContext(py::module m) {
     py::class_<ClContextWrapper, RemoteContextWrapper, std::shared_ptr<ClContextWrapper>> cls(m, "ClContext");
 }
 
-#    ifndef _WIN32
 void regclass_VADisplayWrapper(py::module m) {
     py::class_<VADisplayWrapper, std::shared_ptr<VADisplayWrapper>> cls(m, "VADisplayWrapper");
 
-    cls.def(py::init([](VADisplay device) {
+    cls.def(py::init([](void* device) {
                 return VADisplayWrapper(device);
             }),
             py::arg("device"));
@@ -99,5 +97,3 @@ void regclass_VAContext(py::module m) {
         py::arg("surface"),
         py::arg("plane") = 0);
 }
-#    endif  // _WIN32
-#endif      // PY_ENABLE_GPU

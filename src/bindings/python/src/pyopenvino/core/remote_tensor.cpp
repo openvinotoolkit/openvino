@@ -59,7 +59,6 @@ void regclass_RemoteTensor(py::module m) {
     });
 }
 
-#ifdef PY_ENABLE_GPU
 void regclass_ClImage2DTensor(py::module m) {
     py::class_<ClImage2DTensorWrapper, RemoteTensorWrapper, std::shared_ptr<ClImage2DTensorWrapper>> cls(
         m,
@@ -70,7 +69,6 @@ void regclass_ClImage2DTensor(py::module m) {
     });
 }
 
-#    ifndef _WIN32
 void regclass_VASurfaceTensor(py::module m) {
     py::class_<VASurfaceTensorWrapper, ClImage2DTensorWrapper, std::shared_ptr<VASurfaceTensorWrapper>> cls(
         m,
@@ -96,5 +94,3 @@ void regclass_VASurfaceTensor(py::module m) {
         return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
     });
 }
-#    endif  // _WIN32
-#endif      // PY_ENABLE_GPU

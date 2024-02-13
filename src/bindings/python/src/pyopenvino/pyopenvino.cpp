@@ -262,15 +262,11 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_RemoteContext(m);
     regclass_RemoteTensor(m);
-#ifdef PY_ENABLE_GPU
     regclass_ClContext(m);
     regclass_ClImage2DTensor(m);
-#ifndef _WIN32
     regclass_VADisplayWrapper(m);
     regclass_VAContext(m);
     regclass_VASurfaceTensor(m);
-#endif  // _WIN32
-#endif  // PY_ENABLE_GPU
 
     // Properties and hints
     regmodule_properties(m);
