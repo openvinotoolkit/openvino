@@ -85,7 +85,7 @@ void lu_solve(T* output,
     // Backward substitution: Ux = y
     for (int i = n - 1; i >= 0; --i) {
         X[i] = Y[i];
-        for (auto j = i + 1; j < n; ++j) {
+        for (size_t j = static_cast<size_t>(i) + 1; j < n; ++j) {
             X[i] -= U[i][j] * X[j];
         }
         X[i] /= U[i][i];
