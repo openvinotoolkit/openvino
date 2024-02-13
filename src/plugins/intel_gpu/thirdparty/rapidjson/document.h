@@ -169,8 +169,6 @@ public:
 
     //! @name relations
     //@{
-    bool operator!=(NonConstIterator that) const { return ptr_ != that.ptr_; }
-    bool operator==(NonConstIterator that) const { return ptr_ == that.ptr_; }        
     bool operator==(ConstIterator that) const { return ptr_ == that.ptr_; }
     bool operator!=(ConstIterator that) const { return ptr_ != that.ptr_; }
     bool operator<=(ConstIterator that) const { return ptr_ <= that.ptr_; }
