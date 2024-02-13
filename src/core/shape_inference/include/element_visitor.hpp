@@ -153,7 +153,7 @@ struct IfTypeOf<ET, Others...> {
 #if defined(SELECTIVE_BUILD_ANALYZER)
     template <class Visitor, class... Args>
     static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
-        return (et == ET && is_cc_enabled(region))
+        return (et == ET && is_cc_enabled<Visitor>(region))
                    ? Visitor::template visit<ET>(std::forward<Args>(args)...)
                    : IfTypeOf<Others...>::template apply<Visitor>(region, et, std::forward<Args>(args)...);
     }
@@ -165,7 +165,7 @@ struct IfTypeOf<ET, Others...> {
                       const ov::TensorVector& inputs,
                       Type_t et,
                       Args&&... args) -> typename Visitor::result_type {
-        return (et == ET && is_cc_enabled(region))
+        return (et == ET && is_cc_enabled<Visitor>(region))
                    ? Visitor::template visit<ET>(std::forward<Args>(args)...)
                    : IfTypeOf<Others...>::template apply<Visitor>(region,
                                                                   node,
@@ -175,6 +175,7 @@ struct IfTypeOf<ET, Others...> {
                                                                   std::forward<Args>(args)...);
     }
 
+    template <class Visitor>
     static bool is_cc_enabled(const std::string& region) {
         OV_ITT_SCOPED_TASK(OV_PP_CAT(TYPE_LIST_, ov_eval), region + "$" + Type(ET).to_string());
         return true;
