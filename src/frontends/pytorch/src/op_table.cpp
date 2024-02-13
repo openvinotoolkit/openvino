@@ -257,6 +257,7 @@ OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
 OP_CONVERTER(translate_log_sigmoid);
+OP_CONVERTER(translate_log_softmax_fx);
 OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
@@ -671,7 +672,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
          op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._local_scalar_dense.default", op::skip_node},
-        {"aten._log_softmax.default", op::translate_log_softmax},
+        {"aten._log_softmax.default", op::translate_log_softmax_fx},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._unsafe_view.default", op::translate_reshape},
@@ -710,7 +711,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.div.Tensor_mode", op::translate_div_fx},
         {"aten.embedding.default", op::translate_embedding},
         {"aten.empty.memory_format", op::translate_empty},
-        {"aten.erf.default", op::translate_1to1_match_1_inputs<opset10::Erf>},
+        {"aten.erf.default", op::translate_erf},
         {"aten.eq.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.eq.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.exp.default", op::translate_1to1_match_1_inputs<opset10::Exp>},

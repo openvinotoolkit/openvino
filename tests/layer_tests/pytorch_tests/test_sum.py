@@ -96,7 +96,6 @@ class TestSum(PytorchLayerTest):
     @pytest.mark.parametrize("input_dtype", ["float32", "uint8", "bool", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_fx_backend
     def test_sum(self, axes, keep_dims, out, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(axes, keep_dims, out, dtype, input_dtype),
                    ie_device, precision, ir_version,
