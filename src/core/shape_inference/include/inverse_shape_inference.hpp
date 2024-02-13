@@ -24,7 +24,7 @@ std::vector<TRShape> shape_infer(const Inverse* op, const std::vector<TShape>& i
         if (input_shape[size - 2].is_static() && input_shape[size - 1].is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   input_shape[size - 2].get_min_length() == input_shape[size - 1].get_min_length(),
+                                   input_shape[size - 2].compatible(input_shape[size - 1]),
                                    "Input must contain square matrices of the same shape.");
         }
     }

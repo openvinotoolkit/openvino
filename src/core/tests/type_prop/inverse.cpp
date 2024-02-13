@@ -40,6 +40,13 @@ TEST_F(TypePropInverseV14Test, input_f32_static) {
     EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{10, 4, 4}));
 }
 
+TEST_F(TypePropInverseV14Test, input_f32_static_batch_dynamic_matrix) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{12, -1, -1});
+    const auto op = make_op(data, false);
+    EXPECT_EQ(op->get_element_type(), ov::element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{12, -1, -1}));
+}
+
 TEST_F(TypePropInverseV14Test, input_f32_static_rank) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(3));
     const auto op = make_op(data, false);
@@ -52,6 +59,16 @@ TEST_F(TypePropInverseV14Test, input_f16_dynamic) {
     const auto op = make_op(data, false);
     EXPECT_EQ(op->get_element_type(), ov::element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape::dynamic()));
+}
+
+TEST_F(TypePropInverseV14Test, input_f16_inverval_dimensions) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f16,
+        ov::PartialShape({ov::Dimension(10), ov::Dimension(2, 5), ov::Dimension(2, 5)}));
+    const auto op = make_op(data, false);
+    EXPECT_EQ(op->get_element_type(), ov::element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (ov::PartialShape({ov::Dimension(10), ov::Dimension(2, 5), ov::Dimension(2, 5)})));
 }
 
 TEST_F(TypePropInverseV14Test, input_non_square) {

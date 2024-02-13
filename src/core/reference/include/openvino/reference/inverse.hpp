@@ -13,6 +13,7 @@
 namespace ov {
 namespace reference {
 namespace inverse {
+namespace internal {
 
 template <typename T>
 void lu_decomposition(const T* input,
@@ -82,7 +83,7 @@ void lu_solve(T* output,
     }
 
     // Backward substitution: Ux = y
-    for (auto i = n - 1; i != static_cast<size_t>(-1); --i) {
+    for (int i = n - 1; i >= 0; --i) {
         X[i] = Y[i];
         for (auto j = i + 1; j < n; ++j) {
             X[i] -= U[i][j] * X[j];
@@ -98,7 +99,7 @@ void lu_solve(T* output,
 
 template <typename T>
 void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, size_t n) {
-    T determinant = sign ? 1.0f : -1.0f;
+    T determinant = sign ? T{1} : T{-1};
 
     for (size_t i = 0; i < n; ++i) {
         determinant *= U[i][i];
@@ -109,6 +110,7 @@ void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, 
         output[idx] *= determinant;
     }
 }
+}  // namespace internal
 
 /**
  * @brief Inverse operation computes the inverse of the input tensor.
@@ -131,14 +133,14 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
         std::vector<T> P(n);
         bool sign = true;
 
-        lu_decomposition(input, L, U, P, sign, b, n);
+        internal::lu_decomposition(input, L, U, P, sign, b, n);
 
         for (size_t column = 0; column < n; ++column) {
-            lu_solve(output, L, U, P, b, n, column);
+            internal::lu_solve(output, L, U, P, b, n, column);
         }
 
         if (adjoint) {
-            to_adjoint(output, U, sign, b, n);
+            internal::to_adjoint(output, U, sign, b, n);
         }
     }
 }

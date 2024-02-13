@@ -4,10 +4,11 @@
 
 #include "inverse.hpp"
 
-#include <openvino/core/type.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/inverse.hpp>
-
+#include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/inverse.hpp"
 #include "utils/bfloat16.hpp"
 
 // Parallel LU decomposition algorithm with partial pivoting
@@ -64,14 +65,6 @@ void Inverse::initSupportedPrimitiveDescriptors() {
                          ref_any);
 }
 
-bool Inverse::needShapeInfer() const {
-    return !m_const_input;
-}
-
-bool Inverse::needPrepareParams() const {
-    return true;
-}
-
 void Inverse::prepareParams() {
     const auto& input_shape = getParentEdgeAt(INPUT_PORT)->getMemory().getStaticDims();
 
@@ -90,25 +83,18 @@ void Inverse::prepareParams() {
     }
 }
 
-bool Inverse::isExecutable() const {
-    return !isInputTensorAtPortEmpty(INPUT_PORT);
-}
-
 bool Inverse::created() const {
     return getType() == Type::Inverse;
 }
 
 void Inverse::execute(dnnl::stream strm) {
-    switch (m_input_precision) {
-    case ov::element::f32:
-        return inverse<float>();
-    case ov::element::f16:
-        return inverse<float16>();
-    case ov::element::bf16:
-        return inverse<bfloat16_t>();
-    default:
-        THROW_CPU_NODE_ERR("Inverse CPU implementation does not support input element type: ", m_input_precision);
-    }
+    OV_SWITCH(intel_cpu,
+              InverseExecute,
+              this,
+              m_input_precision,
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::f32, float))
 }
 
 void Inverse::executeDynamicImpl(dnnl::stream strm) {
@@ -120,9 +106,9 @@ void Inverse::inverse() {
     const auto* data = getSrcDataAtPortAs<const T>(INPUT_PORT);
     auto* output = getDstDataAtPortAs<T>(OUTPUT_PORT);
 
-    std::vector<T> L(m_side_squared, static_cast<T>(0));
-    std::vector<T> U(m_side_squared, static_cast<T>(0));
-    std::vector<T> P(m_side, static_cast<T>(0));
+    std::vector<T> L(m_side_squared, T{0});
+    std::vector<T> U(m_side_squared, T{0});
+    std::vector<T> P(m_side, T{0});
 
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
@@ -149,13 +135,11 @@ void Inverse::lu_decomposition(const T* data,
     // Make L identity, U a copy of data and P a range(0, side)
     size_t batch_idx = b * m_side_squared;
 
-    parallel_for(m_side_squared, [&](size_t i) {
-        L[i] = static_cast<T>(0);
-        U[i] = data[batch_idx + i];
-    });
+    std::fill(L.begin(), L.end(), T{0});
+    cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(T) * m_side_squared);
 
     parallel_for(m_side, [&](size_t i) {
-        L[i * m_side + i] = static_cast<T>(1);
+        L[i * m_side + i] = T{1};
         P[i] = static_cast<T>(i);
     });
 
@@ -180,13 +164,8 @@ void Inverse::lu_decomposition(const T* data,
             sign = !sign;
             std::swap(P[k], P[pivot_row]);
             parallel_for(m_side, [&](size_t i) {
-                T L_val = L[pivot_idx + i];
-                L[pivot_idx + i] = L[k_idx + i];
-                L[k_idx + i] = L_val;
-
-                T U_val = U[pivot_idx + i];
-                U[pivot_idx + i] = U[k_idx + i];
-                U[k_idx + i] = U_val;
+                std::swap(L[k_idx + i], L[pivot_idx + i]);
+                std::swap(U[k_idx + i], U[pivot_idx + i]);
             });
         }
 
@@ -206,10 +185,10 @@ void Inverse::lu_decomposition(const T* data,
 
 template <typename T>
 void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column) {
-    std::vector<T> B(m_side, static_cast<T>(0));
-    std::vector<T> X(m_side, static_cast<T>(0));
-    std::vector<T> Y(m_side, static_cast<T>(0));
-    B[column] = static_cast<T>(1);
+    std::vector<T> B(m_side, T{0});
+    std::vector<T> X(m_side, T{0});
+    std::vector<T> Y(m_side, T{0});
+    B[column] = T{1};
 
     // Forward substitution: Ly = Pb - not possible to be parallel
     for (size_t i = 0; i < m_side; ++i) {
@@ -240,7 +219,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
 
 template <typename T>
 void Inverse::to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b) {
-    T determinant = sign ? static_cast<T>(1) : static_cast<T>(-1);
+    T determinant = sign ? T{1} : T{-1};
 
     for (size_t i = 0; i < m_side; ++i) {
         determinant = determinant * U[i * m_side + i];
