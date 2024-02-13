@@ -10,42 +10,41 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import contextlib
 import io
-import os
-import pytest
 import subprocess
 import sys
 import requests
-import time
 import zipfile
+import multiprocessing
+import pathlib
 
 
 def download(test_data_dir, file_path):
-    if file_path.exists():
-        return file_path
-    lock_path = test_data_dir / 'download.lock'
-    with contextlib.suppress(FileNotFoundError, PermissionError):
-        lock_path.unlink()
-    for _ in range(9999):  # Give up after about 3 hours
-        with contextlib.suppress(FileExistsError, PermissionError):
-            with lock_path.open('bx'):
-                if not file_path.exists():
-                    response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
-                        zfile.extractall(test_data_dir)
-            lock_path.unlink(missing_ok=True)
-            assert file_path.exists()
-            return file_path
-        time.sleep(1.0)
+    if not file_path.exists():
+        response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
+            zfile.extractall(test_data_dir)
+    with file_path.open(encoding='utf-8') as xml:
+        print(xml.read())
+    with file_path.with_suffix('.bin').open('br') as bin:
+        print(bin.read())
+    return file_path
 
 
-@pytest.mark.parametrize('counter', range(9999))
-def test(counter, cache):
-    test_data_dir = cache.mkdir('test_data')
-    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+def starter(model):
     try:
-        subprocess.check_output([sys.executable, '-c', 'import openvino as ov; core = ov.Core(); core.set_property({"ENABLE_MMAP": False}); core.read_model(r"' + f'{model}")'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+        subprocess.check_output([sys.executable, '-c', 'import openvino as ov; core = ov.Core(); core.set_property({"ENABLE_MMAP": False}); core.read_model(r"' + f'{model}");'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(error.output)
         raise
+
+
+def main():
+    test_data_dir = pathlib.Path('c:/Users/vzlobin/r/openvino/.pytest_cache/d/test_data/')
+    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+    pool = multiprocessing.Pool(processes=16)
+    pool.map(starter, [model] * 999)
+
+
+if __name__ == '__main__':
+    main()
