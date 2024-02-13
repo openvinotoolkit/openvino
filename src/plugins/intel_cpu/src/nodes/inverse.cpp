@@ -136,7 +136,7 @@ void Inverse::lu_decomposition(const T* data,
     size_t batch_idx = b * m_side_squared;
 
     std::fill(L.begin(), L.end(), T{0});
-    cpu_memcpy_s(&U[0], sizeof(T), &data[batch_idx], m_side_squared);
+    cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(T) * m_side_squared);
 
     parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = T{1};
