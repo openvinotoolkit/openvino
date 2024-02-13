@@ -16,8 +16,7 @@ slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}
 
 layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {
-    auto l = calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
-    return layout{l.data_type, l.format, tensor{l.get_ordered_dims()}};
+    return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
 template<typename ShapeType>
@@ -25,12 +24,13 @@ inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, co
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};
     std::unordered_map<size_t, ov::Tensor> const_data;
     for (std::size_t i = 1; i < impl_param.input_layouts.size(); i++) {
-        auto shape_len = shape_size(impl_param.input_layouts[i].get<ShapeType>().to_shape());
-        input_shapes.push_back({static_cast<ov::Dimension::value_type>(shape_len)});
+        const auto shape_len = shape_size(impl_param.input_layouts[i].get<ShapeType>().to_shape());
+        const ov::PartialShape input_shape{static_cast<ov::Dimension::value_type>(shape_len)};
+        input_shapes.push_back(input_shape);
         auto gpu_mem = impl_param.memory_deps.at(i);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
-        const_data.emplace(i, make_tensor(layout { gpu_mem->get_layout().data_type, gpu_mem->get_layout().format,
-            tensor { std::vector<tensor::value_type>{ static_cast<tensor::value_type>(shape_len) } } }, gpu_mem_lock.data()));
+        const_data.emplace(i, make_tensor(layout {input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format },
+            gpu_mem_lock.data()));
     }
     ov::op::v8::Slice op;
     auto output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
