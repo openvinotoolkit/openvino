@@ -15,7 +15,7 @@ from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
 from packaging import version
-import openvino.frontend.pytorch.torchdynamo.backend
+import openvino.torch
 
 
 class PytorchLayerTest:
@@ -263,10 +263,13 @@ class PytorchLayerTest:
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
-            fw_model = torch.compile(model)
-            ov_model = torch.compile(model, backend="openvino")
-        ov_res = ov_model(*inputs)
-        fw_res = fw_model(*inputs)
+            fw_res = model(*inputs)
+
+        torch._dynamo.reset()
+        with torch.no_grad():
+            model.eval()
+            ov_model = torch.compile(model, backend="openvino", options={"testing" : 1})
+            ov_res = ov_model(*inputs)
 
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
