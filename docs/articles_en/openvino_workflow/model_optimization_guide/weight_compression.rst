@@ -171,7 +171,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - 2.6
    * - stabilityai_stablelm-3b-4e1t
      - FP32
-     - 11.87
+     - 10.17
      - 10.3
    * - stabilityai_stablelm-3b-4e1t
      - INT4_SYM,group_size=64,ratio=1.0,awq=True
