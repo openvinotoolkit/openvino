@@ -7,11 +7,11 @@ OpenVINO Core API contains two folders:
 <pre>
  <code>
  <a href="../include/openvino">openvino/</a>                  // Common folder with OpenVINO 2.0 API
-    <a href="../include/openvino/core/">core/</a>                   // Contains common classes which are responsible for model representation
-    <a href="../include/openvino/op/">op/</a>                     // Contains all supported OpenVINO operations
-    <a href="../include/openvino/opsets/">opsets/</a>                 // Contains definitions of each official OpenVINO opset
-    <a href="../include/openvino/pass/">pass/</a>                   // Defines classes for developing transformation and several common transformations
-    <a href="../include/openvino/runtime/">runtime/</a>                // Contains OpenVINO tensor definition
+    <a href="../include/openvino/core/">core/</a>             // Contains common classes which are responsible for model representation
+    <a href="../include/openvino/op/">op/</a>                 // Contains all supported OpenVINO operations
+    <a href="../include/openvino/opsets/">opsets/</a>         // Contains definitions of each official OpenVINO opset
+    <a href="../include/openvino/pass/">pass/</a>             // Defines classes for developing transformation and several common transformations
+    <a href="../include/openvino/runtime/">runtime/</a>       // Contains OpenVINO tensor definition
  </code>
 </pre>
 
