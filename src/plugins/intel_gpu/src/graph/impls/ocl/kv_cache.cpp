@@ -161,7 +161,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
                 auto alloc_shape = bt_shape;
-                alloc_shape[1] += instance.get_prealloc_iter_num();
+                alloc_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
                 const layout bt_alloc_layout = {alloc_shape, bt_layout.data_type, bt_layout.format};
                 GPU_DEBUG_TRACE_DETAIL << "Realloc beam table to " << bt_alloc_layout.to_short_string() << std::endl;
                 beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
@@ -173,11 +173,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 }
             }
 
-            auto bt_kernel_params = get_bt_update_kernel_params(impl_param, beam_table_state->is_set());
-            (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params.first, _kernels_data[beam_table_stage]);
-
             instance.set_output_memory(beam_table_new, false, 1);
             beam_table_state->set_memory(beam_table_new, instance.get_impl_params()->output_layouts[1]);
+
+            auto bt_kernel_params = get_bt_update_kernel_params(impl_param, beam_table_state->is_set());
+            (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params.first, _kernels_data[beam_table_stage]);
 
             execute_stage(events, instance, res_events, beam_table_stage);
             beam_table_state->set();
@@ -204,7 +204,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         // expected to be normalized already on primitive creation
         auto concat_axis = primitive->concat_axis;
-        auto gather_axis = primitive->concat_axis;
+        auto gather_axis = primitive->gather_axis;
 
         auto kv_shape = kv_layout.get_partial_shape();
         auto beam_table_shape = ov::PartialShape(std::vector<size_t>(kv_shape.size(), 1));
