@@ -949,6 +949,11 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
             !check_mask(strided_slice_node->get_ellipsis_mask())) {
             return false;
         }
+        // check that that we will take all values
+        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+            return false;
+        }
+
         if (strided_slice_node->get_input_partial_shape(0).is_static() &&
             strided_slice_node->get_output_partial_shape(0).is_static()) {
             if (strided_slice_node->get_input_shape(0) == strided_slice_node->get_output_shape(0)) {
