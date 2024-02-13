@@ -154,6 +154,9 @@ class TFGraphNodeDecoder(DecoderBase):
                 if self.m_inner_graph:
                     return OVAny(PartialShape.dynamic())
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                if variable_value is None:
+                    # variable can be not found if this is Hash table
+                    return OVAny(PartialShape.dynamic())
                 return OVAny(PartialShape(list(variable_value.shape)))
             return OVAny(PartialShape(shape))
         if name == "dtype":
@@ -161,6 +164,9 @@ class TFGraphNodeDecoder(DecoderBase):
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
                     variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                    if variable_value is None:
+                        # variable can be not found if this is Hash table
+                        return OVAny(Type.dynamic)
                     return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
                     return OVAny(Type.undefined)
