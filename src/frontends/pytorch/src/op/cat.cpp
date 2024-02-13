@@ -95,7 +95,7 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
                      list_elems.front())};
 };
 
-OutputVector translate_stack(const NodeContext& context) {
+OutputVector translate_stack_fx(const NodeContext& context) {
     num_inputs_check(context, 2, context.get_input_size());
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     std::deque<Output<Node>> list_elems;

@@ -114,6 +114,7 @@ OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
 OP_CONVERTER(translate_log1p);
+OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
@@ -123,6 +124,7 @@ OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
+OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_maximum);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
@@ -197,7 +199,6 @@ OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
-OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_sub);
@@ -256,18 +257,17 @@ OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
-OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_log_softmax_fx);
-OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean_fx);
-OP_CONVERTER(translate_split_with_sizes_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_slice_scatter_fx);
 OP_CONVERTER(translate_softmax_fx);
+OP_CONVERTER(translate_split_with_sizes_fx);
+OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_transpose_fx);
@@ -785,7 +785,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.split_with_sizes.default", op::translate_split_with_sizes_fx},
         {"aten.squeeze.dim", op::translate_squeeze},
         {"aten.squeeze.dims", op::translate_squeeze},
-        {"aten.stack.default", op::translate_stack},
+        {"aten.stack.default", op::translate_stack_fx},
         {"aten.sub.default", op::translate_sub_fx},
         {"aten.sub.Tensor", op::translate_sub_fx},
         {"aten.sum.dim_IntList", op::translate_sum},

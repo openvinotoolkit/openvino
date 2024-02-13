@@ -53,8 +53,7 @@ OutputVector translate_max(const NodeContext& context) {
 };
 
 OutputVector translate_max_dim(const NodeContext& context) {
-    // torch.max (same for torch.min) actually has two interfaces smashed together:
-    // torch.max(x, dim, keepdim) and torch.max(x, y)
+    // torch.max.dim(x, dim, keepdim)
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto axes_node = context.get_input(1);
