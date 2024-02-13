@@ -98,7 +98,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt update && apt install --assume-yes --no-install-recommends default-jdk protobuf-compiler
+          apt update && apt install --assume-yes --no-install-recommends default-jdk
           
           # use clang as a default compiler
           apt --assume-yes install clang lld
@@ -155,10 +155,14 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
-            -DENABLE_SYSTEM_PROTOBUF=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF \
+            -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+            -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
