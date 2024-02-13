@@ -57,7 +57,7 @@ class TestSum(PytorchLayerTest):
                     else:
                         return torch.sum(x, self.axes, dtype=self.dtype)
 
-                if self.dtype is not None:    
+                if self.dtype is not None:
                     return torch.sum(x, self.axes, self.keep_dims, dtype=self.dtype)
                 else:
                     return torch.sum(x, self.axes, self.keep_dims)

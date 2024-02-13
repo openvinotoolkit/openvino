@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API FakeQuantizeMulFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation looks for a FQ + Mul pair in the graph and moves
  * the Mul operation above the FQ node. The last two inputs of FQ are multiplied
  * by the value that was originally below the FQ node.

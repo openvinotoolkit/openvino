@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParamsResults;
 }  // namespace ov
 
 /*
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RemoveMultiSubGraphOpDanglingParamsResults transformation removes MultiSubGraphOp inputs which are not
  * connected to other nodes in the bodies of a MultiSubGraphOp and outputs that are not used in the Model
  */

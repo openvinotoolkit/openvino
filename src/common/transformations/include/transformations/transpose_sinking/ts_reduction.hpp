@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSReductionBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSReductionForward transformation sinks Transpose through Reduce operations
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSReductionBackward transformation sinks Transpose through Reduce operations
  * in the backward direction.
  */

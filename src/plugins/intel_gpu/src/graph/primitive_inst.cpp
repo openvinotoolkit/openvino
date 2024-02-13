@@ -102,10 +102,15 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        return false;
+        // TODO : refactor these as runtime_skippable_nodes
+        // If the user is dynamic && runtime skippable gather or strided slice, we still need to its parents' completion
+        // event even though the user's program_node is can_be_optimized
+        if (!user->is_dynamic() || (!user->is_type<gather>() && !user->is_type<strided_slice>() &&
+                                    !user->is_type<concatenation>() && !user->is_type<reorder>()))
+            return false;
     }
-    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu() :
-                                              user->get_preferred_impl_type() == impl_types::cpu;
+    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
+                                            : user->get_preferred_impl_type() == impl_types::cpu;
     return is_cpu;
 }
 bool has_cpu_user_not_shape_of(const program_node* user) {
@@ -1344,7 +1349,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     } else {
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (out_of_order_queue || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();

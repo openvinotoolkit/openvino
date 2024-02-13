@@ -10,7 +10,7 @@
 namespace ov {
 namespace pass {
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Converts Interpolate version 11 to Interpolate version 4 if the new op uses any of the v4 allowed
  *        interpolation modes.
  */

@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest1) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(32);
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest2) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(32);
     }
 }
 
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest3) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(32);
     }
 }
 
@@ -110,7 +110,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest4) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(32);
     }
 }
 
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest5) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(32);
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
