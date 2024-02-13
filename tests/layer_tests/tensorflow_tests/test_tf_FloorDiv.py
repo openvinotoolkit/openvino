@@ -3,9 +3,9 @@
 
 import numpy as np
 import pytest
+import platform
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestFloorDiv(CommonTFLayerTest):
@@ -49,3 +49,57 @@ class TestFloorDiv(CommonTFLayerTest):
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend)
+
+
+class TestFloorDivStaticInput(CommonTFLayerTest):
+    min = -100
+    max = 200
+    step = 1
+    dtype = np.int32
+
+    def create_flordiv_tf_net(self, min, max, step, y, dtype, ir_version, use_new_frontend):
+        import tensorflow as tf
+        x = np.arange(min, max, step, dtype=dtype)
+        
+        self.min = min
+        self.max = max
+        self.step = step
+        self.dtype = dtype
+
+        tf.compat.v1.reset_default_graph()
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(dtype, x.shape, 'Input')
+            y = tf.constant(np.array(y).astype(dtype))
+            res = tf.raw_ops.FloorDiv(x=x, y=y)
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        ref_net = None
+
+        return tf_net, ref_net
+    
+    def _prepare_input(self, inputs_dict):
+        for input in inputs_dict.keys():
+            inputs_dict[input] = np.arange(self.min, self.max, self.step, dtype=self.dtype)
+        return inputs_dict
+
+    test_inputs = [
+        dict(min=-20, max=20, step=1, y=[10]),
+        dict(min=-20, max=20, step=1, y=[5]),
+        dict(min=-20, max=20, step=1, y=[6]),
+        dict(min=-20, max=20, step=1, y=[-5]),
+        dict(min=-20, max=20, step=1, y=[-6]),
+        dict(min=-1e5, max=1e5, step=100, y=[1e5]),
+    ]
+    @pytest.mark.parametrize("params", test_inputs)
+    @pytest.mark.parametrize("dtype", [np.int32, np.int64])
+    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
+    def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend):
+        self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                    use_new_frontend=use_new_frontend)
