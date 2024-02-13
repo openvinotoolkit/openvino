@@ -202,6 +202,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
     const auto out_rank = params.outputs.front().Dimentions();
     const auto out_sizes = params.outputs.front().LogicalDims();
+    const auto in_rank = params.inputs.front().Dimentions();
     const auto in_sizes = params.inputs.front().LogicalDims();
     const auto dims_size = in_sizes.size() - 1;
     auto signal_sizes = out_sizes;
@@ -210,6 +211,16 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     for (size_t i = 0; i < params.axes.size(); ++i) {
         // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
         auto axis = params.axes[i];
+
+        // when axis is negative value, convert to positive.
+        if (axis < 0) {
+            // RDFT has converted by r + a, others r -1 + a by op specification
+            if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::forward)
+                axis = out_rank -1 + axis; // (out_rank-1) is in_rank
+            else
+                axis = in_rank -1 + axis;
+        }
+
         auto inverted_axis = dims_size - axis;
         auto signal_size = params.signal_size[i];
 
