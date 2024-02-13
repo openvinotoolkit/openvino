@@ -34,7 +34,9 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+    auto const exec_prc = (jep_.dst_prc != jep_.src_prc[0]) && (jep_.src_prc[0] == element::f16) && (jep_.dst_prc == element::f32) ?
+        jep_.dst_prc :
+        eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
