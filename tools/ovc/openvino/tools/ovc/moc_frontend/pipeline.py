@@ -243,4 +243,20 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ov_model = moc_front_end.convert(input_model)
 
+    # Set user input names
+    for inp in user_shapes:
+        user_name = inp['input_name']
+        original_names = inp['node'].get_names()
+        if user_name not in original_names:
+            for model_input in ov_model.inputs:
+                if set(original_names) == set(model_input.get_names()):
+                    model_input.get_tensor().set_names({user_name})
+                    break
+
+    # Set user input names
+    if argv.inputs_list is not None and len(argv.inputs_list) == len(ov_model.inputs):
+        for idx, user_name in enumerate(argv.inputs_list):
+            ov_input = ov_model.inputs[idx]
+            if user_name not in ov_input.get_names():
+                ov_input.get_tensor().set_names({user_name})
     return ov_model

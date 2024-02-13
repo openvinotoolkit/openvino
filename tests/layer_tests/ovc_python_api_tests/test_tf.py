@@ -1238,6 +1238,7 @@ class TestInputTensorName(unittest.TestCase):
             out_tensor = list(tensors)[0]
             assert out_tensor == ref_inputs[idx]
 
+        ref_inputs = ["Input", "Input_1"]
         ov_model = convert_model(path, input=["Input", "Input_1"])
         for idx, output in enumerate(ov_model.inputs):
             tensors = output.get_names()
@@ -1274,6 +1275,7 @@ class TestInputTensorName(unittest.TestCase):
             out_tensor = list(tensors)[0]
             assert out_tensor == ref_inputs[idx]
 
+        ref_inputs = ["Input", "Input_1"]
         ov_model = convert_model(model, input=["Input", "Input_1"])
         for idx, output in enumerate(ov_model.inputs):
             tensors = output.get_names()

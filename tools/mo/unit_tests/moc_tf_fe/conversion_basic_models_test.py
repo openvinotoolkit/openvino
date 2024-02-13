@@ -182,21 +182,21 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         *[
             (
                     "x[1,4],y[4]",
-                    {"x:0": np.array([[3, 2, 1, 5]], dtype=np.int32), "y:0": np.array([0, -1, -7, 8], dtype=np.int32)},
+                    {"x": np.array([[3, 2, 1, 5]], dtype=np.int32), "y": np.array([0, -1, -7, 8], dtype=np.int32)},
                     np.array([[3, 1, -6, 13]], dtype=np.int32),
                     np.int32,
                     None
             ),
             (
                     "x,y",
-                    {"x:0": np.array([[-3, 20, 1]], dtype=np.int32), "y:0": np.array([[10, -11, -17]], dtype=np.int32)},
+                    {"x": np.array([[-3, 20, 1]], dtype=np.int32), "y": np.array([[10, -11, -17]], dtype=np.int32)},
                     np.array([[7, 9, -16]], dtype=np.int32),
                     np.int32,
                     None
             ),
             (
                     "x",
-                    {"x:0": np.array([[-3, 20, 1]], dtype=np.int32)},
+                    {"x": np.array([[-3, 20, 1]], dtype=np.int32)},
                     np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
                     np.int32,
                     None
@@ -214,14 +214,14 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         *[
             (
                     "x[4],y->2.0",
-                    {"x:0": np.array([3, 2, 1, 5], dtype=np.float32)},
+                    {"x": np.array([3, 2, 1, 5], dtype=np.float32)},
                     np.array([6, 4, 2, 10], dtype=np.float32),
                     np.float32,
                     None
             ),
             (
                     "x[1],y->[2.0,3.0]",
-                    {"x:0": np.array([3], dtype=np.float32)},
+                    {"x": np.array([3], dtype=np.float32)},
                     np.array([6, 9], dtype=np.float32),
                     np.float32,
                     None
@@ -323,14 +323,14 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             (
                     "model_add_with_undefined_constant.pbtxt",
                     "x[2,3]",
-                    {"x:0": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
+                    {"x": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
                     np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32),
                     np.float32, True, False,
             ),
             (
                     "model_mul_with_undefined_constant.pbtxt",
                     "x[2]",
-                    {"x:0": np.array([11, -12], dtype=np.int32)},
+                    {"x": np.array([11, -12], dtype=np.int32)},
                     np.array([0, 0], dtype=np.int32),
                     np.int32, True, False,
             ),

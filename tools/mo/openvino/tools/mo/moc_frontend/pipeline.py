@@ -138,7 +138,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         add_names_to_tensors(input_model, user_shapes)
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes:
+        if user_shapes and argv.placeholder_shapes:
             placeholder_shapes = create_target_input_shapes(new_input_places)
             new_output_places_name = [x.get_names()[0] for x in new_output_places]
 
@@ -151,7 +151,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes:
+        if user_shapes and argv.placeholder_shapes:
             placeholder_shapes = create_target_input_shapes(new_input_places)
 
             user_shapes, outputs, _ = fe_user_data_repack(
@@ -316,5 +316,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         if is_batch_clarified:
             # call reshape only if batch dimension for one of the input is clarified
             ov_model.reshape(reshape_dict)
+
+    # Remove names for attributes are frozen
+    input_names = []
+    if argv.inputs_list is not None:
+        for name in argv.inputs_list:
+            if name not in argv.freeze_placeholder_with_value:
+                input_names.append(name)
+
+    # Set user input names
+    if len(input_names) == len(ov_model.inputs):
+        for idx, user_name in enumerate(input_names):
+            ov_input = ov_model.inputs[idx]
+            if user_name not in ov_input.get_names():
+                ov_input.get_tensor().set_names({user_name})
 
     return ov_model
