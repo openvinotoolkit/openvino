@@ -69,9 +69,6 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             auto y_less_cond = make_shared<v1::Less>(y, zero_const);
             auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
 
-            // TODO: workaround until CVS-132377 is resolved.
-            // Need to ensure that Div(x, y) is a truncative Div we should Ceil for for negative numbers.
-            // auto trunc_div = make_shared<v1::Select>(xor_cond, make_shared<v0::Ceiling>(div), div);
             auto div = make_shared<v1::Divide>(x, y, false);
 
             auto mod_xy = make_shared<v1::Mod>(x, y);

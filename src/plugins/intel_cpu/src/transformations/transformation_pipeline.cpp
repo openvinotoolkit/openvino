@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 
@@ -110,7 +111,7 @@
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
-#include "transformations/cpu_opset/common/pass/fuse_trunc_divide.hpp"
+#include "transformations/cpu_opset/common/pass/fuse_floor_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
@@ -398,10 +399,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
+    // FloorDiv operation is expanded to subgraph which yiels correct results on x86_64 but fails on ARM.
+    // Therefore for ARM need to fuse back to Div.
+    // TODO: workaround until CVS-132377 is resolved.
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "before.svg");
+    // CPU_REGISTER_PASS_COMMON(manager, FuseFloorDivide);
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "after.svg");
+
+    CPU_REGISTER_PASS_ARM(manager, FuseFloorDivide);
+    CPU_REGISTER_PASS_X86(manager, FuseFloorDivide);
     // The plugin computes Divide in floating point precision.
     // To preserve correct math for integer division we need to insert explicit Floor operation.
-    CPU_REGISTER_PASS_ARM(manager, FuseTruncDivide);
-    CPU_REGISTER_PASS_X86(manager, FuseTruncDivide);
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
 

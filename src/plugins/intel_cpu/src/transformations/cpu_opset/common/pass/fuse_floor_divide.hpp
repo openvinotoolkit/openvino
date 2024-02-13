@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class FuseTruncDivide: public ov::pass::MatcherPass {
+class FuseFloorDivide: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseTruncDivide", "0");
-    FuseTruncDivide();
+    OPENVINO_RTTI("FuseFloorDivide", "0");
+    FuseFloorDivide();
 };
 
 }   // namespace intel_cpu
