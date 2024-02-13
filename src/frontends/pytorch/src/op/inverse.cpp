@@ -29,8 +29,8 @@ OutputVector translate_inverse(const NodeContext& context) {
         result = context.mark_node(std::make_shared<ov::op::v0::Convert>(inverse, input_type));
     }
 
-    if (!context.input_is_none(2)) {
-        context.mutate_input(2, result);
+    if (!context.input_is_none(1)) {
+        context.mutate_input(1, result);
     }
 
     return {result};
