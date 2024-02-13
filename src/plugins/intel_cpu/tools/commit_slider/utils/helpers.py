@@ -147,6 +147,7 @@ def absolutizePaths(cfg):
 
 
 def checkArgAndGetCommits(commArg, cfgData):
+    dbgData = {}
     # WA because of python bug with
     # re.search("^[a-zA-Z0-9]+\.\.[a-zA-Z0-9]+$", commArg)
     if not len(commArg.split("..")) == 2:
@@ -155,6 +156,7 @@ def checkArgAndGetCommits(commArg, cfgData):
         getCommitSetCmd = 'git log {interval} --boundary --pretty="%h"'.format(
             interval=commArg
         )
+        dbgData["getCommitSetCmd"] = getCommitSetCmd
         proc = subprocess.Popen(
             getCommitSetCmd.split(),
             cwd=cfgData["gitPath"],
@@ -164,14 +166,17 @@ def checkArgAndGetCommits(commArg, cfgData):
         proc.wait()
         out, err = proc.communicate()
         out = out.decode("utf-8")
+        dbgData["out"] = out
         outList = out.split()
+        dbgData["outList"] = outList
+
         if re.search(".*fatal.*", out):
             print(out)
             raise ValueError("{arg} commit set is invalid".format(arg=commArg))
         elif len(outList) == 0:
             raise ValueError("{arg} commit set is empty".format(arg=commArg))
         else:
-            return outList
+            return outList, dbgData
 
 
 def runCommandList(commit, cfgData):

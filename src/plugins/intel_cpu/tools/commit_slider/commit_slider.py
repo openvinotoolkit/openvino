@@ -38,7 +38,7 @@ elif args.isWorkingDir:
         else:
             raise CfgError("Commit list is mandatory")
     else:
-        commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
+        commitList, dbgData = checkArgAndGetCommits(args.commitSeq, cfgData)
 
     cfgData["commitSeq"] = args.commitSeq
 
@@ -46,9 +46,13 @@ elif args.isWorkingDir:
     p = Mode.factory(cfgData)
 
     p.commonLogger.info(
-                "prepare run.\n cfg={}\n list {}:{}".format(
+                "prepare run -1-.\n cfg={}\n list {}:{}".format(
                     cfgData, commitList[0], commitList[-1])
             )
+    p.commonLogger.info(
+        "prepare run -2-.\n dbgData={}".format(
+            dbgData)
+    )
     p.run(commitList, cfgData)
     p.printResult()
 
