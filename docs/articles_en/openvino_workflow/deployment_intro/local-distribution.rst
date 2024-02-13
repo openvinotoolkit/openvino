@@ -111,13 +111,17 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 Libraries for Execution Modes
 +++++++++++++++++++++++++++++
 
-The ``HETERO``, ``MULTI``, ``BATCH`` and ``AUTO`` execution modes can also be used by the application explicitly or implicitly. Use the following recommendation scheme to decide whether to add the appropriate libraries to the distribution package:
+The ``HETERO``, ``MULTI``, ``BATCH``, and ``AUTO`` execution modes can also be used by the application explicitly or implicitly.
+Use the following recommendation scheme to decide whether to add the appropriate libraries to the distribution package:
 
 - If :doc:`AUTO <openvino_docs_OV_UG_supported_plugins_AUTO>` is used explicitly in the application or `ov::Core::compile_model <classov_1_1Core.html#doxid-classov-1-1-core-1a46555f0803e8c29524626be08e7f5c5a>`__ is used without specifying a device, put ``openvino_auto_plugin`` to the distribution.
 
   .. note::
 
-     Automatic Device Selection relies on :doc:`inference device plugins <openvino_docs_OV_UG_Working_with_devices>`. If you are not sure which inference devices are available on the target system, put all inference plugin libraries in the distribution. If `ov::device::priorities <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gae88af90a18871677f39739cb0ef0101e>`__ is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
+     Automatic Device Selection relies on :doc:`inference device plugins <openvino_docs_Runtime_Inference_Modes_Overview>`.
+     If you are not sure which inference devices are available on the target system, put all inference plugin libraries in the distribution.
+     If `ov::device::priorities <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gae88af90a18871677f39739cb0ef0101e>`__
+     is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
 
 - If :doc:`MULTI <openvino_docs_OV_UG_Running_on_multiple_devices>` is used explicitly, put ``openvino_auto_plugin`` in the distribution.
 - If :doc:`HETERO <openvino_docs_OV_UG_Hetero_execution>` is either used explicitly or `ov::hint::performance_mode <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga2691fe27acc8aa1d1700ad40b6da3ba2>`__ is used with GPU, put ``openvino_hetero_plugin`` in the distribution.

@@ -5,13 +5,13 @@ High-level Performance Hints
 
 
 .. meta::
-   :description: OpenVINO Runtime offers two dedicated high-level performance 
-                 hints, namely throughput and latency, that help to configure 
+   :description: OpenVINO Runtime offers two dedicated high-level performance
+                 hints, namely throughput and latency, that help to configure
                  an inference device.
 
 
-Even though all :doc:`supported devices <openvino_docs_OV_UG_Working_with_devices>` in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases. 
-The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the :doc:`automatic device selection inference mode <openvino_docs_OV_UG_supported_plugins_AUTO>` and designed with *portability* in mind. 
+Even though all :doc:`supported devices <openvino_supported_devices>` in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases.
+The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the :doc:`automatic device selection inference mode <openvino_docs_OV_UG_supported_plugins_AUTO>` and designed with *portability* in mind.
 
 The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
 
@@ -34,7 +34,7 @@ Performance Hints: How It Works
 
 Internally, every device "translates" the value of the hint to the actual performance settings.
 For example, the ``ov::hint::PerformanceMode::THROUGHPUT`` selects the number of CPU or GPU streams.
-Additionally, the optimal batch size is selected for the GPU and the :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>` is applied whenever possible. To check whether the device supports it, refer to the :doc:`devices/features support matrix <openvino_docs_OV_UG_Working_with_devices>` article.
+Additionally, the optimal batch size is selected for the GPU and the :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>` is applied whenever possible. To check whether the device supports it, refer to the :doc:`Supported devices <openvino_supported_devices>` article.
 
 The resulting (device-specific) settings can be queried back from the instance of the ``ov:Compiled_Model``.
 Be aware that the ``benchmark_app`` outputs the actual settings for the ``THROUGHPUT`` hint. See the example of the output below:
@@ -61,14 +61,14 @@ In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is 
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
          :fragment: [compile_model]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [compile_model]
@@ -77,21 +77,21 @@ In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is 
 Additional (Optional) Hints from the App
 ########################################
 
-For an application that processes 4 video streams, the most future-proof way to communicate the limitation of the parallel slack is to equip the performance hint with the optional ``ov::hint::num_requests`` configuration key set to 4. 
+For an application that processes 4 video streams, the most future-proof way to communicate the limitation of the parallel slack is to equip the performance hint with the optional ``ov::hint::num_requests`` configuration key set to 4.
 As mentioned earlier, this will limit the batch size for the GPU and the number of inference streams for the CPU. Thus, each device uses the ``ov::hint::num_requests`` while converting the hint to the actual device configuration options:
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
          :fragment: [hint_num_requests]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [hint_num_requests]
@@ -106,20 +106,20 @@ The hints are used on the presumption that the application queries ``ov::optimal
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
          :fragment: [query_optimal_num_requests]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [query_optimal_num_requests]
 
 
-While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** ``ov::optimal_number_of_infer_requests`` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons. 
+While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** ``ov::optimal_number_of_infer_requests`` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons.
 
 Keep in mind that ``ov::hint::PerformanceMode::LATENCY`` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as the number of NUMA nodes in the system.
 To make your application fully scalable, make sure to query the ``ov::optimal_number_of_infer_requests`` directly.
@@ -131,30 +131,30 @@ Prefer Async API
 
 The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request documentation <openvino_docs_OV_UG_Infer_request>`.
 
-Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests. 
+Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests.
 
 .. note::
-   
+
    **Important:** Performance Hints only work when asynchronous execution mode is used. They do not affect the performance of a synchronous pipeline.
 
 Combining the Hints and Individual Low-Level Settings
 #####################################################
 
-While sacrificing the portability to some extent, it is possible to combine the hints with individual device-specific settings. 
+While sacrificing the portability to some extent, it is possible to combine the hints with individual device-specific settings.
 For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general configuration and override any of its specific values:
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
          :fragment: [hint_plus_low_level]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [hint_plus_low_level]
@@ -171,10 +171,3 @@ Using the :doc:`benchmark_app sample <openvino_sample_benchmark_tool>`is the bes
 Disabling the hints to emulate the pre-hints era (highly recommended before trying the individual low-level settings, such as the number of streams as below, threads, etc):
 
 * benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
-
-
-Additional Resources
-####################
-
-* :doc:`Supported Devices <openvino_docs_OV_UG_Working_with_devices>`
-
