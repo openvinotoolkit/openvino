@@ -317,18 +317,4 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             # call reshape only if batch dimension for one of the input is clarified
             ov_model.reshape(reshape_dict)
 
-    # Remove names for attributes are frozen
-    input_names = []
-    if argv.inputs_list is not None:
-        for name in argv.inputs_list:
-            if name not in argv.freeze_placeholder_with_value:
-                input_names.append(name)
-
-    # Set user input names
-    if len(input_names) == len(ov_model.inputs):
-        for idx, user_name in enumerate(input_names):
-            ov_input = ov_model.inputs[idx]
-            if user_name not in ov_input.get_names():
-                ov_input.get_tensor().set_names({user_name})
-
     return ov_model
