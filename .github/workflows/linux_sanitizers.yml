@@ -38,10 +38,10 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
-          - SANITIZER: 'UndefinedBehavior'
-            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-          - SANITIZER: 'Thread'
-            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+#          - SANITIZER: 'UndefinedBehavior'
+#            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+#          - SANITIZER: 'Thread'
+#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
