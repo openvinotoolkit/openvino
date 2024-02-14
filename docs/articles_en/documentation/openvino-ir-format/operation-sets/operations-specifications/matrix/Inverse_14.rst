@@ -5,13 +5,13 @@ Inverse
 
 
 .. meta::
-  :description: Learn about Inverse-14 - a matrix operation that computes the inverse or adjoint of one or multiple input matrices.
+  :description: Learn about Inverse-14 - a matrix operation that computes the inverse or adjoint for one matrix or a batch of input matrice.
 
 **Versioned name**: *Inverse-14*
 
 **Category**: *Matrix*
 
-**Short description**: *Inverse* operation computes either the inverse or adjoint (conjugate transposes) of one or more square invertible matrices.
+**Short description**: *Inverse* operation computes either the inverse or adjoint (conjugate transposes) of one or a batch of square invertible matrices.
 
 **Detailed description**: *Inverse* operation computes the inverse of a square matrix. The operation uses LU decomposition with partial pivoting to compute the inverses.
 
@@ -37,15 +37,7 @@ where **A^{-1}** is the matrix inverse of A, and **det(A)** is the determinant o
 
 The adjugate matrix exists if and only if the inverse matrix exists.
 
-**Inputs**:
-
-* **1**: `input` - A tensor of shape [B1, B2, ..., Bn, ROW, COL] and type `T` representing the input square matrices. The inner-most 2 dimensions form square matrices and must be of the same size. **Required.**
-
-**Outputs**:
-
-* **1**: `output` - A tensor with the same type `T` as the input and same shape [B1, B2, ..., Bn, ROW, COL] as the input, representing the inverse matrices (or adjugate matrices) of the input matrices.
-
-**Attributes**:
+**Attribute**:
 
 * *adjoint*
 
@@ -58,6 +50,14 @@ The adjugate matrix exists if and only if the inverse matrix exists.
   * **Type**: `bool`
   * **Default value**: `false`
   * **Required**: *No*
+
+**Input**:
+
+* **1**: `input` - A tensor of shape [B1, B2, ..., Bn, ROW, COL] and type `T` representing the input square matrices. **The inner-most 2 dimensions form square matrices and must be of the same size.** B1, B2, ..., Bn represent any amount of batch dimensions (can be 0 for a single matrix input). **Required.**
+
+**Output**:
+
+* **1**: `output` - A tensor with the same type `T` as the input and same shape [B1, B2, ..., Bn, ROW, COL] as the input, representing the inverse matrices (or adjugate matrices) of the input matrices.
 
 **Types**
 
@@ -72,14 +72,14 @@ The adjugate matrix exists if and only if the inverse matrix exists.
         <data/>
         <input>
             <port id="0" precision="FP32">
-                <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim> 
+                <dim>3</dim> <!-- 3 rows of square matrix -->
+                <dim>3</dim> <!-- 3 columns of square matrix -->
             </port>
         </input>
         <output>
             <port id="1" precision="FP32" names="Inverse:0">
-                <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim> 
+                <dim>3</dim> <!-- 3 rows of square matrix -->
+                <dim>3</dim> <!-- 3 columns of square matrix -->
             </port>
         </output>
     </layer>
@@ -94,15 +94,15 @@ The adjugate matrix exists if and only if the inverse matrix exists.
         <input>
             <port id="0" precision="FP32">
                 <dim>2</dim> <!-- batch size of 2 -->
-                <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim>
+                <dim>4</dim> <!-- 4 rows of square matrix -->
+                <dim>4</dim> <!-- 4 columns of square matrix -->
             </port>
         </input>
         <output>
             <port id="1" precision="FP32" names="Inverse:0">
                 <dim>2</dim> <!-- batch size of 2 -->
-                <dim>3</dim> <!-- matrix size of 3x3 -->
-                <dim>3</dim>
+                <dim>4</dim> <!-- 4 rows of square matrix -->
+                <dim>4</dim> <!-- 4 columns of square matrix -->
             </port>
         </output>
     </layer>
@@ -119,8 +119,8 @@ The adjugate matrix exists if and only if the inverse matrix exists.
                 <dim>5</dim> <!-- batch size of 5 -->
                 <dim>4</dim> <!-- batch size of 4 -->
                 <dim>3</dim> <!-- batch size of 3 -->
-                <dim>2</dim> <!-- matrix size of 2x2 -->
-                <dim>2</dim>
+                <dim>2</dim> <!-- 2 rows of square matrix -->
+                <dim>2</dim> <!-- 2 columns of square matrix -->
             </port>
         </input>
         <output>
@@ -128,8 +128,8 @@ The adjugate matrix exists if and only if the inverse matrix exists.
                 <dim>5</dim> <!-- batch size of 5 -->
                 <dim>4</dim> <!-- batch size of 4 -->
                 <dim>3</dim> <!-- batch size of 3 -->
-                <dim>2</dim> <!-- matrix size of 2x2 -->
-                <dim>2</dim>
+                <dim>2</dim> <!-- 2 rows of square matrix -->
+                <dim>2</dim> <!-- 2 columns of square matrix -->
             </port>
         </output>
     </layer>
