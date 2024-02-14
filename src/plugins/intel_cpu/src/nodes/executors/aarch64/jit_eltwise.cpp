@@ -17,10 +17,13 @@ bool JitEltwiseExecutor::isSupported(
     const float gamma) {
     const auto is_supported = one_of(algorithm,
                                     Algorithm::EltwiseAdd,
+                                    Algorithm::EltwiseDivide,
                                     Algorithm::EltwiseMultiply,
                                     Algorithm::EltwiseMulAdd,
                                     Algorithm::EltwisePowerStatic,
-                                    Algorithm::EltwiseRelu);
+                                    Algorithm::EltwiseRelu,
+                                    Algorithm::EltwiseSigmoid,
+                                    Algorithm::EltwiseSubtract);
     if (!is_supported) {
         return false;
     }

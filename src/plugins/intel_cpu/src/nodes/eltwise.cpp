@@ -85,10 +85,13 @@ bool jitIsSupported(const Node* node,
     const Algorithm& algorithm = node->getAlgorithm();
     const auto is_supported = one_of(algorithm,
                                      Algorithm::EltwiseAdd,
+                                     Algorithm::EltwiseDivide,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
-                                     Algorithm::EltwiseRelu);
+                                     Algorithm::EltwiseRelu,
+                                     Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSubtract);
     if (!is_supported) {
         return false;
     }
