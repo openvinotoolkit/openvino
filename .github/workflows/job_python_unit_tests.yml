@@ -64,7 +64,7 @@ jobs:
           echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -vv' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt' || 'pdm install --frozen-lockfile --no-self -v -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_LAYER_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt' || 'pdm install --no-default --venv layer-test --frozen-lockfile --no-self -v -G tests_layer -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_LAYER_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt' || 'pdm install --no-default --venv layer-test --frozen-lockfile --no-self -v -L layer.pdm.lock -G tests_layer -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
           
       - name: Extract OpenVINO packages
         run: |
@@ -185,9 +185,17 @@ jobs:
         run: |
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           # #Initialize pdm environment
+            pdm remove openvino-dev -p ${PDM_PROJECT}
             pdm venv create --name layer-test ${{ env.PYTHON_VERSION }}
             pdm use --venv layer-test
-            pdm lock -v --no-default --strategy no_cross_platform -G tests_layer -G tests_mo -p ${PDM_PROJECT}
+            pdm lock -L layer.pdm.lock -v --no-default --strategy no_cross_platform -G tests_layer -G tests_mo -p ${PDM_PROJECT}
+            pdm add -vv -L layer.pdm.lock ${INSTALL_DIR}/tools/openvino-*.whl
+            extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
+            # Find and install OV dev wheel
+            pushd ${INSTALL_DIR}/tools
+              ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
+              pdm add -vv -L layer.pdm.lock $ov_dev_wheel_name[$extras_to_install]
+            popd
           fi
           # layer test requirements
           ${PYTHON_INSTALL_LAYER_REQS}
