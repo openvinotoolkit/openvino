@@ -18,6 +18,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_matrix_band_part_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"MatrixBandPart"});
     // Input tensor and parameters
     auto input = node.get_input(0);
 
