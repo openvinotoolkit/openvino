@@ -404,8 +404,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // todo: CVS-132377. arm and x86 always do Div in float.
     // If we decompose this will lead to error, therefor disable this pass
-    CPU_DISABLE_PASS_ARM(manager, ov::pass::DecomposeIntegerFloorDivide);
-    CPU_DISABLE_PASS_X86(manager, ov::pass::DecomposeIntegerFloorDivide);
+    CPU_DISABLE_PASS_ARM(manager, DecomposeIntegerFloorDivide);
+    CPU_DISABLE_PASS_X86(manager, DecomposeIntegerFloorDivide);
     // The plugin computes Divide in floating point precision.
     // To preserve correct math for integer division we need to insert explicit Floor operation.
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
