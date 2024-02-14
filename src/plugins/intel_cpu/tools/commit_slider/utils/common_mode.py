@@ -124,9 +124,16 @@ class Mode(ABC):
         return list
 
     def normalizeCfg(self, cfg):
+        # fetch paths for dlb job
+        if cfg["dlbConfig"]["launchedAsJob"]:
+            cfg["appPath"] = cfg["dlbConfig"]["appPath"]
+            if cfg["dlbConfig"]["appCmd"] != "" :
+                cfg["appCmd"] = cfg["dlbConfig"]["appCmd"]
+        # switch off illegal check
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
         cashCfg = cfg["cachedPathConfig"]
+        # build cash map
         if (cashCfg["enabled"] and cashCfg["generateMap"]):
             cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
                 cashCfg["commonPath"], cashCfg["subPath"]
