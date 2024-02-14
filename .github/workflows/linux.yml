@@ -318,7 +318,7 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 30 }}
     defaults:
       run:
         shell: bash
@@ -638,9 +638,8 @@ jobs:
         - /mount:/mount
     env:
       INSTALL_DIR: /__w/openvino/openvino/install
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      OPENVINO_TOKENIZERS_REPO: /__w/openvino/openvino/openvino_contrib/modules/custom_operations
-      EXTENSION_BUILD_DIR: /__w/openvino/openvino/openvino_tokenizers
+      OPENVINO_TOKENIZERS_REPO: /__w/openvino/openvino/openvino_tokenizers
+      EXTENSION_BUILD_DIR: /__w/openvino/openvino/build
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
     steps:
@@ -660,11 +659,11 @@ jobs:
           self-hosted-runner: 'true'
           show-cache-info: 'false'
 
-      - name: Clone OpenVINO Contrib
+      - name: Clone OpenVINO Tokenizers
         uses: actions/checkout@v4
         with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          repository: 'openvinotoolkit/openvino_tokenizers'
+          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: 'master'
 
       - name: Download OpenVINO package
