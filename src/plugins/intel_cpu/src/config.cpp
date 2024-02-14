@@ -27,9 +27,9 @@ using namespace dnnl::impl::cpu::x64;
 Config::Config() {
     // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
-    threadBindingType = IStreamsExecutor::NONE;
+    streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
 #else
-    threadBindingType = IStreamsExecutor::CORES;
+    streamExecutorConfig._threadBindingType = IStreamsExecutor::CORES;
 #endif
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
@@ -38,14 +38,14 @@ Config::Config() {
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = get_available_numa_nodes();
     if (numaNodes.size() > 1) {
-        threadBindingType = IStreamsExecutor::NUMA;
+        streamExecutorConfig._threadBindingType = IStreamsExecutor::NUMA;
     } else {
-        threadBindingType = IStreamsExecutor::NONE;
+        streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
     }
 #    endif
 
     if (get_available_cores_types().size() > 1 /*Hybrid CPU*/) {
-        threadBindingType = IStreamsExecutor::HYBRID_AWARE;
+        streamExecutorConfig._threadBindingType = IStreamsExecutor::HYBRID_AWARE;
     }
 #endif
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -75,63 +75,26 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
-            streams = streamExecutorConfig.get_streams();
-            threads = streamExecutorConfig.get_threads();
-            threadsPerStream = streamExecutorConfig.get_threads_per_stream();
-            if (key == ov::num_streams.name()) {
-                ov::Any value = val.as<std::string>();
-                auto streams_value = value.as<ov::streams::Num>();
-                if (streams_value == ov::streams::NUMA) {
-                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
-                } else if (streams_value == ov::streams::AUTO) {
-                    hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
-                    changedHintPerfMode = true;
-                } else {
-                    streamsChanged = true;
-                }
-            }
             OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == ov::affinity.name()) {
-            try {
-                ov::Affinity affinity = val.as<ov::Affinity>();
+            if (key == ov::affinity.name()) {
                 changedCpuPinning = true;
-                enableCpuPinning =
-                    (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
-                switch (affinity) {
-                case ov::Affinity::NONE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
-                    break;
-                case ov::Affinity::CORE: {
-#if (defined(__APPLE__) || defined(_WIN32))
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-#else
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
-#endif
-                } break;
-                case ov::Affinity::NUMA:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-                    break;
-                case ov::Affinity::HYBRID_AWARE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
-                    break;
-                default:
+                try {
+                    const auto affinity_val = val.as<ov::Affinity>();
+                    enableCpuPinning =
+                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
+                                                                                                           : false;
+                } catch (const ov::Exception&) {
                     OPENVINO_THROW("Wrong value ",
                                    val.as<std::string>(),
                                    "for property key ",
                                    key,
                                    ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               key,
-                               ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
-                hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
+                hintPerfMode = val.as<ov::hint::PerformanceMode>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -367,8 +330,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-            // fp16 precision is used as default precision on ARM for non-convolution networks
-            // fp16 ACL convolution is slower than fp32
+            //fp16 precision is used as default precision on ARM for non-convolution networks
+            //fp16 ACL convolution is slower than fp32
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
 #else
@@ -384,8 +347,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         _config.clear();
 
     if (exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
-        streams = 1;
-        streamsChanged = true;
+        streamExecutorConfig._streams = 1;
+        streamExecutorConfig._streams_changed = true;
     }
 
     this->modelType = modelType;
@@ -398,6 +361,20 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
+    switch (streamExecutorConfig._threadBindingType) {
+    case IStreamsExecutor::ThreadBindingType::NONE:
+        _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
+        break;
+    case IStreamsExecutor::ThreadBindingType::CORES:
+        _config.insert({ov::internal::cpu_bind_thread.name(), "YES"});
+        break;
+    case IStreamsExecutor::ThreadBindingType::NUMA:
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::NUMA)});
+        break;
+    case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::HYBRID_AWARE)});
+        break;
+    }
     if (collectPerfCounters == true)
         _config.insert({ov::enable_profiling.name(), "YES"});
     else

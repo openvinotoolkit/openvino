@@ -46,6 +46,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg{cfg},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache) {
+    bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -55,9 +56,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        auto streamsExecutorConfig =
+            is_cpu_map_available()
+                ? m_cfg.streamExecutorConfig
+                : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
+        streamsExecutorConfig._name = "CPUStreamsExecutor";
+        m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
     }
-    if (0 != cfg.streams) {
+    if (0 != cfg.streamExecutorConfig._streams) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
     } else {
@@ -69,11 +76,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
+    int streams = std::max(1, m_cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (m_cfg.streams != 0) {
+    if (m_cfg.streamExecutorConfig._streams != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -109,7 +116,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streams != 1 ? m_socketWeights[socketId] : nullptr;
+                    auto weightsCache = m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[socketId] : nullptr;
                     auto isQuantizedFlag =
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
@@ -208,16 +215,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const std::string modelName = graph.dump()->get_friendly_name();
         return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = config.streamExecutorConfig.get_streams();
+        const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
-        const auto streams = config.streamExecutorConfig.get_streams();
+        const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
         OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
-        const auto affinity = config.threadBindingType;
+        const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
@@ -231,7 +238,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return ov::Affinity::NONE;
         OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::inference_num_threads) {
-        const auto num_threads = config.streamExecutorConfig.get_threads();
+        const auto num_threads = config.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;

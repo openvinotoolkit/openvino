@@ -36,7 +36,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
         auto executor_config =
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_property(ov::num_streams),
+                                                    0,
                                                     0,
                                                     ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
                                                     1,
@@ -45,7 +45,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
                                                     {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
                                                     true};
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
+        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});

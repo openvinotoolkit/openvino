@@ -64,13 +64,7 @@ struct Config {
     size_t rtCacheCapacity = 0ul;
 #endif
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
-    int streams = 1;
-    bool streamsChanged = false;
-    int threads = 0;
-    int threadsPerStream = 0;
-    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
-    bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;

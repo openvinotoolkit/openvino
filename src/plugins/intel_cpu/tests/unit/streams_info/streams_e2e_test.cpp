@@ -8,7 +8,6 @@
 #include "cpu_map_scheduling.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "os/cpu_map_info.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -47,10 +46,9 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.hintPerfMode = test_data.input_pm_hint;
     config.latencyThreadingMode = test_data.input_latency_threading_mode;
     config.hintNumRequests = test_data.input_request;
-    config.streams = test_data.input_stream_changed ? test_data.input_stream
-                                                    : (test_data.input_stream == 0 ? 1 : test_data.input_stream);
-    config.streamsChanged = test_data.input_stream_changed;
-    config.threads = test_data.input_thread;
+    config.streamExecutorConfig._streams = test_data.input_stream;
+    config.streamExecutorConfig._streams_changed = test_data.input_stream_changed;
+    config.streamExecutorConfig._threads = test_data.input_thread;
 }
 
 class StreamGenerationTests : public ov::test::TestsCommon,
@@ -61,9 +59,6 @@ public:
         ov::intel_cpu::Config config;
         make_config(test_data, config);
 
-        CPU& cpu = cpu_info();
-        cpu._proc_type_table = test_data.input_proc_type_table;
-
         auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
                                                                    test_data.input_socket_id,
                                                                    nullptr,
@@ -71,9 +66,9 @@ public:
                                                                    test_data.input_proc_type_table,
                                                                    test_data.input_model_prefer);
 
-        ASSERT_EQ(test_data.output_stream_info_table, config.streamExecutorConfig.get_streams_info_table());
+        ASSERT_EQ(test_data.output_stream_info_table, config.streamExecutorConfig._streams_info_table);
         ASSERT_EQ(test_data.output_proc_type_table, proc_type_table);
-        ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig.get_cpu_reservation());
+        ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig._cpu_reservation);
         ASSERT_EQ(test_data.output_ht_value, config.enableHyperThreading);
         ASSERT_EQ(test_data.output_type, config.schedulingCoreType);
         ASSERT_EQ(test_data.output_pm_hint, config.hintPerfMode);

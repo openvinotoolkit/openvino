@@ -101,28 +101,21 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
-    int streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
+    ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
+    task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
-    auto core_type = ov::threading::IStreamsExecutor::Config::ANY;
     switch (priority) {
-        case ov::hint::Priority::LOW: core_type = ov::threading::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: core_type = ov::threading::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: core_type = ov::threading::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
-    ov::threading::IStreamsExecutor::Config task_executor_config(
-        tags,
-        streams,
-        1,
-        ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
-        1,
-        0,
-        0,
-        core_type,
-        {},
-        enable_cpu_pinning);
+    task_executor_config.update_executor_config(task_executor_config._streams,
+                                                1,
+                                                task_executor_config._threadPreferredCoreType,
+                                                enable_cpu_pinning);
 
     return task_executor_config;
 }
