@@ -431,20 +431,20 @@ jobs:
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
             -sm=mandatory
 
-        - name: Pack Conformance Artifacts
-          if: ${{ matrix.TEST_TYPE == "API" }}
-          run: |
-            pushd ${CONFORMANCE_ARTIFACTS_DIR}
-            tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
-            popd
+      - name: Pack Conformance Artifacts
+        if: ${{ matrix.TEST_TYPE == "API" }}
+        run: |
+          pushd ${CONFORMANCE_ARTIFACTS_DIR}
+          tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+          popd
 
-        - name: Upload Conformance Artifacts
-          if: ${{ matrix.TEST_TYPE == "API" }}
-          uses: actions/upload-artifact@v3
-          with:
-            name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
-            path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
-            if-no-files-found: 'error' 
+      - name: Upload Conformance Artifacts
+        if: ${{ matrix.TEST_TYPE == "API" }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
+          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
+          if-no-files-found: 'error' 
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
