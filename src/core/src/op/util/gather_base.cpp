@@ -183,6 +183,8 @@ void GatherBase::set_batch_dims(int64_t batch_dims) {
 }
 
 bool GatherBase::has_evaluate() const {
+    OV_OP_SCOPE(util_GatherBase_has_evaluate);
+
     switch (get_input_element_type(0)) {
     case element::boolean:
     case element::f16:
