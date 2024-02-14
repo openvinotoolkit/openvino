@@ -160,37 +160,43 @@ public:
          */
         ov::Any get_property(const std::string& key) const;
 
-        std::string get_name() const {
+        std::string get_name() {
             return _name;
+        }
+        int get_streams() {
+            return _streams;
         }
         int get_streams() const {
             return _streams;
         }
+        int get_threads() {
+            return _threads;
+        }
         int get_threads() const {
             return _threads;
         }
-        int get_threads_per_stream() const {
+        int get_threads_per_stream() {
             return _threads_per_stream;
         }
-        bool get_cpu_reservation() const {
+        bool get_cpu_reservation() {
             return _cpu_reservation;
         }
-        std::vector<std::vector<int>> get_streams_info_table() const {
+        std::vector<std::vector<int>> get_streams_info_table() {
             return _streams_info_table;
         }
-        std::vector<std::vector<int>> get_stream_processor_ids() const {
+        std::vector<std::vector<int>> get_stream_processor_ids() {
             return _stream_processor_ids;
         }
-        ThreadBindingType get_thread_binding_type() const {
+        ThreadBindingType get_thread_binding_type() {
             return _threadBindingType;
         }
-        int get_thread_binding_step() const {
+        int get_thread_binding_step() {
             return _threadBindingStep;
         }
-        int get_thread_binding_offset() const {
+        int get_thread_binding_offset() {
             return _threadBindingOffset;
         }
-        bool operator==(const Config& config) {
+        bool operator==(const Config& config){
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
                 _thread_preferred_core_type == config._thread_preferred_core_type) {
