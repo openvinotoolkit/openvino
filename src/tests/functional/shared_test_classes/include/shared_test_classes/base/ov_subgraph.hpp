@@ -29,7 +29,6 @@ typedef std::tuple<ov::element::Type,  // Input element type
 class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
-    virtual void serialize();
     virtual void query_model();
     virtual void import_export();
 

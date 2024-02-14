@@ -102,36 +102,6 @@ void SubgraphBaseTest::run() {
     }
 }
 
-void SubgraphBaseTest::serialize() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    std::string output_name = ov::test::utils::generateTestFilePrefix();
-
-    std::string out_xml_path = output_name + ".xml";
-    std::string out_bin_path = output_name + ".bin";
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
-    manager.run_passes(function);
-    function->validate_nodes_and_infer_types();
-
-    auto result = core->read_model(out_xml_path, out_bin_path);
-
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(result,
-                                                   function,
-                                                   false,
-                                                   false,
-                                                   false,
-                                                   true,   // precision
-                                                   true);  // attributes
-
-    EXPECT_TRUE(success) << message;
-
-    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
-}
-
 void SubgraphBaseTest::query_model() {
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
