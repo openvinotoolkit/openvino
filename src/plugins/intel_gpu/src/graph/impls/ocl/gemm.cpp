@@ -123,15 +123,23 @@ protected:
         return aggregate_events(all_events, stream, all_events.size() > 1);
     }
 
-    bool need_indirect_load(const kernel_impl_params& params) const {
-        auto desc = params.typed_desc<gemm>();
+    bool need_indirect_load(const gemm_inst& inst) const {
+        auto desc = inst.get_typed_desc<gemm>();
         if (!desc->indirect_a && !desc->indirect_b)
             return false;
-        return params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() > 1;
+
+        const auto& params = *inst.get_impl_params();
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+            return false;
+
+        const auto& kv_cache = inst.dependencies()[desc->indirect_a ? 0 : 1];
+        auto state_layout = kv_cache.first->get_impl_params()->get_input_layout(0);
+        bool is_prefill = state_layout.count() == 0;
+        return !is_prefill;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
-        if (need_indirect_load(*instance.get_impl_params()))
+        if (need_indirect_load(instance))
             return execute_stage(events, instance, indirect_gemm);
         else
             return execute_stage(events, instance, default_gemm);
@@ -235,12 +243,12 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        if (need_indirect_load(impl_param)) {
+        auto kernel_params = get_kernel_params(impl_param, true, false);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[default_gemm]);
+
+        if (_kernels_data.size() == 2) {
             auto kernel_params = get_kernel_params(impl_param, true, true);
             (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[indirect_gemm]);
-        } else {
-            auto kernel_params = get_kernel_params(impl_param, true, false);
-            (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[default_gemm]);
         }
     }
 };
