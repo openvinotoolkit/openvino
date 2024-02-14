@@ -8,7 +8,10 @@ namespace {
 
 using ov::test::InverseLayerTest;
 
-const auto shapes = testing::Values(ov::Shape{10, 10}, ov::Shape{5, 7, 7}, ov::Shape{5, 4, 3, 3}, ov::Shape{100, 2, 2});
+const std::vector<std::vector<ov::test::InputShape>> input_shapes = {
+    {{{ov::Dimension{1, 70}, -1}, {{10, 10}, {7, 7}, {4, 4}}}},
+    {{{-1, ov::Dimension{1, 70}, -1}, {{2, 10, 10}, {10, 7, 7}, {20, 4, 4}}}}};
+const auto shapes = testing::ValuesIn(input_shapes);
 
 const auto dtypes = testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16);
 
@@ -17,7 +20,7 @@ const auto adjoint = testing::Values(false, true);
 const auto test_static = testing::Values(true);
 const auto test_dynamic = testing::Values(false);
 
-const auto seed = testing::Values(0u, 1u, 3u);
+const auto seed = testing::Values(1, 2, 3);
 
 const auto device_cpu = testing::Values(ov::test::utils::DEVICE_CPU);
 

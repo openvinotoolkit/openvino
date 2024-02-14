@@ -39,6 +39,10 @@ bool Inverse::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             errorMessage = "Only Inverse operation from the opset14 is supported by the CPU plugin.";
             return false;
         }
+        if (op->get_input_partial_shape(0).rank().is_dynamic()) {
+            errorMessage = "Inverse operation on the CPU plugin does not support dynamic rank.";
+            return false;
+        }
     } catch (...) {
         return false;
     }
