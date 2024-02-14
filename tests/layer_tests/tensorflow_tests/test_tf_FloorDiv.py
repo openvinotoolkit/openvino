@@ -9,6 +9,9 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 rng = np.random.default_rng()
 
+def list_arm_platforms():
+    return ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']
+
 class TestFloorDiv(CommonTFLayerTest):
     def create_add_placeholder_const_net(self, x_shape, dtype, ir_version, use_new_frontend):
         import tensorflow as tf
@@ -61,8 +64,8 @@ class TestFloorDiv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
-        if platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l', aarch64', 'arm64', 'ARM64'] and np.issubdtype(params['dtype'], np.signedinteger):
-            pytest.skip(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+        if platform.system() == 'Linux' and platform.machine() in list_arm_platforms() and np.issubdtype(params['dtype'], np.signedinteger):
+            pytest.xfail(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
 
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
@@ -116,9 +119,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
-                                                                                         'aarch64',
-                                                                                         'arm64', 'ARM64'],
+    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in list_arm_platforms(),
                        reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
     def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
