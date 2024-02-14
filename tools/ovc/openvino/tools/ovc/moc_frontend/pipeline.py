@@ -39,9 +39,26 @@ def get_enabled_and_disabled_transforms():
 
 def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
     for new_node in new_nodes:
-        node = new_node['node']
+        node_found = False
+        for item in model_inputs_or_outputs:
+            if is_input:
+                name = new_node['input_name']
+                if name in item.get_names():
+                    node_found = True
+                    break
+                elif name + ":0" in item.get_names():
+                    node_found = True
+                    break
+            else:
+                name = new_node['output_name']
+                if name in item.get_names():
+                    node_found = True
+                    break
+                elif name + ":0" in item.get_names():
+                    node_found = True
+                    break
 
-        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
+        if not node_found:
             if is_input:
                 raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
             else:
@@ -242,21 +259,4 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
     ov_model = moc_front_end.convert(input_model)
-
-    # Set user input names
-    for inp in user_shapes:
-        user_name = inp['input_name']
-        original_names = inp['node'].get_names()
-        if user_name not in original_names:
-            for model_input in ov_model.inputs:
-                if set(original_names) == set(model_input.get_names()):
-                    model_input.get_tensor().set_names({user_name})
-                    break
-
-    # Set user input names
-    if argv.inputs_list is not None and len(argv.inputs_list) == len(ov_model.inputs):
-        for idx, user_name in enumerate(argv.inputs_list):
-            ov_input = ov_model.inputs[idx]
-            if user_name not in ov_input.get_names():
-                ov_input.get_tensor().set_names({user_name})
     return ov_model
