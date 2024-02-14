@@ -110,5 +110,5 @@ def test_va_context():
     core = ov.Core()
     display = ov.VADisplayWrapper(None)
     with pytest.raises(RuntimeError) as context_error:
-        _ = core.create_va_context("GPU", display)
+        _ = ov.VAContext(core, display)
     assert "user handle is nullptr!" in str(context_error.value)

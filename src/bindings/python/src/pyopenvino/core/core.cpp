@@ -256,19 +256,6 @@ void regclass_Core(py::module m) {
         py::arg("properties"));
 
     cls.def(
-        "create_va_context",
-        [](ov::Core& self, const std::string& device_name, VADisplayWrapper& display, int target_tile_id) {
-            ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
-                                         {ov::intel_gpu::va_device.name(), display.get_display_ptr()},
-                                         {ov::intel_gpu::tile_id.name(), target_tile_id}};
-            auto ctx = self.create_context(device_name, context_params);
-            return VAContextWrapper(ctx);
-        },
-        py::arg("device_name"),
-        py::arg("display"),
-        py::arg("target_tile_id") = -1);
-
-    cls.def(
         "get_default_context",
         [](ov::Core& self, const std::string& device_name) {
             return RemoteContextWrapper(self.get_default_context(device_name));
