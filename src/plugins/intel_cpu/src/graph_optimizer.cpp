@@ -379,6 +379,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
+        if (withSubtract &&
+            !one_of(subtractConstNode->getOriginalOutputPrecisionAtPort(0), weightsNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32))
+            continue;
 
         // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
@@ -412,6 +415,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
             if (shape_to_check.size() > decompressionConstShape.size())
                 return false;
+            if (shape_to_check.size() == 1 && shape_to_check[0] == 1)
+                return true;
             const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
             // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
             return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
@@ -463,8 +468,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
             }
 
-            VectorDims memoryDims(decompressionConstShape.size(), 1);
-            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(memoryDims));
+            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
             auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
             (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
             fcNode->fuseDecompressionSubtract(memory);
@@ -539,9 +543,17 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         NodePtr subtractNode = mulParent;
         if (!expectedNode(subtractNode, Type::Eltwise))
             continue;
-        auto subtractConstNode = subtractNode->getParentEdgeAt(1)->getParent();
+        NodePtr subtractConvertNode, subtractConstNode;
+        NodePtr subtractParent = subtractNode->getParentEdgeAt(1)->getParent();
+        if (expectedNode(subtractParent, Type::Convert)) {
+            subtractConvertNode = subtractParent;
+            subtractParent = subtractConvertNode->getParentEdgeAt(0)->getParent();
+        }
+        subtractConstNode = subtractParent;
         if (!expectedNode(subtractConstNode, Type::Input))
             continue;
+
+        const bool withSubtractConvert = subtractConvertNode != nullptr;
 
         auto convertNode = subtractNode->getParentEdgeAt(0)->getParent();
         if (!expectedNode(convertNode, Type::Convert))
@@ -593,6 +605,11 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
 
+        if (withSubtractConvert) {
+            gatherNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConvertEdge);
+        }
         gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
         auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(subtractConstEdge);
@@ -600,6 +617,8 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(multiplyConstEdge);
 
+        if (withSubtractConvert)
+            graph.DropNode(subtractConvertNode);
         graph.DropNode(convertNode);
         graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);

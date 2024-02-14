@@ -25,6 +25,7 @@ struct FCAttrs {
     // @todo should be passed as an additional memory input?
     MemoryCPtr decompressionSubtractPtr;
     MemoryCPtr decompressionMultiplyPtr;
+    uint64_t dynamicQuantizationGroupSize;
 };
 
 using FCConfig = executor::Config<FCAttrs>;
