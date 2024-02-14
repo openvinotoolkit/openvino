@@ -76,11 +76,10 @@ namespace ov {
 namespace test {
 namespace utils {
 
-ov::TensorVector infer_model_via_template(const std::shared_ptr<ov::Model>& model,
-                                          const ov::TensorVector& input_tensors);
+ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& input_tensors);
 
-ov::TensorVector infer_model_via_template(const std::shared_ptr<ov::Model>& model,
-                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
+ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
+                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
 }  // namespace utils
 }  // namespace test

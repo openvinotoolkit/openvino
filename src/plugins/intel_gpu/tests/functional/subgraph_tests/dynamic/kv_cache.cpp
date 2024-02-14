@@ -349,7 +349,7 @@ class KVCacheTests: public ::testing::Test {
             }
 
             ngraph::helpers::resize_function(ref_model, input_shapes);
-            return ov::test::utils::infer_model_via_template(ref_model, inputs);
+            return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
