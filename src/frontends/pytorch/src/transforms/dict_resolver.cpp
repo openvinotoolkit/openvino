@@ -99,7 +99,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
                     return false;
                 }
                 auto name = attrs.at("string_value");
-                new_output.add_names({name});
+                new_output.set_names({name});
                 new_outputs.push_back(std::make_shared<v0::Result>(new_output));
             }
             bool after_res = false;
