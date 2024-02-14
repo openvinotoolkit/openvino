@@ -164,7 +164,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
    * - meta-llama/llama-7b-chat-hf
      - FP32
      - 11.57
-     - 10.3
+     - 12.61
    * - meta-llama/llama-7b-chat-hf
      - INT4_SYM,group_size=128,ratio=1.0,awq=True
      - 5.07
