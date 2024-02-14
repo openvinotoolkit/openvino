@@ -37,8 +37,8 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
            # because in case of .rpm package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
-           # temporary block NVIDIA and NPU
-           NOT item MATCHES "^(nvidia|npu)$" AND
+           # temporary block nvidia
+           NOT item STREQUAL "nvidia" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -175,6 +175,15 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_GPU_PACKAGE_NAME "libopenvino-intel-gpu-plugin-${cpack_name_ver}")
         _ov_add_package(plugin_packages gpu)
         set(gpu_copyright "generic")
+    endif()
+
+    # intel-npu
+    if(ENABLE_INTEL_NPU OR BUILD_npu OR BUILD_vpux-plugin OR BUILD_applications.ai.vpu-accelerators.vpux-plugin)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_RPM_NPU_PACKAGE_REQUIRES "${core_package}")
+        set(CPACK_RPM_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        _ov_add_package(plugin_packages npu)
+        set(npu_copyright "generic")
     endif()
 
     #
