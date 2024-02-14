@@ -70,7 +70,7 @@ public:
                                                    const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:
-    static bool useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr weightsDesc,
+    static bool useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
                                            MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose);
 
     dnnl::stream m_stream;

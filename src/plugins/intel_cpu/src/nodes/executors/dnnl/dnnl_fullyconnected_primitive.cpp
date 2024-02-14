@@ -116,13 +116,16 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
            one_of(weightsType, u8, nf4, u4, i4);
 }
 
-bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr weightsDesc,
+bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
                                                  MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose) {
     if (dqGroupSize == 0)
         return false;
 
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
         !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
+        return false;
+
+    if (srcDesc->getPrecision() != ov::element::f32)
         return false;
 
     if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4))
@@ -315,7 +318,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
     const auto useDynamicQuantization = useWeightsDecompression &&
-        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, weiDesc,
+        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
                                    attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
