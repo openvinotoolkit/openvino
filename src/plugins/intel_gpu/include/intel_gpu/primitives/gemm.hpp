@@ -65,7 +65,7 @@ struct gemm : public primitive_base<gemm> {
         auto get_transposed_order = [] (size_t rank, bool transposed) {
             std::vector<int64_t> order(rank);
             std::iota(order.begin(), order.end(), 0);
-            if (transposed)
+            if (transposed && rank > 1)
                 std::swap(order[rank - 1], order[rank - 2]);
             return order;
         };
