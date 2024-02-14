@@ -27,6 +27,25 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
       m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
+    std::cout << "[ INFO ] Template config\n";
+    std::cout << "\t performance_mode = " << cfg.performance_mode << std::endl;
+    std::cout << "\t num_requests = " << cfg.num_requests << std::endl;
+    std::cout << "\t disable_transformations = " << cfg.disable_transformations << std::endl;
+    std::cout << "\t exclusive_async_requests = " << cfg.exclusive_async_requests << std::endl;
+
+    const auto& ecfg = cfg.streams_executor_config;
+    std::cout << "[ INFO ] Template streams executor config\n";
+    std::cout << "\t streams = " << ecfg._streams << std::endl;
+    std::cout << "\t _threadsPerStream = " << ecfg._threadsPerStream << std::endl;
+    std::cout << "\t _threadBindingType = " << ecfg._threadBindingType << std::endl;
+    std::cout << "\t _threadBindingStep = " << ecfg._threadBindingStep << std::endl;
+    std::cout << "\t _threads = " << ecfg._threads << std::endl;
+    std::cout << "\t _big_core_streams = " << ecfg._big_core_streams << std::endl;
+    std::cout << "\t _small_core_streams = " << ecfg._small_core_streams << std::endl;
+    std::cout << "\t _threads_per_stream_big = " << ecfg._threads_per_stream_big << std::endl;
+    std::cout << "\t _threads_per_stream_small = " << ecfg._threads_per_stream_small << std::endl;
+    std::cout << "\t _small_core_offset = " << ecfg._small_core_offset << std::endl;
+    std::cout << "\t _enable_hyper_thread = " << ecfg._enable_hyper_thread << std::endl;
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, m_wait_executor should also be created per device.
@@ -45,6 +64,25 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
 void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+    std::cout << "[ INFO ] Template config\n";
+    std::cout << "\t performance_mode = " << m_cfg.performance_mode << std::endl;
+    std::cout << "\t num_requests = " << m_cfg.num_requests << std::endl;
+    std::cout << "\t disable_transformations = " << m_cfg.disable_transformations << std::endl;
+    std::cout << "\t exclusive_async_requests = " << m_cfg.exclusive_async_requests << std::endl;
+
+    const auto& ecfg = m_cfg.streams_executor_config;
+    std::cout << "[ INFO ] Template streams executor config\n";
+    std::cout << "\t streams = " << ecfg._streams << std::endl;
+    std::cout << "\t _threadsPerStream = " << ecfg._threadsPerStream << std::endl;
+    std::cout << "\t _threadBindingType = " << ecfg._threadBindingType << std::endl;
+    std::cout << "\t _threadBindingStep = " << ecfg._threadBindingStep << std::endl;
+    std::cout << "\t _threads = " << ecfg._threads << std::endl;
+    std::cout << "\t _big_core_streams = " << ecfg._big_core_streams << std::endl;
+    std::cout << "\t _small_core_streams = " << ecfg._small_core_streams << std::endl;
+    std::cout << "\t _threads_per_stream_big = " << ecfg._threads_per_stream_big << std::endl;
+    std::cout << "\t _threads_per_stream_small = " << ecfg._threads_per_stream_small << std::endl;
+    std::cout << "\t _small_core_offset = " << ecfg._small_core_offset << std::endl;
+    std::cout << "\t _enable_hyper_thread = " << ecfg._enable_hyper_thread << std::endl;
     // apply plugins transformations
     if (!m_cfg.disable_transformations)
         transform_model(model);
