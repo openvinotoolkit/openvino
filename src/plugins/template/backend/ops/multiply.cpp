@@ -9,7 +9,7 @@
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v1::Multiply>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::reference::multiply<T>(inputs[0].data<T>(), inputs[1].data<T>(), outputs[0].data<T>(), ov::shape_size(inputs[0].get_shape()));
+    ov::reference::multiply(inputs[0].data<const T>(), inputs[1].data<const T>(), outputs[0].data<T>(), ov::shape_size(inputs[0].get_shape()));
     return true;
 }
 
