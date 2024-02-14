@@ -23,15 +23,17 @@ import shutil
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'sample_type': ['C++', 'C']},
-                          )
+test_data_fp32 = get_tests({
+    'i': ['dog-256x256.bmp'],
+    'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
+    'sample_type': ['C++', 'C'],
+})
 
-test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                               'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                               'sample_type': ['C++']},
-                                  )
+test_data_fp32_unicode = get_tests({
+    'i': ['dog-256x256.bmp'],
+    'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
+    'sample_type': ['C++'],
+})
 
 
 class TestHello(SamplesCommonTestClass):
@@ -57,9 +59,9 @@ class TestHello(SamplesCommonTestClass):
             if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
                 top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
-                if '215' not in top1:
+                if '262' not in top1:
                     is_ok = False
-                    log.error('Expected class 215, Detected class {}'.format(top1))
+                    log.error('Expected class 262, Detected class {}'.format(top1))
                 break
         assert is_ok, 'Wrong top1 class'
         log.info('Accuracy passed')
@@ -79,11 +81,10 @@ class TestHello(SamplesCommonTestClass):
         tmp_image_dir.mkdir()
         tmp_model_dir.mkdir()
 
-        test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
+        test_data_dir = cache.makedir('test_data')
         # Copy files
-        shutil.copy(test_data_dir / 'validation_set' / param['i'], tmp_image_dir)
-        shutil.copy(test_data_dir / 'models' / 'public' / param['m'], tmp_model_dir)
-        shutil.copy(test_data_dir / 'models' / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(test_data_dir / param['i'], tmp_image_dir)
+        shutil.copy(test_data_dir / param['m'], tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]
@@ -130,7 +131,6 @@ class TestHello(SamplesCommonTestClass):
 
                 new_model_path = tmp_model_dir / (original_model_name + f"_{model_name.decode('utf-8')}.xml")
                 model_path.rename(new_model_path)
-                Path(str(model_path).replace('.xml', '.bin')).rename(Path(str(new_model_path).replace('.xml', '.bin')))
                 stdout = get_cmd_output(executable_path, new_model_path, image_path, param['d'])
                 probs = []
                 for line in stdout.split(sep='\n'):

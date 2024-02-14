@@ -20,15 +20,15 @@ from common.samples_common_test_class import get_tests
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+test_data_fp32 = get_tests(cmd_params={'i': ['dog-256x256.bmp'],
+                                       'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
                                       },
                            )
 
-test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP16', 'squeezenet1.1.xml')],
+test_data_fp16 = get_tests(cmd_params={'i': ['dog-256x256.bmp'],
+                                       'm': ['nfnet-f0.onnx'],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
                                        },
@@ -40,11 +40,11 @@ class TestClassification(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
-        _check_output(self, param, '215', cache)
+        _check_output(self, param, '262', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
-        _check_output(self, param, '215', cache)
+        _check_output(self, param, '262', cache)
 
 
 def _check_output(self, param, expected_result, cache):

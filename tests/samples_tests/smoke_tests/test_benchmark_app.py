@@ -29,7 +29,7 @@ def get_executable(sample_language):
 def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None):
     output = get_cmd_output(
         get_executable(sample_language),
-        *prepend(cache, '227x227/dog.bmp', 'squeezenet1.1/FP32/squeezenet1.1.xml'),
+        *prepend(cache, 'dog-256x256.bmp', 'nfnet-f0.onnx'),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
@@ -92,7 +92,7 @@ def test_api(sample_language, api, device, cache, tmp_path):
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_reshape(sample_language, device, cache):
-    verify(sample_language, device, shape='data[2,3,227,227]', cache=cache)
+    verify(sample_language, device, shape='image[2,3,227,227]', cache=cache)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
