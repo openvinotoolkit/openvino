@@ -49,6 +49,15 @@ def _get_cache_dir(options) -> Optional[Any]:
     return cache_dir
 
 
+def _get_aot_autograd(options) -> Optional[Any]:
+    if options is not None and "aot_autograd" in options:
+        aot_autograd = options["aot_autograd"]
+        if bool(aot_autograd) and str(aot_autograd).lower() not in ["false", "0"]:
+            return True
+        else:
+            return False
+
+
 def _get_model_caching(options) -> Optional[Any]:
     if options is not None and "model_caching" in options:
         caching = options["model_caching"]
@@ -68,3 +77,23 @@ def _get_config(options) -> Optional[Any]:
     if options is not None and "config" in options:
         return options["config"]
     return {}
+
+def _get_decompositions(options) -> Optional[Any]:
+    decompositions = []
+    if options is not None and "decompositions" in options:
+        decompositions = options["decompositions"]
+    return decompositions
+
+def _get_disabled_ops(options) -> Optional[Any]:
+    disabled_ops = []
+    if options is not None and "disabled_ops" in options:
+        disabled_ops = options["disabled_ops"]
+    return disabled_ops
+
+def _is_testing(options) -> Optional[Any]:
+    if options is not None and "testing" in options:
+        is_testing = options["testing"]
+        if bool(is_testing) and str(is_testing).lower not in ["false", "0"]:
+            return True
+    return False
+
