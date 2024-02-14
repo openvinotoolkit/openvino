@@ -10,8 +10,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 rng = np.random.default_rng()
 
 class TestFloorDiv(CommonTFLayerTest):
-    dtype = np.int32
-
     def create_add_placeholder_const_net(self, x_shape, dtype, ir_version, use_new_frontend):
         import tensorflow as tf
         self.dtype = dtype
@@ -63,7 +61,6 @@ class TestFloorDiv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
-        
         if platform.machine() == 'arm64' and np.issubdtype(params['dtype'], np.integer):
             pytest.xfail(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
 
