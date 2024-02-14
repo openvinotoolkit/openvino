@@ -92,10 +92,10 @@ def test_api(sample_language, api, device, cache, tmp_path):
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_reshape(sample_language, device, cache):
-    verify(sample_language, device, shape='image[2,3,227,227]', cache=cache)
+    verify(sample_language, device, shape='image[2,3,256,256]', cache=cache)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_dynamic_shape(sample_language, device, cache):
-    verify(sample_language, device, shape='[?,3,?,?]', data_shape='[1,3,227,227][1,3,227,227]', layout='[NCHW]', cache=cache)
+    verify(sample_language, device, shape='[?,3,?,?]', data_shape='[1,3,256,227][1,3,256,256]', layout='[NCHW]', cache=cache)
