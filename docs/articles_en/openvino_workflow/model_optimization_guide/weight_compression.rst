@@ -180,7 +180,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
    * - HuggingFaceH4/zephyr-7b-beta
      - FP32
      - 9.82
-     - 10.3
+     - 13.99
    * - HuggingFaceH4/zephyr-7b-beta
      - INT4_SYM,group_size=128,ratio=0.8
      - 5.07
