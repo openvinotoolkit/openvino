@@ -7,11 +7,14 @@ import platform
 
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng()
 
 class TestFloorDiv(CommonTFLayerTest):
+    dtype = np.int32
+
     def create_add_placeholder_const_net(self, x_shape, dtype, ir_version, use_new_frontend):
         import tensorflow as tf
-
+        self.dtype = dtype
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
@@ -19,7 +22,6 @@ class TestFloorDiv(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(dtype, x_shape, 'Input')
             constant_value = np.array(-10).astype(dtype)
             y = tf.constant(constant_value)
-            x = tf.raw_ops.Abs(x=x)
             res = tf.raw_ops.FloorDiv(x=x, y=y)
 
             tf.compat.v1.global_variables_initializer()
@@ -29,12 +31,27 @@ class TestFloorDiv(CommonTFLayerTest):
 
         return tf_net, ref_net
 
+    def _prepare_input(self, inputs_info):
+        tensor_name = list(inputs_info.keys())[0]
+        x_shape = inputs_info[tensor_name]
+        inputs_data = {}
+        if np.issubdtype(self.dtype, np.floating):
+            inputs_data[tensor_name] = rng.uniform(-5.0, 5.0, x_shape).astype(self.dtype)
+        elif np.issubdtype(self.dtype, np.signedinteger):
+            inputs_data[tensor_name] = rng.integers(-8, 8, x_shape).astype(self.dtype)
+        else:
+            inputs_data[tensor_name] = rng.integers(0, 8, x_shape).astype(self.dtype)
+        return inputs_data
+
     # TODO: implement tests for 2 Consts + Add
 
     test_data_1D = [
         dict(x_shape=[], dtype=np.int32),
         dict(x_shape=[2], dtype=np.int64),
         dict(x_shape=[2, 4, 5], dtype=np.int32),
+        dict(x_shape=[2, 4, 5], dtype=np.uint32),
+        dict(x_shape=[2, 4, 5], dtype=np.uint64),
+        
         dict(x_shape=[], dtype=np.float32),
         dict(x_shape=[2], dtype=np.float64),
         dict(x_shape=[2, 4, 5], dtype=np.float32),
