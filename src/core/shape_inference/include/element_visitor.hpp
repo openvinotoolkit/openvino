@@ -21,6 +21,115 @@ OV_ITT_DOMAIN(ov_eval);
 
 OV_ITT_DOMAIN(OV_PP_CAT(TYPE_LIST_, ov_eval));
 namespace element {
+
+template <Type_t...>
+struct UnsupportedPrecisionIfTypeOf;
+
+/**
+ * @brief Applies visitor action for not supported ov::element type.
+ */
+template <>
+struct UnsupportedPrecisionIfTypeOf<> {
+    /**
+     * @brief Applies visitor default action if input element type is not on supported precision list.
+     *
+     * Performs tensors conversion to supported type and runs evaluate once more.
+     *
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
+     *
+     * @param node     Evaluated node
+     * @param outputs  Output tensors
+     * @param inputs   Input tensors
+     * @param et       Input element type.
+     * @param args     Visitor arguments.
+     * @return Value of result type returned by Visitor.
+     */
+    template <class Visitor, class... Args>
+    static auto apply(const Node* node, TensorVector& outputs, const TensorVector& inputs, Type_t et, Args&&... args) ->
+        typename Visitor::result_type {
+        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
+    }
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region,
+                      const Node* node,
+                      TensorVector& outputs,
+                      const TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
+    }
+#endif
+};
+
+/**
+ * @brief Applies visitor action for supported element type defined by template parameters.
+ *
+ * @tparam ET      Current ov::element type used for check with input.
+ * @tparam Others  Others supported ov::element.
+ */
+template <Type_t ET, Type_t... Others>
+struct UnsupportedPrecisionIfTypeOf<ET, Others...> {
+    /**
+     * @brief Applies visitor action if input element type is same as ET.
+     *
+     * Uses Visitor::visit<ET> function if `et == ET`, otherwise check input element type against Others.
+     * If input element type doesn't match any item on Others - it tries to perform tensors conversion
+     * to supported type and runs evaluate once more.
+     *
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
+     *
+     * @param node     Evaluated node
+     * @param outputs  Output tensors
+     * @param inputs   Input tensors
+     * @param et       Input element type.
+     * @param args     Visitor arguments.
+     * @return Value of result type returned by Visitor.
+     */
+    template <class Visitor, class... Args>
+    static auto apply(const ov::Node* node,
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return (et == ET)
+                   ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                   : UnsupportedPrecisionIfTypeOf<Others...>::template apply<Visitor>(node,
+                                                                                      outputs,
+                                                                                      inputs,
+                                                                                      et,
+                                                                                      std::forward<Args>(args)...);
+    }
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region,
+                      const Node* node,
+                      ov::TensorVector& outputs,
+                      const ov::TensorVector& inputs,
+                      Type_t et,
+                      Args&&... args) -> typename Visitor::result_type {
+        return (et == ET && is_cc_enabled<Visitor>(region))
+                   ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                   : UnsupportedPrecisionIfTypeOf<Others...>::template apply<Visitor>(region,
+                                                                                      node,
+                                                                                      outputs,
+                                                                                      inputs,
+                                                                                      et,
+                                                                                      std::forward<Args>(args)...);
+    }
+
+    template <class Visitor>
+    static bool is_cc_enabled(const std::string& region) {
+        OV_ITT_SCOPED_TASK(OV_PP_CAT(TYPE_LIST_, ov_eval), region + "$" + Type(ET).to_string());
+        return true;
+    }
+#endif
+};
+
 /**
  * @brief Primary template defines suppoted element types.
  *
@@ -57,8 +166,6 @@ struct IfTypeOf<> {
     /**
      * @brief Applies visitor default action if input element type is not not supported by IfTypeOf.
      *
-     * Performs tensors conversion to supported type and runs evaluate once more.
-     *
      * @tparam Visitor Visitor class implementing visit function.
      * @tparam Args    Types of visit parameters.
      *
@@ -72,7 +179,7 @@ struct IfTypeOf<> {
     template <class Visitor, class... Args>
     static auto apply(const Node* node, TensorVector& outputs, const TensorVector& inputs, Type_t et, Args&&... args) ->
         typename Visitor::result_type {
-        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
+        return Visitor::visit();
     }
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
@@ -88,7 +195,7 @@ struct IfTypeOf<> {
                       const TensorVector& inputs,
                       Type_t et,
                       Args&&... args) -> typename Visitor::result_type {
-        return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
+        return Visitor::visit();
     }
 #endif
 };
@@ -167,12 +274,12 @@ struct IfTypeOf<ET, Others...> {
                       Args&&... args) -> typename Visitor::result_type {
         return (et == ET && is_cc_enabled<Visitor>(region))
                    ? Visitor::template visit<ET>(std::forward<Args>(args)...)
-                   : IfTypeOf<Others...>::template apply<Visitor>(region,
-                                                                  node,
-                                                                  outputs,
-                                                                  inputs,
-                                                                  et,
-                                                                  std::forward<Args>(args)...);
+                   : UnsupportedPrecisionIfTypeOf<Others...>::template apply<Visitor>(region,
+                                                                                      node,
+                                                                                      outputs,
+                                                                                      inputs,
+                                                                                      et,
+                                                                                      std::forward<Args>(args)...);
     }
 
     template <class Visitor>
