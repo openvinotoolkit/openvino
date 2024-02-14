@@ -13,11 +13,7 @@ namespace op {
 namespace set_1 {
     ov::OutputVector mish(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx
-
 }  // namespace frontend
-
 }  // namespace ov

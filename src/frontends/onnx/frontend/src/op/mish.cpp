@@ -16,7 +16,7 @@ namespace set_1 {
 ov::OutputVector mish(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
-    return std::make_shared<v4::Mish>(data)->outputs();
+    return {std::make_shared<v4::Mish>(data)};
 }
 }  // namespace set_1
 }  // namespace op
