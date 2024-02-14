@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 
 #include <openvino/runtime/core.hpp>
+
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
