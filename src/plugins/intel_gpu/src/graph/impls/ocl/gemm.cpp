@@ -5,6 +5,7 @@
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "multi_stage_primitive.hpp"
 
+#include "kv_cache_inst.h"
 #include "gemm_inst.h"
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
@@ -132,8 +133,13 @@ protected:
         if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
             return false;
 
-        const auto& kv_cache = inst.dependencies()[desc->indirect_a ? 0 : 1];
-        auto state_layout = kv_cache.first->get_impl_params()->get_input_layout(0);
+        const auto& deps = inst.dependencies();
+
+        const auto& indirect_dep = deps[desc->indirect_a ? 0 : 1].first;
+        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr)
+            return true;
+
+        auto state_layout = indirect_dep->get_impl_params()->get_input_layout(0);
         bool is_prefill = state_layout.count() == 0;
         return !is_prefill;
     }
