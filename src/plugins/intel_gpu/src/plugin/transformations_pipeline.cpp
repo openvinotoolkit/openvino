@@ -12,6 +12,7 @@
 #include <tuple>
 #include <vector>
 
+#include "transformations/op_conversions/decompose_integer_floordiv.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/convolution.hpp"
@@ -253,7 +254,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
-
+        // To perform FloorDiv in integer precision need to expand it with subgraph with Select, Ceil, Floor, etc.
+        manager.register_pass<ov::pass::DecomposeIntegerFloorDivide>();
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();

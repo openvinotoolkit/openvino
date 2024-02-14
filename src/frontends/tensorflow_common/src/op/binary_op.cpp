@@ -56,33 +56,7 @@ OutputVector translate_binary_op(const NodeContext& node,
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) -> shared_ptr<Node> {
-        auto out_type = x.get_element_type();
-        if (out_type.is_integral()) {
-            // when integer inputs have different signs remainder should be taken into account
-            // res = x / y; if x > 0 and y > 0
-            // res = x / y - 1; if (x < 0 XOR y < 0) and (x mod y != 0)
-
-            auto zero_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
-            auto minus_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);
-
-            auto x_less_cond = make_shared<v1::Less>(x, zero_const);
-            auto y_less_cond = make_shared<v1::Less>(y, zero_const);
-            auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
-
-            // TODO: workaround until CVS-132377 is resolved.
-            // Need to ensure that Div(x, y) is a truncative Div we should Ceil for for negative numbers.
-            auto div = make_shared<v1::Divide>(x, y, false);
-            auto trunc_div = make_shared<v1::Select>(xor_cond, make_shared<v0::Ceiling>(div), div);
-
-            auto mod_xy = make_shared<v1::Mod>(x, y);
-            auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zero_const);
-
-            auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
-            auto reminder = make_shared<v1::Select>(cond, minus_one_const, zero_const);
-            return make_shared<v1::Add>(trunc_div, reminder);
-        } else {
-            return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
-        }
+        return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
     };
     return translate_binary_op(node, floordiv_fn);
 }

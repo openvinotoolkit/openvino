@@ -58,6 +58,7 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
+#include "transformations/op_conversions/decompose_integer_floordiv.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -381,6 +382,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    // To perform FloorDiv in integer precision need to expand it with subgraph with Select, Ceil, Floor, etc.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::DecomposeIntegerFloorDivide);
+
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
@@ -397,6 +401,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
+
+    // todo: CVS-132377. arm and x86 always do Div in float.
+    // If we decompose this will lead to error, therefor disable this pass
+    CPU_DISABLE_PASS_ARM(manager, DecomposeIntegerFloorDivide);
+    CPU_DISABLE_PASS_X86(manager, DecomposeIntegerFloorDivide);
     // The plugin computes Divide in floating point precision.
     // To preserve correct math for integer division we need to insert explicit Floor operation.
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
