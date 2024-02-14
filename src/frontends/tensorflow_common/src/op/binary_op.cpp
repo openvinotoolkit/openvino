@@ -76,6 +76,8 @@ OutputVector translate_floor_div_op(const NodeContext& node) {
             auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
             auto reminder = make_shared<v1::Select>(cond, minus_one_const, zero_const);
             return make_shared<v1::Add>(div, reminder);
+        } else if (out_type.is_integral() && !out_type.is_signed()) {
+            return make_shared<v1::Divide>(x, y);
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
         }

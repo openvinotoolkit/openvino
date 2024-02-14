@@ -61,8 +61,8 @@ class TestFloorDiv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
-        if platform.machine() == 'arm64' and np.issubdtype(params['dtype'], np.integer):
-            pytest.xfail(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+        if platform.machine() == 'arm64' and np.issubdtype(params['dtype'], np.signedinteger):
+            pytest.skip(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
 
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
@@ -116,7 +116,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(condition=platform.machine() == 'arm64', reason = 'Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+    @pytest.mark.skipif(platform.machine() == 'arm64', reason = 'Ticket CVS-132377 - Divide inconsistent behavior on different systems')
     def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
         self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,
