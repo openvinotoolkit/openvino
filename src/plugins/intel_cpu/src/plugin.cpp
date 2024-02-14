@@ -441,6 +441,10 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         return res;
     } else if (name == ov::internal::exclusive_async_requests.name()) {
         return engConfig.exclusiveAsyncRequests;
+    } else if (name == ov::hint::dynamic_quantization_group_size) {
+        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(engConfig.fcDynamicQuantizationGroupSize);
+    } else if (name == ov::hint::kv_cache_precision) {
+        return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
     }
     return get_ro_property(name, options);
 }
@@ -480,6 +484,8 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
                                                     RW_property(ov::log::level.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                    RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                    RW_property(ov::hint::kv_cache_precision.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;

@@ -305,6 +305,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            hints.dynamic_quantization_group_size,
+            "DYNAMIC_QUANTIZATION_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (
             intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",
             ((True, True),),
