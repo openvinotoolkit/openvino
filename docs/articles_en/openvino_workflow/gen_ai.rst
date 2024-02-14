@@ -11,11 +11,15 @@ comes to generative models, OpenVINO supports:
 
 * Conversion, optimization and inference for text, image and audio generative models, for
   example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.
-* 8-bit and 4-bit weight compression for text generation models.
+* 8-bit and 4-bit weight compression including compression of Embedding layers.
 * Storage format reduction (fp16 precision for non-compressed models and int8/int4 for compressed
-  models).
+  models), including GPTQ models from Hugging Face.
 * Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics,
   discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
+* Fused inference primitives, for example, Scaled Dot Product Attention, Rotary Positional Embedding, 
+  Group Query Attention, Mixture of Experts, etc.
+* In-place KV-cache, dynamic quantization, KV-cache quantization and encapsulation.
+* Dynamic beam size configuration, Speculative sampling.
 
 
 OpenVINO offers two main paths for Generative AI use cases:
