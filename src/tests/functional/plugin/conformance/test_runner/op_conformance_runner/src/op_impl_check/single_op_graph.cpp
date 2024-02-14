@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -547,6 +547,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::Interpola
     const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(data, scales, axes, attrs);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{{data}}, "Interpolate-11");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::Inverse>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4})};
+    const auto inverse = std::make_shared<ov::op::v14::Inverse>(params[0], false);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(inverse)};
+    return std::make_shared<ov::Model>(results, params, "Inverse");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::Assign> &node) {
