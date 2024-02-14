@@ -40,8 +40,8 @@ jobs:
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
           - SANITIZER: 'UndefinedBehavior'
             SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-#          - SANITIZER: 'Thread'
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'  # bug in gcc-9 in U20: https://bugs.launchpad.net/ubuntu/+source/gcc-9/+bug/2029910
+          - SANITIZER: 'Thread'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -55,8 +55,6 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
-      NEOReadDebugKeys: 1
-      DisableDeepBind: 1
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
 
@@ -247,7 +245,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -279,7 +277,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
@@ -419,6 +417,14 @@ jobs:
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
 
   CXX_Unit_Tests:
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
     name: C++ unit tests
     needs: Build
     uses: ./.github/workflows/job_cxx_unit_tests.yml
@@ -426,7 +432,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
       affected-components: '{"stage": "stage"}'
-      sanitizer-check: true
+      sanitizer-name: ${{ matrix.SANITIZER }}
 
   Python_Unit_Tests:
     name: Python unit tests
