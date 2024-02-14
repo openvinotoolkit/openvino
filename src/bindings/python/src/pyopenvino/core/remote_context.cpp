@@ -6,9 +6,9 @@
 
 #include <pybind11/stl.h>
 
+#include <openvino/runtime/core.hpp>
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
-#include <openvino/runtime/core.hpp>
 
 namespace py = pybind11;
 
@@ -66,9 +66,10 @@ void regclass_VAContext(py::module m) {
     py::class_<VAContextWrapper, ClContextWrapper, std::shared_ptr<VAContextWrapper>> cls(m, "VAContext");
 
     cls.def(py::init([](ov::Core& core, VADisplayWrapper& display, int target_tile_id) {
-                ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
-                                            {ov::intel_gpu::va_device.name(), display.get_display_ptr()},
-                                            {ov::intel_gpu::tile_id.name(), target_tile_id}};
+                ov::AnyMap context_params = {
+                    {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
+                    {ov::intel_gpu::va_device.name(), display.get_display_ptr()},
+                    {ov::intel_gpu::tile_id.name(), target_tile_id}};               
                 auto ctx = core.create_context("GPU", context_params);
                 return VAContextWrapper(ctx);
             }),
