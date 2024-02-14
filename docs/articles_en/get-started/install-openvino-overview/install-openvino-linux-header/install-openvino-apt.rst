@@ -13,7 +13,6 @@ Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Reposito
    Note that the APT distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
 
