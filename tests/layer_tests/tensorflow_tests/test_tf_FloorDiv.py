@@ -8,6 +8,7 @@ import platform
 from common.tf_layer_test_class import CommonTFLayerTest
 
 rng = np.random.default_rng()
+arm_xfail_mark = pytest.mark.xfail(condition=platform.machine() == 'arm64', reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
 
 class TestFloorDiv(CommonTFLayerTest):
     dtype = np.int32
@@ -45,13 +46,14 @@ class TestFloorDiv(CommonTFLayerTest):
 
     # TODO: implement tests for 2 Consts + Add
 
+    
     test_data_1D = [
-        dict(x_shape=[], dtype=np.int32),
-        dict(x_shape=[2], dtype=np.int64),
-        dict(x_shape=[2, 4, 5], dtype=np.int32),
-        dict(x_shape=[2, 4, 5], dtype=np.uint32),
-        dict(x_shape=[2, 4, 5], dtype=np.uint64),
-        
+        pytest.param(dict(x_shape=[], dtype=np.int32), marks=arm_xfail_mark),
+        pytest.param(dict(x_shape=[2], dtype=np.int64), marks=arm_xfail_mark),
+        pytest.param(dict(x_shape=[2, 4, 5], dtype=np.int32), marks=arm_xfail_mark),
+        pytest.param(dict(x_shape=[2, 4, 5], dtype=np.uint32), marks=arm_xfail_mark),
+        pytest.param(dict(x_shape=[2, 4, 5], dtype=np.uint64), marks=arm_xfail_mark),
+
         dict(x_shape=[], dtype=np.float32),
         dict(x_shape=[2], dtype=np.float64),
         dict(x_shape=[2, 4, 5], dtype=np.float32),
@@ -114,6 +116,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
+    @arm_xfail_mark
     def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend):
         self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,
