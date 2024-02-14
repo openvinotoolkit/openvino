@@ -13,7 +13,7 @@ Inverse
 
 **Short description**: *Inverse* operation computes either the inverse or adjoint (conjugate transposes) of one or a batch of square invertible matrices.
 
-**Detailed description**: *Inverse* operation computes the inverse of a square matrix. The operation uses LU decomposition with partial pivoting to compute the inverses. (`LU decomposotion with partial pivoting algorithm <https://jonshiach.github.io/ODEs-book/pages/5.3_LUP_decomposition.html>`__)
+**Detailed description**: *Inverse* operation computes the inverse of a square matrix. The operation uses LU decomposition with partial pivoting to compute the inverses. (`LU decomposotion with partial pivoting algorithm <https://arxiv.org/abs/2304.03068>`__)
 
 The inverse matrix A^(-1) of a square matrix A is defined as:
 
