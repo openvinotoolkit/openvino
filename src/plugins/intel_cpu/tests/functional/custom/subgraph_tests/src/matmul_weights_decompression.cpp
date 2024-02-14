@@ -441,9 +441,9 @@ const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::ele
 
 std::vector<ov::AnyMap> filter_additional_config_dyn_quant() {
     std::vector<ov::AnyMap> additional_config = {
-        {{ov::dynamic_quantization_group_size(0)}}, // dynamic quantization is disabled
-        {{ov::dynamic_quantization_group_size(16)}},
-        {{ov::dynamic_quantization_group_size(128)}},
+        {{ov::hint::dynamic_quantization_group_size(0)}}, // dynamic quantization is disabled
+        {{ov::hint::dynamic_quantization_group_size(16)}},
+        {{ov::hint::dynamic_quantization_group_size(128)}},
     };
     return additional_config;
 }

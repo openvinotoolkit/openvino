@@ -12,6 +12,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
+#include "utils/cpu_utils.hpp"
 
 #include <algorithm>
 #include <map>
@@ -215,12 +216,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
-        } else if (key == ov::dynamic_quantization_group_size.name()) {
+        } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
-                                ov::dynamic_quantization_group_size.name(),
+                                ov::hint::dynamic_quantization_group_size.name(),
                                 ". Expected only unsinged integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
@@ -340,6 +341,21 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                "for property key ",
                                ov::hint::execution_mode.name(),
                                ". Supported values: ov::hint::ExecutionMode::PERFORMANCE/ACCURACY");
+            }
+        } else if (key == ov::hint::kv_cache_precision.name()) {
+            try {
+                auto const prec = val.as<ov::element::Type>();
+                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                    kvCachePrecision = prec;
+                } else {
+                     OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::hint::kv_cache_precision.name(),
+                               ". Supported values: u8, bf16, f16, f32");
             }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");

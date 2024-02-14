@@ -504,6 +504,26 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
  */
 static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
 
+/**
+ * @brief This property defines group size for dynamic quantization optimization
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Dynamic quantization optimization provides an ability to get performance benefit from int8 compute.
+ * In contrast with static quantization dynamic approach assumes activations are quantized during inference.
+ * Despite the fact dynamic quantization has some runtime overheads, it might provide better accuracy metrics.
+ * This property defines granularity (aka block size) for dynamic quantization algorithms. Lower group size values
+ * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
+ * quantization optimization is disabled.
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
+    "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
+
+/**
+ * @brief Hint for device to use specified precision for kv cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
+
 }  // namespace hint
 
 /**
@@ -1159,17 +1179,4 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
-/**
- * @brief This property defines group size for dynamic quantization optimization
- * @ingroup ov_runtime_cpp_prop_api
- *
- * Dynamic quantization optimization provides an ability to get performance benefit from int8 compute.
- * In contrast with static quantization dynamic approach assumes activations are quantized during inference.
- * Despite the fact dynamic quantization has some runtime overheads, it might provide better accuracy metrics.
- * This property defines granularity (aka block size) for dynamic quantization algorithms. Lower group size values
- * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
- * quantization optimization is disabled.
- */
-static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
-    "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 }  // namespace ov

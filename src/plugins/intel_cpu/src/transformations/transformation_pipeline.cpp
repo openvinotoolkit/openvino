@@ -288,8 +288,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4};
-    bool fold_subtract_const = config.fcDynamicQuantizationGroupSize != 0;
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, fold_subtract_const);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions,
+        config.fcDynamicQuantizationGroupSize != 0);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
