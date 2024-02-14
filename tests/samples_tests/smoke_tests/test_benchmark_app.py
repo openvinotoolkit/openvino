@@ -20,7 +20,7 @@ import pathlib
 import requests
 import time
 import zipfile
-
+import multiprocessing
 
 def bare(test_data_dir, file_path):
     if file_path.exists():
@@ -40,15 +40,15 @@ def bare(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-@pytest.mark.parametrize('counter', range(9999))
-def test_bare(counter, cache):
-    test_data_dir = cache.mkdir('test_data')
-    model = bare(test_data_dir, pathlib.Path('test.txt'))
-    try:
-        subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-        print(error.output)
-        raise
+# @pytest.mark.parametrize('counter', range(9999))
+# def test_bare(counter, cache):
+#     test_data_dir = cache.mkdir('test_data')
+#     model = bare(test_data_dir, pathlib.Path('test.txt'))
+#     try:
+#         subprocess.check_output([sys.executable, '-c', f'fd = open(r"{model}", "br"); fd.read(); fd.close()'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
+#     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+#         print(error.output)
+#         raise
 
 def download(test_data_dir, file_path):
     if file_path.exists():
@@ -69,12 +69,16 @@ def download(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-@pytest.mark.parametrize('counter', range(9999))
-def test(counter, cache):
-    test_data_dir = cache.mkdir('test_data')
-    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+def starter(model):
     try:
         subprocess.check_output([sys.executable, '-c', 'import openvino as ov; core = ov.Core(); core.set_property({"ENABLE_MMAP": False}); core.read_model(r"' + f'{model}")'], stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(error.output)
         raise
+
+
+def test(cache):
+    test_data_dir = cache.mkdir('test_data')
+    model = download(test_data_dir, test_data_dir / 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP32/squeezenet1.1.xml')
+    pool = multiprocessing.Pool(processes=16)
+    pool.map(starter, [model] * 9999)
