@@ -138,7 +138,7 @@ public:
 template <typename BaseOp>
 class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
-    OPENVINO_OP(BaseOp::get_type_info_static().name, "type_relaxed_opset", BaseOp);
+    OPENVINO_OP(BaseOp::get_type_info_static().name, BaseOp::get_type_info_static().version_id, BaseOp);
 
     using BaseOp::BaseOp;
 
