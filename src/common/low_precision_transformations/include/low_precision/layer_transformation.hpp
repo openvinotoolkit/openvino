@@ -234,7 +234,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Base class for low precision transformation.
  */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
@@ -352,14 +352,13 @@ protected:
         TransformationContext &context,
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
+        const bool updateOutputPrecision = true,
         const bool moveSubtract = true) const;
 
     std::shared_ptr<ov::Node> moveDequantizationBefore(
         TransformationContext& context,
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
         const bool moveSubtract = true) const;
 
     bool updateOutput(

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SequenceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SequenceFusion transformation replaces a chain of Cells
  * operations with single Sequence op.
  *

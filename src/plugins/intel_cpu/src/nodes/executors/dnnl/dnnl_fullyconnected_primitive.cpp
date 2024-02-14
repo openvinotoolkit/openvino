@@ -318,9 +318,10 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
 
-static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc primDesc, const bool useSparseWeights) {
+static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
-    if (implType == ov::intel_cpu::brgemm_avx512_amx && useSparseWeights) {
+    if (implType == ov::intel_cpu::brgemm_avx512_amx &&
+        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {
         return ov::intel_cpu::brgemm_sparse_avx512_amx;
     }
 
@@ -340,7 +341,7 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                      implPriorities,
                                      key.sparseWeights,
                                      useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()))),
-      m_implType(implTypeFromPrimDesc(m_primDesc, key.sparseWeights)),
+      m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
       m_dstDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.dst_desc())),

@@ -10,8 +10,8 @@
 
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
-#include "validation_util.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 

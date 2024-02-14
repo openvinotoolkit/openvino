@@ -94,6 +94,7 @@
 #include "op/is_finite.hpp"
 #include "op/is_inf.hpp"
 #include "op/is_nan.hpp"
+#include "op/layer_normalization.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/less_or_equal.hpp"
@@ -192,8 +193,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
@@ -426,6 +428,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsFinite", 1, is_finite);
     REGISTER_OPERATOR("IsInf", 1, is_inf);
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_normalization);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
@@ -604,6 +607,6 @@ OperatorsBridge::OperatorsBridge() {
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

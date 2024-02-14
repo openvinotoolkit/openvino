@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 #include <array>
 
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/space_to_batch.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace std;
 using namespace testing;
@@ -363,7 +363,6 @@ TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_static) {
                                 {100, 150},
                                 {10 * 16, 20 * 16}}));
 }
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
     auto data_shape = ov::PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}};
@@ -377,7 +376,7 @@ TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
     auto batch_to_space = make_shared<ov::op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     EXPECT_EQ(batch_to_space->get_output_partial_shape(0),
-              (ov::PartialShape{{ngraph::ceil_div(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
+              (ov::PartialShape{{ov::util::ceil_div(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
                                 {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
                                 {9 * 5 - 1, 21 * 5 - 1},
                                 {100, 162},

@@ -19,6 +19,7 @@ def buildMap(commonPath, subPath=None):
 
 
 def printMap(args):
+    args = vars(args)
     if "-path" not in args:
         raise CfgError("No 'path' for map builder provided")
     if "-subPath" in args:

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace ov {
@@ -31,7 +31,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -104,6 +104,7 @@ TEST_P(InferRequestPropertiesTest, withoutExclusiveAsyncRequests) {
 }
 
 TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
+    ov::threading::executor_manager()->clear();
     ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());
     ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
 

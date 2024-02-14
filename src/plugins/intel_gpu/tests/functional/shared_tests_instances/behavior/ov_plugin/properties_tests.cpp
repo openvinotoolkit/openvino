@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
                          ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU")));
 
 // //
-// // IE Class GetMetric
+// // OV Class GetMetric
 // //
 
 INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
@@ -682,7 +682,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),
         ov::intel_gpu::execution_units_count.name(),
-        ov::intel_gpu::driver_version.name(),
         ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
     };
@@ -700,8 +699,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ASSERT_TRUE(std::find(caching_properties.begin(), caching_properties.end(), property_name) !=
                     caching_properties.end());
     }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -729,7 +726,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair("GPU", "1")));
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,
