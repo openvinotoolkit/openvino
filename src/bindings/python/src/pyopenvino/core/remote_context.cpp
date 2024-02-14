@@ -69,7 +69,7 @@ void regclass_VAContext(py::module m) {
                 ov::AnyMap context_params = {
                     {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
                     {ov::intel_gpu::va_device.name(), display.get_display_ptr()},
-                    {ov::intel_gpu::tile_id.name(), target_tile_id}};               
+                    {ov::intel_gpu::tile_id.name(), target_tile_id}};
                 auto ctx = core.create_context("GPU", context_params);
                 return VAContextWrapper(ctx);
             }),
