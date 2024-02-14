@@ -360,14 +360,14 @@ class Graph {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
                     unit: units.valueUnit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `INT8` }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
                     unit: units.efficiencyUnit,
-                    datasets: [{ data: null, color: '#E96115', label: `INT8` }],
+                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
                 };
             default:
                 return {};
@@ -948,24 +948,13 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            if (kpi === 'throughput') {
-                var throughputData = Graph.getDatabyKPI(model, kpi);
+            if (kpi === 'throughput' || kpi === 'latency') {
+                var kpiData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
-                    config.datasets[index].data = throughputData.map(tData => tData[prec]);
+                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
-                return config;
-                //to fix
-                // return removeEmptyLabel(config);
-            }
-            else if(kpi === 'latency'){
-                var latencyData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-                precisions.forEach((prec, index) => {
-                    config.datasets[index].data = latencyData.map(tData => tData[prec]); 
-                });
-                return config;
-                // return removeEmptyLabel(config);
+                return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
