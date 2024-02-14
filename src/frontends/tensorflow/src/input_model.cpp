@@ -587,13 +587,13 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
 
     if (m_default_places.find(internal_tensor_name) != m_default_places.end()) {
         return m_default_places.at(internal_tensor_name);
-    }
-    else if (m_default_places.find(internal_tensor_name + ":0") != m_default_places.end())
-    {
+    } else if (m_default_places.find(internal_tensor_name + ":0") != m_default_places.end()) {
         auto default_place = m_default_places.at(internal_tensor_name + ":0");
         std::vector<std::string> names = {internal_tensor_name};
-        auto new_place =
-            std::make_shared<TensorPlace>(m_input_model, default_place->get_partial_shape(), default_place->get_element_type(), names);
+        auto new_place = std::make_shared<TensorPlace>(m_input_model,
+                                                       default_place->get_partial_shape(),
+                                                       default_place->get_element_type(),
+                                                       names);
         m_default_places[internal_tensor_name] = new_place;
         return new_place;
     }

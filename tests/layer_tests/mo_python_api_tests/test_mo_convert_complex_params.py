@@ -206,13 +206,13 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [PartialShape([Dimension(-1), 5, 6]), [-1, 5, 6]],
                          'freeze_placeholder_with_value': 'Input3->[1]'},
 
-         'params_ref': {'input': 'Input1[?,5,6],Input2[?,5,6]',
+         'params_ref': {'input': 'Input1:0[?,5,6],Input2:0[?,5,6]',
                         'freeze_placeholder_with_value': 'Input3->[1]'}},
         {'params_test': {'input': [np.float16, np.float16],
                          'input_shape': [[10, 20], [10, 20]],
                          'freeze_placeholder_with_value': 'Input3->[1]'},
 
-         'params_ref': {'input': 'Input1{f16},Input2{f16}',
+         'params_ref': {'input': 'Input1:0{f16},Input2:0{f16}',
                         'input_shape': "[10,20],[10,20]",
                         'freeze_placeholder_with_value': 'Input3->[1]'}},
 

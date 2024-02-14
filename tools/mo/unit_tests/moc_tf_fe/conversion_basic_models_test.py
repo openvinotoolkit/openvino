@@ -143,7 +143,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                     {"in2:0": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
                     np.array([2, 4, 6], dtype=np.float32),
                     np.float32,
-                    "in1->[2.0 4.0 6.0],cond->True",
+                    "in1:0->[2.0 4.0 6.0],cond:0->True",
                     "[3]",
                     False
             ),
