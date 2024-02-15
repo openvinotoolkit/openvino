@@ -200,16 +200,13 @@ jobs:
 
       - name: OpenVINO Core Unit Tests
         continue-on-error: true
-        if: fromJSON(inputs.affected-components).Core.test || inputs.sanitizer-name
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: fromJSON(inputs.affected-components).inference.test || inputs.sanitizer-name
         run: |
-
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
           export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
 
