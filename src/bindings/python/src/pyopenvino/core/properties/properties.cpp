@@ -86,6 +86,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
+    wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
+    wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
 
     // Submodule intel_cpu
     py::module m_intel_cpu =

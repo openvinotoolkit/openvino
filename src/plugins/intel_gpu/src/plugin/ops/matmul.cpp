@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/op/indirect_gemm.hpp"
 
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -22,6 +23,7 @@ namespace ov {
 namespace op {
 namespace internal {
 using Gemm = ov::intel_gpu::op::Gemm;
+using IndirectGemm = ov::intel_gpu::op::IndirectGemm;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -186,8 +188,32 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     }
 }
 
+static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::IndirectGemm>& op) {
+    validate_inputs_count(op, {3});
+    auto inputs = p.GetInputInfo(op);
+    std::string layer_name = layer_type_name_ID(op);
+
+    auto alpha = 1.0f;
+    auto beta = 0.0f;
+
+    auto gemmPrim = cldnn::gemm(layer_name,
+                                std::vector<cldnn::input_info>{ inputs[0], inputs[1] },
+                                inputs[2],
+                                cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                op->get_input0_order(),
+                                op->get_input1_order(),
+                                op->get_output_order(),
+                                op->get_indirect_a(),
+                                op->get_indirect_b(),
+                                alpha,
+                                beta);
+
+    p.add_primitive(*op, gemmPrim);
+}
+
 REGISTER_FACTORY_IMPL(v0, MatMul);
 REGISTER_FACTORY_IMPL(internal, Gemm);
+REGISTER_FACTORY_IMPL(internal, IndirectGemm);
 
 }  // namespace intel_gpu
 }  // namespace ov
