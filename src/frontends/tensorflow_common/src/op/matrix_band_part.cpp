@@ -21,6 +21,9 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     default_op_checks(node, 3, {"MatrixBandPart"});
     // Input tensor and parameters
     auto input = node.get_input(0);
+    
+    auto num_lower = node.get_input(1);
+    auto num_upper = node.get_input(2);
 
     // Get the shape of the input tensor
     auto input_shape = make_shared<v3::ShapeOf>(input);
