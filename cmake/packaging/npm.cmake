@@ -15,7 +15,9 @@ macro(ov_cpack_settings)
         # filter out some components, which are not needed to be wrapped to npm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
             # python is not required for npm package
-            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
+            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" AND
+            NOT item MATCHES "openvino_extensions" AND
+            NOT item MATCHES "npu_internal")
              list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
