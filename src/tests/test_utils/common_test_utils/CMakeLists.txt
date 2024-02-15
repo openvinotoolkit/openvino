@@ -23,6 +23,8 @@ function(add_common_utils ADD_TARGET_NAME)
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CLANG_FORMAT
+            DEPENDENCIES
+                openvino_template_plugin
             LINK_LIBRARIES
                 PUBLIC
                     gtest

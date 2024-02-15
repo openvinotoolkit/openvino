@@ -5,4 +5,4 @@
 
 #include "common_test_utils/ov_plugin_cache.hpp"
 
-//Temporary keep this file to fix cross-repository dependencies for CI
+// Temporary keep this file to fix cross-repository dependencies for CI
