@@ -262,9 +262,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_RemoteContext(m);
     regclass_RemoteTensor(m);
-    regclass_ClContext(m);
-    regclass_ClImage2DTensor(m);
-    regclass_VADisplayWrapper(m);
     regclass_VAContext(m);
     regclass_VASurfaceTensor(m);
 

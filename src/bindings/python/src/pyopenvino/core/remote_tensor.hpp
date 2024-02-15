@@ -27,20 +27,11 @@ public:
 
 void regclass_RemoteTensor(py::module m);
 
-class ClImage2DTensorWrapper : public RemoteTensorWrapper {
+class VASurfaceTensorWrapper : public RemoteTensorWrapper {
 public:
-    ClImage2DTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
+    VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
 
-    ClImage2DTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
-};
-
-void regclass_ClImage2DTensor(py::module m);
-
-class VASurfaceTensorWrapper : public ClImage2DTensorWrapper {
-public:
-    VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): ClImage2DTensorWrapper{_tensor} {}
-
-    VASurfaceTensorWrapper(ov::RemoteTensor&& _tensor): ClImage2DTensorWrapper{std::move(_tensor)} {}
+    VASurfaceTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
 
     uint32_t surface_id() {
         return tensor.get_params().at(ov::intel_gpu::dev_object_handle.name()).as<uint32_t>();

@@ -53,12 +53,7 @@ from openvino.runtime import layout_helpers
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 
-# OpenCL related:
-from openvino._pyopenvino import ClContext
-from openvino._pyopenvino import ClImage2DTensor
-
 # libva related:
-from openvino._pyopenvino import VADisplayWrapper
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
 

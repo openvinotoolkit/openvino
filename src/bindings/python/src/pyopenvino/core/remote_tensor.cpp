@@ -59,18 +59,8 @@ void regclass_RemoteTensor(py::module m) {
     });
 }
 
-void regclass_ClImage2DTensor(py::module m) {
-    py::class_<ClImage2DTensorWrapper, RemoteTensorWrapper, std::shared_ptr<ClImage2DTensorWrapper>> cls(
-        m,
-        "ClImage2DTensor");
-
-    cls.def_property_readonly("data", [](ClImage2DTensorWrapper& self) {
-        Common::utils::raise_not_implemented();
-    });
-}
-
 void regclass_VASurfaceTensor(py::module m) {
-    py::class_<VASurfaceTensorWrapper, ClImage2DTensorWrapper, std::shared_ptr<VASurfaceTensorWrapper>> cls(
+    py::class_<VASurfaceTensorWrapper, RemoteTensorWrapper, std::shared_ptr<VASurfaceTensorWrapper>> cls(
         m,
         "VASurfaceTensor");
 

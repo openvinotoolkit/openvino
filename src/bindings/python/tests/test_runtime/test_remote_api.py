@@ -95,20 +95,12 @@ def test_compile_with_context():
     assert isinstance(compiled, ov.CompiledModel)
 
 
-def test_va_wrapper():
-    display = ov.VADisplayWrapper(None)
-    assert isinstance(display, ov.VADisplayWrapper)
-    with pytest.warns(RuntimeWarning, match="Release of VADisplay was not succesful!"):
-        display.release()
-
-
 @pytest.mark.skipif(
     "GPU" not in os.environ.get("TEST_DEVICE", ""),
     reason="Test can be only performed on GPU device!",
 )
 def test_va_context():
     core = ov.Core()
-    display = ov.VADisplayWrapper(None)
     with pytest.raises(RuntimeError) as context_error:
-        _ = ov.VAContext(core, display)
+        _ = ov.VAContext(core, None)
     assert "user handle is nullptr!" in str(context_error.value)
