@@ -492,7 +492,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                auto compiled_model = core.compile_model(model, target_device);
+                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
                     req.set_tensor(input.first, input.second);
@@ -537,7 +538,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                auto compiled_model = core.compile_model(model, target_device);
+                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
                     req.set_tensor(input.first, input.second);
