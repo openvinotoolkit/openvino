@@ -87,7 +87,7 @@ Imports and Settings
     from typing import Any, List, Dict
     from IPython.display import Video
     import openvino as ov
-
+    
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -111,15 +111,15 @@ each action. Read more about the dataset and the paper
     MODEL_NAME = "slowfast_r50"
     MODEL_REPOSITORY = "facebookresearch/pytorchvideo"
     DEVICE = "cpu"
-
+    
     # load the pretrained model from the repository
     model = torch.hub.load(
         repo_or_dir=MODEL_REPOSITORY, model=MODEL_NAME, pretrained=True, skip_validation=True
     )
-
+    
     # set the device to allocate tensors to. for example, "cpu" or "cuda"
     model.to(DEVICE)
-
+    
     # set the model to eval mode
     model.eval()
 
@@ -471,13 +471,13 @@ mapping to a dict for later use.
         "https://dl.fbaipublicfiles.com/pyslowfast/dataset/class_names/kinetics_classnames.json"
     )
     CLASSNAMES_FILE = "kinetics_classnames.json"
-
+    
     download_file(url=CLASSNAMES_SOURCE, directory=DATA_DIR, show_progress=True)
-
+    
     # load from json
     with open(DATA_DIR / CLASSNAMES_FILE, "r") as f:
         kinetics_classnames = json.load(f)
-
+    
     # load dict of id to class label mapping
     kinetics_id_to_classname = {}
     for k, v in kinetics_classnames.items():
@@ -498,7 +498,7 @@ the downloaded video.
     VIDEO_SOURCE = "https://dl.fbaipublicfiles.com/pytorchvideo/projects/archery.mp4"
     VIDEO_NAME = "archery.mp4"
     VIDEO_PATH = DATA_DIR / VIDEO_NAME
-
+    
     download_file(url=VIDEO_SOURCE, directory=DATA_DIR, show_progress=True)
     Video(VIDEO_PATH, embed=True)
 
@@ -550,8 +550,8 @@ helper functions to implement the preprocessing steps.
             new_width = int(math.floor((float(width) / height) * size))
         scaled = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
         return scaled.astype(np.float32)
-
-
+    
+    
     def center_crop(size: int, frame: np.ndarray) -> np.ndarray:
         """
         Center crop the input frame to size.
@@ -564,8 +564,8 @@ helper functions to implement the preprocessing steps.
         assert cropped.shape[0] == size, "Image height not cropped properly"
         assert cropped.shape[1] == size, "Image width not cropped properly"
         return cropped
-
-
+    
+    
     def normalize(array: np.ndarray, mean: List[float], std: List[float]) -> np.ndarray:
         """
         Normalize a given array by subtracting the mean and dividing the std.
@@ -578,8 +578,8 @@ helper functions to implement the preprocessing steps.
         array = array - mean
         array = array / std
         return array
-
-
+    
+    
     def pack_pathway_output(frames: np.ndarray, alpha: int = 4) -> List[np.ndarray]:
         """
         Prepare output as a list of arrays, each corresponding
@@ -594,8 +594,8 @@ helper functions to implement the preprocessing steps.
         )
         frame_list = [slow_pathway, fast_pathway]
         return frame_list
-
-
+    
+    
     def process_inputs(
         frames: List[np.ndarray],
         num_frames: int,
@@ -661,7 +661,7 @@ model.
         inputs = process_inputs(
             frames=frames, num_frames=num_frames, crop_size=crop_size, mean=mean, std=std
         )
-
+    
         if isinstance(model, ov.CompiledModel):
             # openvino compiled model
             output_blob = model.output(0)
@@ -670,17 +670,17 @@ model.
             # pytorch model
             predictions = model([torch.from_numpy(inp) for inp in inputs])
             predictions = predictions.detach().cpu().numpy()
-
+    
         def softmax(x):
             return (np.exp(x) / np.exp(x).sum(axis=None))
-
+    
         # apply activation
         predictions = softmax(predictions)
-
+    
         # top k predicted class IDs
         topk = 5
         pred_classes = np.argsort(-1 * predictions, axis=1)[:, :topk]
-
+    
         # Map the predicted classes to the label names
         pred_class_names = [id_to_label_mapping[int(i)] for i in pred_classes[0]]
         return pred_class_names
@@ -696,7 +696,7 @@ inference using the same. The top 5 predictions can be seen below.
     MEAN = [0.45, 0.45, 0.45]
     STD = [0.225, 0.225, 0.225]
     TOP_K = 5
-
+    
     predictions = run_inference(
         model=model,
         video_path=str(VIDEO_PATH),
@@ -708,7 +708,7 @@ inference using the same. The top 5 predictions can be seen below.
         mean=MEAN,
         std=STD,
     )
-
+    
     print(f"Predicted labels: {', '.join(predictions)}")
 
 
@@ -737,18 +737,18 @@ either be compiled and inferred or serialized.
         def __init__(self, model):
             super().__init__()
             self.model = model
-
+    
         def forward(self, input):
             return model(list(input))
-
-
+    
+    
     dummy_input = [torch.randn((1, 3, 8, 256, 256)), torch.randn([1, 3, 32, 256, 256])]
-
+    
     model = ov.convert_model(ModelWrapper(model), example_input=(dummy_input,))
     IR_PATH = MODEL_DIR / "slowfast-r50.xml"
-
-
-
+    
+    
+    
     # serialize model for saving IR
     ov.save_model(model=model, output_model=str(IR_PATH), compress_to_fp16=False)
 
@@ -761,7 +761,7 @@ using the ``weights`` parameter.
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
@@ -775,14 +775,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 

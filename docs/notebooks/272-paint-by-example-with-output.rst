@@ -1,10 +1,23 @@
 Paint By Example: Exemplar-based Image Editing with Diffusion Models
 ====================================================================
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Stable Diffusion in Diffusers
+   library <#stable-diffusion-in-diffusers-library>`__
+-  `Download default images <#download-default-images>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To work with Stable Diffusion, we will use the Hugging Face
+To work with Stable Diffusion,
+we will use the Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with in-painting we can use Diffusers which exposes the
 `StableDiffusionInpaintPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
@@ -94,6 +107,8 @@ This might take several minutes because it is over 5GB
 Download default images
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 Download default images.
 
 .. code:: ipython3
@@ -167,6 +182,8 @@ Download default images.
 
 Convert models to OpenVINO Intermediate representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Adapted from `236 Stable Diffusion v2 Infinite Zoom
 notebook <236-stable-diffusion-v2-with-output.html>`__
@@ -414,6 +431,8 @@ Do the conversion of the VAE Encoder model
 
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Function to prepare the mask and masked image.
 
@@ -819,6 +838,8 @@ select device from dropdown list for running inference using OpenVINO
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 Configuration steps: 1. Load models on device 2. Configure tokenizer and
 scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
 class
@@ -974,5 +995,5 @@ This can take a while to run.
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

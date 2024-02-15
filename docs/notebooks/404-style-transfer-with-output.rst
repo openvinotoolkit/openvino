@@ -28,23 +28,27 @@ Additionally, you can also upload a video file.
    server, the webcam will not work but you can run inference, using a
    video file.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Preparation <#preparation>`__
 
-- `Preparation <#preparation>`__
-- `Install requirements <#install-requirements>`__
-- `Imports <#imports>`__
-- `The Model <#the-model>`__
-- `Download the Model <#download-the-model>`__
-- `Convert ONNXModel to OpenVINO IR Format <#convert-onnx-model-to-openvino-ir-format>`__
-- `Load the Model <#load-the-model>`__
-- `Preprocess the image <#preprocess-the-image>`__
-- `Helper function to postprocess the stylized image <#helper-function-to-postprocess-the-stylized-image>`__
-- `Main Processing Function <#main-processing-function>`__
-- `Run Style Transfer Using a Webcam <#run-style-transfer-using-a-webcam>`__
-- `Run Style Transfer on a Video File <#run-style-transfer-on-a-video-file>`__
-- `References <#references>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
 
+-  `The Model <#the-model>`__
+
+   -  `Download the Model <#download-the-model>`__
+   -  `Convert ONNX Model to OpenVINO IR
+      Format <#convert-onnx-model-to-openvino-ir-format>`__
+   -  `Load the Model <#load-the-model>`__
+   -  `Preprocess the image <#preprocess-the-image>`__
+   -  `Helper function to postprocess the stylized
+      image <#helper-function-to-postprocess-the-stylized-image>`__
+   -  `Main Processing Function <#main-processing-function>`__
+   -  `Run Style Transfer <#run-style-transfer>`__
+
+-  `References <#references>`__
 
 Preparation
 -----------
