@@ -1753,6 +1753,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
+                // block format input in shape agnostic caused kernel build failure.
+                bool is_planar = format::is_default_format(fmt);
+                if (!is_planar)
+                    continue;
                 // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
@@ -1836,13 +1840,18 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
-
-        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
-            auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.get_input_layout();
-            if (input_layout.format.dimension() > 4) {
+        if (node.is_type<fully_connected>()) {
+            if (allow_new_shape_infer) {
+                // dnymaic case always requires bfyx format.
                 expected = format::bfyx;
-                node.set_preferred_input_fmt(0, format::bfyx);
+                node.set_preferred_input_fmt(0, expected);
+            } else {
+                auto& fc_node = node.as<fully_connected>();
+                auto input_layout = fc_node.get_input_layout();
+                if (input_layout.format.dimension() > 4) {
+                    expected = format::bfyx;
+                    node.set_preferred_input_fmt(0, format::bfyx);
+                }
             }
         }
     } else if (node.is_type<gather>()) {

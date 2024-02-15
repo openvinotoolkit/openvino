@@ -78,6 +78,17 @@ void compile_graph::run(program& p) {
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
             can_select_impl = true;
 
+        // shape agnostic kernel doesn't support block format input.
+        if (can_select_impl && node->is_dynamic()) {
+            for (const auto& dep : node->get_dependencies()) {
+                bool is_planar = format::is_default_format(dep.first->get_output_layout().format);
+                if (!is_planar) {
+                    can_select_impl = false;
+                    break;
+                }
+            }
+        }
+
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {
                 try {
