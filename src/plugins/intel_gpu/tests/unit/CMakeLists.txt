@@ -21,6 +21,7 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.hpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/variable_state.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/multi_tensor_variable_state.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_context.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_tensor.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp"

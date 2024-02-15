@@ -14,6 +14,7 @@ class engine;
 
 struct ShapePredictor {
 public:
+    using Ptr = std::shared_ptr<ShapePredictor>;
     ShapePredictor(const engine* engine, float buffers_preallocation_ratio)
         : _engine(engine)
         , _buffers_preallocation_ratio(buffers_preallocation_ratio) {
@@ -77,3 +78,9 @@ private:
 };
 
 }  // namespace cldnn
+
+namespace ov {
+namespace intel_gpu {
+using ShapePredictor = cldnn::ShapePredictor;
+}  // namespace intel_gpu
+}  // namespace ov
