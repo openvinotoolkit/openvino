@@ -909,23 +909,7 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
         } else {
             return false;
         }
-
-        const auto& in_node = strided_slice_node->get_input_node_shared_ptr(0);
-        const auto out_size = in_node->get_output_size();
-        if (out_size == 1) {
-            return replace_output_update_name(strided_slice_node->output(0), in_node->output(0));
-        }
-        // find correct output_index of in_node with several outputs
-        //  to connect with next to strided slice node
-        for (size_t out_idx = 0; out_idx < in_node->get_output_size(); ++out_idx) {
-            for (const auto& target_input : in_node->get_output_target_inputs(out_idx)) {
-                auto target_input_node = target_input.get_node()->shared_from_this();
-                if (target_input_node == strided_slice_node) {
-                    return replace_output_update_name(strided_slice_node->output(0), in_node->output(out_idx));
-                }
-            }
-        }
-        return false;
+        return replace_output_update_name(strided_slice_node->output(0), strided_slice_node->input_value(0));
     };
     auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, matcher_pass_callback);
@@ -971,21 +955,7 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
         if (strided_slice_node->get_input_partial_shape(0).is_static() &&
             strided_slice_node->get_output_partial_shape(0).is_static()) {
             if (strided_slice_node->get_input_shape(0) == strided_slice_node->get_output_shape(0)) {
-                const auto& in_node = strided_slice_node->get_input_node_shared_ptr(0);
-                const auto out_size = in_node->get_output_size();
-                if (out_size == 1) {
-                    return replace_output_update_name(strided_slice_node->output(0), in_node->output(0));
-                }
-                // find correct output_index of in_node with several outputs
-                //  to connect with next to strided slice node
-                for (size_t out_idx = 0; out_idx < in_node->get_output_size(); ++out_idx) {
-                    for (const auto& target_input : in_node->get_output_target_inputs(out_idx)) {
-                        auto target_input_node = target_input.get_node()->shared_from_this();
-                        if (target_input_node == strided_slice_node) {
-                            return replace_output_update_name(strided_slice_node->output(0), in_node->output(out_idx));
-                        }
-                    }
-                }
+                return replace_output_update_name(strided_slice_node->output(0), strided_slice_node->input_value(0));
             }
         }
         return false;
