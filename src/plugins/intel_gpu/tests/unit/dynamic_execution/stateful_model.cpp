@@ -206,7 +206,7 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                              ov::Shape{},                             // output shape
                              0,                                       // batch_dim
                              true),                                   // support_neg_ind
-                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0),
+                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);

@@ -14,6 +14,7 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
+    BEAM_TABLE_UPDATE,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
