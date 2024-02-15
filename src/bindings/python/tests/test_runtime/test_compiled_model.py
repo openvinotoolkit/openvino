@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import gc
+
 import pytest
 import numpy as np
 
@@ -27,6 +29,9 @@ def test_get_runtime_model(device):
     compiled_model = generate_relu_compiled_model(device)
     runtime_model = compiled_model.get_runtime_model()
     assert isinstance(runtime_model, Model)
+    # make sure runtime_model is destroyed before the dynamic library is unloaded, as described in issue #18388
+    del runtime_model
+    gc.collect()
 
 
 def test_export_import(device):
