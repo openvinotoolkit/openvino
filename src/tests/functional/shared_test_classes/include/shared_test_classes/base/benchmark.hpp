@@ -157,7 +157,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
                         return profile.node_type == node_type_name;
                     });
                 if (found_profile == profiling_info.end()) {
-                    IE_THROW() << "Cannot find operator by node type: " << node_type_name;
+                    OPENVINO_THROW("Cannot find operator by node type: ", node_type_name);
                 }
                 time += found_profile->real_time.count();
             }

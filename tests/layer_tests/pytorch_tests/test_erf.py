@@ -17,7 +17,7 @@ class TestErf(PytorchLayerTest):
     def create_model(self, mode="", input_dtype="float32"):
         import torch
         dtypes = {
-            "float32": torch.float32, 
+            "float32": torch.float32,
             "float64": torch.float64,
             "int32": torch.int32
         }
@@ -48,10 +48,11 @@ class TestErf(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("mode,input_dtype", [
         ("", "float32"), ("", "float64"), ("", "int32"),
         ("out", "float32"), ("out", "float64"),
         ("inplace", "float32"), ("inplace", "float64")])
     def test_erf(self, mode, input_dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(mode, input_dtype), ie_device, precision, ir_version, 
+        self._test(*self.create_model(mode, input_dtype), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_dtype": input_dtype, "out": mode == "out"} )

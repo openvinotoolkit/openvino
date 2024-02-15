@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API SharedOpOptimization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SharedOpOptimization optimizes operations which are
  * sourcing from same Output<Node> and perform the same action on the same data
  */

@@ -55,6 +55,8 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
+    uint64_t fcDynamicQuantizationGroupSize = 0;
+    ov::element::Type kvCachePrecision = ov::element::f16;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
 #else
@@ -100,8 +102,6 @@ struct Config {
     void updateProperties();
 
     std::map<std::string, std::string> _config;
-
-    bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;

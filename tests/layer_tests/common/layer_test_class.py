@@ -5,9 +5,9 @@ import itertools
 import os
 import re
 import warnings
-import defusedxml.ElementTree as ET
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import InferAPI
@@ -91,7 +91,7 @@ class CommonLayerTest:
         else:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
-        # IE infer:
+        # OV infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:

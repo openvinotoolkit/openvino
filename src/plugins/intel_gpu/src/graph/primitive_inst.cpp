@@ -22,6 +22,7 @@
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
+#include "strided_slice_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -101,10 +102,15 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        return false;
+        // TODO : refactor these as runtime_skippable_nodes
+        // If the user is dynamic && runtime skippable gather or strided slice, we still need to its parents' completion
+        // event even though the user's program_node is can_be_optimized
+        if (!user->is_dynamic() || (!user->is_type<gather>() && !user->is_type<strided_slice>() &&
+                                    !user->is_type<concatenation>() && !user->is_type<reorder>()))
+            return false;
     }
-    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu() :
-                                              user->get_preferred_impl_type() == impl_types::cpu;
+    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
+                                            : user->get_preferred_impl_type() == impl_types::cpu;
     return is_cpu;
 }
 bool has_cpu_user_not_shape_of(const program_node* user) {
@@ -531,7 +537,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>()) {
+    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() || _node->is_type<strided_slice>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             return ev;
@@ -712,7 +718,15 @@ bool primitive_inst::use_async_compilation() {
         }
     }
 
-    return (_node->is_type<convolution>() || compile_fc_impls || _node->is_type<gemm>() ||
+    bool compile_gemm_impls = _node->is_type<gemm>();
+    if (compile_gemm_impls) {
+        // Do not async-compile if opt_gemm is chosen for iGPU
+        // Do async-compile if it is to be executed from onednn
+        compile_gemm_impls = _node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
+        compile_gemm_impls |= (_node->get_preferred_impl_type() == impl_types::onednn);
+    }
+
+    return (_node->is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -829,13 +843,7 @@ bool primitive_inst::update_impl() {
 
                         if (!can_be_optimized()) {
                             auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
-                            // In the case of gemm, if current dynamic impl is not gemm_ref and newly chosen impl is gemm_ref,
-                            // the newly chosen impl is not added to the impl cache for beffer performance.
-                            if (_node->is_type<gemm>() &&
-                                    (_node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") == std::string::npos) &&
-                                    impl->get_kernel_name().find("gemm_ref") != std::string::npos) {
-                                return;
-                            }
+
                             if (impl->get_kernels_source().size() > 0) {
                                 auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
                                 impl->set_kernels(kernels);
@@ -1109,6 +1117,30 @@ void primitive_inst::do_runtime_skip_permute() {
     set_can_be_optimized(true);
 }
 
+void primitive_inst::do_runtime_skip_strided_slice() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
+    // Check pattern
+    if (!get_node().is_type<strided_slice>() || !get_node().can_be_optimized())
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
+    auto input_layout = _impl_params->get_input_layout(0);
+    auto output_layout = _impl_params->get_output_layout();
+
+    // Check runtime shape (need to reset can_be_optimized)
+    if (input_layout != output_layout) {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
+                               << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;
+        return;
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -1232,6 +1264,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         update_paddings();
         do_runtime_in_place_kv_cache();
         do_runtime_skip_permute();
+        do_runtime_skip_strided_slice();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
@@ -1316,7 +1349,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     } else {
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (out_of_order_queue || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -1490,20 +1523,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         if (_impl->is_dynamic() && !_impl->is_cpu()) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": initialize impl with dynamic impl " << _impl->get_kernel_name() << std::endl;
             _dynamic_impl = _impl->clone();
-            // Actual shape info layout is the following:
-            // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
-            // For each tensor we save max_rank dimensions in [bfvuwzyx] order
-            size_t num_dynamic_pads = 0;
-            for (auto& in : _node->get_dependencies()) {
-                const auto& dyn_pad_dims = in.first->get_output_layout(false).data_padding.get_dynamic_pad_dims().sizes();
-                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
-            }
-            for (auto& o : _node->get_output_layouts()) {
-                const auto& dyn_pad_dims = o.data_padding.get_dynamic_pad_dims().sizes();
-                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
-            }
-            const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
-            const int64_t shape_elements = buffers_count * layout::max_rank() + num_dynamic_pads * 2 /*pad_before + pad_after*/;
+            const int64_t shape_elements = node.get_total_shape_info_size();
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }
