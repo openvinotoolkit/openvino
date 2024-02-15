@@ -35,6 +35,27 @@ def test_get_default_context_gpu():
     assert isinstance(context, ov.RemoteContext)
     assert "GPU" in context.get_device_name()
 
+    context_params = context.get_params()
+
+    assert isinstance(context_params, dict)
+    assert list(context_params.keys()) == ["CONTEXT_TYPE", "OCL_CONTEXT", "OCL_QUEUE"]
+
+
+@pytest.mark.skipif(
+    "GPU" not in os.environ.get("TEST_DEVICE", ""),
+    reason="Test can be only performed on GPU device!",
+)
+def test_create_host_tensor_gpu():
+    core = ov.Core()
+    context = core.get_default_context("GPU")
+    assert isinstance(context, ov.RemoteContext)
+    assert "GPU" in context.get_device_name()
+
+    tensor = context.create_host_tensor(ov.Type.f32, ov.Shape([1, 2, 3]))
+
+    assert isinstance(tensor, ov.Tensor)
+    assert not isinstance(tensor, ov.RemoteTensor)
+
 
 @pytest.mark.skipif(
     "GPU" not in os.environ.get("TEST_DEVICE", ""),
@@ -47,6 +68,11 @@ def test_create_device_tensor_gpu():
     assert "GPU" in context.get_device_name()
 
     tensor = context.create_tensor(ov.Type.f32, ov.Shape([1, 2, 3]), {})
+    tensor_params = tensor.get_params()
+
+    assert isinstance(tensor_params, dict)
+    assert list(tensor_params.keys()) == ["MEM_HANDLE", "OCL_CONTEXT", "SHARED_MEM_TYPE"]
+
     assert isinstance(tensor, ov.Tensor)
     assert isinstance(tensor, ov.RemoteTensor)
     assert "GPU" in tensor.get_device_name()
