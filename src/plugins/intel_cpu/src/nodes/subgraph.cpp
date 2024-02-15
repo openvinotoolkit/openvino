@@ -17,10 +17,8 @@
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
-#include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
@@ -395,14 +393,8 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
-#ifdef SNIPPETS_LIBXSMM_TPP
-    const auto& lir = snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
-                                                                      std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
-    lir->set_loop_depth(std::min(2ul, lir->get_master_shape().size()));
-#else
     snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
                                                     std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
-#endif
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
@@ -667,7 +659,6 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     auto lowering_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
 #ifdef SNIPPETS_LIBXSMM_TPP
-    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
