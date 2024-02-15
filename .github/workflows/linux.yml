@@ -421,7 +421,7 @@ jobs:
           if-no-files-found: 'error'
         
       - name: Mandatory API Conformance Tests (Template)
-        if: ${{ matrix.TEST_TYPE == "API" }}
+        if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
