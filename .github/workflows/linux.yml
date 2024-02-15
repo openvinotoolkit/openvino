@@ -100,7 +100,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: 'releases/2024/0'
 
       #
       # Print system info
@@ -573,7 +573,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
+          ref: 'releases/2024/0'
 
       #
       # Dependencies
@@ -664,7 +664,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_tokenizers'
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
-          ref: 'master'
+          ref: 'releases/2024/0'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
