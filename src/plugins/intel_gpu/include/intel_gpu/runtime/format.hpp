@@ -441,9 +441,13 @@ struct format {
     type value;
 
     optional_value<format_traits> custom_traits = {};
+
     /// @brief Implicit conversion from format::type.
     format(type t) : value(t) {}
+
+    /// @brief custom format from format_traits.
     explicit format(const format_traits& traits) : value(format::custom), custom_traits(traits) {}
+
     /// @brief Implicit conversion to format::type.
     constexpr operator type() const { return value; }
 
