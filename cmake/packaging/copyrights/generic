@@ -414,7 +414,7 @@ License:
 Comment: The following third party programs have their own third party program files. These additional third party program files are as follows:
  
  oneAPI Deep Neural Network Library (oneDNN) Third Party Programs File is available here https://github.com/openvinotoolkit/openvino/blob/master/licensing/onednn_third-party-programs.txt
- Intel(R) Threading Building Blocks Third Party Programs File is available here https://github.com/openvinotoolkit/openvino/blob/master/licensing/tbb_third-party-programs.txt
+ Intel(R) Threading Building Blocks Third Party Programs File is available here https://github.com/openvinotoolkit/openvino/blob/master/licensing/onetbb_third-party-programs.txt
  
  -------------------------------------------------------------
  
