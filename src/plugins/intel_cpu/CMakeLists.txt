@@ -8,8 +8,8 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if(${CMAKE_CXX_STANDARD} GREATER_EQUAL 20)
-    ov_deprecated_featurs_no_errors()
+if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

@@ -63,34 +63,6 @@ macro(ov_deprecated_no_errors)
 endmacro()
 
 #
-# ov_deprecated_featurs_no_errors()
-#
-# Don't threat deprecated features of C++ as errors in current scope (directory, function)
-# Defines ov_c_cxx_deprecated_features_no_errors varaible which contains C / C++ compiler flags
-#
-macro(ov_deprecated_featurs_no_errors)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # show 4996 only for /w4
-        set(ov_c_cxx_deprecated_features_no_errors "")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if(WIN32)
-            set(ov_c_cxx_deprecated_features_no_errors "")
-        else()
-            set(ov_c_cxx_deprecated_features_no_errors "")
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-        set(ov_c_cxx_deprecated_features_no_errors "-Wno-error=deprecated")
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated_features_no_errors}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated_features_no_errors}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated_features_no_errors}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated_features_no_errors}")
-endmacro()
-
-#
 # ov_dev_package_no_errors()
 #
 # Exports flags for 3rdparty modules, but without errors

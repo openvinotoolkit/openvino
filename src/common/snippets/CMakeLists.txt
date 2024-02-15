@@ -16,8 +16,8 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
-if(${CMAKE_CXX_STANDARD} GREATER_EQUAL 20)
-    ov_deprecated_featurs_no_errors()
+if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
 add_library(${TARGET_NAME} STATIC
