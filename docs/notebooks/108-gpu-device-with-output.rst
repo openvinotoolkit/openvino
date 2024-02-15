@@ -218,7 +218,7 @@ for that property.
     indent = len(max(supported_properties, key=len))
     
     for property_key in supported_properties:
-        if property_key not in ('SUPPORTED_PROPERTIES'):
+        if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
             try:
                 property_val = core.get_property(device, property_key)
             except TypeError:
@@ -1337,7 +1337,7 @@ Process Results
         # Draw info at the top left such as current fps, the devices and the performance hint being used
         cv2.putText(frame, f"fps {str(round(frame_fps[current_frame], 2))}", (5, 20), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
         cv2.putText(frame, f"device {device_name}", (5, 40), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA) 
-        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT').name}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT')}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
     
         # prediction contains [image_id, label, conf, x_min, y_min, x_max, y_max] according to model
         for prediction in np.squeeze(results[current_frame]):
