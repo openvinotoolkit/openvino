@@ -12,6 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -71,6 +72,27 @@ OutputVector translate_var_mean(const NodeContext& context) {
         var = context.mark_node(std::make_shared<v1::Divide>(mul, n_minus_one));
     }
     return {var, mean};
+};
+
+OutputVector translate_var_mean_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto data = context.get_input(0);
+    auto num_elements = numel(context, data);
+    std::shared_ptr<ov::Node> mean;
+    ov::Output<ov::Node> axes;
+
+    axes = context.get_input(1);
+    mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
+
+    auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, mean));
+    auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
+    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, true));
+
+    ov::OutputVector out_vec;
+
+    out_vec.push_back(var);
+    out_vec.push_back(mean);
+    return {context.mark_node(make_list_construct(out_vec))};
 };
 
 OutputVector translate_var(const NodeContext& context) {

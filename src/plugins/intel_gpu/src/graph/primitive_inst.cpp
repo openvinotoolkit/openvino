@@ -1523,20 +1523,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         if (_impl->is_dynamic() && !_impl->is_cpu()) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": initialize impl with dynamic impl " << _impl->get_kernel_name() << std::endl;
             _dynamic_impl = _impl->clone();
-            // Actual shape info layout is the following:
-            // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
-            // For each tensor we save max_rank dimensions in [bfvuwzyx] order
-            size_t num_dynamic_pads = 0;
-            for (auto& in : _node->get_dependencies()) {
-                const auto& dyn_pad_dims = in.first->get_output_layout(false).data_padding.get_dynamic_pad_dims().sizes();
-                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
-            }
-            for (auto& o : _node->get_output_layouts()) {
-                const auto& dyn_pad_dims = o.data_padding.get_dynamic_pad_dims().sizes();
-                num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
-            }
-            const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
-            const int64_t shape_elements = buffers_count * layout::max_rank() + num_dynamic_pads * 2 /*pad_before + pad_after*/;
+            const int64_t shape_elements = node.get_total_shape_info_size();
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }
