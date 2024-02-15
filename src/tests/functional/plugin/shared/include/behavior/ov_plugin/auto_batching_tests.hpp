@@ -71,6 +71,7 @@ protected:
 
             if (target_device.find("CPU") != std::string::npos) {
                 config.insert(ov::num_streams(num_streams));
+                config.insert(ov::hint::inference_precision(ov::element::f32));
             }
             // minimize timeout to reduce test time
             config.insert(ov::auto_batch_timeout(1));
