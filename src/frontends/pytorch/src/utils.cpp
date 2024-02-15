@@ -384,39 +384,46 @@ Any simplified_type_interpret(Any type) {
     return type;
 }
 
-namespace {
-std::unordered_map<size_t, element::Type> bit_to_float{
-    {16, element::f16},
-    {32, element::f32},
-    {64, element::f64},
-};
-std::unordered_map<size_t, element::Type> bit_to_int{
-    // {4, element::i4}, torch don't have int4
-    {8, element::i8},
-    {16, element::i16},
-    {32, element::i32},
-    {64, element::i64},
-};
-}  // namespace
+bool is_python_scalar_input(const NodeContext& context, size_t index) {
+    return context.get_input_type(index).is<type::PyScalar>();
+}
 
-void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs) {
+void align_eltwise_input_types(const NodeContext& context,
+                               Output<Node>& lhs,
+                               Output<Node>& rhs,
+                               const bool& is_lhs_python_scalar,
+                               const bool& ir_rhs_python_scalar) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
+    auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
     auto out_type = context.get_output_type(0);
-    auto at = std::make_shared<ov::op::v14::ConvertPromoteTypes>(lhs, rhs, true, true, element::f32);
+    if (is_lhs_python_scalar && !ir_rhs_python_scalar) {
+        rhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(rhs, const_0));
+    } else if (!is_lhs_python_scalar && ir_rhs_python_scalar) {
+        lhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(lhs, const_0));
+    }
+
+    auto at = context.mark_node(std::make_shared<ov::op::v14::ConvertPromoteTypes>(lhs, rhs, true, true, element::f32));
     auto dst_type = at->get_output_element_type(0);
     if (dst_type.is_dynamic()) {
         lhs = at->output(0);
         rhs = at->output(1);
-        return;
+    } else {
+        // Cast to destination type
+        if (dst_type != lhs_type) {
+            lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, dst_type));
+        }
+        if (dst_type != rhs_type) {
+            rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
+        }
     }
-    // Cast to destination type
-    if (dst_type != lhs_type) {
-        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, dst_type));
+
+    if (is_lhs_python_scalar && !ir_rhs_python_scalar) {
+        rhs = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(rhs, const_0));
+    } else if (!is_lhs_python_scalar && ir_rhs_python_scalar) {
+        lhs = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(lhs, const_0));
     }
-    if (dst_type != rhs_type) {
-        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
-    }
+    return;
 }
 
 void align_output_types(const NodeContext& context, OutputVector& outputs) {

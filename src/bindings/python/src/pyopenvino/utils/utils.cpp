@@ -205,6 +205,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
+    } else if (any.is<ov::frontend::type::PyScalar>()) {
+        return py::cast(any.as<ov::frontend::type::PyScalar>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -394,6 +396,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::Str>(py_obj);
     } else if (py::isinstance<ov::frontend::type::PyNone>(py_obj)) {
         return py::cast<ov::frontend::type::PyNone>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::PyScalar>(py_obj)) {
+        return py::cast<ov::frontend::type::PyScalar>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;

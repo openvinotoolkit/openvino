@@ -23,7 +23,11 @@ OutputVector translate_sub_common(const NodeContext& context, bool inplace) {
         if (x.get_element_type().is_dynamic() || x.get_element_type() != y.get_element_type())
             y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
     } else {
-        align_eltwise_input_types(context, x, y);
+        align_eltwise_input_types(context,
+                                  x,
+                                  y,
+                                  is_python_scalar_input(context, 0),
+                                  is_python_scalar_input(context, 1));
     }
     // default alpha is 1 so no need to multiply if alpha is not provided
     if (!context.input_is_none(2)) {
@@ -49,7 +53,7 @@ OutputVector translate_sub_fx(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    align_eltwise_input_types(context, x, y);
+    align_eltwise_input_types(context, x, y, is_python_scalar_input(context, 0), is_python_scalar_input(context, 1));
     // default alpha is 1 so no need to multiply if alpha is not provided
     if (context.has_attribute("alpha")) {
         auto alpha = context.get_attribute<Output<Node>>("alpha");

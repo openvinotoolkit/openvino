@@ -35,6 +35,12 @@ struct Str {};
 
 struct PyNone {};
 
+struct PyScalar {
+    PyScalar() = default;
+    explicit PyScalar(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
 struct Optional;
 struct Dict;
 struct NamedTuple;

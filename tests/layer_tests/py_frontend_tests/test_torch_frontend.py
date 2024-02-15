@@ -2,17 +2,20 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-import numpy as np
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext, OpExtension
-from openvino.runtime import PartialShape, Type
-import openvino.runtime.opset10 as ops
-
-from pathlib import Path
 import glob
-import re
-import os
+import itertools
 import math
+import os
+import re
+from pathlib import Path
+
+import numpy as np
+import openvino.runtime.opset10 as ops
+import pytest
+import torch
+from openvino.frontend import (ConversionExtension, FrontEndManager,
+                               NodeContext, OpExtension)
+from openvino.runtime import PartialShape, Type
 
 
 class aten_relu(torch.nn.Module):
@@ -298,9 +301,8 @@ def test_pytorch_telemetry():
 
 
 def test_state_dict_names():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-
     import torchvision
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     model = torch.hub.load("pytorch/vision", "resnet18", weights="DEFAULT")
     decoder = TorchScriptPythonDecoder(
         model, example_input=(torch.randn(1, 3, 224, 224),))
@@ -356,3 +358,115 @@ def test_shared_consts_reused():
                     const_names.remove(name)
                     assert len(n.output(0).get_target_inputs()) == 2, f"Constant {n} is not reused"
     assert len(const_names) == 0, f"Not all constants were found: {const_names}"
+
+
+@pytest.mark.parametrize(
+    ("l_type", "r_type"),
+    itertools.product(
+        [
+            float,
+            int,
+            torch.bool,
+            torch.uint8,
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.bfloat16,
+            torch.float16,
+            torch.float32,
+            torch.float64,
+        ],
+        repeat=2,
+    ),
+)
+@pytest.mark.parametrize("l_scalar", [True, False])
+@pytest.mark.parametrize("r_scalar", [True, False])
+def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
+    if l_type == r_type == torch.bool:
+        pytest.skip("Add does not support both inputs being bool.")
+    from openvino.frontend.pytorch.ts_decoder import (TorchScriptPythonDecoder,
+                                                      pt_to_ov_type_map)
+
+    # from openvino.frontend.pytorch.utils import pt_to_ov_type_map
+    class aten_add_t_t(torch.nn.Module):
+        def forward(self, x: torch.Tensor, y: torch.Tensor):
+            return torch.add(x, y)
+
+    class aten_add_int_int(torch.nn.Module):
+        def forward(self, x: int, y: int):
+            return torch.add(x, y)
+
+    class aten_add_float_float(torch.nn.Module):
+        def forward(self, x: float, y: float):
+            return torch.add(x, y)
+
+    class aten_add_int_float(torch.nn.Module):
+        def forward(self, x: int, y: float):
+            return torch.add(x, y)
+
+    class aten_add_float_int(torch.nn.Module):
+        def forward(self, x: float, y: int):
+            return torch.add(x, y)
+
+    class aten_add_t_int(torch.nn.Module):
+        def forward(self, x: torch.Tensor, y: int):
+            return torch.add(x, y)
+
+    class aten_add_int_t(torch.nn.Module):
+        def forward(self, x: int, y: torch.Tensor):
+            return torch.add(x, y)
+
+    class aten_add_t_float(torch.nn.Module):
+        def forward(self, x: torch.Tensor, y: float):
+            return torch.add(x, y)
+
+    class aten_add_float_t(torch.nn.Module):
+        def forward(self, x: float, y: torch.Tensor):
+            return torch.add(x, y)
+
+    l_t = "t"
+    r_t = "t"
+
+    if isinstance(l_type, type):
+        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(l_type.__name__))
+        pt_lhs = l_type(5)
+        l_t = l_type.__name__
+    elif l_scalar:
+        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(l_type)))
+        pt_lhs = torch.tensor(1, dtype=l_type)
+    else:
+        ov_lhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(l_type)))
+        pt_lhs = torch.rand([2, 2]).to(dtype=l_type)
+
+    if isinstance(r_type, type):
+        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(r_type.__name__))
+        pt_rhs = r_type(5)
+        r_t = r_type.__name__
+    elif r_scalar:
+        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(r_type)))
+        pt_rhs = torch.tensor(1, dtype=r_type)
+    else:
+        ov_rhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(r_type)))
+        pt_rhs = torch.rand([2, 2]).to(dtype=r_type)
+    model = get_scripted_model(locals().get(f"aten_add_{l_t}_{r_t}")())
+    decoder = TorchScriptPythonDecoder(model)
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    im = fe.load(decoder)
+    lhs_place = im.get_place_by_tensor_name("x.1")
+    rhs_place = im.get_place_by_tensor_name("y.1")
+    im.set_element_type(lhs_place, ov_lhs.get_output_element_type(0))
+    im.set_element_type(rhs_place, ov_rhs.get_output_element_type(0))
+    im.set_partial_shape(lhs_place, ov_lhs.get_output_partial_shape(0))
+    im.set_partial_shape(rhs_place, ov_rhs.get_output_partial_shape(0))
+    om = fe.convert(im)
+    pt_out = model(pt_lhs, pt_rhs)
+    if isinstance(pt_out, (float, int, bool)):
+        pt_out_type = type(pt_out).__name__
+        pt_out_shape = []
+    else:
+        pt_out_type = pt_out.dtype
+        pt_out_shape = pt_out.size()
+    assert pt_to_ov_type_map.get(str(pt_out_type)) == om.get_output_element_type(0)
+    assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)

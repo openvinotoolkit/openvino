@@ -88,7 +88,13 @@ Any simplified_type_interpret(Any type);
 
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
-void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs);
+bool is_python_scalar_input(const NodeContext& context, size_t index);
+
+void align_eltwise_input_types(const NodeContext& context,
+                               Output<Node>& lhs,
+                               Output<Node>& rhs,
+                               const bool& is_lhs_python_scalar = false,
+                               const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
@@ -155,7 +161,11 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     // If type is string or None, we shouldn't align
     if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
         !rhs_type.is<type::PyNone>())
-        align_eltwise_input_types(context, lhs, rhs);
+        align_eltwise_input_types(context,
+                                  lhs,
+                                  rhs,
+                                  is_python_scalar_input(context, 0),
+                                  is_python_scalar_input(context, 1));
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);
     return res;

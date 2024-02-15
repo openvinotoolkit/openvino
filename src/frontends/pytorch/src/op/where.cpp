@@ -21,7 +21,7 @@ OutputVector translate_where(const NodeContext& context) {
     auto bool_cond = context.mark_node(std::make_shared<v0::Convert>(cond, element::boolean));
     auto x = context.get_input(1);
     auto y = context.get_input(2);
-    align_eltwise_input_types(context, x, y);
+    align_eltwise_input_types(context, x, y, is_python_scalar_input(context, 1), is_python_scalar_input(context, 2));
     return {context.mark_node(std::make_shared<v1::Select>(bool_cond, x, y))};
 };
 
