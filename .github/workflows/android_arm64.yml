@@ -90,6 +90,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'microsoft/vcpkg'
+          # Keep in sync with <root>/vcpkg.json <builtin-baseline>
+          ref: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
           path: 'vcpkg'
           fetch-depth: '0'
 
