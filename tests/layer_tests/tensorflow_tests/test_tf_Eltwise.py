@@ -8,7 +8,7 @@ from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestEltwise(CommonTFLayerTest):
-    def create_eltwise_net(self, shape, operation, ir_version, use_new_frontend):
+    def create_eltwise_net(self, shape, operation, ir_version, use_legacy_frontend):
         """
             Tensorflow net                 IR net
 
@@ -25,7 +25,7 @@ class TestEltwise(CommonTFLayerTest):
 
             tf_x_shape = shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
 
             x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
             y = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')  # Input_1 in graph_def
@@ -59,11 +59,11 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_eltwise(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_eltwise(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
-                                            use_new_frontend=use_new_frontend),
+                                            use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_5D = []
     for operation in ['sum', 'max', 'mul']:
@@ -73,10 +73,10 @@ class TestEltwise(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend):
+                                  use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_eltwise_net(**params, ir_version=ir_version,
-                                            use_new_frontend=use_new_frontend),
+                                            use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
