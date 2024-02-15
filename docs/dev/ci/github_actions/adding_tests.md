@@ -149,7 +149,7 @@ Additionally, [using a more powerful runner](./runners.md) can help shorten the 
 When adding a new workflow, check the execution times of existing workflows. The new workflow's
 execution time should not exceed the time of the longest workflow.
 
-If the workflow time-consuming, consider running it on a post-commit/nightly/weekly basis,
+If the workflow is time-consuming, consider running it on a post-commit/nightly/weekly basis,
 instead of pre-commit.
 Refer to the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflows-triggers-and-schedule)
 to learn more about triggers and schedules.
