@@ -16,7 +16,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
-if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
