@@ -32,7 +32,8 @@ public:
                         const dnnl::memory::data_type outDataType);
     DnnlPrimitiveAttrs compose();
     void appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose);
-    void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose);
+    void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose, ov::element::Type dstPrecision);
+    void setDynamicQuantizationParams(uint64_t groupSize);
 
 private:
     bool appendAttrPostOps(const ActivationPostOp& postOp, bool isLastPostOp, bool allowBinary = true);

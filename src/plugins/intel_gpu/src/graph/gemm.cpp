@@ -253,16 +253,21 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     auto beta = desc->beta;
     auto transpose_input0 = desc->transpose_input0 ? " true" : "false";
     auto transpose_input1 = desc->transpose_input1 ? " true" : "false";
+    auto indirect_input0 = desc->indirect_a ? " true" : "false";
+    auto indirect_input1 = desc->indirect_b ? " true" : "false";
     std::stringstream primitive_description;
 
     json_composite gemm_info;
     for (size_t i = 0; i < node.get_inputs_count(); i++) {
         gemm_info.add("input_" + std::to_string(i), node.input(i).id());
     }
+    gemm_info.add("beam_table", (desc->beam_table.is_valid() ? desc->beam_table.pid : "N/A"));
     gemm_info.add("alpha", alpha);
     gemm_info.add("beta", beta);
     gemm_info.add("trasnpose_input0", transpose_input0);
     gemm_info.add("transpose_input1", transpose_input1);
+    gemm_info.add("indirect_input0", indirect_input0);
+    gemm_info.add("indirect_input1", indirect_input1);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 
