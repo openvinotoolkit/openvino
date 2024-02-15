@@ -11,6 +11,31 @@ Model Demos
 
 Demos that demonstrate inference on a particular model.
 
+
+.. showcase::
+   :title: 284-openvoice
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/284-openvoice/284-openvoice.png
+
+   Voice tone cloning with OpenVoice and OpenVINO.
+
+.. showcase::
+   :title: 283-photo-maker
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/283-photo-maker/283-photo-maker.gif
+
+   Text-to-image generation using PhotoMaker and OpenVINO.
+
+.. showcase::
+   :title: 282-siglip-zero-shot-image-classification
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/228-clip-zero-shot-image-classification/228-clip-zero-shot-convert.png
+
+   Zero-shot Image Classification with SigLIP.
+
+.. showcase::
+   :title: 281-kosmos2-multimodal-large-language-model
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/281-kosmos2-multimodal-large-language-model/281-kosmos2-multimodal-large-language-model.png
+
+   Kosmos-2: Multimodal Large Language Model and OpenVINO.
+
 .. showcase::
    :title: 280-depth-anything
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/280-depth-anything/280-depth-anything.gif
@@ -441,11 +466,6 @@ Demos that demonstrate inference on a particular model.
 
    Use pre-trained models to detect and recognize vehicles and their attributes with OpenVINO.
 
-.. showcase::
-   :title: 217-vision-deblur
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/217-vision-deblur/217-vision-deblur.png
-
-   Deblur images with DeblurGAN-v2.
 
 .. showcase::
    :title: 216-attention-center
