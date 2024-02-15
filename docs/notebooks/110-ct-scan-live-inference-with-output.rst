@@ -18,7 +18,7 @@ This notebook needs a quantized OpenVINO IR model and images from the
 `KiTS-19 <https://github.com/neheller/kits19>`__ dataset, converted to
 2D images. (To learn how the model is quantized, see the `Convert and
 Quantize a UNet Model and Show Live
-Inference <110-ct-segmentation-quantize-nncf-with-output.html>`__ tutorial.)
+Inference <110-ct-segmentation-quantize-nncf.ipynb>`__ tutorial.)
 
 This notebook provides a pre-trained model, trained for 20 epochs with
 the full KiTS-19 frames dataset, which has an F1 score on the validation
@@ -80,14 +80,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 22:50:13.572016: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 22:50:13.606068: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 22:50:38.323593: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 22:50:38.357752: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 22:50:14.166493: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 22:50:38.922511: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Settings
@@ -140,7 +140,7 @@ Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 is a command-line application that can be run in the notebook with
 ``! benchmark_app`` or ``%sx benchmark_app`` commands.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+   **NOTE**: The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -198,7 +198,7 @@ is a command-line application that can be run in the notebook with
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.17 ms
+    [ INFO ] Read model took 13.02 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
@@ -216,7 +216,7 @@ is a command-line application that can be run in the notebook with
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 235.31 ms
+    [ INFO ] Compile model took 232.64 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
@@ -252,21 +252,21 @@ is a command-line application that can be run in the notebook with
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 24.14 ms
+    [ INFO ] First inference took 24.68 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1355 iterations
-    [ INFO ] Duration:         15007.81 ms
+    [ INFO ] Count:            1366 iterations
+    [ INFO ] Duration:         15004.33 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.84 ms
-    [ INFO ]    Average:       10.89 ms
-    [ INFO ]    Min:           10.58 ms
-    [ INFO ]    Max:           14.29 ms
-    [ INFO ] Throughput:   90.29 FPS
+    [ INFO ]    Median:        10.75 ms
+    [ INFO ]    Average:       10.80 ms
+    [ INFO ]    Min:           10.53 ms
+    [ INFO ]    Max:           12.59 ms
+    [ INFO ] Throughput:   91.04 FPS
 
 
 Download and Prepare Data
@@ -503,7 +503,7 @@ Create asynchronous inference queue and perform it
 
 .. parsed-literal::
 
-    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.24 seconds.
-    Total time to infer all frames: 2.762s
-    Time per frame: 0.040619s (24.619 FPS)
+    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.23 seconds.
+    Total time to infer all frames: 2.588s
+    Time per frame: 0.038061s (26.274 FPS)
 
