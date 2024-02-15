@@ -432,7 +432,7 @@ jobs:
             -sm=mandatory
 
       - name: Pack Conformance Artifacts
-        if: ${{ matrix.TEST_TYPE == "API" }}
+        if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
           tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
