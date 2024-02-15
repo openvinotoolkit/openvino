@@ -18,7 +18,7 @@ comes to generative models, OpenVINO supports:
   discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
 * Fused inference primitives, for example, Scaled Dot Product Attention, Rotary Positional Embedding, 
   Group Query Attention, Mixture of Experts, etc.
-* In-place KV-cache, dynamic quantization, KV-cache quantization and encapsulation.
+* In-place KV-cache, Dynamic quantization, KV-cache quantization and encapsulation.
 * Dynamic beam size configuration, Speculative sampling.
 
 
@@ -26,7 +26,7 @@ OpenVINO offers two main paths for Generative AI use cases:
 
 * Using OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through
   the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
-* Using OpenVINO native APIs (Python and C++) with custom pipeline code.
+* Using OpenVINO native APIs (Python and C++) with `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 
 In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred
@@ -200,6 +200,42 @@ Model usage remains the same for stateful and stateless models with the Optimum-
 The model's form matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
 This is because stateful and stateless models have a different number of inputs and outputs.
 Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
+
+Enabling OpenVINO runtime optimizations
++++++++++++++++++++++++++++++++++++++++
+OpenVINO runtime provides a set of optimizations that allows more efficient inference of LLMs. This includes Dynamic quantization of activations of 4/8-bit quantized MatMuls
+and KV-cache quantization.
+* Dynamic quantization enables quantization of activations of MatMul opterations that have 4 or 8-bit quantized weights (see `LLM Weight Compression <weight_compression>`__). 
+  It leads to improvement of the inference latency and throughput of LLMs but can cause some insignificant deviation in the generation accuracy. To enable  Dynamic quantization one should use the corresponding 
+  inference property as follows:
+
+
+.. code-block:: python
+
+    model = OVModelForCausalLM.from_pretrained(
+        model_path,
+        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": 32}
+    )
+
+
+  The number ``32`` stands for the group size of the activation values that share the same quantization parameters. The rule of thumb here is the larger the group size the faster the inference but the lower the accuracy.
+  We recommend using the values ``32``, ``64``, or ``128`` for this parameter.
+* KV-cache quantization allows lowering the precision of Key and Value cache in LLMs. This helps to reduce memory consumption during the inference and improve latency and throughput. KV-cache can be quantized into the following precisions:
+  ``Type.u8``, ``Type.bf16``, ``Type.f16``.  If ``Type.u8`` is used KV-cache quantization is also applied in a group-wise fashion. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if it is defined. 
+  Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+
+
+.. code-block:: python
+
+    model = OVModelForCausalLM.from_pretrained(
+        model_path,
+        ov_config={"KV_CACHE_PRECISION": openvino.Type.u8}
+    )
+
+
+.. note::
+
+  Currently, both Dynamic quantization and KV-cache quantization are available for CPU device.
 
 
 Working with Models Tuned with LoRA
