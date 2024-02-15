@@ -49,7 +49,26 @@ inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
     return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
 }
 
-#ifdef INPUT2_TYPE
+#if BEAM_TABLE_TERM
+inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BEAM_TABLE_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
+#else
+#   error gemm_ref.cl : Unsupported beam table format
+#endif
+}
+
+inline uint FUNC(get_bt_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INDIRECT_INPUT0
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT0_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+#endif
+}
+
+#endif // BEAM_TABLE_TERM
+
+#ifdef BIAS_TERM
 inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
@@ -65,7 +84,7 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 #endif
 }
-#endif // INPUT2_TYPE
+#endif // BIAS_TERM
 
 #define INPUT0_SIZE_F INPUT0_FEATURE_NUM
 #define INPUT0_SIZE_B INPUT0_BATCH_NUM
@@ -74,8 +93,11 @@ KERNEL(gemm_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input0,
     const __global INPUT1_TYPE* input1,
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     const __global INPUT2_TYPE* input2,
+#endif
+#if BEAM_TABLE_TERM
+    const __global BEAM_TABLE_TYPE* beam_table,
 #endif
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -100,8 +122,17 @@ KERNEL(gemm_ref)(
     ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
     for (uint ki = 0; ki < K; ++ki) {
-        uint in0_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki);
-        uint in1_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x);
+        uint b0 = b;
+        uint b1 = b;
+        #if INDIRECT_INPUT0
+            b0 = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki)] : b;
+        #endif
+        #if INDIRECT_INPUT1
+            b1 = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x)] : b;
+        #endif
+
+        uint in0_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, f, w, z, y, ki);
+        uint in1_idx = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b1, f, w, z, ki, x);
 
         ACCUMULATOR_TYPE val0 = TO_ACCUMULATOR_TYPE(input0[in0_idx]);
         ACCUMULATOR_TYPE val1 = TO_ACCUMULATOR_TYPE(input1[in1_idx]);
@@ -111,7 +142,7 @@ KERNEL(gemm_ref)(
 
     acc = TO_ACCUMULATOR_TYPE(ALPHA) * acc;
 
-#ifdef INPUT2_TYPE
+#ifdef BIAS_TERM
     {
         uint in2_idx = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
         ACCUMULATOR_TYPE val2 = TO_ACCUMULATOR_TYPE(input2[in2_idx]);
