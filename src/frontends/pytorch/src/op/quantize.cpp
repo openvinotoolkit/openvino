@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils_quantize.hpp"
 
 namespace ov {
@@ -29,6 +30,22 @@ OutputVector translate_quantize_per_channel(const NodeContext& context) {
     const auto axis = context.get_input(3);
     const auto dtype = convert_dtype(context.const_input<int64_t>(4));
     return {quantize(context, input, scales, zero_points, axis, dtype, QuantizedPtNodeType::QUANTIZE_PER_CHANNEL)};
+}
+
+OutputVector translate_fake_quantize_per_tensor_affine_fx(const NodeContext& context) {
+    num_inputs_check(context, 6, 6);
+    auto out = translate_quantize_per_tensor(context);
+    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+
+    return {context.mark_node(std::make_shared<v0::Unsqueeze>(out[0], axis_0))};
+}
+
+OutputVector translate_fake_quantize_per_channel_affine_fx(const NodeContext& context) {
+    num_inputs_check(context, 6, 6);
+    auto out = translate_quantize_per_channel(context);
+    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+
+    return {context.mark_node(std::make_shared<v0::Unsqueeze>(out[0], axis_0))};
 }
 
 }  // namespace op

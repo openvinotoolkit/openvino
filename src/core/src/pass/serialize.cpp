@@ -709,6 +709,16 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
+
+    // TODO: remove it one day: try to find opset name from RT info
+    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    auto opset_it = n->get_rt_info().find("opset");
+    if (opset_it != n->get_rt_info().end()) {
+        if (opset_it->second.is<std::string>()) {
+            return opset_it->second.as<std::string>();
+        }
+    }
+
     return n->get_type_info().version_id == nullptr ? "experimental" : n->get_type_info().version_id;
 }
 
