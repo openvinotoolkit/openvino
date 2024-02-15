@@ -43,7 +43,7 @@ class TestBinaryOps(CommonTFLayerTest):
         return inputs_dict
 
     def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
-                                         use_new_frontend):
+                                         use_legacy_frontend):
         """
             Tensorflow net                       IR net
 
@@ -52,7 +52,7 @@ class TestBinaryOps(CommonTFLayerTest):
             Const-------/                         Const-------/
 
         """
-        if not use_new_frontend and op_type == "Xdivy":
+        if not use_legacy_frontend and op_type == "Xdivy":
             pytest.xfail(reason="95499")
 
         self.current_op_type = op_type
@@ -101,8 +101,8 @@ class TestBinaryOps(CommonTFLayerTest):
             tf_x_shape = x_shape.copy()
             tf_y_shape = y_shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
+            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_legacy_frontend)
 
             x = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
             constant_value = generate_input(op_type, tf_y_shape)
@@ -140,14 +140,14 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_new_frontend):
-        if not use_new_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
+                       use_legacy_frontend):
+        if not use_legacy_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if precision == "FP16":
             pytest.skip("BinaryOps tests are skipped with FP16 precision."
                         "They don't pass accuracy checks because chaotic output.")
         self._test(
             *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                   use_new_frontend=use_new_frontend), ie_device,
+                                                   use_legacy_frontend=use_legacy_frontend), ie_device,
             precision,
-            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+            ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

@@ -10,7 +10,7 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestReLU6(CommonTFLayerTest):
-    def create_relu6_net(self, shape, ir_version, use_new_frontend):
+    def create_relu6_net(self, shape, ir_version, use_legacy_frontend):
         """
             Tensorflow net                 IR net
 
@@ -26,7 +26,7 @@ class TestReLU6(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
             input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.nn.relu6(input, name='Operation')
@@ -42,7 +42,7 @@ class TestReLU6(CommonTFLayerTest):
 
         ref_net = None
 
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
+        if check_ir_version(10, None, ir_version) and not use_legacy_frontend:
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
@@ -66,11 +66,11 @@ class TestReLU6(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_new_frontend):
+                             use_legacy_frontend):
         self._test(*self.create_relu6_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
+                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data = [dict(shape=[1]),
                  pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
@@ -80,8 +80,8 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_relu6_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
+                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

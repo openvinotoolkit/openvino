@@ -32,13 +32,13 @@ class CommonTF2LayerTest(CommonLayerTest):
             return self.get_tf2_keras_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)
+            return get_tflite_results(self.use_legacy_frontend, inputs_dict, model_path)
 
     def get_tf2_keras_results(self, inputs_dict, model_path):
         import tensorflow as tf
 
         result = dict()
-        if self.use_new_frontend:
+        if not self.use_legacy_frontend:
             imported = tf.saved_model.load(model_path)
             f = imported.signatures["serving_default"]
             result = f(**inputs_dict)

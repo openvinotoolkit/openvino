@@ -98,27 +98,27 @@ class TestAssignOps(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_assign(self, const_shape, input_type, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend):
+                    use_legacy_frontend):
         self._test(*self.create_assign_net(const_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.parametrize("const_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("assign_op", ['tf.raw_ops.AssignAdd', 'tf.raw_ops.AssignSub'])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_assign_ops(self, const_shape, assign_op, ie_device, precision, ir_version, temp_dir,
-                        use_new_frontend):
+                        use_legacy_frontend):
         self._test(*self.create_assign_op_net(const_shape, OPS[assign_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.parametrize("const_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("assign_op", ['tf.raw_ops.AssignAdd', 'tf.raw_ops.AssignSub'])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_assign_ops2(self, const_shape, assign_op, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_assign_op_net2(const_shape, OPS[assign_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

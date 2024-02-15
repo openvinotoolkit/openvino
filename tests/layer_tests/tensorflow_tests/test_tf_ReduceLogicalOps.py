@@ -21,8 +21,8 @@ class TestLogicalOps(CommonTFLayerTest):
     # axis - array which points on axis for the operation
     # op_type - type of tested operation
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_logical_ops_placeholder_const_net(self, input_shape, axis, op_type, ir_version, use_new_frontend):
+    # use_legacy_frontend - common parameter
+    def create_logical_ops_placeholder_const_net(self, input_shape, axis, op_type, ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -65,8 +65,8 @@ class TestLogicalOps(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_logical_ops_placeholder_const(self, params, op_type, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_logical_ops_placeholder_const_net(**params, op_type=op_type, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
