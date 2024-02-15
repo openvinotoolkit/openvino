@@ -106,7 +106,7 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
@@ -281,7 +281,11 @@ GPU.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 10.06 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Read model took 21.35 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -299,9 +303,13 @@ GPU.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 138.70 ms
+    [ INFO ] Compile model took 147.38 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+
+
+.. parsed-literal::
+
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
     [ INFO ]   NUM_STREAMS: 6
@@ -323,19 +331,19 @@ GPU.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.39 ms
+    [ INFO ] First inference took 7.28 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17544 iterations
-    [ INFO ] Duration:         15006.83 ms
+    [ INFO ] Count:            17502 iterations
+    [ INFO ] Duration:         15007.36 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.01 ms
-    [ INFO ]    Average:       5.00 ms
-    [ INFO ]    Min:           2.90 ms
-    [ INFO ]    Max:           14.27 ms
-    [ INFO ] Throughput:   1169.07 FPS
+    [ INFO ]    Median:        5.02 ms
+    [ INFO ]    Average:       5.02 ms
+    [ INFO ]    Min:           3.02 ms
+    [ INFO ]    Max:           13.94 ms
+    [ INFO ] Throughput:   1166.23 FPS
 

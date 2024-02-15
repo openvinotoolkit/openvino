@@ -9,7 +9,6 @@
 105-language-quantize-bert
 106-auto-device
 107-speech-recognition-quantization-data2vec
-111-yolov5-quantization-migration
 113-image-classification-quantization
 115-async-api
 116-sparsity-optimization
@@ -54,6 +53,8 @@
 268-table-question-answering
 277-amused-lightweight-text-to-image
 280-depth-anything
+282-siglip-zero-shot-image-classification
+284-openvoice
 305-tensorflow-quantization-aware-training
 401-object-detection
 404-style-transfer

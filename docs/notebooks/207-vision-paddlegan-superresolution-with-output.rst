@@ -161,7 +161,7 @@ source code.
 
 .. parsed-literal::
 
-    [01/25 23:27:55] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [02/09 23:42:09] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -289,12 +289,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-01-25 23:28:02 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-02-09 23:42:16 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0125 23:28:01.927830 812342 program_interpreter.cc:212] New Executor is Running.
+    I0209 23:42:16.006111 2843987 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -303,13 +303,13 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
-    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
-    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:28:05 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
+    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
+    2024-02-09 23:42:19 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
@@ -394,7 +394,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ff10225de20>
+    <matplotlib.image.AxesImage at 0x7fe9ebed32e0>
 
 
 
@@ -423,7 +423,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Inference duration: 3.26 seconds
+    Inference duration: 3.27 seconds
 
 
 .. code:: ipython3
@@ -446,7 +446,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ff0cc1894f0>
+    <matplotlib.image.AxesImage at 0x7fe9b40e3580>
 
 
 

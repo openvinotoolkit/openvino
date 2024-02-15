@@ -38,8 +38,23 @@ estimate performance for Pytorch and OpenVINO models using almost the
 same code. We also demonstrate how to make model stateful, that provides
 opportunity for processing model cache state.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Prerequisites <#prerequisites>`__
+-  `Convert model to OpenVINO Intermediate Representation (IR) and
+   compress model weights to INT4 using
+   NNCF <#convert-model-to-openvino-intermediate-representation-ir-and-compress-model-weights-to-int4-using-nncf>`__
+-  `Estimate model performance <#estimate-model-performance>`__
+-  `Apply stateful transformation for automatic handling model
+   state <#apply-stateful-transformation-for-automatic-handling-model-state>`__
+-  `Using model with Optimum Intel <#using-model-with-optimum-intel>`__
+-  `Interactive chatbot demo <#interactive-chatbot-demo>`__
+
 Prerequisites
 -------------
+
+
 
 For starting work, we should install required packages first
 
@@ -76,6 +91,8 @@ For starting work, we should install required packages first
 
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF
 --------------------------------------------------------------------------------------------------------
+
+
 
 llm_bench provides conversion script for converting LLMS into OpenVINO
 IR format compatible with Optimum-Intel. It also allows to compress
@@ -138,6 +155,8 @@ performance even more but introduces a minor drop in prediction quality.
 Estimate model performance
 --------------------------
 
+
+
 openvino.genai / llm_bench / python / benchmark.py script allow to
 estimate text generation pipeline inference on specific input prompt
 with given number of maximum generated tokens.
@@ -183,6 +202,8 @@ with given number of maximum generated tokens.
 
 Apply stateful transformation for automatic handling model state
 ----------------------------------------------------------------
+
+
 
 Stable Zephyr is a decoder-only transformer model and generates text
 token by token in an autoregressive fashion. Since the output side is
@@ -302,6 +323,8 @@ using ``--stateful`` flag on conversion step
 Using model with Optimum Intel
 ------------------------------
 
+
+
 Running model with Optimum-Intel API required following steps: 1.
 register normalized config for model 2. create instance of
 ``OVModelForCausalLM`` class using ``from_pretrained`` method and
@@ -325,6 +348,8 @@ sequence of generated token ids that should be decoded using a tokenizer
 
 Interactive chatbot demo
 ------------------------
+
+
 
 | Now, our model ready to use. Let’s see it in action. We will use
   Gradio interface for interaction with model. Put text message into

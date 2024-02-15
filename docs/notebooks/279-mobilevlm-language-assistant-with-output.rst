@@ -22,18 +22,22 @@ See more information on official
 `GitHub <https://github.com/Meituan-AutoML/MobileVLM>`__ project page
 and `paper <https://arxiv.org/abs/2312.16886>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Install requirements <#install-requirements>`__
-- `Clone MobileVLM repository <#clone-mobilevlm-repository>`__
-- `Import required packages <#import-required-packages>`__
-- `Load the model <#load-the-model>`__
-- `Convert model to OpenVINO Intermediate Representation (IR) <#convert-model-to-openvino-intermediate-representation-ir>`__
-- `Inference <#inference>`__
-- `Load OpenVINO model <#load-openvino-model>`__
-- `Prepare input data <#prepare-input-data>`__
-- `Run generation process <#run-generation-process>`__
-- `Interactive inference <#interactive-inference>`__
+-  `Install requirements <#install-requirements>`__
+-  `Clone MobileVLM repository <#clone-mobilevlm-repository>`__
+-  `Import required packages <#import-required-packages>`__
+-  `Load the model <#load-the-model>`__
+-  `Convert model to OpenVINO Intermediate Representation
+   (IR) <#convert-model-to-openvino-intermediate-representation-ir>`__
+-  `Inference <#inference>`__
+
+   -  `Load OpenVINO model <#load-openvino-model>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run generation process <#run-generation-process>`__
+
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/Meituan-AutoML/MobileVLM/raw/main/assets/mobilevlm_arch.png
 
@@ -50,7 +54,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -60,15 +64,15 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    datasets 2.16.1 requires huggingface-hub>=0.19.4, but you have huggingface-hub 0.17.3 which is incompatible.
-    diffusers 0.25.1 requires huggingface-hub>=0.20.2, but you have huggingface-hub 0.17.3 which is incompatible.
-    pyannote-audio 2.0.1 requires torchaudio<1.0,>=0.10, but you have torchaudio 2.1.2+cpu which is incompatible.
+    datasets 2.17.0 requires huggingface-hub>=0.19.4, but you have huggingface-hub 0.17.3 which is incompatible.
+    diffusers 0.26.2 requires huggingface-hub>=0.20.2, but you have huggingface-hub 0.17.3 which is incompatible.
+    pyannote-audio 2.0.1 requires torchaudio<1.0,>=0.10, but you have torchaudio 2.2.0+cpu which is incompatible.
 
 
 .. parsed-literal::
@@ -123,14 +127,26 @@ Import required packages
 
 .. parsed-literal::
 
-    2024-01-26 00:27:53.913638: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-26 00:27:53.947841: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/utils/generic.py:311: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/utils/generic.py:311: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+
+
+.. parsed-literal::
+
+    2024-02-10 00:45:20.724190: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-10 00:45:20.759074: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-26 00:27:54.575852: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-10 00:45:21.267446: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -168,25 +184,6 @@ image processor to convert images to appropriate tensors.
         warnings.simplefilter("ignore")
         tokenizer, model, image_processor, _ = load_pretrained_model(MODEL_PATH, device="cpu")
     model = model.to(dtype=torch.float32)
-
-
-
-.. parsed-literal::
-
-    Downloading pytorch_model.bin:   0%|          | 0.00/1.71G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading generation_config.json:   0%|          | 0.00/132 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)rocessor_config.json:   0%|          | 0.00/316 [00:00<?, ?B/s]
-
 
 Convert model to OpenVINO Intermediate Representation (IR)
 ----------------------------------------------------------
@@ -237,7 +234,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2023.1/weight_compression.html>`__.
+documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 
 Please select below whether you would like to run INT4 weight
 compression instead of INT8 weight compression.
@@ -360,20 +357,20 @@ compression instead of INT8 weight compression.
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 2.2.0+cpu. If you encounter issues, consider switching to torch==2.1.2
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:808: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:808: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:375: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:375: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:382: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:382: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
 
 
@@ -384,14 +381,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -415,11 +413,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -447,7 +449,7 @@ compression instead of INT8 weight compression.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:160: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
       if a.grad is not None:
 
 
@@ -458,10 +460,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -485,10 +492,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -806,5 +818,5 @@ Interactive inference
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

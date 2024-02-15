@@ -21,22 +21,28 @@ You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
 independently.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Image classification <#image-classification>`__
-- `Install required packages <#install-required-packages>`__
-- `Import libraries <#import-libraries>`__
-- `Download the classifier <#download-the-classifier>`__
-- `Download a single image to try the model on <#download-a-single-image-to-try-the-model-on>`__
-- `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
-- `Image style transfer <#image-style-transfer>`__
-- `Install required packages <#install-required-packages>`__
-- `Load the model <#load-the-model>`__
-- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
+-  `Image classification <#image-classification>`__
+
+   -  `Install required packages <#install-required-packages>`__
+   -  `Import libraries <#import-libraries>`__
+   -  `Download the classifier <#download-the-classifier>`__
+   -  `Download a single image to try the model
+      on <#download-a-single-image-to-try-the-model-on>`__
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Inference <#inference>`__
+
+-  `Image style transfer <#image-style-transfer>`__
+
+   -  `Install required packages <#install-required-packages>`__
+   -  `Load the model <#load-the-model>`__
+   -  `Convert the model to OpenVINO
+      IR <#convert-the-model-to-openvino-ir>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Inference <#inference>`__
 
 Image classification
 --------------------
@@ -125,8 +131,8 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
 .. parsed-literal::
 
-    2024-01-25 23:15:55.944757: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-01-25 23:15:55.944938: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-02-09 23:12:03.569013: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-02-09 23:12:03.569190: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Download a single image to try the model on

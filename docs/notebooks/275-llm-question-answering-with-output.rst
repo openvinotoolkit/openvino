@@ -77,8 +77,8 @@ Select model for inference
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
 
-**Note**: conversion of some models can require additional actions
-from user side and at least 64GB RAM for conversion.
+   **NOTE**: conversion of some models can require additional actions
+   from user side and at least 64GB RAM for conversion.
 
 The available options are:
 
@@ -251,10 +251,10 @@ instance and compresses its weights for Linear and Embedding layers. We
 will consider this variant in this notebook for both int4 and int8
 compression.
 
-   **Note**: This tutorial involves conversion model for FP16 and
+   **NOTE**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
    time-consuming in the first run. You can manually control the
-   compression precision below. **Note**: There may be no speedup for
+   compression precision below. **NOTE**: There may be no speedup for
    INT4/INT8 compressed models on dGPU
 
 .. code:: ipython3
@@ -447,7 +447,7 @@ Select device for inference and model variant
 
 
 
-   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 .. code:: ipython3
@@ -642,6 +642,8 @@ and then prints them when they are ready.
 
 Setup imports
 ~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 

@@ -76,7 +76,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -190,14 +190,14 @@ remote: Counting objects:  83% (117/140)[K
 remote: Counting objects:  84% (118/140)[K
 remote: Counting objects:  85% (119/140)[K
 remote: Counting objects:  86% (121/140)[K
-remote: Counting objects:  87% (122/140)[K
-remote: Counting objects:  88% (124/140)[K
-remote: Counting objects:  89% (125/140)[K
-remote: Counting objects:  90% (126/140)[K
 
 .. parsed-literal::
 
-    remote: Counting objects:  91% (128/140)[K
+    remote: Counting objects:  87% (122/140)[K
+remote: Counting objects:  88% (124/140)[K
+remote: Counting objects:  89% (125/140)[K
+remote: Counting objects:  90% (126/140)[K
+remote: Counting objects:  91% (128/140)[K
 remote: Counting objects:  92% (129/140)[K
 remote: Counting objects:  93% (131/140)[K
 remote: Counting objects:  94% (132/140)[K
@@ -313,137 +313,137 @@ Receiving objects:   6% (26/424)
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 3.22 MiB | 3.18 MiB/s
+    Receiving objects:   6% (26/424), 3.20 MiB | 3.16 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 6.64 MiB | 3.27 MiB/s
+    Receiving objects:   6% (26/424), 6.62 MiB | 3.26 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 10.07 MiB | 3.29 MiB/s
+    Receiving objects:   6% (26/424), 10.04 MiB | 3.29 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 13.49 MiB | 3.31 MiB/s
+    Receiving objects:   6% (26/424), 13.46 MiB | 3.31 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 16.91 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 16.88 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 20.32 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 20.31 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 23.75 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 23.73 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 27.17 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 27.15 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 30.60 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 30.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 34.01 MiB | 3.35 MiB/s
+    Receiving objects:   6% (26/424), 33.99 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (27/424), 35.72 MiB | 3.35 MiB/s
+    Receiving objects:   6% (27/424), 35.70 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 40.86 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 40.83 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 44.28 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 44.21 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 47.70 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 47.68 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 51.12 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 51.09 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 54.55 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 54.51 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 57.97 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 57.93 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 61.39 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 61.29 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 64.80 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 64.71 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 68.23 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 68.14 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 71.64 MiB | 3.35 MiB/s
+    Receiving objects:   6% (29/424), 71.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   7% (30/424), 71.64 MiB | 3.35 MiB/s
-Receiving objects:   8% (34/424), 71.64 MiB | 3.35 MiB/s
-Receiving objects:   9% (39/424), 71.64 MiB | 3.35 MiB/s
-Receiving objects:  10% (43/424), 71.64 MiB | 3.35 MiB/s
+    Receiving objects:   7% (30/424), 71.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  11% (47/424), 71.64 MiB | 3.35 MiB/s
+    Receiving objects:   8% (34/424), 71.57 MiB | 3.35 MiB/s
+Receiving objects:   9% (39/424), 71.57 MiB | 3.35 MiB/s
+Receiving objects:  10% (43/424), 71.57 MiB | 3.35 MiB/s
+Receiving objects:  11% (47/424), 71.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  11% (50/424), 75.06 MiB | 3.35 MiB/s
+    Receiving objects:  11% (50/424), 74.99 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  12% (51/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  13% (56/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  14% (60/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  15% (64/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  16% (68/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  17% (73/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  18% (77/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  19% (81/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  20% (85/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  21% (90/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  22% (94/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  23% (98/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  24% (102/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  25% (106/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  26% (111/424), 76.77 MiB | 3.35 MiB/s
-Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
+    Receiving objects:  12% (51/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  13% (56/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  14% (60/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  15% (64/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  16% (68/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  17% (73/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  18% (77/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  19% (81/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  20% (85/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  21% (90/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  22% (94/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  23% (98/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  24% (102/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  25% (106/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  26% (111/424), 76.69 MiB | 3.36 MiB/s
+Receiving objects:  27% (115/424), 76.69 MiB | 3.36 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 80.19 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 81.82 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 83.61 MiB | 3.34 MiB/s
+    Receiving objects:  27% (115/424), 83.54 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 87.04 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 86.96 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 90.45 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 90.43 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
@@ -451,15 +451,15 @@ Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 97.29 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 97.28 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 100.71 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 100.64 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 104.13 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 104.12 MiB | 3.36 MiB/s
 
 .. parsed-literal::
 
@@ -471,7 +471,7 @@ Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 114.39 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 114.38 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
@@ -479,7 +479,7 @@ Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 121.23 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 121.22 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
@@ -487,19 +487,19 @@ Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 128.07 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 128.05 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 131.49 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 131.48 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 134.91 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 134.90 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 138.33 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 138.32 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
@@ -507,334 +507,333 @@ Receiving objects:  27% (115/424), 76.77 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 145.16 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 145.17 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 148.57 MiB | 3.34 MiB/s
+    Receiving objects:  27% (115/424), 148.59 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 152.00 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 152.01 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 155.42 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 155.44 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 157.13 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 158.86 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 160.54 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 160.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 163.96 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 164.00 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 167.39 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 167.41 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 170.81 MiB | 3.35 MiB/s
+    Receiving objects:  27% (115/424), 170.83 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  28% (119/424), 170.81 MiB | 3.35 MiB/s
+    Receiving objects:  28% (119/424), 170.83 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  29% (123/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  30% (128/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  31% (132/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  32% (136/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  33% (140/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  34% (145/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  35% (149/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  36% (153/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  37% (157/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  38% (162/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  39% (166/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  40% (170/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  41% (174/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  42% (179/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  43% (183/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  44% (187/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  45% (191/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  46% (196/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  47% (200/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  48% (204/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  49% (208/424), 170.81 MiB | 3.35 MiB/s
-Receiving objects:  50% (212/424), 170.81 MiB | 3.35 MiB/s
+    Receiving objects:  29% (123/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  30% (128/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  31% (132/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  32% (136/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  33% (140/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  34% (145/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  35% (149/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  36% (153/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  37% (157/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  38% (162/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  39% (166/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  40% (170/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  41% (174/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  42% (179/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  43% (183/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  44% (187/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  45% (191/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  46% (196/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  47% (200/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  48% (204/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  49% (208/424), 170.83 MiB | 3.35 MiB/s
+Receiving objects:  50% (212/424), 170.83 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  51% (217/424), 172.52 MiB | 3.34 MiB/s
-Receiving objects:  52% (221/424), 172.52 MiB | 3.34 MiB/s
-Receiving objects:  53% (225/424), 172.52 MiB | 3.34 MiB/s
-Receiving objects:  54% (229/424), 172.52 MiB | 3.34 MiB/s
-Receiving objects:  55% (234/424), 172.52 MiB | 3.34 MiB/s
-Receiving objects:  56% (238/424), 172.52 MiB | 3.34 MiB/s
+    Receiving objects:  51% (217/424), 172.54 MiB | 3.35 MiB/s
+Receiving objects:  52% (221/424), 172.54 MiB | 3.35 MiB/s
+Receiving objects:  53% (225/424), 172.54 MiB | 3.35 MiB/s
+Receiving objects:  54% (229/424), 172.54 MiB | 3.35 MiB/s
+Receiving objects:  55% (234/424), 172.54 MiB | 3.35 MiB/s
+Receiving objects:  56% (238/424), 172.54 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 174.23 MiB | 3.34 MiB/s
+    Receiving objects:  56% (240/424), 174.25 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 177.65 MiB | 3.34 MiB/s
+    Receiving objects:  56% (240/424), 177.68 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 181.07 MiB | 3.34 MiB/s
+    Receiving objects:  56% (240/424), 181.10 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 184.50 MiB | 3.34 MiB/s
+    Receiving objects:  56% (240/424), 184.52 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 187.93 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 187.94 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 191.35 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 191.36 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 194.76 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 194.79 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 198.18 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 198.21 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 201.61 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 201.63 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 205.03 MiB | 3.35 MiB/s
+    Receiving objects:  56% (240/424), 205.06 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 208.38 MiB | 3.34 MiB/s
+    Receiving objects:  56% (240/424), 208.47 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  57% (242/424), 208.38 MiB | 3.34 MiB/s
-Receiving objects:  58% (246/424), 208.38 MiB | 3.34 MiB/s
-Receiving objects:  59% (251/424), 208.38 MiB | 3.34 MiB/s
-Receiving objects:  60% (255/424), 208.38 MiB | 3.34 MiB/s
-Receiving objects:  61% (259/424), 208.38 MiB | 3.34 MiB/s
+    Receiving objects:  57% (242/424), 208.47 MiB | 3.35 MiB/s
+Receiving objects:  58% (246/424), 208.47 MiB | 3.35 MiB/s
+Receiving objects:  59% (251/424), 208.47 MiB | 3.35 MiB/s
+Receiving objects:  60% (255/424), 208.47 MiB | 3.35 MiB/s
+Receiving objects:  61% (259/424), 208.47 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  61% (262/424), 211.80 MiB | 3.34 MiB/s
+    Receiving objects:  61% (262/424), 211.89 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  62% (263/424), 211.80 MiB | 3.34 MiB/s
+    Receiving objects:  62% (263/424), 211.89 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  62% (263/424), 215.22 MiB | 3.34 MiB/s
+    Receiving objects:  62% (263/424), 215.32 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  62% (264/424), 218.64 MiB | 3.34 MiB/s
+    Receiving objects:  62% (264/424), 218.74 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  62% (265/424), 222.07 MiB | 3.34 MiB/s
+    Receiving objects:  62% (265/424), 222.15 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  63% (268/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  64% (272/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  65% (276/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  66% (280/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  67% (285/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  68% (289/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  69% (293/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  70% (297/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  71% (302/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  72% (306/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  73% (310/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  74% (314/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  75% (318/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  76% (323/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  77% (327/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  78% (331/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  79% (335/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  80% (340/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  81% (344/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  82% (348/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  83% (352/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  84% (357/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  85% (361/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  86% (365/424), 222.07 MiB | 3.34 MiB/s
-Receiving objects:  87% (369/424), 222.07 MiB | 3.34 MiB/s
+    Receiving objects:  63% (268/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  64% (272/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  65% (276/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  66% (280/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  67% (285/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  68% (289/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  69% (293/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  70% (297/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  71% (302/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  72% (306/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  73% (310/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  74% (314/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  75% (318/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  76% (323/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  77% (327/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  78% (331/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  79% (335/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  80% (340/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  81% (344/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  82% (348/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  83% (352/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  84% (357/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  85% (361/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  86% (365/424), 222.15 MiB | 3.35 MiB/s
+Receiving objects:  87% (369/424), 222.15 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 225.49 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 225.57 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 228.91 MiB | 3.36 MiB/s
+    Receiving objects:  87% (370/424), 228.99 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 232.33 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 232.41 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 234.04 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 235.83 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 237.47 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 239.25 MiB | 3.36 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 240.89 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 240.97 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 244.27 MiB | 3.34 MiB/s
+    Receiving objects:  87% (370/424), 244.39 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 247.73 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 247.81 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 251.14 MiB | 3.34 MiB/s
+    Receiving objects:  87% (370/424), 251.23 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 254.57 MiB | 3.34 MiB/s
+    Receiving objects:  87% (370/424), 254.65 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 257.99 MiB | 3.35 MiB/s
+    Receiving objects:  87% (370/424), 258.08 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 261.41 MiB | 3.35 MiB/s
+    Receiving objects:  87% (371/424), 261.50 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 264.83 MiB | 3.35 MiB/s
+    Receiving objects:  87% (371/424), 264.93 MiB | 3.36 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 268.25 MiB | 3.35 MiB/s
+    Receiving objects:  87% (371/424), 268.34 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 271.67 MiB | 3.35 MiB/s
+    Receiving objects:  87% (371/424), 271.76 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 274.93 MiB | 3.31 MiB/s
+    Receiving objects:  87% (371/424), 275.18 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 278.25 MiB | 3.29 MiB/s
+    Receiving objects:  87% (371/424), 278.60 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 281.67 MiB | 3.29 MiB/s
+    Receiving objects:  87% (371/424), 282.02 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 285.09 MiB | 3.29 MiB/s
+    Receiving objects:  87% (371/424), 285.44 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 288.51 MiB | 3.29 MiB/s
+    Receiving objects:  87% (371/424), 288.86 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 291.93 MiB | 3.35 MiB/s
+    Receiving objects:  87% (371/424), 292.29 MiB | 3.36 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (372/424), 293.64 MiB | 3.35 MiB/s
+    Receiving objects:  87% (372/424), 294.00 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  88% (374/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  89% (378/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  90% (382/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  91% (386/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  92% (391/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  93% (395/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  94% (399/424), 295.36 MiB | 3.35 MiB/s
-Receiving objects:  95% (403/424), 295.36 MiB | 3.35 MiB/s
+    Receiving objects:  88% (374/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  89% (378/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  90% (382/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  91% (386/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  92% (391/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  93% (395/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  94% (399/424), 295.71 MiB | 3.35 MiB/s
+Receiving objects:  95% (403/424), 295.71 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (404/424), 297.07 MiB | 3.35 MiB/s
+    Receiving objects:  95% (407/424), 299.14 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 302.20 MiB | 3.35 MiB/s
+    Receiving objects:  95% (407/424), 302.56 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 305.62 MiB | 3.35 MiB/s
+    Receiving objects:  95% (407/424), 305.99 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 308.95 MiB | 3.32 MiB/s
+    Receiving objects:  95% (407/424), 309.40 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 310.66 MiB | 3.32 MiB/s
+    Receiving objects:  95% (407/424), 312.82 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 314.07 MiB | 3.32 MiB/s
+    Receiving objects:  95% (407/424), 316.24 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 317.50 MiB | 3.32 MiB/s
+    Receiving objects:  95% (407/424), 317.95 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 320.92 MiB | 3.32 MiB/s
+    Receiving objects:  95% (407/424), 321.36 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 324.30 MiB | 3.34 MiB/s
+    Receiving objects:  95% (407/424), 324.79 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 327.75 MiB | 3.35 MiB/s
+    Receiving objects:  95% (407/424), 328.18 MiB | 3.34 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 331.18 MiB | 3.35 MiB/s
+    Receiving objects:  95% (407/424), 331.63 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  96% (408/424), 332.89 MiB | 3.35 MiB/s
-Receiving objects:  97% (412/424), 332.89 MiB | 3.35 MiB/s
-Receiving objects:  98% (416/424), 332.89 MiB | 3.35 MiB/s
-Receiving objects:  99% (420/424), 332.89 MiB | 3.35 MiB/s
+    Receiving objects:  96% (408/424), 333.34 MiB | 3.35 MiB/s
+Receiving objects:  97% (412/424), 333.34 MiB | 3.35 MiB/s
+Receiving objects:  98% (416/424), 333.34 MiB | 3.35 MiB/s
+Receiving objects:  99% (420/424), 333.34 MiB | 3.35 MiB/s
 
 .. parsed-literal::
 
     remote: Total 424 (delta 84), reused 99 (delta 55), pack-reused 284[K
-    Receiving objects:  99% (422/424), 332.89 MiB | 3.35 MiB/s
-Receiving objects: 100% (424/424), 332.89 MiB | 3.35 MiB/s
-Receiving objects: 100% (424/424), 334.57 MiB | 3.34 MiB/s, done.
+    Receiving objects: 100% (424/424), 333.34 MiB | 3.35 MiB/s
+Receiving objects: 100% (424/424), 334.57 MiB | 3.35 MiB/s, done.
     Resolving deltas:   0% (0/226)
 Resolving deltas:   4% (11/226)
 Resolving deltas:   7% (17/226)
@@ -863,20 +862,18 @@ Resolving deltas:  60% (136/226)
 .. parsed-literal::
 
     Resolving deltas:  61% (138/226)
-Resolving deltas:  69% (157/226)
-Resolving deltas:  82% (187/226)
-Resolving deltas:  91% (207/226)
+Resolving deltas:  69% (158/226)
+Resolving deltas:  83% (188/226)
 Resolving deltas:  92% (208/226)
-Resolving deltas:  93% (212/226)
 Resolving deltas:  94% (213/226)
 Resolving deltas:  95% (215/226)
 Resolving deltas:  96% (217/226)
 Resolving deltas:  97% (220/226)
+Resolving deltas:  98% (222/226)
 
 .. parsed-literal::
 
-    Resolving deltas:  98% (223/226)
-Resolving deltas:  99% (224/226)
+    Resolving deltas:  99% (224/226)
 
 .. parsed-literal::
 
@@ -886,7 +883,7 @@ Resolving deltas: 100% (226/226), done.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM
 
 
 Load PyTorch model
@@ -1139,27 +1136,27 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/274-efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
@@ -1259,7 +1256,7 @@ The optimization process contains the following steps:
 
 ..
 
-   **Note**: Quantization is time and memory consuming operation.
+   **NOTE**: Quantization is time and memory consuming operation.
    Running quantization code below may take some time.
 
 Please select below whether you would like to run EfficientSAM
@@ -1422,30 +1419,14 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-01-26 00:18:53.020459: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-26 00:18:53.052743: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-10 00:36:45.274123: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-10 00:36:45.306722: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-26 00:18:53.564478: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
+    2024-02-10 00:36:45.919421: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1456,14 +1437,11 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -1484,20 +1462,21 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
       return Tensor(self.data * unwrap_tensor_data(other))
 
 
@@ -1508,14 +1487,15 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -1635,7 +1615,7 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 42.82 ms
+    [ INFO ] Read model took 42.80 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -1659,18 +1639,18 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 1132.26 ms
+    [ INFO ] Compile model took 1174.09 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+
+
+.. parsed-literal::
+
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-
-
-.. parsed-literal::
-
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
@@ -1703,21 +1683,21 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 642.13 ms
+    [ INFO ] First inference took 644.38 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            54 iterations
-    [ INFO ] Duration:         16837.14 ms
+    [ INFO ] Count:            50 iterations
+    [ INFO ] Duration:         16093.09 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1861.86 ms
-    [ INFO ]    Average:       1867.45 ms
-    [ INFO ]    Min:           1807.03 ms
-    [ INFO ]    Max:           1930.87 ms
-    [ INFO ] Throughput:   3.21 FPS
+    [ INFO ]    Median:        1872.68 ms
+    [ INFO ]    Average:       1848.02 ms
+    [ INFO ]    Min:           1047.31 ms
+    [ INFO ]    Max:           1952.79 ms
+    [ INFO ] Throughput:   3.11 FPS
 
 
 .. code:: ipython3
@@ -1747,7 +1727,7 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 66.70 ms
+    [ INFO ] Read model took 65.77 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -1771,18 +1751,18 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 1521.03 ms
+    [ INFO ] Compile model took 1539.94 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+
+
+.. parsed-literal::
+
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-
-
-.. parsed-literal::
-
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
@@ -1815,7 +1795,7 @@ models, we use ``bencmark_app``.
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 577.63 ms
+    [ INFO ] First inference took 578.80 ms
 
 
 .. parsed-literal::
@@ -1823,13 +1803,13 @@ models, we use ``bencmark_app``.
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         16006.72 ms
+    [ INFO ] Duration:         16094.50 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1725.58 ms
-    [ INFO ]    Average:       1709.65 ms
-    [ INFO ]    Min:           633.06 ms
-    [ INFO ]    Max:           1807.35 ms
-    [ INFO ] Throughput:   3.44 FPS
+    [ INFO ]    Median:        1735.52 ms
+    [ INFO ]    Average:       1715.26 ms
+    [ INFO ]    Min:           507.00 ms
+    [ INFO ]    Max:           1794.23 ms
+    [ INFO ] Throughput:   3.42 FPS
 
 
 Interactive segmentation demo
@@ -2356,5 +2336,5 @@ Interactive segmentation demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

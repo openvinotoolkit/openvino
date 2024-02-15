@@ -26,7 +26,6 @@
 211-speech-to-text
 213-question-answering
 215-image-inpainting
-217-vision-deblur
 218-vehicle-detection-and-recognition
 219-knowledge-graphs-conve
 220-cross-lingual-books-alignment
@@ -38,6 +37,7 @@
 250-music-generation
 261-fast-segment-anything
 280-depth-anything
+284-openvoice
 401-object-detection
 402-pose-estimation
 403-action-recognition-webcam
