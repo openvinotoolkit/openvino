@@ -52,13 +52,12 @@ class TestAddN(CommonTFLayerTest):
 
     test_data = [
         dict(input_shapes=[[4]]),                             # Tests sum of scalar values in a single shape
-        pytest.param(
-            dict(input_shapes=[[4, 3], [4, 3]]),              # Tests sum of shapes
-            marks=pytest.mark.precommit_tf_fe),
+        dict(input_shapes=[[4, 3], [4, 3]]),                  # Tests sum of shapes
         dict(input_shapes=[[3, 4, 5], [3, 4, 5], [3, 4, 5]]), # Tests sum of shapes which may trigger nchw/nhcw transformation
     ]
 
     @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_addn_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):

@@ -223,7 +223,7 @@ class TestSub(CommonTFLayerTest):
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]),
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3, 1]),
-        pytest.param(dict(x_shape=[1, 3, 1, 1, 2], y_shape=[1, 3, 2]), marks=pytest.mark.precommit_tf_fe),
+        pytest.param(dict(x_shape=[1, 3, 1, 1, 2], y_shape=[1, 3, 2]), marks=pytest.mark.precommit),
         dict(x_shape=[1, 3, 5, 1, 2], y_shape=[5, 3, 2, 1]),
         dict(x_shape=[1, 3, 50, 100, 224], y_shape=[1, 1, 1, 1, 224]),
         dict(x_shape=[2, 3, 1, 2, 1], y_shape=[1, 3, 2, 1, 1])

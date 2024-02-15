@@ -32,7 +32,7 @@ class TestKerasRoll(CommonTF2LayerTest):
         dict(shift=[11, -8], axis=[-1, -2], input_names=["x1"], input_shapes=[[3, 4, 3, 1]],
              input_type=tf.int32),
         pytest.param(dict(shift=[7, -2, 5], axis=[0, -1, -1], input_names=["x1"], input_shapes=[[5, 2, 3, 7]],
-                          input_type=tf.int64), marks=pytest.mark.precommit_tf_fe),
+                          input_type=tf.int64), marks=pytest.mark.precommit),
         pytest.param(
             dict(shift=[1, -2], axis=[0, 1], input_names=["x1"], input_shapes=[[2, 4, 3, 5]],
                  input_type=tf.float32),

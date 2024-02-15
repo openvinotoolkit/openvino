@@ -36,7 +36,7 @@ class TestIdentity(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("input_shape, identity_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_identity_basic(self, input_shape, identity_op, ie_device, precision, ir_version, temp_dir,
                             use_legacy_frontend):

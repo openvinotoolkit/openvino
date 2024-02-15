@@ -53,9 +53,7 @@ class TestCastOp(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data = [
-        pytest.param(
-            dict(input_shape=[2, 3]),     #Simple test
-            marks=pytest.mark.precommit_tf_fe),
+        dict(input_shape=[2, 3]),         #Simple test
         dict(input_shape=[2, 3, 3, 4]),   #Simple test with possible nchw/nhwc
     ]
 
@@ -63,6 +61,7 @@ class TestCastOp(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [ np.int32, np.int64, np.float16, np.float32, np.float64 ])
     @pytest.mark.parametrize("output_type", [ np.int32, np.int64, np.float16, np.float32, np.float64 ])
     @pytest.mark.parametrize("truncate", [ False, True ])
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_cast_op_placeholder_const(self, params, input_type, output_type, truncate, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):

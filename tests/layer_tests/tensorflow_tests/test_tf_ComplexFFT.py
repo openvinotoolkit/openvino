@@ -69,7 +69,7 @@ class TestComplexFFT(CommonTFLayerTest):
         "tf.raw_ops.IFFT", "tf.raw_ops.IFFT2D", "tf.raw_ops.IFFT3D"
     ])
     @pytest.mark.parametrize("input_shape, shift_roll, axis_roll", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
                                                                                          'aarch64',
@@ -118,7 +118,7 @@ class TestComplexAbs(CommonTFLayerTest):
         [3, 4, 5, 6],
     ]
     @pytest.mark.parametrize("input_shape", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_abs_basic(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
@@ -161,7 +161,7 @@ class TestComplexRFFT(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("input_shape, fft_length, rfft_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
@@ -207,7 +207,7 @@ class TestComplexIRFFT(CommonTFLayerTest):
                         marks=pytest.mark.xfail(reason="accuracy-issue-124452"))
     ]
     @pytest.mark.parametrize("input_shape, fft_length, irfft_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):

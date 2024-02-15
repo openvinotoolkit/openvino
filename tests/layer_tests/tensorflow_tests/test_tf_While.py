@@ -56,7 +56,7 @@ class TestWhile(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
@@ -116,7 +116,7 @@ class TestWhileShapeVariant(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
@@ -190,7 +190,7 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_with_nested_if_basic(self, params, ie_device, precision, ir_version, temp_dir,

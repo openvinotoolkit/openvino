@@ -69,7 +69,7 @@ class TestConv3D(CommonTFLayerTest):
         pytest.param(
             dict(input_shape=[1, 224, 224, 224, 3], input_filter=[1, 2, 3, 3, 2], input_strides=[1, 2, 2, 2, 1],
                  dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)

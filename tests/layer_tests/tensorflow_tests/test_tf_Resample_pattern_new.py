@@ -67,7 +67,7 @@ class TestResamplePattern(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data = [pytest.param(dict(shape=[1, 1, 100, 200], factor=2), marks=pytest.mark.precommit_tf_fe),
+    test_data = [pytest.param(dict(shape=[1, 1, 100, 200], factor=2), marks=pytest.mark.precommit),
                  dict(shape=[1, 1, 200, 300], factor=3)]
 
     # TODO mark as precommit (after successfully passing in nightly)

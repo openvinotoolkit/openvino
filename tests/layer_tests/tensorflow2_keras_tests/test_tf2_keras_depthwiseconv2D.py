@@ -93,7 +93,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
         pytest.param(dict(input_names=["x"], input_shapes=[[5, 8, 16, 4]], input_type=tf.float32,
                           kernel_size=(2, 2), strides=1, padding='same', depth_multiplier=2,
                           data_format='channels_last',
-                          dilation_rate=(2, 2), activation='linear', use_bias=True), marks=pytest.mark.precommit_tf_fe),
+                          dilation_rate=(2, 2), activation='linear', use_bias=True), marks=pytest.mark.precommit),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
              kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
              data_format='channels_first',

@@ -48,7 +48,7 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
              input_shapes=[[3, 4, 5, 6]], input_type=tf.float32),
         pytest.param(dict(pool_size=(5, 5), strides=(3, 3), padding='valid', data_format='channels_last',
                           input_names=["x1"],
-                          input_shapes=[[3, 7, 6, 5]], input_type=tf.float32), marks=pytest.mark.precommit_tf_fe)]
+                          input_shapes=[[3, 7, 6, 5]], input_type=tf.float32), marks=pytest.mark.precommit)]
 
     @pytest.mark.parametrize("params", test_data_extended_float32)
     @pytest.mark.nightly

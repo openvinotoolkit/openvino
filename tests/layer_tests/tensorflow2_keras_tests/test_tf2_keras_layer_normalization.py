@@ -49,7 +49,7 @@ class TestKerasLayerNormalization(CommonTF2LayerTest):
              center=False, scale=True),
         pytest.param(dict(input_names=["x"], input_shapes=[[2, 2, 3, 5]], input_type=tf.float32, axis=(1, 2, 3),
                           epsilon=1e-5,
-                          center=True, scale=True), marks=pytest.mark.precommit_tf_fe)]
+                          center=True, scale=True), marks=pytest.mark.precommit)]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly

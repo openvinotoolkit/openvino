@@ -713,7 +713,6 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
     def test_mo_import_from_memory_tf_fe(self, create_model, ie_device, precision, ir_version,
                                          temp_dir):

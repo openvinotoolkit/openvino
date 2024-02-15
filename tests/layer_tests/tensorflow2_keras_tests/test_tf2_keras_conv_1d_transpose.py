@@ -56,7 +56,7 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
              input_shapes=[[5, 7, 8]], input_type=tf.float32),
         pytest.param(dict(params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
                           input_names=["x"],
-                          input_shapes=[[5, 7, 6]], input_type=tf.float32), marks=pytest.mark.precommit_tf_fe),
+                          input_shapes=[[5, 7, 6]], input_type=tf.float32), marks=pytest.mark.precommit),
         dict(params=dict(filters=20, kernel_size=7, padding="valid", data_format="channels_first"),
              input_names=["x"],
              input_shapes=[[5, 7, 8]], input_type=tf.float32),

@@ -61,10 +61,10 @@ class TestConv2DBackprop(CommonTFLayerTest):
         dict(input_shape=[1, 10, 10, 3], input_filter=[2, 2, 3, 3], out_backprop=[1, 5, 5, 3], input_strides=[1, 2, 2, 1], input_padding='VALID', dilations=None),
         pytest.param(
             dict(input_shape=[1, 56, 56, 3], input_filter=[2, 3, 3, 3], out_backprop=[1, 28, 28, 3], input_strides=[1, 2, 2, 1], input_padding='SAME', dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(input_shape=[1, 64, 48, 3], input_filter=[3, 2, 3, 3], out_backprop=[1, 31, 24, 3], input_strides=[1, 2, 2, 1], input_padding='VALID', dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)

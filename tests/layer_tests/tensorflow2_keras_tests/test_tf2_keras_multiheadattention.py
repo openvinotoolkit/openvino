@@ -66,14 +66,12 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
                  output_shape=None, attention_axes=None,
                  return_attention_scores=False, training=False),
             marks=pytest.mark.xfail(reason="45432")),
-        pytest.param(
-            dict(input_names=["query", "value", "key"],
-                 input_shapes=[[1, 8, 16], [1, 2, 4], [1, 2, 4]],
-                 input_types=[tf.float32, tf.float32, tf.float32], attention_mask_value=None,
-                 num_heads=1, key_dim=3, value_dim=4, dropout=0.0, use_bias=True,
-                 output_shape=None, attention_axes=None,
-                 return_attention_scores=True, training=False),
-            marks=[pytest.mark.xfail(reason="45432"), pytest.mark.precommit_tf_fe])
+         dict(input_names=["query", "value", "key"],
+              input_shapes=[[1, 8, 16], [1, 2, 4], [1, 2, 4]],
+              input_types=[tf.float32, tf.float32, tf.float32], attention_mask_value=None,
+              num_heads=1, key_dim=3, value_dim=4, dropout=0.0, use_bias=True,
+              output_shape=None, attention_axes=None,
+              return_attention_scores=True, training=False)
     ]
 
     @pytest.mark.skip(reason='Einsum is unsupported in MO')

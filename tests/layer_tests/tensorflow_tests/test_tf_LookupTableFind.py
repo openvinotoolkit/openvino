@@ -69,7 +69,7 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.parametrize("hash_table_type", [0, 1])
     @pytest.mark.parametrize("keys_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):

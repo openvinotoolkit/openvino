@@ -42,7 +42,7 @@ class TestReshape(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_reshape_basic(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
@@ -84,7 +84,7 @@ class TestComplexReshape(CommonTFLayerTest):
         dict(input_shape=[1], target_shape=[])
     ]
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_reshape(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
