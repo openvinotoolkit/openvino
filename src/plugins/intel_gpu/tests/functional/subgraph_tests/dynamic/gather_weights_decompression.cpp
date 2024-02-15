@@ -284,9 +284,9 @@ const std::vector<ShapeParams> input_shapes_basic = {
     {{15, 32}, {{-1, -1}, {{2, 3}}}, 1, 0, 16},
     {{2, 5}, {{}, {{2, 3}}}, 1, -1},
 };
-const std::vector<bool> add_decompression_sub = {false};
-const std::vector<bool> reshape_on_decompression = {true};
-const std::vector<bool> per_tensor_zp = {true};
+const std::vector<bool> add_decompression_sub = {true, false};
+const std::vector<bool> reshape_on_decompression = {true, false};
+const std::vector<bool> per_tensor_zp = {true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                          GatherWeightsDecompression,
