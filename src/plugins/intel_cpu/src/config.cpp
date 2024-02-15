@@ -93,12 +93,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == ov::affinity.name()) {
             try {
-                ov::Affinity affinity = val.as<ov::Affinity>();
                 changedCpuPinning = true;
 #if defined(__APPLE__)
                 enableCpuPinning = false;
                 threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
+                ov::Affinity affinity = val.as<ov::Affinity>();
                 enableCpuPinning =
                     (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
                 switch (affinity) {
