@@ -185,7 +185,7 @@ class TorchScriptPythonDecoder (Decoder):
         if pt_type is None:
             return OVAny(OVType.dynamic)
         # TODO: Don't use str, use native types
-        if str(pt_type) in ["int", "float"]:
+        if str(pt_type) in ["int", "float", "bool"]:
             return OVAny(DecoderType.PyScalar(OVAny(pt_to_ov_type_map[str(pt_type)])))
         elif str(pt_type) in pt_to_ov_type_map:
             return OVAny(pt_to_ov_type_map[str(pt_type)])
