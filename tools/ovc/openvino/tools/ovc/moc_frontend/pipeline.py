@@ -39,26 +39,9 @@ def get_enabled_and_disabled_transforms():
 
 def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
     for new_node in new_nodes:
-        node_found = False
-        for item in model_inputs_or_outputs:
-            if is_input:
-                name = new_node['input_name']
-                if name in item.get_names():
-                    node_found = True
-                    break
-                elif name + ":0" in item.get_names():
-                    node_found = True
-                    break
-            else:
-                name = new_node['output_name']
-                if name in item.get_names():
-                    node_found = True
-                    break
-                elif name + ":0" in item.get_names():
-                    node_found = True
-                    break
+        node = new_node['node']
 
-        if not node_found:
+        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
             if is_input:
                 raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
             else:
@@ -259,4 +242,5 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
     ov_model = moc_front_end.convert(input_model)
+
     return ov_model

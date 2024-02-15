@@ -1238,15 +1238,6 @@ class TestInputTensorName(unittest.TestCase):
             out_tensor = list(tensors)[0]
             assert out_tensor == ref_inputs[idx]
 
-        ref_inputs = ["Input", "Input_1"]
-        ov_model = convert_model(path, input=["Input", "Input_1"])
-        for idx, output in enumerate(ov_model.inputs):
-            tensors = output.get_names()
-
-            assert len(tensors) == 1
-            out_tensor = list(tensors)[0]
-            assert out_tensor == ref_inputs[idx]
-
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -1275,15 +1266,6 @@ class TestInputTensorName(unittest.TestCase):
             out_tensor = list(tensors)[0]
             assert out_tensor == ref_inputs[idx]
 
-        ref_inputs = ["Input", "Input_1"]
-        ov_model = convert_model(model, input=["Input", "Input_1"])
-        for idx, output in enumerate(ov_model.inputs):
-            tensors = output.get_names()
-
-            assert len(tensors) == 1
-            out_tensor = list(tensors)[0]
-            assert out_tensor == ref_inputs[idx]
-
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf1_input_with_identity(self):
@@ -1305,9 +1287,3 @@ class TestInputTensorName(unittest.TestCase):
 
         assert ov_model.inputs[0].get_names() == {"x:0"}
         assert ov_model.inputs[1].get_names() == {"y:0"}
-
-
-        ov_model = convert_model(model, input=["x", "y"])
-
-        assert ov_model.inputs[0].get_names() == {"x"}
-        assert ov_model.inputs[1].get_names() == {"y"}
