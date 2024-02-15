@@ -140,7 +140,7 @@ jobs:
         if: fromJSON(inputs.affected-components).MO.test
         run: |
           skip_filter=''
-          if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]]; then
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
           else
@@ -294,7 +294,7 @@ jobs:
 
       - name: JAX Layer Tests - TF FE
         continue-on-error: true
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' }}
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU

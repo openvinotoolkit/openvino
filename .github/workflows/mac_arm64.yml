@@ -228,7 +228,7 @@ jobs:
           if-no-files-found: 'error'
 
   Samples:
-    needs: Build
+    needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'macos-13-xlarge'
