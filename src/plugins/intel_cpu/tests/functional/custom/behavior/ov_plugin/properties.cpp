@@ -135,7 +135,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Core ie;
     ov::Affinity value = ov::Affinity::NONE;
 
-#if (defined(__APPLE__) || defined(_WIN32))
+#if defined(__APPLE__)
     auto defaultBindThreadParameter = ov::Affinity::NUMA;
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
