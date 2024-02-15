@@ -439,7 +439,7 @@ jobs:
           popd
 
       - name: Upload Conformance Artifacts
-        if: ${{ matrix.TEST_TYPE == "API" }}
+        if: ${{ matrix.TEST_TYPE == 'API' }}
         uses: actions/upload-artifact@v3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
