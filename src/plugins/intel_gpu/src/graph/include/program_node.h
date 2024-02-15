@@ -202,9 +202,9 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::set<primitive_id> get_memory_dependencies() const;
-    void add_memory_dependency(primitive_id);
-    void add_memory_dependency(std::vector<primitive_id>);
+    std::set<size_t> get_memory_dependencies() const;
+    void add_memory_dependency(size_t);
+    void add_memory_dependency(std::vector<size_t>);
 
     template <class PType>
     bool have_user_with_type() const {
@@ -473,7 +473,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<primitive_id> memory_dependencies;
+    std::set<size_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;

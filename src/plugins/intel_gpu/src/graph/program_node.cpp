@@ -60,7 +60,6 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
-        add_memory_dependency(id());
     }
 }
 
@@ -196,11 +195,11 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::set<primitive_id> program_node::get_memory_dependencies() const { return memory_dependencies; }
+std::set<size_t> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-void program_node::add_memory_dependency(primitive_id prim) { memory_dependencies.insert(prim); }
+void program_node::add_memory_dependency(size_t prim) { memory_dependencies.insert(prim); }
 
-void program_node::add_memory_dependency(std::vector<primitive_id> prim_list) {
+void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     memory_dependencies.insert(prim_list.begin(), prim_list.end());
 }
 
