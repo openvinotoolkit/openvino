@@ -56,7 +56,7 @@ with open(supported_ops_doc, 'rt') as f:
             # skip a table header
             documented_op = line.split('|')[1].strip()
             # remove NEW mark
-            documented_op.replace('<sup><mark style="background-color: #00FF00">NEW</mark></sup>', '')
+            documented_op = documented_op.replace('<sup><mark style="background-color: #00FF00">NEW</mark></sup>', '')
             is_supported = False
             if line.split('|')[2].strip() == 'YES':
                 is_supported = True
