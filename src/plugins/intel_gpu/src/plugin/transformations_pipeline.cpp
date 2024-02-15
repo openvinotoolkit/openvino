@@ -59,6 +59,7 @@
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
+#include "plugin/transformations/indirect_kv_cache.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -702,13 +703,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
-        manager.register_pass<ov::intel_gpu::RMSFusion>();
+        manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         if (!device_info.supports_immad)
             manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
 
+        manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
