@@ -3953,9 +3953,9 @@ TEST(constant_folding, sq_diff) {
     ASSERT_NE(res_node, nullptr);
 }
 
-class unsupported_types : public testing::TestWithParam<element::Type> {};
+class UnsupportedTypesTest : public testing::TestWithParam<element::Type> {};
 
-TEST_P(unsupported_types, add_multiply) {
+TEST_P(UnsupportedTypesTest, add_multiply) {
     Shape shape_in{2, 4, 1};
 
     const auto& type = GetParam();
@@ -3975,7 +3975,7 @@ TEST_P(unsupported_types, add_multiply) {
     ASSERT_EQ(m->get_results().size(), 1);
 }
 
-TEST_P(unsupported_types, convert_like) {
+TEST_P(UnsupportedTypesTest, convert_like) {
     Shape shape_in{2, 4, 1};
 
     const auto& type = GetParam();
@@ -4005,6 +4005,6 @@ static std::string unsupported_types_test_case_name(const testing::TestParamInfo
 }
 
 INSTANTIATE_TEST_SUITE_P(constant_folding,
-                         unsupported_types,
+                         UnsupportedTypesTest,
                          testing::ValuesIn(ov::util::unsupported_types()),
                          unsupported_types_test_case_name);

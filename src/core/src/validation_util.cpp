@@ -89,6 +89,9 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
         if (ov::pass::constant_folding_is_disabled(node))
             return nullptr;
 
+        if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic())
+            return nullptr;
+
         bool node_has_bounds_set = true;
         for (size_t i = 0; i < node->get_output_size(); i++) {
             const auto& tensor = node->get_output_tensor(i);
@@ -104,10 +107,6 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
         if (node_has_bounds_set) {
             stack.pop();
             continue;
-        }
-
-        if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
-            return nullptr;
         }
 
         auto original_node = node;

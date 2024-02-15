@@ -69,11 +69,14 @@ bool ov::util::node_requires_precision_conversion(const ov::Node* const node) {
     for (size_t i = 0; i < node->get_input_size(); i++) {
         if (ov::util::is_type_unsupported(node->get_input_element_type(i))) {
             has_unsupported_type = true;
+            break;
         }
     }
-    for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (ov::util::is_type_unsupported(node->get_output_element_type(i))) {
-            has_unsupported_type = true;
+    if (!has_unsupported_type) {
+        for (size_t i = 0; i < node->get_output_size(); i++) {
+            if (ov::util::is_type_unsupported(node->get_output_element_type(i))) {
+                has_unsupported_type = true;
+            }
         }
     }
 
@@ -92,7 +95,7 @@ static bool convert_range_precision(const std::shared_ptr<ov::Node>& node) {
     return false;
 }
 
-static std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared_ptr<ov::Node>&)>>
+static const std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared_ptr<ov::Node>&)>>
     output_conversion_methods = {
         {ov::op::v4::Range::get_type_info_static(), convert_range_precision},
 };
@@ -172,13 +175,16 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
 
     // Handle case when node inputs don't match input tensors.
     // Some use cases:
-    // - node without inputs which its only purpose is to run evaluate, e.g. op::v0::Convert().evaluate({output},
-    // {input})
+    // - node without inputs which its only purpose is to run evaluate, e.g. Convert().evaluate({output}, {input})
     // - type relaxed nodes that may have its input types overriden during evaluate
     bool input_tensors_match_node_inputs = [node, inputs]() -> bool {
         size_t node_input_size = node->get_input_size();
-        for (size_t i = 0; i < inputs.size(); i++) {
-            if (i >= node_input_size || node->get_input_element_type(i) != inputs[i].get_element_type()) {
+        size_t num_tensors = inputs.size();
+        if (num_tensors > node_input_size) {
+            return false;
+        }
+        for (size_t i = 0; i < num_tensors; i++) {
+            if (node->get_input_element_type(i) != inputs[i].get_element_type()) {
                 return false;
             }
         }
