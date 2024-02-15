@@ -46,7 +46,7 @@ def test_create_device_tensor_gpu():
     assert isinstance(context, ov.RemoteContext)
     assert "GPU" in context.get_device_name()
 
-    tensor = context.create_device_tensor(ov.Type.f32, ov.Shape([1, 2, 3]), {})
+    tensor = context.create_tensor(ov.Type.f32, ov.Shape([1, 2, 3]), {})
     assert isinstance(tensor, ov.Tensor)
     assert isinstance(tensor, ov.RemoteTensor)
     assert "GPU" in tensor.get_device_name()
