@@ -138,7 +138,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         add_names_to_tensors(input_model, user_shapes)
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes and argv.placeholder_shapes:
+        if user_shapes:
             placeholder_shapes = create_target_input_shapes(new_input_places)
             new_output_places_name = [x.get_names()[0] for x in new_output_places]
 
@@ -151,7 +151,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes and argv.placeholder_shapes:
+        if user_shapes:
             placeholder_shapes = create_target_input_shapes(new_input_places)
 
             user_shapes, outputs, _ = fe_user_data_repack(

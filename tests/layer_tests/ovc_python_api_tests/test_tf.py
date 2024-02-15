@@ -1303,5 +1303,11 @@ class TestInputTensorName(unittest.TestCase):
 
         ov_model = convert_model(model)
 
-        assert ov_model.inputs[0].get_names() == {"x_identity:0", "x:0"}
-        assert ov_model.inputs[1].get_names() == {"y_identity:0", "y:0"}
+        assert ov_model.inputs[0].get_names() == {"x:0"}
+        assert ov_model.inputs[1].get_names() == {"y:0"}
+
+
+        ov_model = convert_model(model, input=["x", "y"])
+
+        assert ov_model.inputs[0].get_names() == {"x"}
+        assert ov_model.inputs[1].get_names() == {"y"}
