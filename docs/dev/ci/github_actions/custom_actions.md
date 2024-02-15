@@ -1,4 +1,4 @@
-# Overview of the Custom GitHub Actions used in the OpenVINO GitHub Actions CI
+# Overview of Custom GitHub Actions used in the OpenVINO GitHub Actions CI
 
 Several actions are written specifically for the needs of the OpenVINO workflows.
 
@@ -14,9 +14,9 @@ Refer to the official [custom GitHub Action documentation](https://docs.github.c
 
 ## Setup Python
 
-This custom action installs the required Python version and environment variables on the runner. 
+This custom action installs the required Python version and environment variables on the runner.
 
-Under the hood it uses the GitHub-provided `actions/setup-python` and community-provided `deadsnakes-action` depending on the machine architecture. 
+Under the hood it uses the GitHub-provided `actions/setup-python` and community-provided `deadsnakes-action` depending on the machine architecture.
 `actions/setup-python` does not work on the Linux ARM64 machines so `deadsnakes-action` is used instead.
 
 ### Usage
