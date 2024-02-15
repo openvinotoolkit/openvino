@@ -102,7 +102,7 @@ jobs:
           apt --assume-yes install clang lld
           update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
-          update-alternatives --install /usr/bin/lld lld /usr/bin/clang++ 100
+          # update-alternatives --install /usr/bin/lld lld /usr/bin/clang++ 100
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
