@@ -108,22 +108,28 @@ class TorchScriptPythonDecoder (Decoder):
                 extension = self.module_extensions[name]
 
             if extension:
+                # The Trampoline class is instantiated for every module replacement, so we can use class members individually for each module.
                 class Trampoline(torch.autograd.Function):
                     target_extension = extension
                     original_module = module
+                    stashed_args = None
+                    stashed_kwargs = None
                     @staticmethod
                     def forward(*args, **kwargs):
                         with no_jit_trace():
-                            if extension.replacer:
-                                results = extension.replacer(module, *args[1:], **kwargs)
-                            else:
-                                results = getattr(module, orig_forward_name)(*args[1:], **kwargs)
+                            # `module`` is going to be passed to a user-defined function `evaluate`
+                            # `module` is patched: forward function was replaced, and we are acutally in this patched function right in this code
+                            # if we pass `module` as-is to the user code below, and it happens to call forward it will lead to infinite recursion or fail
+                            # so we need to temporary patch the module back to the original forward and then return it back again
+                            patched_forward = module.forward  # stash the current forward to be able to return it back
+                            module.forward = getattr(module, orig_forward_name)  # set original forward for the module
+                            results = extension.evaluate(module, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)  # call user code
+                            module.forward = patched_forward  # return patched forward back
                             return results
                 def new_forward(*args, **kwargs):
-                    if extension.wrapper is not None:
-                        return extension.wrapper(module, Trampoline.apply, *args, **kwargs)
-                    else:
-                        return Trampoline.apply(*args, **kwargs)
+                    Trampoline.stashed_args = args
+                    Trampoline.stashed_kwargs = kwargs
+                    return extension.convert(module, Trampoline.apply, *args, **kwargs)
                 setattr(module, orig_forward_name, module.forward)
                 module.forward = new_forward
 
@@ -330,7 +336,11 @@ class TorchScriptPythonDecoder (Decoder):
             if hasattr(self.graph_element, 'pyobj') and callable(self.graph_element.pyobj) and hasattr(self.graph_element.pyobj(), '__self__'):
                 trampoline = self.graph_element.pyobj().__self__
                 if hasattr(trampoline, 'target_extension') and isinstance(trampoline.target_extension, ModuleExtension):
-                    target = trampoline.target_extension.extension(trampoline.original_module)
+                    target_op = trampoline.target_extension.target_op
+                    if callable(target_op):
+                        target = target_op(trampoline.original_module)
+                    elif isinstance(target_op, str):
+                        target = target_op
                     # TODO: Support target as a callable that will play a role of ConversionExtension for an entire module instead of a single op.
                     # Without supporting target as a callable here, ConversionExtension functionality is still possible to implement
                     # by combining two extensions: ModuleExtension that use temporary name as a target op and another extension of type ConversionExtension
