@@ -53,7 +53,7 @@ public:
     }
 
     bool is_in_place() const {
-        if (this->is_output() || this->has_fused_primitives())
+        if (this->is_output() || this->has_fused_primitives() || this->get_users().size() > 1)
             return false;
 
         if (has_padding())
