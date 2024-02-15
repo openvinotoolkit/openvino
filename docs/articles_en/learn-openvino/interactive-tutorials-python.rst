@@ -60,6 +60,24 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
 
 .. showcase::
+   :title: 284-openvoice
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/284-openvoice/284-openvoice.png
+
+   Voice tone cloning with OpenVoice and OpenVINO.
+
+.. showcase::
+   :title: 283-photo-maker
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/283-photo-maker/283-photo-maker.gif
+
+   Text-to-image generation using PhotoMaker and OpenVINO.
+
+.. showcase::
+   :title: 281-kosmos2-multimodal-large-language-model
+   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/281-kosmos2-multimodal-large-language-model/281-kosmos2-multimodal-large-language-model.png
+
+   Kosmos-2: Multimodal Large Language Model and OpenVINO.
+
+.. showcase::
    :title: 280-depth-anything
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/280-depth-anything/280-depth-anything.gif
 
@@ -83,13 +101,11 @@ Below you will find a selection of recommended tutorials that demonstrate infere
 
    LLM Instruction-following pipeline with OpenVINO.
 
-
 .. showcase::
    :title: 274-efficient-sam
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/274-efficient-sam/274-efficient-sam.png
 
    Object segmentations with EfficientSAM and OpenVINO.
-
 
 .. showcase::
    :title: 273-stable-zephyr-3b-chatbot
@@ -103,25 +119,6 @@ Below you will find a selection of recommended tutorials that demonstrate infere
    :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/272-paint-by-example/272-paint-by-example.png
 
    Paint by Example using Stable Diffusion and OpenVINO.
-
-.. showcase::
-   :title: 271-sdxl-turbo
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/271-sdxl-turbo/271-sdxl-turbo.png
-
-   Single step image generation using SDXL-turbo and OpenVINO.
-
-.. showcase::
-   :title: 270-sound-generation-audioldm2
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/270-sound-generation-audioldm2/270-sound-generation-audioldm2.png
-
-   Sound Generation with AudioLDM2 and OpenVINO.
-
-.. showcase::
-   :title: 269-film-slowmo
-   :img: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/269-film-slowmo/269-film-slowmo.gif
-
-   Frame interpolation using FILM and OpenVINO.
-
 
 
 .. note::

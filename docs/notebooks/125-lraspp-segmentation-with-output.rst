@@ -22,27 +22,28 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
-**Table of contents:**
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites) <#prerequisites>`__
 -  `Get a test image <#get-a-test-image>`__
 -  `Download and prepare a model <#download-and-prepare-a-model>`__
 -  `Define a preprocessing and prepare an input
    data <#define-a-preprocessing-and-prepare-an-input-data>`__
 -  `Run an inference on the PyTorch
-   model <#run-an-inference-on-the-pytorch-model>`__
+   model) <#run-an-inference-on-the-pytorch-model>`__
 -  `Convert the original model to OpenVINO IR
    Format <#convert-the-original-model-to-openvino-ir-format>`__
 -  `Run an inference on the OpenVINO
-   model <#run-an-inference-on-the-openvino-model>`__
+   model) <#run-an-inference-on-the-openvino-model>`__
 -  `Show results <#show-results>`__
 -  `Show results for the OpenVINO IR
-   model <#show-results-for-the-openvino-ir-model>`__
+   model) <#show-results-for-the-openvino-ir-model>`__
 
-Prerequisites\
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
@@ -69,24 +70,25 @@ Prerequisites\
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import openvino as ov
     import torch
 
 Get a test image
 ----------------
 
-First of all lets get a test
-image from an open dataset.
+
+
+First of all lets get a test image from an open dataset.
 
 .. code:: ipython3
 
     import urllib.request
-
+    
     from torchvision.io import read_image
     import torchvision.transforms as transforms
-
-
+    
+    
     img_path = 'cats_image.jpeg'
     urllib.request.urlretrieve(
         url='https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg',
@@ -103,10 +105,11 @@ image from an open dataset.
 Download and prepare a model
 ----------------------------
 
-Define width and height of the
-image that will be used by the network during inference. According to
-the input transforms function, the model is pre-trained on images with a
-height of 480 and width of 640.
+
+
+Define width and height of the image that will be used by the network
+during inference. According to the input transforms function, the model
+is pre-trained on images with a height of 480 and width of 640.
 
 .. code:: ipython3
 
@@ -119,12 +122,12 @@ models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-ava
 .. code:: ipython3
 
     import torchvision.models as models
-
+    
     # List available models
     all_models = models.list_models()
     # List of models by type
     segmentation_models = models.list_models(module=models.segmentation)
-
+    
     print(segmentation_models)
 
 
@@ -155,24 +158,27 @@ but there is only one for this model.
 Define a preprocessing and prepare an input data
 ------------------------------------------------
 
-You can use
-``torchvision.transforms`` to make a preprocessing or
+
+
+You can use ``torchvision.transforms`` to make a preprocessing or
 use\ `preprocessing transforms from the model
 wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models>`__.
 
 .. code:: ipython3
 
     import numpy as np
-
-
+    
+    
     preprocess = models.segmentation.LRASPP_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1.transforms()
     preprocess.resize_size = (IMAGE_HEIGHT, IMAGE_WIDTH)  # change to an image size
-
+    
     input_data = preprocess(image)
     input_data = np.expand_dims(input_data, axis=0)
 
-Run an inference on the PyTorch model\
--------------------------------------------------------------------------------
+Run an inference on the PyTorch model
+-------------------------------------
+
+
 
 .. code:: ipython3
 
@@ -193,8 +199,8 @@ directory. For more information on how to convert models, see this
 .. code:: ipython3
 
     ov_model_xml_path = Path('models/ov_lraspp_model.xml')
-
-
+    
+    
     if not ov_model_xml_path.exists():
         ov_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
         dummy_input = torch.randn(1, 3, IMAGE_HEIGHT, IMAGE_WIDTH)
@@ -203,15 +209,17 @@ directory. For more information on how to convert models, see this
     else:
         print(f"IR model {ov_model_xml_path} already exists.")
 
-Run an inference on the OpenVINO model\
---------------------------------------------------------------------------------
+Run an inference on the OpenVINO model
+--------------------------------------
+
+
 
 Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -219,7 +227,7 @@ Select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -244,9 +252,10 @@ Run an inference
 Show results
 ------------
 
-Confirm that the segmentation
-results look as expected by comparing model predictions on the OpenVINO
-IR and PyTorch models.
+
+
+Confirm that the segmentation results look as expected by comparing
+model predictions on the OpenVINO IR and PyTorch models.
 
 You can use `pytorch
 tutorial <https://pytorch.org/vision/0.12/auto_examples/plot_visualization_utils.html#sphx-glr-auto-examples-plot-visualization-utils-py>`__
@@ -257,13 +266,13 @@ visualize the image with a ``cat`` mask for the PyTorch model.
 
     import torch
     import matplotlib.pyplot as plt
-
+    
     import torchvision.transforms.functional as F
-
-
+    
+    
     plt.rcParams["savefig.bbox"] = 'tight'
-
-
+    
+    
     def show(imgs):
         if not isinstance(imgs, list):
             imgs = [imgs]
@@ -284,11 +293,11 @@ Prepare and display a cat mask.
         'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
     ]
     sem_class_to_idx = {cls: idx for (idx, cls) in enumerate(sem_classes)}
-
+    
     normalized_mask = torch.nn.functional.softmax(result_torch, dim=1)
-
+    
     cat_mask = normalized_mask[0, sem_class_to_idx['cat']]
-
+    
     show(cat_mask)
 
 
@@ -313,7 +322,7 @@ And now we can plot a boolean mask on top of the original image.
 .. code:: ipython3
 
     from torchvision.utils import draw_segmentation_masks
-
+    
     show(draw_segmentation_masks(image, masks=boolean_cat_mask, alpha=0.7, colors='yellow'))
 
 
@@ -321,8 +330,10 @@ And now we can plot a boolean mask on top of the original image.
 .. image:: 125-lraspp-segmentation-with-output_files/125-lraspp-segmentation-with-output_32_0.png
 
 
-Show results for the OpenVINO IR model\
---------------------------------------------------------------------------------
+Show results for the OpenVINO IR model
+--------------------------------------
+
+
 
 .. code:: ipython3
 

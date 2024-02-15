@@ -4,7 +4,7 @@ Hello Image Segmentation
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
-`road-segmentation-adas-0001 <https://docs.openvino.ai/2023.0/omz_models_model_road_segmentation_adas_0001.html>`__
+`road-segmentation-adas-0001 <https://docs.openvino.ai/2023.3/omz_models_model_road_segmentation_adas_0001.html>`__
 model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
@@ -182,7 +182,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ffab9d92970>
+    <matplotlib.image.AxesImage at 0x7f11c8142580>
 
 
 
@@ -209,7 +209,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ffa747040d0>
+    <matplotlib.image.AxesImage at 0x7f11c8051eb0>
 
 
 

@@ -68,11 +68,11 @@ def fetch_colab_list(colab_list_file) -> list:
 
 
 def add_glob_directive():
-    """This function modifies toctrees of the five node articles in tutorials 
+    """This function modifies toctrees of the five node articles in tutorials
        section. It adds the notebooks found in docs/notebooks directory to the menu.
     """
-    tutorials_path = Path('../../docs/articles_en/learn_openvino/tutorials').resolve(strict=True)
-    tutorials_files = [x for x in os.listdir(tutorials_path) if re.match("notebooks_section_[0-9]{1}\.", x)]
+    tutorials_path = Path('../../docs/articles_en/learn-openvino/interactive-tutorials-python').resolve(strict=True)
+    tutorials_files = [x for x in os.listdir(tutorials_path) if re.match("notebooks-section-[0-9]{1}.*?\.rst", x)]
     for tutorials_file in tutorials_files:
         file_name = os.path.join(tutorials_path, tutorials_file)
         with open(file_name, 'r+', encoding='cp437') as section_file:

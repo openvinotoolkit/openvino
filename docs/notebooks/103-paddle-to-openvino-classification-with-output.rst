@@ -94,7 +94,7 @@ Imports
 
 .. parsed-literal::
 
-    --2024-01-25 22:35:57--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-02-09 22:36:08--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-mu.intel.com (proxy-mu.intel.com)... 10.217.247.236
     Connecting to proxy-mu.intel.com (proxy-mu.intel.com)|10.217.247.236|:911... connected.
     Proxy request sent, awaiting response... 
@@ -102,7 +102,7 @@ Imports
 .. parsed-literal::
 
     404 Not Found
-    2024-01-25 22:35:57 ERROR 404: Not Found.
+    2024-02-09 22:36:08 ERROR 404: Not Found.
     
 
 
@@ -135,12 +135,12 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 22:35:59 INFO: Loading faiss with AVX2 support.
+    2024-02-09 22:36:10 INFO: Loading faiss with AVX2 support.
 
 
 .. parsed-literal::
 
-    2024-01-25 22:35:59 INFO: Successfully loaded faiss with AVX2 support.
+    2024-02-09 22:36:10 INFO: Successfully loaded faiss with AVX2 support.
 
 
 Settings
@@ -224,7 +224,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/01/25 22:36:20] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/02/09 22:36:38] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
 
 
 .. parsed-literal::
@@ -294,7 +294,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-01-25 22:36:20 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-02-09 22:36:39 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -306,7 +306,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f72946bbac0>
+    <matplotlib.image.AxesImage at 0x7f9b4c389670>
 
 
 
@@ -489,7 +489,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.36
+    PaddlePaddle model on CPU: 0.0075 seconds per image, FPS: 133.16
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -553,7 +553,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0031 seconds per image, FPS: 322.19
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0030 seconds per image, FPS: 328.87
     
     OpenVINO result:
     Labrador retriever, 0.74909

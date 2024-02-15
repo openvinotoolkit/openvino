@@ -303,6 +303,7 @@ value 25 to speed up the execution.
     INFO:nncf:Validation of initial model was started
 
 
+
 .. parsed-literal::
 
     INFO:nncf:Elapsed Time: 00:00:00
