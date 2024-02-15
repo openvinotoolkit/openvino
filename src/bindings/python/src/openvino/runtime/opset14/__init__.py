@@ -81,6 +81,7 @@ from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset11.ops import interpolate
+from openvino.runtime.opset14.ops import inverse
 from openvino.runtime.opset9.ops import irdft
 from openvino.runtime.opset10.ops import is_finite
 from openvino.runtime.opset10.ops import is_inf

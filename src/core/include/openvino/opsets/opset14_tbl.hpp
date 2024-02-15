@@ -218,5 +218,6 @@ _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
 _OPENVINO_OP_REG(ConvertPromoteTypes, ov::op::v14)
+_OPENVINO_OP_REG(Inverse, ov::op::v14)
 _OPENVINO_OP_REG(MaxPool, ov::op::v14)
 _OPENVINO_OP_REG(AvgPool, ov::op::v14)
