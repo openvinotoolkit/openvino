@@ -53,7 +53,7 @@ def generate_ir_python_api(coverage=False, **kwargs):
 
     out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
 
-    # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
+    # TODO: CVS-132151 Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
     ov_model = convert_model(**kwargs)
     serialize(ov_model, out_dir)
 

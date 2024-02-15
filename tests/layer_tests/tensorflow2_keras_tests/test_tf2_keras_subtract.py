@@ -62,10 +62,10 @@ class TestKerasSubtract(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
     def test_keras_subtract_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend):
+                                    use_legacy_frontend):
         self._test(*self.create_keras_subtract_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_float32 = [dict(input_names=["x1", "x2"], input_shapes=[[5, 4], [5, 4]],
                               input_type=tf.float32),
@@ -80,7 +80,7 @@ class TestKerasSubtract(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     def test_keras_subtract_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend):
+                                    use_legacy_frontend):
         self._test(*self.create_keras_subtract_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
