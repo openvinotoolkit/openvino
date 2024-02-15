@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,7 @@
 #include "nodes/input.h"
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
+#include "nodes/inverse.hpp"
 #include "nodes/log_softmax.h"
 #include "nodes/lrn.h"
 #include "nodes/mathematics.h"
@@ -183,6 +184,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
+    INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);

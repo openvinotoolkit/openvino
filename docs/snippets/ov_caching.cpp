@@ -2,7 +2,7 @@
 
 void part0() {
     std::string modelPath = "/tmp/myModel.xml";
-    std::string device = "GNA";
+    std::string device = "GPU";
     ov::AnyMap config;
 //! [ov:caching:part0]
 ov::Core core;                                              // Step 1: create ov::Core object
@@ -19,7 +19,7 @@ auto compiled = core.compile_model(model, device, config);  // Step 5: LoadNetwo
 
 void part1() {
     std::string modelPath = "/tmp/myModel.xml";
-    std::string device = "GNA";
+    std::string device = "GPU";
     ov::AnyMap config;
 //! [ov:caching:part1]
 ov::Core core;                                                  // Step 1: create ov::Core object
@@ -32,7 +32,7 @@ auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compi
 
 void part2() {
     std::string modelPath = "/tmp/myModel.xml";
-    std::string device = "GNA";
+    std::string device = "GPU";
     ov::AnyMap config;
 //! [ov:caching:part2]
 ov::Core core;                                                  // Step 1: create ov::Core object
@@ -45,7 +45,7 @@ auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compi
 }
 
 void part3() {
-    std::string deviceName = "GNA";
+    std::string deviceName = "GPU";
     ov::AnyMap config;
     ov::Core core;
 //! [ov:caching:part3]
