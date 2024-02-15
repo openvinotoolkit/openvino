@@ -5,53 +5,29 @@ import numpy as np
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestMul(CommonTFLayerTest):
-    def create_mul_placeholder_const_net(self, x_shape, y_shape, ir_version, use_legacy_frontend):
-        """
-            Tensorflow net                  IR net
-
-            Placeholder->Mul       =>       Placeholder->Multiply
-                         /                               /
-            Const-------/                   Const-------/
-
-        """
-
+    def create_mul_placeholder_const_net(self, x_shape, y_shape):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = x_shape.copy()
-            tf_y_shape = y_shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_legacy_frontend)
-
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
-            constant_value = np.random.randint(-255, 255, tf_y_shape).astype(np.float32)
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
+            constant_value = np.random.randint(-255, 255, y_shape).astype(np.float32)
             if (constant_value == 1).all():
                 # Avoid elimination of the layer from IR
                 constant_value = constant_value + 1
             y = tf.constant(constant_value)
 
-            mul = tf.multiply(x, y, name="Operation")
+            tf.multiply(x, y, name="Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
-        ref_net = None
-
-        return tf_net, ref_net
+        return tf_net, None
 
     # TODO: implement tests for 2 Consts + Mul
 
@@ -64,8 +40,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -81,8 +56,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -101,8 +75,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -118,8 +91,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -136,8 +108,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -155,8 +126,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version,
                                                 temp_dir, use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -173,8 +143,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version,
                                                 temp_dir, use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -199,8 +168,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version,
                                                 temp_dir, use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -208,11 +176,11 @@ class TestMul(CommonTFLayerTest):
         dict(x_shape=[1, 1, 1, 1], y_shape=[1]),
         dict(x_shape=[1, 3, 1, 1], y_shape=[1]),
         dict(x_shape=[1, 3, 1, 1], y_shape=[3]),
-        dict(x_shape=[1, 3, 100, 224], y_shape=[3]),
+        dict(x_shape=[1, 100, 224, 3], y_shape=[3]),
         dict(x_shape=[1, 1, 1, 3], y_shape=[3]),
         dict(x_shape=[1, 3, 1, 1], y_shape=[3, 1]),
-        dict(x_shape=[1, 2, 1, 3], y_shape=[3, 1, 2]),
-        dict(x_shape=[1, 2, 1, 3], y_shape=[1, 3, 2]),
+        dict(x_shape=[1, 3, 1, 2], y_shape=[3, 1, 2]),
+        dict(x_shape=[1, 2, 1, 2], y_shape=[1, 3, 2]),
         dict(x_shape=[1, 3, 100, 224], y_shape=[1, 1, 1, 224]),
         dict(x_shape=[2, 3, 1, 2], y_shape=[1, 3, 2, 1])
     ]
@@ -222,8 +190,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_mul_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version,
                                                 temp_dir, use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -234,7 +201,7 @@ class TestMul(CommonTFLayerTest):
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3, 1]),
         dict(x_shape=[1, 3, 1, 1, 2], y_shape=[1, 3, 2]),
-        dict(x_shape=[1, 3, 5, 1, 2], y_shape=[5, 3, 2, 1]),
+        dict(x_shape=[1, 5, 3, 1, 2], y_shape=[5, 3, 2, 1]),
         dict(x_shape=[1, 3, 50, 100, 224], y_shape=[1, 1, 1, 1, 224]),
         dict(x_shape=[2, 3, 1, 2, 1], y_shape=[1, 3, 2, 1, 1])
     ]
@@ -243,8 +210,7 @@ class TestMul(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_mul_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version,
                                                 temp_dir, use_legacy_frontend):
-        self._test(*self.create_mul_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_legacy_frontend=use_legacy_frontend),
+        self._test(*self.create_mul_placeholder_const_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
@@ -293,11 +259,12 @@ class TestComplexMul(CommonTFLayerTest):
         dict(input_shape=[2, 3, 4]),
         dict(input_shape=[3, 4, 5, 6]),
     ]
+
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_mul(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                         use_legacy_frontend):
         self._test(
             *self.create_complex_mul_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
