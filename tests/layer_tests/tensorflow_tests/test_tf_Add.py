@@ -9,7 +9,7 @@ from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestAdd(CommonTFLayerTest):
-    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, use_new_frontend):
+    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -28,8 +28,8 @@ class TestAdd(CommonTFLayerTest):
             tf_x_shape = x_shape.copy()
             tf_y_shape = y_shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
+            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_legacy_frontend)
 
             x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
             constant_value = np.random.randint(-256, 256, tf_y_shape).astype(np.float32)
@@ -64,11 +64,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
     def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_2D = [
         dict(x_shape=[1, 1], y_shape=[1, 1]),
@@ -81,11 +81,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
     def test_add_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_3D = [
         dict(x_shape=[1, 1, 1], y_shape=[1, 1, 1]),
@@ -101,11 +101,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_add_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_4D = [
         dict(x_shape=[1, 1, 1, 1], y_shape=[1, 1, 1, 1]),
@@ -119,11 +119,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_add_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1, 1, 1, 1, 1]),
@@ -137,11 +137,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_add_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version=ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     ###############################################################################################
     #                                                                                             #
@@ -156,11 +156,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_1D)
     @pytest.mark.nightly
     def test_add_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version=ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_broadcast_2D = [
         dict(x_shape=[1, 1], y_shape=[1]),
@@ -174,11 +174,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_2D)
     @pytest.mark.nightly
     def test_add_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version=ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_broadcast_3D = [
         dict(x_shape=[1, 1, 1], y_shape=[1]),
@@ -199,11 +199,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_3D)
     @pytest.mark.nightly
     def test_add_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version=ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_broadcast_4D = [
         dict(x_shape=[1, 1, 1, 1], y_shape=[1]),
@@ -222,11 +222,11 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_add_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version=ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_broadcast_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1]),
@@ -244,9 +244,9 @@ class TestAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_add_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         # we do not perform transpose in the test in case of new frontend
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision,
-                   ir_version=ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+                   ir_version=ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

@@ -130,16 +130,16 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     return result
 
 
-def permute_nhwc_to_nchw(shape, use_new_frontend=False):
-    if use_new_frontend:
+def permute_nhwc_to_nchw(shape, use_legacy_frontend=True):
+    if not use_legacy_frontend:
         return shape
     perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(shape)).perm
     new_shape = np.array(shape)[perm]
     return new_shape
 
 
-def permute_nchw_to_nhwc(shape, use_new_frontend=False):
-    if use_new_frontend:
+def permute_nchw_to_nhwc(shape, use_legacy_frontend=True):
+    if not use_legacy_frontend:
         return shape
     perm = PermuteAttrs.get_nchw_to_nhwc_permutation(len(shape)).perm
     new_shape = np.array(shape)[perm]
