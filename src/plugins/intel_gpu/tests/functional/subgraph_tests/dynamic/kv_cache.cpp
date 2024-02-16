@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -348,7 +349,7 @@ class KVCacheTests: public ::testing::Test {
             }
 
             ngraph::helpers::resize_function(ref_model, input_shapes);
-            return ngraph::helpers::interpretFunction(ref_model, inputs);
+            return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
