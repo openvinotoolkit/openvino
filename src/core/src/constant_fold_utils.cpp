@@ -5,6 +5,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/assign_base.hpp"
@@ -50,20 +51,24 @@ bool is_any_of_type(const ov::Node* const node) {
 
 }  // namespace
 
+static bool is_node_whitelisted(const ov::Node* const node) {
+#define WHITELIST                                                                                                      \
+    ov::op::util::AssignBase, ov::op::v0::Ceiling, ov::op::v0::Constant, ov::op::v0::Convert, ov::op::v1::ConvertLike, \
+        ov::op::v14::ConvertPromoteTypes, ov::op::v13::FakeConvert, ov::op::util::MultiSubGraphOp,                     \
+        ov::op::util::ReadValueBase
+    // any node that is on WHITELIST does not require precision conversion
+    return is_any_of_type<WHITELIST>(node);
+#undef WHITELIST
+}
+
 bool ov::util::node_requires_precision_conversion(const ov::Node* const node) {
     if (node->get_input_size() == 0 || node->get_output_size() == 0) {
         return false;
     }
 
-#define WHITELIST                                                                                    \
-    op::util::AssignBase, v0::Ceiling, v0::Constant, v0::Convert, v1::ConvertLike, v13::FakeConvert, \
-        op::util::MultiSubGraphOp, op::util::ReadValueBase
-    // any node that is on WHITELIST does not require precision conversion
-    using namespace ov::op;
-    if (is_any_of_type<WHITELIST>(node)) {
+    if (is_node_whitelisted(node)) {
         return false;
     }
-#undef WHITELIST
 
     bool has_unsupported_type = false;
     for (size_t i = 0; i < node->get_input_size(); i++) {
@@ -153,6 +158,31 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const Node* c
     return cloned_node;
 }
 
+static bool node_evaluate_requires_precision_conversion(const ov::Node* const node,
+                                                        const ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs) {
+    if (is_node_whitelisted(node)) {
+        return false;
+    }
+
+    bool has_unsupported_type = false;
+    for (size_t i = 0; i < inputs.size(); i++) {
+        if (ov::util::is_type_unsupported(inputs[i].get_element_type())) {
+            has_unsupported_type = true;
+            break;
+        }
+    }
+    if (!has_unsupported_type) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if (ov::util::is_type_unsupported(outputs[i].get_element_type())) {
+                has_unsupported_type = true;
+            }
+        }
+    }
+
+    return has_unsupported_type;
+}
+
 static void convert_tensor(const ov::Tensor& input, ov::Tensor& output) {
     auto outputs = ov::TensorVector{output};
     OPENVINO_ASSERT(ov::op::v0::Convert().evaluate(outputs, ov::TensorVector{input}),
@@ -165,43 +195,9 @@ static void convert_tensor(const ov::Tensor& input, ov::Tensor& output) {
 bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs) {
-    auto create_node_from_tensors = [](const Node* const node, const TensorVector& inputs) {
-        OutputVector new_inputs;
-        new_inputs.reserve(inputs.size());
-        for (const auto& input : inputs)
-            new_inputs.push_back(std::make_shared<op::v0::Constant>(input));
-        return node->clone_with_new_inputs(new_inputs);
-    };
-
-    // Handle case when node inputs don't match input tensors.
-    // Some use cases:
-    // - node without inputs which its only purpose is to run evaluate, e.g. Convert().evaluate({output}, {input})
-    // - type relaxed nodes that may have its input types overriden during evaluate
-    bool input_tensors_match_node_inputs = [node, inputs]() -> bool {
-        size_t node_input_size = node->get_input_size();
-        size_t num_tensors = inputs.size();
-        if (num_tensors > node_input_size) {
-            return false;
-        }
-        for (size_t i = 0; i < num_tensors; i++) {
-            if (node->get_input_element_type(i) != inputs[i].get_element_type()) {
-                return false;
-            }
-        }
-        return true;
-    }();
-
-    std::shared_ptr<Node> node_shared_ptr;
-    if (!input_tensors_match_node_inputs) {
-        node_shared_ptr = create_node_from_tensors(node, inputs);
-        node = node_shared_ptr.get();
-    }
-
-    if (!ov::util::node_requires_precision_conversion(node)) {
+    if (!node_evaluate_requires_precision_conversion(node, outputs, inputs)) {
         return false;
     }
-
-    auto cloned = ov::util::convert_to_supported_precision(node);
 
     TensorVector converted_input_tensors;
     converted_input_tensors.reserve(inputs.size());
@@ -218,15 +214,15 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
     TensorVector converted_output_tensors;
     converted_output_tensors.reserve(outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (cloned->get_output_element_type(i) != outputs[i].get_element_type()) {
-            converted_output_tensors.emplace_back(cloned->get_output_element_type(i), outputs[i].get_shape());
+        if (ov::util::is_type_unsupported(outputs[i].get_element_type())) {
+            converted_output_tensors.emplace_back(element::f32, outputs[i].get_shape());
         } else {
             converted_output_tensors.push_back(outputs[i]);
         }
     }
 
     // evaluate converted node
-    if (!cloned->evaluate(converted_output_tensors, converted_input_tensors)) {
+    if (!node->evaluate(converted_output_tensors, converted_input_tensors)) {
         return false;
     }
 
@@ -236,5 +232,6 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
             convert_tensor(converted_output_tensors[i], outputs[i]);
         }
     }
+
     return true;
 }

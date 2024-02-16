@@ -192,7 +192,7 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
     const auto axes = interpolate::get_axes<PartialShape>(this, axes_port, has_axes_input, out_shape.size(), ta);
     const auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, *axes);
 
-    const auto input_et = get_input_element_type(0);
+    const auto input_et = inputs[0].get_element_type();
     const auto type_size = input_et.size();
     const auto bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
     auto padded_input_data = std::vector<uint8_t>(bytes_in_padded_input, 0);
