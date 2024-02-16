@@ -10,6 +10,7 @@
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 #include "base/ov_behavior_test_utils.hpp"
