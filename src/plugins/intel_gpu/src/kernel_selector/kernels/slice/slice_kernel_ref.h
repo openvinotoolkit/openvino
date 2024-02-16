@@ -13,8 +13,9 @@ struct slice_params: public base_params {
     slice_params() : base_params(KernelType::SLICE) {}
 
     std::vector<std::int32_t> start;
-    std::vector<std::int32_t> end;
     std::vector<std::int32_t> step;
+    base_params::ArgType start_arg_type = base_params::ArgType::Constant;
+    base_params::ArgType step_arg_type = base_params::ArgType::Constant;
 };
 
 struct slice_optional_params : optional_params {
@@ -35,8 +36,8 @@ public:
 
 private:
     JitConstants GetJitConstants(const slice_params &params) const;
-    CommonDispatchData SetDefault(const slice_params &params,
-            const optional_params&) const;
+    CommonDispatchData SetDefault(const slice_params &params) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 } // namespace kernel_selector

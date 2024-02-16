@@ -22,6 +22,7 @@ public:
     static std::string to_string(slice_node const& node);
 
     typed_primitive_inst(network& network, slice_node const& desc);
+    void update_shape_info_tensor(const kernel_impl_params& params) override;
 };
 
 using slice_inst = typed_primitive_inst<slice>;
