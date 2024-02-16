@@ -51,12 +51,12 @@ class TestShape(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_shape_basic(self, input_shape, input_type, out_type, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         if input_shape == [] and out_type == tf.int64:
             pytest.skip('129100 - Hangs or segfault')
         self._test(*self.create_shape_net(input_shape=input_shape, input_type=input_type, out_type=out_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexShape(CommonTFLayerTest):
@@ -96,8 +96,8 @@ class TestComplexShape(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend):
+                           use_legacy_frontend):
         self._test(
             *self.create_complex_shape_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
