@@ -65,6 +65,6 @@ class TestThinPlateSplineMotionModel(TestTorchConvertModel):
         # remove all downloaded files from cache
         self.repo_dir.cleanup()
 
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_convert_model(self, ie_device):
         self.run("tpsmm", None, ie_device)
