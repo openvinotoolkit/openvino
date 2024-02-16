@@ -264,6 +264,12 @@ void deprecation_warning(const std::string& function_name,
     PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
+void raise_not_implemented() {
+    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
+    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    throw py::error_already_set();
+}
+
 bool py_object_is_any_map(const py::object& py_obj) {
     if (!py::isinstance<py::dict>(py_obj)) {
         return false;
