@@ -48,7 +48,7 @@ def generate_ir(coverage=False, **kwargs):
 
 
 def generate_ir_python_api(coverage=False, **kwargs):
-    out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+    out_dir = kwargs['output_dir'] + os.sep + "model.xml"
     if 'use_legacy_frontend' in kwargs and kwargs['use_legacy_frontend']:
         from openvino.runtime import serialize
         from openvino.tools.mo import convert_model
@@ -59,11 +59,13 @@ def generate_ir_python_api(coverage=False, **kwargs):
         from openvino import convert_model, save_model
 
         # cleanup parameters for convert
-        del kwargs['output_dir']
-        del kwargs['model_name']
-        compress_to_fp16 = True
+        if 'output_dir' in kwargs:
+            del kwargs['output_dir']
+
+        compress_to_fp16 = False
         if 'compress_to_fp16' in kwargs:
-            compress_to_fp16 = kwargs['compress_to_fp16']
+            # TODO 132871: fix error with no tensor name in case of compression
+            # compress_to_fp16 = kwargs['compress_to_fp16']
             del kwargs['compress_to_fp16']
 
         ov_model = convert_model(**kwargs)
