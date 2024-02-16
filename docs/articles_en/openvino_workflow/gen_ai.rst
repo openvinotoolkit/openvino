@@ -203,12 +203,12 @@ Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Na
 
 Enabling OpenVINO runtime optimizations
 +++++++++++++++++++++++++++++++++++++++
-OpenVINO runtime provides a set of optimizations that allows more efficient inference of LLMs. This includes Dynamic quantization of activations of 4/8-bit quantized MatMuls
-and KV-cache quantization.
+OpenVINO runtime provides a set of optimizations that allows more efficient inference of LLMs. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls
+and **KV-cache quantization**.
 
-* Dynamic quantization enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see `LLM Weight Compression <weight_compression>`__). 
-  It leads to improvement of the inference latency and throughput of LLMs but can cause some insignificant deviation in the generation accuracy.  The quantization is performed 
-  group-wise manner. It means that values in a group share quantization parameters. The group size is configurable. The rule of thumb here is the larger the group size the 
+* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see `LLM Weight Compression <weight_compression>`__). 
+  It leads to improvement of the inference latency and throughput of LLMs but can cause some insignificant deviation in the generation accuracy.  The quantization is performed in a
+  group-wise manner and group size is configurable. It means that values in a group share quantization parameters. The rule of thumb here is the larger the group size the 
   faster the inference but the lower the accuracy. We recommend using the values ``32``, ``64``, or ``128``. To enable  Dynamic quantization, use the corresponding 
   inference property as follows:
 
@@ -222,7 +222,7 @@ and KV-cache quantization.
 
 
 
-* KV-cache quantization allows lowering the precision of Key and Value cache in LLMs. This helps to reduce memory consumption during the inference and improve latency and throughput. KV-cache can be quantized into the following precisions:
+* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps to reduce memory consumption during the inference and improve latency and throughput. KV-cache can be quantized into the following precisions:
   ``Type.u8``, ``Type.bf16``, ``Type.f16``.  If ``Type.u8`` is used KV-cache quantization is also applied in a group-wise fashion. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if it is defined. 
   Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
 
