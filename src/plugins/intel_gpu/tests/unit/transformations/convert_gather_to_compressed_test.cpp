@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed1) {
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 1 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 1 }, { 1 });
-        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, scale_const, ov::element::f32);
+        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gather_compressed }, ov::ParameterVector{ input1 });
     }
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed2) {
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 1 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 1 }, { 1 });
-        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, scale_const, zp_const, ov::element::f32);
+        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const, zp_const, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gather_compressed }, ov::ParameterVector{ input1 });
     }
@@ -101,7 +101,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed3) {
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4 }, { 1 });
-        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, scale_const, zp_const, ov::element::f32);
+        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const, zp_const, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gather_compressed }, ov::ParameterVector{ input1 });
     }
@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed4) {
         auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{ 32, 16 }, { 1 });
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 32, 4 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 1 }, { 1 });
-        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, scale_const, zp_const, ov::element::f32);
+        auto gather_compressed = std::make_shared<ov::intel_gpu::op::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const, zp_const, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gather_compressed }, ov::ParameterVector{ input1 });
     }
