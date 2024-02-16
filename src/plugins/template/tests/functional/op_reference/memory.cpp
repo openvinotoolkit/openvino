@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
