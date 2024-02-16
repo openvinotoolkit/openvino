@@ -26,13 +26,13 @@ class PropagateToInput;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateToInput transformation propagates AttributeType shared value attribute instances
  * from parent output ports to consumers input ports.
  *
  * For more details about the transformation, refer to
  * [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {

@@ -25,7 +25,7 @@ namespace ov {
 
 class OldApiMapOrder;
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief OldApiMapOrder class represents runtime info attribute that stores
  * order of the transpose that is required for obtaining IR in old API.
  *

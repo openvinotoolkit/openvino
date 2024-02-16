@@ -157,8 +157,8 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
-    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), false);
-    ASSERT_EQ(gather_inst->can_be_optimized(), false);
+    ASSERT_EQ(gather_inst->get_node().can_be_optimized(), true);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
 
     auto KV_SIZE = 24;
     auto BATCH_SIZE = 1;
@@ -179,7 +179,7 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
     network.set_input_data("present", present_mem);
     network.set_input_data("beam_idx", beam_idx_mem);
     network.execute();
-    ASSERT_EQ(gather_inst->can_be_optimized(), false);
+    ASSERT_EQ(gather_inst->can_be_optimized(), true);
     auto gather_output_mem = network.get_output_memory("gather");
     cldnn::mem_lock<float, mem_lock_type::read> gather_output_ptr(gather_output_mem, get_test_stream());
     for (size_t i = 0; i < gather_output_mem->get_layout().count(); ++i) {
@@ -206,7 +206,7 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                              ov::Shape{},                             // output shape
                              0,                                       // batch_dim
                              true),                                   // support_neg_ind
-                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0),
+                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);

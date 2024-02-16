@@ -1411,6 +1411,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
     const auto& output_layout = param_info.get_output_layout(0);
 
     params.is_shape_agnostic = is_shape_agnostic;
+    params.stage_id = 0;
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
