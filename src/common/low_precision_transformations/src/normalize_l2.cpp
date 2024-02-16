@@ -9,12 +9,13 @@
 #include <cmath>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -146,6 +147,8 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pa
     ov::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
     updateOutput(context, newMultiply, newNormalize);
+
+    OPENVINO_DEBUG << "LPT: done: " << newNormalize;
     return true;
 }
 

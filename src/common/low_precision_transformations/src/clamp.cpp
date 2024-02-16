@@ -6,9 +6,10 @@
 #include <algorithm>
 #include <memory>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -75,6 +76,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
+
+    OPENVINO_DEBUG << "LPT: done: " << replacement;
     return true;
 }
 

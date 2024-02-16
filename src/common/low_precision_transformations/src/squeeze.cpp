@@ -6,12 +6,12 @@
 
 #include <memory>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/opsets/opset1.hpp"
-
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -66,7 +66,9 @@ bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

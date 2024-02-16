@@ -12,11 +12,12 @@
 #include <vector>
 #include <cassert>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -148,6 +149,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);
     }
 
+    OPENVINO_DEBUG << "LPT: done: " << newMultiply;
     return true;
 }
 
