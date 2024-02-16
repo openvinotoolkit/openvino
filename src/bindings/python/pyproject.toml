@@ -117,7 +117,7 @@ tests_layer = [
     "numpy>=1.16.6,<1.27",
     "onnxruntime",
     "requests>=2.25.1",
-    "torch>=1.13,<2.2",
+    "torch>=1.13,<2.3",
     "torchvision",
     "transformers",
     "packaging",
