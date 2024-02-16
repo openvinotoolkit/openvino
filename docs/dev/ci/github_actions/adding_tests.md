@@ -1,4 +1,4 @@
-# How to add Tests to the OpenVINO GitHub Actions CI
+# How to add Tests
 
 The OpenVINO repository has [many workflows](./../../../../.github/workflows), which contain
 jobs for building and testing OpenVINO. Their general and structural overview is

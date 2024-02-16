@@ -1,4 +1,4 @@
-# Overview of Caches used in the OpenVINO GitHub Actions CI
+# Caches
 
 OpenVINO uses caches to accelerate builds and tests while minimizing network usage.
 
@@ -23,9 +23,14 @@ Jobs in the workflows utilize these caches based on their requirements.
 
 ## GitHub Actions Cache
 
-This cache is used for sharing small dependencies or artifacts between runs. Refer to the [GitHub Actions official documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) for a complete reference.
+This cache is used for sharing small dependencies or artifacts between runs.
+Refer to the [GitHub Actions official documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
+for a complete reference.
 
-The `CPU functional tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses this cache for sharing tests execution time to speed up the subsequent runs. First, the artifacts are saved with `actions/cache/save` with a particular key `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`:
+The `CPU functional tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml)
+workflow uses this cache for sharing tests execution time to speed up the subsequent runs.
+First, the artifacts are saved with `actions/cache/save` with a particular
+key `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`:
 ```yaml
 CPU_Functional_Tests:
   name: CPU functional tests
@@ -43,7 +48,8 @@ CPU_Functional_Tests:
 Then it appears in the [repository's cache](https://github.com/openvinotoolkit/openvino/actions/caches):
 ![gha_cache_example](../../../sphinx_setup/_static/images/ci/gha_cache_example.png)
 
-The next runs can download the artifact from the repository's cache with `actions/cache/restore` and use it:
+The next runs can download the artifact from the repository's cache with `actions/cache/restore`
+and use it:
 ```yaml
 CPU_Functional_Tests:
   name: CPU functional tests
@@ -150,7 +156,8 @@ Build:
 
 ### Providing `sccache` Prefix
 
-The folder on the remote storage where the cache for the OS/architecture will be saved is provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable under the job's `env` key:
+The folder on the remote storage where the cache for the OS/architecture will be saved is
+provided via the `SCCACHE_AZURE_KEY_PREFIX` environment variable under the job's `env` key:
 ```yaml
 Build:
   ...
