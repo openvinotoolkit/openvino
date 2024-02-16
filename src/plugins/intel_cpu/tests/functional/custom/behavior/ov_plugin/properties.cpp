@@ -153,7 +153,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
 #if defined(__APPLE__)
-    ASSERT_EQ(defaultBindThreadParameter, value);
+    ASSERT_EQ(ov::Affinity::NUMA, value);
 #else
     ASSERT_EQ(affinity, value);
 #endif
