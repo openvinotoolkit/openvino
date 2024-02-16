@@ -102,7 +102,6 @@ Support Change and Deprecation Notices
     We encourage developers to use the Neural Processing Unit (NPU) for low-powered systems
     like Intel® CoreTM Ultra or 14th generation and beyond.
   * OpenVINO C++/C/Python 1.0 APIs are deprecated and will be discontinued in the 2024.0 release.
-    Please use API 2.0 in your applications going forward to avoid disruption.
   * OpenVINO property Affinity API will be deprecated from 2024.0 and will be discontinued in 2025.0.
     It will be replaced with CPU binding configurations (``ov::hint::enable_cpu_pinning``).
 
