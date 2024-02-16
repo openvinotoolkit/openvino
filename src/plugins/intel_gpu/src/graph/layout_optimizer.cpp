@@ -1838,8 +1838,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
         if (node.is_type<fully_connected>()) {
             if (allow_new_shape_infer) {
-                // dnymaic case always requires bfyx format.
-                expected = format::bfyx;
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             } else {
                 auto& fc_node = node.as<fully_connected>();
