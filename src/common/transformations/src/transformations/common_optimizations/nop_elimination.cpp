@@ -920,8 +920,8 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
     auto slice = pattern::wrap_type<op::v8::Slice>();
 
     auto input = pattern::any_input();
-    auto begin_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto end_const = pattern::wrap_type<ov::op::v0::Constant>();
+    auto begin_const = pattern::any_input();
+    auto end_const = pattern::any_input();
     auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
