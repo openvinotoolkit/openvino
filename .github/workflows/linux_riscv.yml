@@ -60,8 +60,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
