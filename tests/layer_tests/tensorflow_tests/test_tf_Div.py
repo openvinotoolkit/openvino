@@ -36,7 +36,7 @@ class TestDiv(CommonTFLayerTest):
         dict(input_shape=[10, 20], input_type=np.float32),
         dict(input_shape=[2, 3, 4], input_type=np.float32),
         pytest.param(dict(input_shape=[8, 5], input_type=np.int32),
-                              marks=pytest.mark.xfail(reason='Ticket TBD - Divide inconsistent behavior on different systems')),
+                              marks=pytest.mark.xfail(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')),
         dict(input_shape=[], input_type=np.float32),
     ]
 
@@ -44,7 +44,7 @@ class TestDiv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_div_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                       use_new_frontend):
+                       use_legacy_frontend):
         self._test(*self.create_div_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

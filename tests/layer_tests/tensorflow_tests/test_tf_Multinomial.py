@@ -120,7 +120,7 @@ class TestMultinomial(CommonTFLayerTest):
         precision,
         ir_version,
         temp_dir,
-        use_new_frontend,
+        use_legacy_frontend,
     ):
         if ie_device == "GPU":
             pytest.skip("Multinomial is not supported on GPU")

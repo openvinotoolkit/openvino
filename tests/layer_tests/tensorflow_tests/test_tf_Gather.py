@@ -73,7 +73,7 @@ class TestGather(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend):
+                    use_legacy_frontend):
         self._test(*self.create_gather_net(**params, params_type=params_type, indices_type=indices_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
