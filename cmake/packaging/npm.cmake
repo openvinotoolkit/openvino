@@ -20,7 +20,8 @@ macro(ov_cpack_settings)
             NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" AND
             NOT item MATCHES "tokenizers" AND
             NOT item MATCHES "java_api" AND
-            NOT item MATCHES "npu_internal")
+            NOT item MATCHES "nvidia" AND
+            NOT item MATCHES "npu")
              list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
