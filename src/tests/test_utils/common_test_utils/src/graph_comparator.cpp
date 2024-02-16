@@ -5,6 +5,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -13,7 +14,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "precomp.hpp"
 
 namespace {
@@ -1068,8 +1068,8 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
             cur_input_data[cur_function->get_parameters()[i]] = tensor;
         }
 
-        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
-        auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
+        auto ref_outputs = ov::test::utils::infer_on_template(ref_function, ref_input_data);
+        auto outputs = ov::test::utils::infer_on_template(cur_function, cur_input_data);
         OPENVINO_ASSERT(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"

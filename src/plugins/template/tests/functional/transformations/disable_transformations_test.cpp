@@ -9,8 +9,8 @@
 #include <string>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"

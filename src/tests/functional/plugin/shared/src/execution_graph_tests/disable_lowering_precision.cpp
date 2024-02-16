@@ -13,7 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "execution_graph_tests/disable_lowering_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"

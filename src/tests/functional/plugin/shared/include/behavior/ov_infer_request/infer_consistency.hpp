@@ -6,7 +6,7 @@
 #include <string>
 
 #include <openvino/openvino.hpp>
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 

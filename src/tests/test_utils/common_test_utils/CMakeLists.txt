@@ -23,6 +23,8 @@ function(add_common_utils ADD_TARGET_NAME)
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CLANG_FORMAT
+            DEPENDENCIES
+                openvino_template_plugin
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -39,6 +41,7 @@ function(add_common_utils ADD_TARGET_NAME)
                         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                     PRIVATE
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                        "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
     )
 
     ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}

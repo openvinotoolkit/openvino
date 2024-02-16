@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
 namespace test {

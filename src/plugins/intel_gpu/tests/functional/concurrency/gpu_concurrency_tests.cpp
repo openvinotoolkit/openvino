@@ -13,7 +13,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
