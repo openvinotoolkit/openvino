@@ -223,7 +223,7 @@ classid probability
 </p>
 </details>
 
-## Adding OpenVINO Runtime (Inference Engine) to Your Project
+## Adding OpenVINO Runtime to Your Project
 
 <details>
 <summary>For versions prior to 2022.1</summary>
@@ -256,7 +256,7 @@ For CMake projects, set the `OpenVINO_DIR` and when you run CMake tool:
 cmake -DOpenVINO_DIR=<INSTALLDIR>/runtime/cmake .
 ```
 
-Then you can find OpenVINO Runtime (Inference Engine) by [`find_package`]:
+Then you can find OpenVINO Runtime by [`find_package`]:
 
 ```cmake
 find_package(OpenVINO REQUIRED)
