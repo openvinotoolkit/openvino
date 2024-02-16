@@ -29,7 +29,6 @@ class TestHardSigmoid(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape", [[1, 10], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]])
     @pytest.mark.parametrize("dtype", ["float32", "float64"])
     @pytest.mark.parametrize("inplace", [True, False])
