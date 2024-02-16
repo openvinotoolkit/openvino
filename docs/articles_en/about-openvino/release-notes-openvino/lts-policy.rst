@@ -69,8 +69,76 @@ Intel® Distribution of OpenVINO ™ toolkit Long-Term Support Releases
     * `pypi.org <https://pypi.org/project/openvino-dev/>`__
     * `DockerHub* <https://hub.docker.com/u/openvino>`__
 
+* **Application Binary Interface (ABI) and release usage:** There is no application binary
+  interface (ABI) compatibility for the OpenVINO™ Runtime (Inference Engine). It is recommended
+  to re-build your application each time when getting updates.
+* **Backward Compatibility** is supported:
 
+  * If you created and compiled your application with the version after the last LTS using
+    the OpenVINO API 2.0, your API calls will be working with the current LTS version too.
+  * The OpenVINO supports IR version(s) introduced with the LTS release and the IR version(s)
+    introduced in the previous release (for example IRv6 for 2020.1; IRv6 and IRv7 for 2020.2).
+  * Environment variables and directory structures are frozen for LTS releases, which means
+    there will be no structural changes allowed.
+  * With the introduction of a new major version in the standard releases, backward compatibility
+    may break in the `OpenVINO API 2.0 <https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html>`__
+    (e.g. 2022.3 → 2023.0).
 
+* **Forward Compatibility** is NOT supported:
 
+  * If you created and compiled your application with a newer version than the LTS, there
+    is no guarantee that you can build your application with the OpenVINO runtime from the LTS
+    release.
+  * OpenVINO runtime does NOT support IR version(s) introduced with the Model Optimizer
+    from a newer version than the LTS release.
 
+Components Included in the Long-Term Support Releases
+########################################################
+
+* Components that expose the OpenVINO API 2.0, such as:
+
+  * plugins for OpenVINO runtime, including the following devices: AUTO device, Intel CPU,
+    Intel® Processor Graphics (GPU), Intel® Movidius™ VPU (Myriad), Intel® Vision Accelerator
+    Design with Intel® Movidius™ VPUs (HDDL), Intel® Gaussian & Neural Accelerator (Intel® GNA).
+  * underlying dependencies with low-level libraries - oneAPI Threading Building Blocks (oneTBB),
+    oneAPI Deep Neural Network Library (oneDNN), etc.
+  * underlying dependencies with hardware-specific OpenCL compilers, drivers and firmware.
+
+* Development tools in the OpenVINO™ toolkit, such as:
+
+  * Model Optimizer,
+  * Post-training Optimization Tool,
+  * Deep Learning Workbench (DL Workbench).
+
+Functionalities Supported in the Long-Term Support Releases
+#################################################################
+
+* Go to the `system requirements <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+  as well as `official documentation <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
+  list of supported devices, model formats, input or output precision, input or output layout,
+  and supported layers.
+* For the best-known configurations, review the documentation on how to
+  :doc:`Get a Deep Learning Model Performance Boost with Intel platforms <openvino_docs_performance_benchmarks>`.
+* `Release Notes <https://wiki.ith.intel.com/display/CVSDK/Release+Notes+-+OpenVINO+v.2022.3+LTS>`__
+  include system requirements (supported hardware targets and corresponding operating systems)
+
+Testing Supported in the Long-Term Support Policy
+#####################################################
+
+* No regression allowed: Each user issue must be covered with the corresponding regression test.
+* White-box: Unit, behaviour and functional tests
+* Black-box: Performance, backward compatibility, load (7x24) and stress testing
+* Security: Code coverage, static analysis, BDBA scans, and others.
+
+Components NOT Included in the Long-Term Support Releases
+##############################################################
+
+* Fixes for the OpenVINO `deprecated API <https://docs.openvino.ai/nightly/deprecated.html>`__
+  will not be introduced.
+* The remaining components that are not covered with the LTS release, such as:
+
+  * Open Model Zoo
+  * OpenCV
+  * Samples
+  * Demos
 
