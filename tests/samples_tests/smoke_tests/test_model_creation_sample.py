@@ -17,17 +17,14 @@ from common.samples_common_test_class import get_tests, SamplesCommonTestClass
 
 
 class Test_model_creation_sample(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'model_creation_sample'
-        super().setup_class()
+    sample_name = 'model_creation_sample'
 
     @pytest.mark.parametrize('param', get_tests({'sample_type': ['C++', 'Python']}))
-    def test(self, param):
+    def test(self, param, cache):
         stdout = self._test(collections.OrderedDict(
             m=f'"{os.environ["WORKSPACE"]}/samples/cpp/model_creation_sample/lenet.bin"',
             **param,
-        ), use_preffix=False).split(sep='\n')
+        ), cache, use_preffix=False).split(sep='\n')
         target_line_index = -1
         for i, line in enumerate(stdout):
             if 'classid' in line:

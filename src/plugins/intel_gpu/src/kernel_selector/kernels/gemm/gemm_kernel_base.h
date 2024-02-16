@@ -22,11 +22,17 @@ struct gemm_params : public base_params {
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;
+    DataTensor beam_table;
+    bool indirect_input0 = false;
+    bool indirect_input1 = false;
     QuantizationType quantization = QuantizationType::NONE;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableQuantization(quantization);
+
+        if (indirect_input0 || indirect_input1)
+            k.EnableIndirectGemm();
         return k;
     }
 };

@@ -13,8 +13,8 @@ class TestBroadcastTo(CommonTFLayerTest):
     # input_shape - shape a tensor for a broadcast
     # broadcast_shape - shape of output
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_broadcastto_placeholder_const_net(self, input_shape, broadcast_shape, ir_version, use_new_frontend):
+    # use_legacy_frontend - common parameter
+    def create_broadcastto_placeholder_const_net(self, input_shape, broadcast_shape, ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -48,8 +48,8 @@ class TestBroadcastTo(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_broadcastto_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_broadcastto_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

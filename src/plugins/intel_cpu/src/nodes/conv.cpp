@@ -346,14 +346,14 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::jit_avx512_amx,
             impl_desc_type::brgconv_avx512_1x1,
             impl_desc_type::brgconv_avx512,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx512_dw,
             impl_desc_type::jit_avx512_1x1,
             impl_desc_type::jit_avx512,
             impl_desc_type::brgconv_avx2_1x1,
             impl_desc_type::brgconv_avx2,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx2_dw,
             impl_desc_type::jit_avx2_1x1,
             impl_desc_type::jit_avx2,
@@ -390,7 +390,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
 
 const bool Convolution::isBrgConvAvailable() {
     static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
     return isBrgConvAvailable;
 }
 
