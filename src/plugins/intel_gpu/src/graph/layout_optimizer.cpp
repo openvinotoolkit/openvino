@@ -1753,9 +1753,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Input block format in shape agnostic causes kernel build failure.
-                if (fmt != format::any && !format::is_default_format(fmt))
-                    continue;
                 // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
