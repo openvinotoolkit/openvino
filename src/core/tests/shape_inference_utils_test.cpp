@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shape_inference/include/tensor_data_accessor.hpp"
-#include "../shape_inference/include/utils.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "openvino/op/reverse.hpp"
+#include "utils.hpp"
 
 TEST(shape_inference_utils_test, get_input_bounds_not_valid_port) {
     ov::op::v1::Reverse dummy_op;
