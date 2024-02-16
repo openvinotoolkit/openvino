@@ -24,8 +24,7 @@ Table of contents:
    -  `Settings <#settings>`__
    -  `Load the U2-Net Model <#load-the-u2-net-model>`__
 
--  `Convert PyTorch U2-Net model to OpenVINO
-   IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
+-  `Convert PyTorch U2-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
 -  `Load and Pre-Process Input
    Image <#load-and-pre-process-input-image>`__
 -  `Select inference device <#select-inference-device>`__
@@ -190,52 +189,52 @@ next cell loads the model and the pre-trained weights.
 .. parsed-literal::
 
 
- 11%|█         | 524k/4.68M [00:00<00:01, 3.36MB/s]
+ 11%|█         | 524k/4.68M [00:00<00:01, 3.35MB/s]
 
 .. parsed-literal::
 
 
- 22%|██▏       | 1.05M/4.68M [00:00<00:00, 3.74MB/s]
+ 22%|██▏       | 1.05M/4.68M [00:00<00:00, 3.71MB/s]
 
 .. parsed-literal::
 
 
- 34%|███▎      | 1.57M/4.68M [00:00<00:00, 3.84MB/s]
+ 34%|███▎      | 1.57M/4.68M [00:00<00:00, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 45%|████▍     | 2.10M/4.68M [00:00<00:00, 3.89MB/s]
+ 45%|████▍     | 2.10M/4.68M [00:00<00:00, 3.88MB/s]
 
 .. parsed-literal::
 
 
- 56%|█████▌    | 2.62M/4.68M [00:00<00:00, 3.92MB/s]
+ 56%|█████▌    | 2.62M/4.68M [00:00<00:00, 3.96MB/s]
 
 .. parsed-literal::
 
 
- 67%|██████▋   | 3.15M/4.68M [00:00<00:00, 3.94MB/s]
+ 67%|██████▋   | 3.15M/4.68M [00:00<00:00, 3.95MB/s]
 
 .. parsed-literal::
 
 
- 78%|███████▊  | 3.67M/4.68M [00:00<00:00, 3.95MB/s]
+ 78%|███████▊  | 3.67M/4.68M [00:00<00:00, 3.97MB/s]
 
 .. parsed-literal::
 
 
- 90%|████████▉ | 4.19M/4.68M [00:01<00:00, 3.96MB/s]
+   90%|████████▉ | 4.19M/4.68M [00:01<00:00, 4.00MB/s]
 
 .. parsed-literal::
 
 
-   100%|██████████| 4.68M/4.68M [00:01<00:00, 4.05MB/s]
+   100%|██████████| 4.68M/4.68M [00:01<00:00, 4.15MB/s]
 
 .. parsed-literal::
 
 
-   100%|██████████| 4.68M/4.68M [00:01<00:00, 3.93MB/s]
+   100%|██████████| 4.68M/4.68M [00:01<00:00, 3.96MB/s]
 
 .. parsed-literal::
 
@@ -282,7 +281,7 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3769: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3769: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
 
 
@@ -382,7 +381,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.113 seconds, FPS: 8.89.
+    Inference finished. Inference time: 0.110 seconds, FPS: 9.05.
 
 
 Visualize Results
