@@ -133,11 +133,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Core ie;
-    ov::Affinity value = ov::Affinity::NONE;
 
 #if defined(__APPLE__)
-    auto defaultBindThreadParameter = ov::Affinity::NUMA;
+    ov::Affinity value = ov::Affinity::CORE;
+    auto defaultBindThreadParameter = ov::Affinity::NONE;
 #else
+    ov::Affinity value = ov::Affinity::NONE;
     auto defaultBindThreadParameter = ov::Affinity::CORE;
     auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {

@@ -96,7 +96,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 changedCpuPinning = true;
 #if defined(__APPLE__)
                 enableCpuPinning = false;
-                threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
+                threadBindingType = affinity == ov::Affinity::NONE ? IStreamsExecutor::ThreadBindingType::NONE
+                                                                   : IStreamsExecutor::ThreadBindingType::NUMA;
 #else
                 ov::Affinity affinity = val.as<ov::Affinity>();
                 enableCpuPinning =
