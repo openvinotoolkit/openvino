@@ -23,6 +23,7 @@
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
+#include "pyopenvino/core/common.hpp"  // for type_caster<Common::ModelHolder<ov::Model>>
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"

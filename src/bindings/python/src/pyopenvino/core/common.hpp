@@ -144,6 +144,48 @@ public:
     }
 };
 
+// See #18388
+template <typename T>
+class ModelHolder {
+    static_assert(std::is_same<T, ov::Model>::value, "ModelHolder can only hold ov::Model");
+    std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<ov::CompiledModel> m_compiled_model;
+
+public:
+    ModelHolder() = default;
+    ModelHolder(const ModelHolder&) = default;
+    ModelHolder(ModelHolder&&) = default;
+    ModelHolder& operator=(const ModelHolder&) = default;
+    ModelHolder& operator=(ModelHolder&&) = default;
+
+    // construct from std::shared_ptr<ov::Model>
+    ModelHolder(const std::shared_ptr<ov::Model>& model) : m_model(model) {}
+    ModelHolder(std::shared_ptr<ov::Model>&& model) : m_model(std::move(model)) {}
+
+    // special constructor for CompiledModel::get_runtime_model()
+    ModelHolder(std::shared_ptr<ov::Model>&& model, std::shared_ptr<ov::CompiledModel>& compiled_model)
+        : m_model(std::move(model)),
+          m_compiled_model(compiled_model) {}
+
+    // calls shared_from_this() automatically by the constructor of std::shared_ptr
+    ModelHolder(ov::Model* model) : m_model(model) {}
+
+    // make sure the compiled model is destructed after the runtime model to
+    // keep the dynamic-loaded library alive, as described in issue #18388
+    ~ModelHolder() noexcept {
+        m_model.reset();
+    }
+
+    // required by pybind11
+    ov::Model* get() const noexcept {
+        return m_model.get();
+    }
+
+    const std::shared_ptr<ov::Model>& get_shared() const noexcept {
+        return m_model;
+    }
+};
+
 namespace docs {
 template<typename Container, typename std::enable_if<std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
 std::string container_to_string(const Container& c, const std::string& delimiter) {
@@ -179,3 +221,31 @@ std::string container_to_string(const Container& c, const std::string& delimiter
 };  // namespace docs
 
 };  // namespace Common
+
+PYBIND11_DECLARE_HOLDER_TYPE(T, Common::ModelHolder<T>);
+
+// Specialization of type caster for std::shared_ptr<ov::Model>, to cast
+// std::shared_ptr<ov::Model> to Common::ModelHolder<ov::Model> and vice versa.
+// Should be included in every file that uses std::shared_ptr<ov::Model> as
+// args or return value in pybind11 bindings.
+namespace PYBIND11_NAMESPACE {
+namespace detail {
+template <>
+class type_caster<std::shared_ptr<ov::Model>> {
+    using base = type_caster<Common::ModelHolder<ov::Model>>;
+    base m_base;
+
+public:
+    PYBIND11_TYPE_CASTER(std::shared_ptr<ov::Model>, const_name<std::shared_ptr<ov::Model>>());
+    bool load(handle src, bool convert) {
+        if (!m_base.load(src, convert))
+            return false;
+        value = static_cast<Common::ModelHolder<ov::Model>>(m_base).get_shared();
+        return true;
+    }
+    static handle cast(const std::shared_ptr<ov::Model>& src, return_value_policy policy, handle parent) {
+        return base::cast(Common::ModelHolder<ov::Model>(src), policy, parent);
+    }
+};
+}  // namespace detail
+}  // namespace PYBIND11_NAMESPACE

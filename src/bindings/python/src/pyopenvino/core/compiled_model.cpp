@@ -11,7 +11,6 @@
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/utils/utils.hpp"
-#include "pyopenvino/utils/ModelHolder.hpp"
 
 namespace py = pybind11;
 
@@ -163,7 +162,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("get_runtime_model",
             [](std::shared_ptr<ov::CompiledModel>& self) {
-                return ModelHolder<ov::Model>(std::const_pointer_cast<ov::Model>(self->get_runtime_model()), self);
+                return Common::ModelHolder<ov::Model>(std::const_pointer_cast<ov::Model>(self->get_runtime_model()), self);
             },
             py::call_guard<py::gil_scoped_release>(),
             R"(

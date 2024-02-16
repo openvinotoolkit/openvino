@@ -19,6 +19,7 @@
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
+#include "common.hpp"  // for type_caster<Common::ModelHolder<ov::Model>>
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 

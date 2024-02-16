@@ -7,6 +7,7 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "pyopenvino/core/common.hpp"  // for type_caster<Common::ModelHolder<ov::Model>>
 
 namespace py = pybind11;
 

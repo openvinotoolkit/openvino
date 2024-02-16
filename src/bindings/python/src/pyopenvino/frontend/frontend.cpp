@@ -12,6 +12,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "pyopenvino/core/common.hpp"  // for type_caster<Common::ModelHolder<ov::Model>>
 #include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
 

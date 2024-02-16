@@ -23,7 +23,6 @@
 #include "pyopenvino/graph/ops/util/variable.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/utils/utils.hpp"
-#include "pyopenvino/utils/ModelHolder.hpp"
 
 namespace py = pybind11;
 
@@ -86,10 +85,10 @@ static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model
 }
 
 void regclass_graph_Model(py::module m) {
-    py::class_<ov::Model, ModelHolder<ov::Model>> model(m, "Model", py::module_local());
+    py::class_<ov::Model, Common::ModelHolder<ov::Model>> model(m, "Model", py::module_local());
     model.doc() = "openvino.runtime.Model wraps ov::Model";
 
-    model.def(py::init([](const ModelHolder<ov::Model>& other) {
+    model.def(py::init([](const Common::ModelHolder<ov::Model>& other) {
                   return other;
               }),
               py::arg("other"));
