@@ -78,61 +78,116 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         return make_unique<slice_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
+    kernel_arguments_data get_arguments(const slice_inst& instance) const override {
+        kernel_selector::slice_params* compile_params =
+            dynamic_cast<kernel_selector::slice_params*>(_kernel_data.params.get());
+
+        kernel_arguments_data args;
+
+        args.inputs.push_back(instance.input_memory_ptr(0));
+
+        if (compile_params->start_arg_type == kernel_selector::base_params::ArgType::Input)
+            args.inputs.push_back(instance.input_memory_ptr(1));
+
+        if (compile_params->step_arg_type == kernel_selector::base_params::ArgType::Input)
+            args.inputs.push_back(instance.input_memory_ptr(3));
+
+
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
+
+        args.shape_info = instance.shape_info_memory_ptr();
+        return args;
+    }
+
     static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::slice_params>(impl_param);
+        auto params = get_default_params<kernel_selector::slice_params>(impl_param, impl_param.is_dynamic());
         auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();
-        auto start_elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
-        auto end_elts = extractIntegerData(inputs[InputIndices::kEnd].first->as<data>(), stream);
-        auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
-        auto data_shape = extractShape(params.inputs[0]);
+
+        const auto data_shape = extractShape(params.inputs[0]);
+
         std::vector<std::int32_t> axes(data_shape.size());
         if (inputs.size() == InputIndices::kInputsNum)
             axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
         else
             std::iota(axes.begin(), axes.end(), 0);
-        std::vector<std::int32_t> selected_start(data_shape.size(), 0);
-        std::vector<std::int32_t> selected_step(data_shape.size(), 1);
-        std::vector<std::int32_t> selected_end(data_shape);
-        for (size_t axis = 0; axis < axes.size(); axis++) {
-            auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
-            auto start = start_elts[axis];
-            auto end = end_elts[axis];
-            auto dim_size = data_shape[transformed_axe];
-            selected_start[transformed_axe] = std::max(std::min(start < 0 ? dim_size + start : start, dim_size - 1), 0);
-            selected_end[transformed_axe] = std::max(std::min(end < 0 ? dim_size + end : end, dim_size - 1), 0);
-            selected_step[transformed_axe] = step_elts[axis];
+
+        if (inputs[InputIndices::kStart].first->is_constant()) {
+            params.start_arg_type = kernel_selector::base_params::ArgType::Constant;
+            auto elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
+            std::vector<std::int32_t> selected_start(data_shape.size(), 0);
+            for (size_t axis = 0; axis < axes.size(); axis++) {
+                auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
+                selected_start[transformed_axe] = elts[axis];
+            }
+
+            params.start = std::move(selected_start);
+
+        } else {
+            params.start_arg_type = kernel_selector::base_params::ArgType::Input;
+            auto layout = impl_param.get_input_layout(InputIndices::kStart);
+            params.inputs.push_back(convert_data_tensor(layout));
         }
-        params.start = std::move(selected_start);
-        params.end = std::move(selected_end);
-        params.step = std::move(selected_step);
+
+
+        if (inputs[InputIndices::kStep].first->is_constant()) {
+            params.step_arg_type = kernel_selector::base_params::ArgType::Constant;
+            auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
+            std::vector<std::int32_t> selected_step(data_shape.size(), 1);
+            for (size_t axis = 0; axis < axes.size(); axis++) {
+                auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
+                selected_step[transformed_axe] = step_elts[axis];
+            }
+
+            params.step = std::move(selected_step);
+
+        } else {
+            params.step_arg_type = kernel_selector::base_params::ArgType::Input;
+            auto stop_layout = impl_param.get_input_layout(InputIndices::kStep);
+            params.inputs.push_back(convert_data_tensor(stop_layout));
+        }
+
+        // if (!inputs[InputIndices::kEnd].first->is_constant()) {
+        //     auto stop_layout = impl_param.get_input_layout(InputIndices::kEnd);
+        //     params.inputs.push_back(convert_data_tensor(stop_layout));
+        // }
+
         params.set_dynamic_shape_offsets();
-        auto &kernel_selector =
-                kernel_selector::slice_kernel_selector::Instance();
+        auto& kernel_selector = kernel_selector::slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
         return make_unique<slice_impl>(best_kernel);
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_default_params<kernel_selector::slice_params>(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
-    implementation_map<slice>::add(impl_types::ocl, slice_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-    });
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<slice>::add(impl_types::ocl, shape_types::any, slice_impl::create, types, formats);
 }
 
 }  // namespace detail
