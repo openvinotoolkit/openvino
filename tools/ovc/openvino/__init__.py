@@ -50,6 +50,13 @@ from openvino.runtime import tensor_from_file
 from openvino.runtime import save_model
 from openvino.runtime import layout_helpers
 
+from openvino._pyopenvino import RemoteContext
+from openvino._pyopenvino import RemoteTensor
+
+# libva related:
+from openvino._pyopenvino import VAContext
+from openvino._pyopenvino import VASurfaceTensor
+
 # Set version for openvino package
 from openvino.runtime import get_version
 __version__ = get_version()
