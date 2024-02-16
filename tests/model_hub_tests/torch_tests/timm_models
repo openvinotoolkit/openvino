@@ -166,10 +166,10 @@ focalnet_base_srf.ms_in1k,None
 focalnet_large_fl3.ms_in22k,None
 focalnet_large_fl4.ms_in22k,None
 gc_efficientnetv2_rw_t.agc_in1k,None
-gcresnet33ts.ra2_in1k,None,xfail,Descriptors shape is incompatible with provided dimensions
-gcresnet50t.ra2_in1k,None,xfail,Descriptors shape is incompatible with provided dimensions
-gcresnext26ts.ch_in1k,None,xfail,Descriptors shape is incompatible with provided dimensions
-gcresnext50ts.ch_in1k,None,xfail,Descriptors shape is incompatible with provided dimensions
+gcresnet33ts.ra2_in1k,None
+gcresnet50t.ra2_in1k,None
+gcresnext26ts.ch_in1k,None
+gcresnext50ts.ch_in1k,None
 gcvit_base.in1k,None
 gernet_s.idstcv_in1k,None
 ghostnet_100.in1k,None
