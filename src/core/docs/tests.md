@@ -2,8 +2,7 @@
 
 OpenVINO Core is covered by tests from the binary `ov_core_unit_tests`. This binary can be built by the target with the same name.
 
-OpenVINO Core [tests](../tests/) have next structure:
- * `.` - common core tests + op evaluation tests
+OpenVINO Core [tests](../tests/) consists of common and op evaluation tests. Folder have next structure:
  * `conditional_compilation` - tests cover conditional compilation feature
  * `frontend` - common frontend tests
  * `models` - test models
