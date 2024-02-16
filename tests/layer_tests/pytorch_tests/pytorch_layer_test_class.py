@@ -93,7 +93,7 @@ class PytorchLayerTest:
                 from torch.fx.experimental.proxy_tensor import make_fx
 
                 em = export(model, tuple(torch_inputs))
-                if version.parse(torch.__version__) >= version.parse("2.2"):
+                if version.parse(torch.__version__) >= version.parse("2.3"):
                     em = em.run_decompositions()
                 print(em.graph_module.code)
 

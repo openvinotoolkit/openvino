@@ -54,7 +54,6 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
-#include "plugin/transformations/move_convert_after_gather.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
@@ -278,8 +277,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
             pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
-
-        manager.register_pass<ov::intel_gpu::MoveConvertAfterGather>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
