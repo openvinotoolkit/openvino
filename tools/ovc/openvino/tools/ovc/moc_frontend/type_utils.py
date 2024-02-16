@@ -11,7 +11,7 @@ def is_type(val):
     if isinstance(val, (type, Type)):
         return True
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
             return True
     if 'torch' in sys.modules:
@@ -31,7 +31,7 @@ def to_ov_type(val):
     if isinstance(val, type):
         return Type(val)
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
             return Type(val.as_numpy_dtype())
     if 'torch' in sys.modules:

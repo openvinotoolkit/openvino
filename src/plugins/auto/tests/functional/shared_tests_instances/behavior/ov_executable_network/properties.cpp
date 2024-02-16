@@ -46,9 +46,6 @@ auto default_affinity = [] {
 
 const std::vector<ov::AnyMap> multi_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::num_streams(ov::streams::AUTO)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
-     {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
@@ -98,7 +95,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))}};
 
-// IE Class Load network
+// OV Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPUOVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE", "MULTI:TEMPLATE"),

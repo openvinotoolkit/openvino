@@ -93,9 +93,7 @@ void get_dims(const ov::Output<ov::Node>& source, const size_t& from, const size
     std::vector<size_t> non_constant_ids;
     for (size_t i = from; i < to; ++i) {
         auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = ov::get_constant_from_source(node)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto constant = ov::util::get_constant_from_source(node)) {
             node = constant;
         } else {
             non_constant_ids.push_back(i);

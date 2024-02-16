@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/concat.hpp"
-
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -12,10 +10,11 @@
 #include "itt.hpp"
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {

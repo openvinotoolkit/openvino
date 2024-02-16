@@ -44,5 +44,33 @@ void concat(const std::vector<const char*>& args,
         }
     }
 }
+
+void concat(const std::vector<const std::string*>& args,
+            std::string* out,
+            const std::vector<Shape>& in_shapes,
+            const Shape& out_shape,
+            int64_t concatenation_axis,
+            size_t) {
+    size_t steps = 1;
+    for (int i = 0; i < concatenation_axis; ++i) {
+        steps *= out_shape[i];
+    }
+    const auto& shape_sizes = calculate_shape_sizes(in_shapes);
+
+    size_t out_offset = 0;
+    for (size_t step = 0; step < steps; ++step) {
+        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
+            const size_t size = shape_sizes[in_index] / steps;
+            const size_t in_offset = step * size;
+
+            const auto src_begin = std::next(args[in_index], in_offset);
+            const auto out_ptr = std::next(out, out_offset);
+            std::copy_n(src_begin, size, out_ptr);
+
+            out_offset += size;
+        }
+    }
+}
+
 }  // namespace reference
 }  // namespace ov

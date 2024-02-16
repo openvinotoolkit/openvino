@@ -1,12 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "compiled_model.hpp"
+#include "node/include/compiled_model.hpp"
 
-#include "addon.hpp"
-#include "errors.hpp"
-#include "infer_request.hpp"
-#include "node_output.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/infer_request.hpp"
+#include "node/include/node_output.hpp"
 
 CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
@@ -70,7 +70,7 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _compiled_model.outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 
@@ -104,7 +104,7 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _compiled_model.inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_inputs)
         js_inputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 

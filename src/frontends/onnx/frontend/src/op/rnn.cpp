@@ -4,20 +4,20 @@
 
 #include "op/rnn.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 #include "utils/recurrent.hpp"
+#include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace {
 struct RNNInputMap : public recurrent::OpInputMap {
-    RNNInputMap(const onnx_import::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
+    RNNInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
 
     virtual ~RNNInputMap() = default;
 };
@@ -29,23 +29,23 @@ struct RNNAttributes : public recurrent::OpAttributes {
 };
 }  // namespace
 
-OutputVector rnn(const Node& node) {
+ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 1;
     RNNInputMap input_map{node, gates_count};
     RNNAttributes attributes{node};
 
-    auto rnn_sequence = std::make_shared<default_opset::RNNSequence>(input_map.at(recurrent::OpInput::X),
-                                                                     input_map.at(recurrent::OpInput::INIT_H),
-                                                                     input_map.at(recurrent::OpInput::SEQ_LENGTHS),
-                                                                     input_map.at(recurrent::OpInput::W),
-                                                                     input_map.at(recurrent::OpInput::R),
-                                                                     input_map.at(recurrent::OpInput::B),
-                                                                     attributes.m_hidden_size,
-                                                                     attributes.m_direction,
-                                                                     attributes.m_activations,
-                                                                     attributes.m_activations_alpha,
-                                                                     attributes.m_activations_beta,
-                                                                     attributes.m_clip_threshold);
+    auto rnn_sequence = std::make_shared<v5::RNNSequence>(input_map.at(recurrent::OpInput::X),
+                                                          input_map.at(recurrent::OpInput::INIT_H),
+                                                          input_map.at(recurrent::OpInput::SEQ_LENGTHS),
+                                                          input_map.at(recurrent::OpInput::W),
+                                                          input_map.at(recurrent::OpInput::R),
+                                                          input_map.at(recurrent::OpInput::B),
+                                                          attributes.m_hidden_size,
+                                                          attributes.m_direction,
+                                                          attributes.m_activations,
+                                                          attributes.m_activations_alpha,
+                                                          attributes.m_activations_beta,
+                                                          attributes.m_clip_threshold);
 
     const auto Y = rnn_sequence->output(0);
     const auto Y_h = rnn_sequence->output(1);
@@ -54,6 +54,6 @@ OutputVector rnn(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -357,63 +357,61 @@ event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx)
 }
 
 loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map,
-                                                                                    memory::ptr mem_ptr,
+                                                                                    memory::ptr extern_mem_ptr,
                                                                                     const int64_t num_iterations) {
     OPENVINO_ASSERT(io_prim_map.axis >= 0, "axis should not be negative");
     const auto& external_id = io_prim_map.external_id;
     const auto& internal_id = io_prim_map.internal_id;
     auto& engine = body_network->get_engine();
     auto& stream = body_network->get_stream();
-    auto prim = body_network->get_primitive(internal_id.pid);
+    auto intern_prim = body_network->get_primitive(internal_id.pid);
+    auto extern_prim = get_network().get_primitive(external_id.pid);
 
     std::vector<memory::ptr> sliced_mems;
 
     // if memory is nullptr, that means memory is not allocated yet because current network is dynamic shape model.
     // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
     // will recalculate that parameters in backedge preprocessing map after first execution.
-    if (mem_ptr != nullptr) {
-        layout sliced_layout = prim->get_output_layout(internal_id.idx);
-        auto out_mem_ptr = prim->output_memory_ptr(internal_id.idx);
-        if (out_mem_ptr != nullptr) {
-            sliced_layout = out_mem_ptr->get_layout();
-        } else {
-            // if inner body prim has no output memory because it has dynamic shape,
-            // calculate inner body prim layout using concat_mem's layout.
+    if (extern_mem_ptr != nullptr) {
+        layout sliced_layout = intern_prim->get_output_layout(internal_id.idx);
+        auto inter_mem_ptr = intern_prim->output_memory_ptr(internal_id.idx);
+        if (inter_mem_ptr == nullptr) {
+            // if inner body intern_prim has no output memory because it has dynamic shape,
+            // calculate inner body intern_prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
             OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
                                     "Not allowed dynamic dimension for axis when num_iteraiont is negative");
-            auto concat_mem_pshape = mem_ptr->get_layout().get_partial_shape();
-            const auto shape_size = concat_mem_pshape.size();
+            auto concat_pshape = extern_prim->get_output_layout().get_partial_shape();
+            const auto shape_size = concat_pshape.size();
             for (size_t i = 0; i < shape_size; i++) {
                 if (updated_sliced_layout[i].is_dynamic()) {
-                    updated_sliced_layout[i] = concat_mem_pshape[i];
+                    updated_sliced_layout[i] = concat_pshape[i];
                 }
             }
-            GPU_DEBUG_LOG << "output pshape for [" << prim->id() << "] is changed from "
+            GPU_DEBUG_LOG << "output pshape for [" << intern_prim->id() << "] is changed from "
                             << sliced_layout.get_partial_shape().to_string()
                             << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
-            out_mem_ptr = engine.allocate_memory(sliced_layout);
-            prim->set_output_layout(sliced_layout, internal_id.idx);
+            inter_mem_ptr = engine.allocate_memory(sliced_layout);
+            intern_prim->set_output_layout(sliced_layout, internal_id.idx);
         }
 
         // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
         if (num_iterations < 0) {
-            sliced_mems.push_back(out_mem_ptr);
+            sliced_mems.push_back(inter_mem_ptr);
         } else {
             sliced_mems.reserve(num_iterations);
-            sliced_mems.push_back(out_mem_ptr);
+            sliced_mems.push_back(inter_mem_ptr);
             for (int j=1; j < num_iterations; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
                 sliced_mems.push_back(sliced_mem);
             }
         }
     }
-
     auto sliced_data_prim = body_network->get_primitive(internal_id.pid);
     auto concat_data_prim = get_network().get_primitive(external_id.pid);
     auto concat_data_id   = external_id;
-    return std::make_shared<concatenated_memory_mapping>(mem_ptr, sliced_mems, stream, engine,
+    return std::make_shared<concatenated_memory_mapping>(extern_mem_ptr, sliced_mems, stream, engine,
                                                 concat_data_prim, sliced_data_prim, io_prim_map);
 }
 
@@ -1040,24 +1038,58 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
         memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
-        if (iter == 0) {
-            auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-            if (ev) event_vec = {ev};
-            GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
-        } else {
-            if (is_dynamic()) {
-                // In dynamic model, do not swap memory buffer between input and output in inner body network.
-                // Just copy data from input buffer memory to output buffer memory.
+
+        if (is_dynamic()) {
+            // In dynamic model, do not swap memory buffer between input and output in inner body network.
+            // Check size of input buffer memory and output buffer memory
+            // If size is differnet, allocate new input memory for the required size,
+            // Else just copy data from input buffer memory to output buffer memory.
+            cldnn::event::ptr ev;
+            if (iter == 0) {
+                auto to_id = mapping.to_primitive->id();
+                // Check backedge_to shape needs to be updated by initial_mem
+                if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
+                    to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
+                    body_network->set_input_data(to_id, to_mem);
+                    ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
+                                    << ") because of shape update from initial memory("
+                                    << mapping.initial_mem << "," << mapping.initial_mem->get_layout().to_short_string() << ")" << std::endl;
+                } else {
+                    ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                }
+            } else {
                 auto from_id = mapping.from_primitive->id();
+                auto to_id = mapping.to_primitive->id();
                 if (body_network->has_event(from_id)) {
                     auto ev = body_network->get_primitive_event(from_id);
                     if (ev) ev->wait();
                 }
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
-                if (ev) event_vec = {ev};
+
+                // Check backedge_to shape needs to be updated by backedge_from
+                if (!from_mem->get_layout().identical(to_mem->get_layout())) {
+                    to_mem = body_network->get_engine().allocate_memory(from_mem->get_layout(), false);
+                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
+                                    << ") because of shape update from backedge_from()" << from_id
+                                    <<")'s memory(" << from_mem << "," << from_mem->get_layout().to_short_string() << ")" << std::endl;
+                    body_network->set_input_data(to_id, to_mem);
+                    ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
+                } else {
+                    ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
+                }
                 GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from [" << mapping.from_primitive->id()
                             << "(" << from_mem << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
+            }
+            if (ev) event_vec = {ev};
+        } else {
+            if (iter == 0) {
+                auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                if (ev) event_vec = {ev};
+                GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             } else {
                 // In static model, swap memory buffer between output and input in inner body network
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();

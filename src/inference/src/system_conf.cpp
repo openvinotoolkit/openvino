@@ -13,6 +13,10 @@
 #include <numeric>
 #include <vector>
 
+#ifdef __linux__
+#    include <sched.h>
+#endif
+
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
@@ -196,6 +200,10 @@ int get_number_of_blocked_cores() {
     return 0;
 }
 
+int get_current_socket_id() {
+    return 0;
+}
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -251,6 +259,10 @@ int get_number_of_blocked_cores() {
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
     return cpu._proc_type_table.size() > 0;
+}
+
+int get_current_socket_id() {
+    return 0;
 }
 
 std::vector<std::vector<int>> get_proc_type_table() {
@@ -346,6 +358,22 @@ std::vector<int> get_available_numa_nodes() {
     return nodes;
 }
 #        endif
+int get_current_socket_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = sched_getcpu();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_SOCKET_ID];
+        }
+    }
+
+    return 0;
+}
+#    else
+int get_current_socket_id() {
+    return 0;
+}
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {
@@ -385,29 +413,6 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                                                stream_processors,
                                                cpu_status);
 
-    OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
-    for (size_t i = 0; i < cpu._cpu_mapping_table.size(); i++) {
-        OPENVINO_DEBUG << cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_GROUP_ID] << " "
-                       << cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG];
-    }
-    OPENVINO_DEBUG << "[ threading ] proc_type_table:";
-    for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
-        OPENVINO_DEBUG << cpu._proc_type_table[i][ALL_PROC] << " " << cpu._proc_type_table[i][MAIN_CORE_PROC] << " "
-                       << cpu._proc_type_table[i][EFFICIENT_CORE_PROC] << " "
-                       << cpu._proc_type_table[i][HYPER_THREADING_PROC] << " "
-                       << cpu._proc_type_table[i][PROC_NUMA_NODE_ID] << " " << cpu._proc_type_table[i][PROC_SOCKET_ID];
-    }
-    OPENVINO_DEBUG << "[ threading ] streams_info_table:";
-    for (size_t i = 0; i < streams_info_table.size(); i++) {
-        OPENVINO_DEBUG << streams_info_table[i][NUMBER_OF_STREAMS] << " " << streams_info_table[i][PROC_TYPE] << " "
-                       << streams_info_table[i][THREADS_PER_STREAM] << " " << streams_info_table[i][STREAM_NUMA_NODE_ID]
-                       << " " << streams_info_table[i][STREAM_SOCKET_ID];
-    }
     OPENVINO_DEBUG << "[ threading ] stream_processors:";
     for (size_t i = 0; i < stream_processors.size(); i++) {
         OPENVINO_DEBUG << "{";

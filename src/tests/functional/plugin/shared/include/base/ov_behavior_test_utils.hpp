@@ -13,7 +13,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -21,10 +20,8 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -148,7 +145,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -249,14 +246,21 @@ public:
     }
 };
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
-{                                                      \
-    try {                                              \
-        __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
-        GTEST_SKIP();                                  \
-    }                                                  \
-}
+class OVClassSeveralDevicesTests : public OVPluginTestBase,
+                                   public OVClassNetworkTest,
+                                   public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> target_devices;
+
+    void SetUp() override {
+        target_device = ov::test::utils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
+        target_devices = GetParam();
+    }
+};
+
 } // namespace behavior
 } // namespace test
 } // namespace ov

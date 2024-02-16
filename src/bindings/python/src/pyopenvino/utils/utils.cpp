@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -298,6 +298,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
+    } else if (py::isinstance<py::bytes>(py_obj)) {
+        return py_obj.cast<std::string>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
     } else if (py::isinstance(py_obj, float_32_type)) {
@@ -375,6 +377,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
+    } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
+        return py::cast<ov::Output<ov::Node>>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);

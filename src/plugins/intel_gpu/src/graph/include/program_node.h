@@ -132,6 +132,8 @@ public:
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
+        params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
+        params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
@@ -171,27 +173,17 @@ public:
     // Count of original primitive outputs
     size_t get_outputs_count() const { return desc->output_size(); }
 
-    std::vector<layout> const get_input_layouts() const {
-        std::vector<layout> layouts;
-        for (const auto& i : dependencies) {
-            layouts.push_back(i.first->get_output_layout(true, i.second));
-        }
-        return layouts;
-    }
+    std::vector<layout> const get_input_layouts() const;
+    layout get_input_layout(size_t idx = 0) const;
+    ov::PartialShape get_input_pshape(size_t idx = 0) const;
+    ov::PartialShape get_output_pshape(size_t idx = 0) const;
 
-    layout get_input_layout(size_t idx = 0) const {
-       return get_dependency(idx).get_output_layout(false);
-    }
-
-    ov::PartialShape get_input_pshape(size_t idx = 0) const {
-       return get_input_layout(idx).get_partial_shape();
-    }
-
-    ov::PartialShape get_output_pshape(size_t idx = 0) const {
-        if (!is_valid_output_layout(idx))
-            return calc_output_layouts()[idx].get_partial_shape();
-       return get_output_layout(idx).get_partial_shape();
-    }
+    virtual std::vector<layout> get_shape_info_input_layouts() const;
+    std::map<size_t, size_t> get_input_port_to_shape_info_offset_map() const;
+    std::map<size_t, size_t> get_output_port_to_shape_info_offset_map() const;
+    size_t get_total_shape_info_input_size() const;
+    size_t get_total_shape_info_output_size() const;
+    size_t get_total_shape_info_size() const;
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
@@ -206,6 +198,7 @@ public:
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
 
+    int32_t get_dependency_output_port(const program_node& node) const;
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 

@@ -29,7 +29,6 @@ ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
     const std::vector<ov::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
             r.precisionsByVersion.emplace(
@@ -41,7 +40,6 @@ ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
                 restriction.operationType.version_id,
                 Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

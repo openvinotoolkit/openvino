@@ -104,7 +104,7 @@ def collect_node_outputs(node: Node) -> dict:
 
 def restore_correct_ports(graph: Graph):
     """
-    Function renumbers from IE to MO port numbering and add ports to all nodes in graph.
+    Function renumbers from OV to MO port numbering and add ports to all nodes in graph.
     :param graph:
     :return:
     """
@@ -127,7 +127,7 @@ def restore_correct_ports(graph: Graph):
             num_of_in_nodes = len(node.in_nodes())
             decremented_number = d['out'] - num_of_in_nodes
             # Initially Const operation in IR has output port with number 1. But later the behaviour was changed
-            # so the output port become 0. This change was made to be consistent with the IR serializer in the IE which
+            # so the output port become 0. This change was made to be consistent with the IR serializer in the OV which
             # generates Const with output port 0. For the backward compatibility reason we need to decrement the Const
             # output port number but for current version this number shouldn't be changed during reading the IR.
             if node.type == 'Const' and d['out'] == 0:

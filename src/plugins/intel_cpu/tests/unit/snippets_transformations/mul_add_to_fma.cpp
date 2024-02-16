@@ -31,8 +31,8 @@ public:
         : SnippetsFunctionBase(inputShapes),
           add_input_idx(add_input_idx),
           scalar_input(scalar_input) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
-        NGRAPH_CHECK(add_input_idx < 2, "Got invalid input idx for add operation");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(add_input_idx < 2, "Got invalid input idx for add operation");
     }
 
 protected:
@@ -81,13 +81,13 @@ protected:
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {
-        NGRAPH_CHECK(m != nullptr, "The test requires Model to be defined");
+        OPENVINO_ASSERT(m != nullptr, "The test requires Model to be defined");
         const auto &params = m->get_parameters();
-        NGRAPH_CHECK(params.size() == (scalar_input ? input_shapes.size() - 1 : input_shapes.size()),
-                    "Passed input shapes and produced function are inconsistent.");
-        for (size_t i = 0; i < params.size(); i++)
-            NGRAPH_CHECK(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
+        OPENVINO_ASSERT(params.size() == (scalar_input ? input_shapes.size() - 1 : input_shapes.size()),
                         "Passed input shapes and produced function are inconsistent.");
+        for (size_t i = 0; i < params.size(); i++)
+            OPENVINO_ASSERT(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
+                            "Passed input shapes and produced function are inconsistent.");
     }
 
 private:

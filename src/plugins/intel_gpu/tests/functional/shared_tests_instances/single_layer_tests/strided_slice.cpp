@@ -65,6 +65,14 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                                 { 0, -6, 0 }, { 0, -8, 0 }, { -1, -2, -1 },
                                 { 1, 0, 1 }, { 1, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 1, 12, 100 }})),
+                                { 0, 6, 0 }, { 0, 4, 0 }, { -1, -2, -1 },
+                                { 1, 0, 1 }, { 1, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 1, 12, 100 }})),
+                                { 0, -8, 0 }, { 0, -4, 0 }, { -1, 2, -1 },
+                                { 1, 0, 1 }, { 1, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                 { 1, 12, 100, 1, 1 }})),
                                 { 0, -1, 0, 0 }, { 0, 0, 0, 0 }, { 1, 1, 1, 1 },
                                 { 1, 0, 1, 0 }, { 1, 0, 1, 0 }, { }, { 0, 1, 0, 1 }, {} },
@@ -109,13 +117,37 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                                 { 0, 0, 0, 0, 0 }, { 0, 0, 29, 29, 29 }, { 1, 1, 1, 1, 1 },
                                 {1, 1, 1, 1, 1}, {1, 1, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
-                                { 10, 12 }})),
-                                { -1, 1 }, { -9999, 0 }, { -1, 1 },
+                                { 10, 10 }})),
+                                { 0, 0 }, { 1000, 2 }, { 1, 1 },
+                                { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 10, 10 }})),
+                                { -1000, 0 }, { 1000, 2 }, { 1, 1 },
+                                { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 10, 10 }})),
+                                { 1000, 1 }, { -1000, 2 }, { -1, 1 },
+                                { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 10, 10 }})),
+                                { -1, 1 }, { -1000, 2 }, { -1, 1 },
+                                { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 10, 10 }})),
+                                { -1, 1 }, { 0, 2 }, { -1, 1 },
+                                { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 10, 10 }})),
+                                { -4, 1 }, { -8, 0 }, { -1, 1 },
                                 { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                 { 5, 5, 5, 5 }})),
                                 { -1, 0, -1, 0 }, { -50, 0, -60, 0 }, { -1, 1, -1, 1 },
                                 { 0, 0, 0, 0 }, { 0, 1, 0, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } },
+        StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                { 2, 2, 4, 1 }})),
+                                { 0, 0, 0, 0 }, { 2, 2, 4, 1 }, {  1, 1, 1, 1 },
+                                { 0 }, { 0 }, { 1 }, { 0 }, {0 } },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                 { 128, 1, 1024 }})),
                                 { -1, 0, 0 }, { 0, 0, 0 }, { 1, 1, 1 },

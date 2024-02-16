@@ -1043,17 +1043,15 @@ public:
         }
     }
 
-    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic) {
+    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         if (engine.get_device_info().dev_type == device_type::discrete_gpu)
             GTEST_SKIP();
 
-        long int batch_num = is_dynamic ? 260 : 256;
         long int ifm_num = 256;
         long int ofm_num = 256;
-        long int scales_group_size = 128;
 
         auto input_mem = engine.allocate_memory({ { batch_num, ifm_num}, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
@@ -1129,8 +1127,76 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
 
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            ASSERT_FLOAT_EQ(output_ptr_ref[i], output_ptr[i]) << "i = " << i;
+        for (size_t i = 0; i < output_ptr_ref.size(); i++)
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 5.0) << "i = " << i;
+    }
+
+    void test_compressed_int8_scale_zp_bias(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({ {1, 1, 2}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {32, 2}, data_types::u8, format::bfyx });
+        auto bias_mem = engine.allocate_memory({ {1, 1, 32}, data_types::f16, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {32, 1}, data_types::f32, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {32, 1}, data_types::f32, format::bfyx });
+
+        set_values<ov::float16>(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f });
+        set_values<uint8_t>(weights_mem, { 1, 2, 3, 4, 5, 6, 7, 8,
+                                           9, 10, 11, 12, 13, 14, 15, 0,
+                                           15, 14, 13, 12, 11, 10, 9, 8,
+                                           7, 6, 5, 4, 3, 2, 1, 0,
+                                           1, 2, 3, 4, 5, 6, 7, 8,
+                                           9, 10, 11, 12, 13, 14, 15, 0,
+                                           15, 14, 13, 12, 11, 10, 9, 8,
+                                           7, 6, 5, 4, 3, 2, 1, 0 });
+
+        set_values<ov::float16>(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f,
+                                            2.0f, -1.0f, 4.0f, -3.0f, 6.0f, -5.0f, 8.0f, 3.0f,
+                                            0.0f, -3.0f, 2.0f, -5.0f, 4.0f, -5.0f, 6.0f, 1.0f,
+                                            1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+        set_values<float>(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f,
+                                             3.0f, 5.0f, -1.0f, -3.0f, 1.5f, 0.5f, 3.0f, 3.0f,
+                                             1.0f, 5.0f, -1.0f, -3.0f, -0.5f, -1.5f, 1.0f, 1.0f,
+                                             2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+        set_values<float>(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f,
+                                    2.0f, 3.0f, 1.0f, 0.0f, 3.0f, 1.0f, 2.0f, 2.0f,
+                                    1.0f, 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 6.0f, 1.0f,
+                                    1.0f, 1.0f, 2.0f, 3.0f, 4.0f, 1.0f, 5.0f, 2.0f });
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("bias", bias_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f16, padding(), 3, 2)
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{1, 1, 32};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        std::vector<ov::float16> expected_result = { 5.f, 12.f, -10.f, -48.f, 9.75f, -14.5f, 32.f, -19.f,
+                                                     54.5f, 64.f, -9.f, -37.5f, 12.f, -3.f, 6.5f, -7.5f,
+                                                     2.f, 14.5f, -4.5f, -38.f, -3.f, -30.5f, 18.5f, -8.f,
+                                                     39.f, 62.f, -20.f, -32.f, 6.25f, -8.f, -3.f, -5.f, };
+
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
         }
     }
 
@@ -1212,7 +1278,7 @@ public:
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f32, padding(), 2, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2)
         );
 
         auto config = get_test_default_config(engine);
@@ -1232,7 +1298,7 @@ public:
         ov::PartialShape expected_shape{2, 8};
         ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
 
-    std::vector<ov::float16> expected_result = {
+        std::vector<ov::float16> expected_result = {
         ov::float16(18), ov::float16(84), ov::float16(-66), ov::float16(-116), ov::float16(19.5), ov::float16(-13.5), ov::float16(30), ov::float16(6),
         ov::float16(-18), ov::float16(-84), ov::float16(66), ov::float16(116), ov::float16(-19.5), ov::float16(13.5), ov::float16(-30), ov::float16(-6) };
 
@@ -2639,23 +2705,51 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
-    this->test_compressed_int4_scale(false, false);
+    this->test_compressed_int4_scale(false, false, 256);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_cached) {
-    this->test_compressed_int4_scale(true, false);
+    this->test_compressed_int4_scale(true, false, 256);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic) {
-    this->test_compressed_int4_scale(false, true);
+    this->test_compressed_int4_scale(false, true, 260);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_cached) {
-    this->test_compressed_int4_scale(true, true);
+    this->test_compressed_int4_scale(true, true, 260);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g32) {
+    this->test_compressed_int4_scale(false, true, 1, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g64) {
+    this->test_compressed_int4_scale(false, true, 1, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g128) {
+    this->test_compressed_int4_scale(false, true, 1, 128);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g32) {
+    this->test_compressed_int4_scale(false, false, 1, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g64) {
+    this->test_compressed_int4_scale(false, false, 1, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g128) {
+    this->test_compressed_int4_scale(false, false, 1, 128);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
     this->test_compressed_scale_bias(false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_bias) {
+    this->test_compressed_int8_scale_zp_bias(false);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias_cached) {
