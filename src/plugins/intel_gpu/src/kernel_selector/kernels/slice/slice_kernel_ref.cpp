@@ -15,23 +15,20 @@ void addJitConstantsForAttribute(kernel_selector::JitConstants &jit,
 
     if (arg_type == base_params::ArgType::Constant) {
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-        jit.AddConstant(MakeJitConstant(name + "_BATCH", attribute[0]));
-        jit.AddConstant(MakeJitConstant(name + "_FEATURE", attribute[1]));
-        if (attribute.size() == 5) {  // BFZYX
-            jit.AddConstant(MakeJitConstant(name + "_Z", attribute[2]));
-            jit.AddConstant(MakeJitConstant(name + "_Y", attribute[3]));
-            jit.AddConstant(MakeJitConstant(name + "_X", attribute[4]));
-        } else {  // BFYX
-            jit.AddConstant(MakeJitConstant(name + "_Y", attribute[2]));
-            jit.AddConstant(MakeJitConstant(name + "_X", attribute[3]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM0", attribute[0]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM1", attribute[1]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM2", attribute[2]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM3", attribute[3]));
+        if (attribute.size() == 5) {
+            jit.AddConstant(MakeJitConstant(name + "_DIM4", attribute[4]));
         }
     } else {
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const ulong* " + name + "_buffer_ptr,"));
-        jit.AddConstant(MakeJitConstant(name + "_BATCH", name + "_buffer_ptr[0]"));
-        jit.AddConstant(MakeJitConstant(name + "_FEATURE", name + "_buffer_ptr[1]"));
-        //jit.AddConstant(MakeJitConstant(name + "_Z", name + "_buffer_ptr[2]"));
-        jit.AddConstant(MakeJitConstant(name + "_Y", name + "_buffer_ptr[2]"));
-        jit.AddConstant(MakeJitConstant(name + "_X", name + "_buffer_ptr[3]"));
+        jit.AddConstant(MakeJitConstant(name + "_DIM0", name + "_buffer_ptr[0]"));
+        jit.AddConstant(MakeJitConstant(name + "_DIM1", name + "_buffer_ptr[1]"));
+        jit.AddConstant(MakeJitConstant(name + "_DIM2", name + "_buffer_ptr[2]"));
+        jit.AddConstant(MakeJitConstant(name + "_DIM3", name + "_buffer_ptr[3]"));
+        jit.AddConstant(MakeJitConstant(name + "_DIM4", name + "_buffer_ptr[4]"));
     }
 }
 
