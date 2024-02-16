@@ -5,8 +5,8 @@
 #pragma once
 
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_op/eltwise.hpp"
+#include "base/ov_subgraph.hpp"
+#include "single_op/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "utils/cpu_test_utils.hpp"

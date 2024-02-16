@@ -4,17 +4,17 @@
 
 #ifdef OPENCV_TEMPLATE_TESTS
 
-#    include <gtest/gtest.h>
-#    include <opencv2/imgproc/types_c.h>
+#include <gtest/gtest.h>
+#include <opencv2/imgproc/types_c.h>
 
-#    include <opencv2/imgproc.hpp>
-#    include <random>
+#include <opencv2/imgproc.hpp>
+#include <random>
 
-#    include "base_reference_test.hpp"
-#    include "functional_test_utils/skip_tests_config.hpp"
-#    include "openvino/core/preprocess/pre_post_process.hpp"
-#    include "openvino/op/add.hpp"
-#    include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "base_reference_test.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/add.hpp"
+#include "base/utils/generate_inputs.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

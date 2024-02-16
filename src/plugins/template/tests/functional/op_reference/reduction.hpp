@@ -15,7 +15,7 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "base/layer_test_utils.hpp"
 
 using namespace ov;
 

@@ -5,7 +5,7 @@
 #include "common_test_utils/node_builders/gru_cell.hpp"
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "common_test_utils/node_builders/rnn_cell.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"

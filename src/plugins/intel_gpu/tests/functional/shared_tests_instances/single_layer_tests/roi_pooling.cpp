@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/roi_pooling.hpp"
+#include "single_op/roi_pooling.hpp"
 
 namespace ov {
 namespace test {

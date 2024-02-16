@@ -6,9 +6,9 @@
 #include <tuple>
 #include <random>
 // #include "single_op_tests/ctc_greedy_decoder.hpp"
-// #include "shared_test_classes/single_op/ctc_greedy_decoder.hpp"
+// #include "single_op/ctc_greedy_decoder.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;

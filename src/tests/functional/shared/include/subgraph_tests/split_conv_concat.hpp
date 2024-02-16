@@ -1,0 +1,22 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "subgraph/split_conv_concat.hpp"
+
+namespace ov {
+namespace test {
+
+TEST_P(SplitConvConcat, CompareWithRefImpl) {
+    run();
+};
+
+TEST_P(SplitConvConcat, QueryModel) {
+    query_model();
+}
+
+}  // namespace test
+}  // namespace ov
+

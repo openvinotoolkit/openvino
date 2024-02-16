@@ -2,5 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(shared_test_classes)
-add_subdirectory(plugin)
+add_subdirectory(shared)
+add_subdirectory(conformance)

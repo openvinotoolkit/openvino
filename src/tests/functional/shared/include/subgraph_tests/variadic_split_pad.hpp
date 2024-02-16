@@ -1,0 +1,17 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "subgraph/variadic_split_pad.hpp"
+
+namespace ov {
+namespace test {
+
+TEST_P(VariadicSplitPad, CompareWithRefs) {
+    run();
+};
+
+}  // namespace test
+}  // namespace ov

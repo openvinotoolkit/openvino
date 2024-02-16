@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
-#include "shared_test_classes/single_op/activation.hpp"
+#include "single_op/activation.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;

@@ -51,14 +51,14 @@ src/plugins/intel_gpu                  - root GPU plugin folder
 
 It is worth it to mention the functional tests, which are located in:
 ```
-src/tests/functional/plugin/gpu
+src/tests/functional/gpu
 ```
 Most of the tests are reused across plugins, and each plugin only needs to add the test instances with some specific parameters.
 
 Shared tests are located in:
 ```
-src/tests/functional/plugin/shared                        <--- test definitions
-src/tests/functional/plugin/gpu/shared_tests_instances    <--- instances for GPU plugin
+src/tests/functional/shared                        <--- test definitions
+src/tests/functional/gpu/shared_tests_instances    <--- instances for GPU plugin
 ```
 
 ## See also

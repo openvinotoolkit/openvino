@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ov_auto_batch_func_tests)
 
-set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/shared/include")
+set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/functional/shared/include")
 ov_add_test_target(
         NAME
             ${TARGET_NAME}

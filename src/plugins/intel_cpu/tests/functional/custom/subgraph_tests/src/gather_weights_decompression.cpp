@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
 

@@ -82,7 +82,7 @@ ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
                  "${TEST_MODEL_ZOO_OUTPUT_DIR}/core"
                   core_tests_out_files)
 
-set(rel_path "src/tests/functional/plugin/shared/models")
+set(rel_path "src/tests/functional/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${TEST_MODEL_ZOO_OUTPUT_DIR}/func_tests/models"
                  ft_out_files)

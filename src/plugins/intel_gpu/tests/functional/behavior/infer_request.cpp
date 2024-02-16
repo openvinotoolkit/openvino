@@ -9,7 +9,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/utils/utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 

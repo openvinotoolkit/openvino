@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
-#include "shared_test_classes/base/utils/compare_results.hpp"
+#include "base/utils/compare_results.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
 
 #include "openvino/op/parameter.hpp"

@@ -6,7 +6,7 @@
 #include <cassert>
 
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 

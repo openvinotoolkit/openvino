@@ -15,7 +15,7 @@ All the tests are written in the `Google Test C++ framework <https://github.com/
 OpenVINO Plugin tests are included in the ``openvino::funcSharedTests`` CMake target which is built within the OpenVINO repository
 (see :doc:`Build Plugin Using CMake <openvino_docs_ov_plugin_dg_plugin_build>` guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
-Test definitions are split into tests class declaration (see ``src/tests/functional/plugin/shared/include``) and tests class implementation (see ``src/tests/functional/plugin/shared/src``) and include the following scopes of plugin conformance tests:
+Test definitions are split into tests class declaration (see ``src/tests/functional/shared/include``) and tests class implementation (see ``src/tests/functional/shared/src``) and include the following scopes of plugin conformance tests:
 
 1. **Behavior tests** (``behavior`` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple compiled models support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
 
@@ -23,7 +23,7 @@ Test definitions are split into tests class declaration (see ``src/tests/functio
 
 * From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the ``convLayerTestParamsSet`` tuple of parameters:
     
-.. doxygensnippet:: src/tests/functional/shared_test_classes/include/shared_test_classes/single_layer/convolution.hpp
+.. doxygensnippet:: src/tests/functional/shared/include/single_op/convolution.hpp
    :language: cpp
    :fragment: [test_convolution:definition]
 

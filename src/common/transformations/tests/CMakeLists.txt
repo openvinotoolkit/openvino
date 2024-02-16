@@ -16,7 +16,7 @@ ov_add_test_target(
         gmock
         func_test_utils
         openvino::offline_transformations
-        sharedTestClasses
+        funcSharedTests
         ov_lpt_models
     ADD_CLANG_FORMAT
     LABELS

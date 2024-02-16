@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/simple_if.hpp"
+#include "subgraph/simple_if.hpp"
 
 using namespace ov::test;
 

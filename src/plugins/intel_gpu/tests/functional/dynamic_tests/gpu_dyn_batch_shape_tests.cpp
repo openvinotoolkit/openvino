@@ -7,7 +7,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/core.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 namespace {

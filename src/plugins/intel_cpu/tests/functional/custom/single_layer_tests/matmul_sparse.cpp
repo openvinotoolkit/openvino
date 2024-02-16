@@ -6,8 +6,8 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "base/ov_subgraph.hpp"
+#include "base/utils/generate_inputs.hpp"
 #include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;

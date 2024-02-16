@@ -3,7 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/convolution.hpp"
-#include "shared_test_classes/single_op/convolution.hpp"
+#include "single_op/convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 

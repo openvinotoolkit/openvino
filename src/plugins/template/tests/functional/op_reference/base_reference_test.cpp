@@ -10,7 +10,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "base/layer_test_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;

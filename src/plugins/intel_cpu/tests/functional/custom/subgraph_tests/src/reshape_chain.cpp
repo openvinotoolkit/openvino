@@ -5,7 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
