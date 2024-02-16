@@ -8,9 +8,34 @@
 
 namespace {
 
-void addJitConstantsForAttribute(kernel_selector::JitConstants &jit,
-        const std::string &name, const std::vector<std::int32_t> &attribute,
-        kernel_selector::base_params::ArgType arg_type ) {
+std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
+#define CASE(TYPE, STR)     \
+    case ov::element::TYPE: \
+        return #STR;
+    switch (type) {
+        CASE(u64, ulong)
+        CASE(i64, long)
+        CASE(u32, uint)
+        CASE(i32, int)
+        CASE(u16, ushort)
+        CASE(i16, short)
+        CASE(u8, char)
+        CASE(i8, uchar)
+
+    default: {
+        OPENVINO_ASSERT(false, "Unknown type!");
+        return "unknown";
+    }
+    }
+
+#undef CASE
+}
+
+void addJitConstantsForAttribute(kernel_selector::JitConstants& jit,
+                                 const std::string& name,
+                                 const std::vector<std::int32_t>& attribute,
+                                 kernel_selector::base_params::ArgType arg_type,
+                                 ov::element::Type_t type) {
     using namespace kernel_selector;
 
     if (arg_type == base_params::ArgType::Constant) {
@@ -23,7 +48,8 @@ void addJitConstantsForAttribute(kernel_selector::JitConstants &jit,
             jit.AddConstant(MakeJitConstant(name + "_DIM4", attribute[4]));
         }
     } else {
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const ulong* " + name + "_buffer_ptr,"));
+        const std::string type_str = ovElementTypeToOCLStr(type);
+        jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
         jit.AddConstant(MakeJitConstant(name + "_DIM0", name + "_buffer_ptr[0]"));
         jit.AddConstant(MakeJitConstant(name + "_DIM1", name + "_buffer_ptr[1]"));
         jit.AddConstant(MakeJitConstant(name + "_DIM2", name + "_buffer_ptr[2]"));
@@ -106,8 +132,8 @@ bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
 
 JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    addJitConstantsForAttribute(jit, "SLICE_BEGIN", params.start, params.start_arg_type);
-    addJitConstantsForAttribute(jit, "SLICE_STEP", params.step, params.step_arg_type);
+    addJitConstantsForAttribute(jit, "SLICE_BEGIN", params.start, params.start_arg_type, params.start_data_type);
+    addJitConstantsForAttribute(jit, "SLICE_STEP", params.step, params.step_arg_type, params.step_data_type);
     return jit;
 }
 

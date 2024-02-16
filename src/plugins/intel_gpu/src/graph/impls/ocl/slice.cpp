@@ -124,6 +124,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         else
             std::iota(axes.begin(), axes.end(), 0);
 
+
+        params.start_data_type = inputs[InputIndices::kStart].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStart].first->is_constant()) {
             params.start_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
@@ -142,6 +144,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         }
 
 
+        params.step_data_type = inputs[InputIndices::kStep].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStep].first->is_constant()) {
             params.step_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
