@@ -52,6 +52,13 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
+      - name: Download OpenVINO tokenizers extension
+        if: ${{ runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
@@ -97,6 +104,10 @@ jobs:
         run: |
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+
+          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
+            python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
+          fi
 
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
 

@@ -5,6 +5,8 @@ import sys
 
 from common.utils.multiprocessing_utils import multiprocessing_run
 from openvino.runtime import Core, get_version as ie2_get_version
+# noinspection PyUnresolvedReferences
+import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
 
 
 def shell(cmd, env=None, cwd=None):
