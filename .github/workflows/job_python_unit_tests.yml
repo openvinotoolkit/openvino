@@ -60,11 +60,11 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-          echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -vv' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -vv -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -vv -G tests -G torchvision -G tests_mo' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt' || 'pdm install --frozen-lockfile --no-self -v -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_LAYER_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt' || 'pdm install --no-default --venv layer-test --frozen-lockfile --no-self -v -L layer.pdm.lock -G tests_layer -G tests_mo -p ${PDM_PROJECT}' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -v' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -v' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -v -G tests' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt' || 'pdm sync -v' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_LAYER_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt' || 'pdm sync -L layer.pdm.lock -v --venv layer-test' }}" >> "$GITHUB_ENV"
           
       - name: Extract OpenVINO packages
         run: |
@@ -112,7 +112,7 @@ jobs:
             pdm venv create --name for-test ${{ env.PYTHON_VERSION }}
             pdm use --venv for-test
             #pdm use -v ${{ env.PYTHON_VERSION }}
-            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo -p ${PDM_PROJECT}
+            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo
           fi
 
           # Install the core OV wheel
@@ -185,18 +185,14 @@ jobs:
         run: |
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
           # #Initialize pdm environment
-            pdm remove openvino-dev -G tests_mo -v
             pdm venv create --name layer-test ${{ env.PYTHON_VERSION }}
             pdm use --venv layer-test
-            pdm lock -L layer.pdm.lock -v --no-default --strategy no_cross_platform -G tests_layer -G tests_mo -p ${PDM_PROJECT}
-            pdm add -vv -G tests_layer -L layer.pdm.lock ${INSTALL_DIR}/tools/openvino-*.whl
-            pdm add -vv -G tests_layer -L layer.pdm.lock pytest-xdist[psutil]
+            pdm lock -L layer.pdm.lock -v --strategy no_cross_platform -G tests_layer -G tests_mo -G pdm_hacks
+
             extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
-            # Find and install OV dev wheel
-            pushd ${INSTALL_DIR}/tools
-              ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-              pdm add -vv -G tests_layer -L layer.pdm.lock $ov_dev_wheel_name[$extras_to_install]
-            popd
+            ov_dev_wheel_name=$(find ${INSTALL_DIR}/tools -name 'openvino_dev*.whl')
+            # add extra openvino, openvino-dev dependency to layer-tests groups
+            pdm add -L layer.pdm.lock -v -G tests_layer --no-sync ${INSTALL_DIR}/tools/openvino-*.whl pytest-xdist[psutil] $ov_dev_wheel_name[$extras_to_install]
           fi
           # layer test requirements
           ${PYTHON_INSTALL_LAYER_REQS}
