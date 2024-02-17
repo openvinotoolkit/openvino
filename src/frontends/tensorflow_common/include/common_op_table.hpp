@@ -38,6 +38,7 @@ OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_atan2_op);
 OP_CONVERTER(translate_avg_pool_op);
+OP_CONVERTER(translate_angle_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_mat_mul_with_type_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -176,6 +177,7 @@ OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_xlog1py_op);
 OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
+
 
 // Translators for internal operations
 OP_CONVERTER_NAMED(translate_unique_op);
