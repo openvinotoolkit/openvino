@@ -252,7 +252,7 @@ std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() 
     // Collect runtime subgraphs
     rt_models.reserve(m_compiled_submodels.size());
     shared_objects.reserve(m_compiled_submodels.size());
-    for (auto& compiled_submodel: m_compiled_submodels) {
+    for (auto& compiled_submodel : m_compiled_submodels) {
         rt_models.push_back(compiled_submodel.compiled_model->get_runtime_model()->clone());
         shared_objects.push_back(compiled_submodel.compiled_model._so);
     }
