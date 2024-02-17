@@ -175,6 +175,10 @@ extern template bool evaluate_node<ov::op::v1::Mod>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v1::Multiply>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::NonMaxSuppression>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
