@@ -16,7 +16,7 @@ OpenVINO Inference has the following structure:
  * [include](./include) contains public API. Find more information in the [OpenVINO Inference API](./docs/api_details.md) document.
  * [src](./src) contains sources of the component.
 
-OpenVINO Inference has unit and functional tests. Unit tests are located in [src/tests/unit/inference_engine](../tests/unit/inference_engine/), functional tests are located in [src/tests/functional/inference_engine](../tests/functional/inference_engine/).
+OpenVINO Inference has unit and functional tests. Unit tests are located in [src/inference/tests/unit](tests/unit/), functional tests are located in [src/inference/tests/functional](tests/unit/).
 
 ## See also
 
