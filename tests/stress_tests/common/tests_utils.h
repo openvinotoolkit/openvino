@@ -24,7 +24,6 @@ public:
     int numprocesses;
     int numthreads;
     int numiters;
-    int api_version;
     std::string precision;
     std::string test_case_name;
     std::string model_name;
@@ -45,15 +44,14 @@ class TestCase : public TestCaseBase {
 public:
     std::string model;
 
-    TestCase(int _numprocesses, int _numthreads, int _numiters, int _api_version, std::string _device,
+    TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
              const std::string &_model,
              const std::string &_model_name, const std::string &_precision) {
-        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, api_version = _api_version,
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
         device = _device, model = _model, model_name = _model_name, precision = _precision;
         test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
                          "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) +
-                         "_Precision_" + update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name)
-                         + "_API_" + std::to_string(api_version);
+                         "_Precision_" + update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
     }
 };
 
@@ -61,13 +59,12 @@ class MemLeaksTestCase : public TestCaseBase {
 public:
     std::vector<std::map<std::string, std::string>> models;
 
-    MemLeaksTestCase(int _numprocesses, int _numthreads, int _numiters, int _api_version, std::string _device,
+    MemLeaksTestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
                      std::vector<std::map<std::string, std::string>> _models) {
-        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, api_version = _api_version,
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
         device = _device, models = _models;
         test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_API_" +
-                         std::to_string(api_version);
+                         "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device);
         for (int i = 0; i < models.size(); i++) {
             test_case_name += "_Model" + std::to_string(i + 1) + "_" + update_item_for_name(models[i]["name"]) + "_" +
                               update_item_for_name(models[i]["precision"]);
@@ -106,9 +103,9 @@ std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
 
 std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj);
 
-void runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params);
+void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
-void _runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params);
+void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
-void test_wrapper(const std::function<void(std::string, std::string, int, int)> &tests_pipeline,
+void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline,
                   const TestCase &params);
