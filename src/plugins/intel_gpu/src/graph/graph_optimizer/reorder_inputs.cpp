@@ -689,16 +689,16 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        reorder_cnt total_reorder_count = std::accumulate(
-            p.get_processing_order().begin(),
-            p.get_processing_order().end(),
-            reorder_cnt{ 0, 0 },
-            [&](reorder_cnt& total, program_node* node) {
-            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
-                return total;
-            auto count = count_reorders(fmt_map, lo, node);
-            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
-        });
+        reorder_cnt total_reorder_count =
+            std::accumulate(p.get_processing_order().begin(),
+                            p.get_processing_order().end(),
+                            reorder_cnt{0, 0},
+                            [&](reorder_cnt total, program_node* node) {
+                                if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                                    return total;
+                                auto count = count_reorders(fmt_map, lo, node);
+                                return reorder_cnt{total.number + count.number, total.total_sizes + count.total_sizes};
+                            });
         // Divide results by two as above function will each reorder from both sides
         GPU_DEBUG_LOG_PASS << "Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
         GPU_DEBUG_LOG_PASS << "Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;

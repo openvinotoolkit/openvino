@@ -612,10 +612,8 @@ std::string toString_v2(const DataTensor& tensor) {
     std::stringstream s;
     s << toString(tensor.GetDType()) << "_";
     s << toString(tensor.GetLayout());
-    int i = 0;
     for (auto dim : tensor.GetDims()) {
         s << "_v" << dim.v << "_p" << dim.pad.before << "_" << dim.pad.after;
-        i++;
     }
     return s.str();
 }
