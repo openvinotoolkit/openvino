@@ -150,6 +150,8 @@ class TFGraphNodeDecoder(DecoderBase):
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
                     variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                    if variable_value is None:
+                        return OVAny(Type.undefined)
                     return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
                     return OVAny(Type.undefined)
