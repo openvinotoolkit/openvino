@@ -6,27 +6,38 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestExpm1(PytorchLayerTest):
-    def _prepare_input(self, inputs, dtype=None):
+    def _prepare_input(self, inputs, dtype=None, out=False):
         import numpy as np
-        return [np.array(inputs).astype(dtype)]
+        x = np.array(inputs).astype(dtype)
+        if not out:
+            return (x, )
+        return (x, np.zeros_like(x).astype(dtype))
 
-    def create_model(self, dtype=None):
-        import torch    
+    def create_model(self, mode="", dtype=None):
+        import torch
         dtype_map = {
             "float32": torch.float32,
             "float64": torch.float64,
         }
 
+        dtype = dtype_map.get(dtype)
+
         class aten_expm1(torch.nn.Module):
-            def __init__(self, dtype) -> None:
+            def __init__(self, mode, dtype):
                 super().__init__()
                 self.dtype = dtype
+                if mode == "out":
+                    self.forward = self.forward_out
+                else:
+                    self.forward = self.forward_default
 
-            def forward(self, x):
+            def forward_default(self, x):
                 return torch.expm1(x.type(self.dtype))
 
-        dtype = dtype_map.get(dtype)
-        model_class = aten_expm1(dtype)
+            def forward_out(self, x, y):
+                return torch.expm1(x.type(self.dtype), out=y), y
+
+        model_class = aten_expm1(mode, dtype)
 
         ref_net = None
 
@@ -34,13 +45,15 @@ class TestExpm1(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("dtype", ["float32", "float64"])
+    @pytest.mark.parametrize("mode,dtype", [
+        ("", "float32"), ("", "float64"),
+        ("out", "float32"), ("out", "float64")])
     @pytest.mark.parametrize("inputs", [[0, 1, 2, 3, 4, 5], [-2, -1, 0, 1, 2, 3], [1, 2, 3, 4, 5, 6]])
-    def test_expm1(self, dtype, inputs, ie_device, precision, ir_version):
+    def test_expm1(self, mode, dtype, inputs, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(dtype),
+            *self.create_model(mode, dtype),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype}
+            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}
         )
