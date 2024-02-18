@@ -5,9 +5,9 @@
 #include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,7 +20,7 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
-    const std::shared_ptr<Node> fakeQuantize = ngraph::builder::makeFakeQuantize(
+    const std::shared_ptr<Node> fakeQuantize = ov::test::utils::make_fake_quantize(
         input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
     fakeQuantize->set_friendly_name("fakeQuantize");
@@ -40,4 +40,4 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

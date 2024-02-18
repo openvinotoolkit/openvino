@@ -8,6 +8,10 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
+if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4018)
@@ -32,12 +36,7 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    if(APPLE)
-        # Apple M1 / M2 is assumed
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-    else()
-        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
-    endif()
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
@@ -135,7 +134,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
                                              openvino::snippets)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE mlas)
@@ -157,21 +155,28 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/attn_quant.cpp
+        API         src/nodes/kernels/scaled_attn/attn_quant.hpp
+        NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
@@ -204,17 +209,14 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-    
+
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
-        $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE USE_STATIC_IE)
 
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 

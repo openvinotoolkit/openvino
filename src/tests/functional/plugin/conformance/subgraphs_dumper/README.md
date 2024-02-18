@@ -7,7 +7,7 @@ uniqueness and matching are defined by implementation of twon interface classes:
 * `Extractor` defines the rules for extracting subgraphs from the models.
 
 > NOTE:
-> Please check the following architecture [diagram](./../../../../../../docs/img/subgraphs_dumper_arch_diaram.png) to get detailed information.
+> Please check the following architecture [diagram](./../../../../../../docs/sphinx_setup/_static/images/img/subgraphs_dumper_arch_diaram.png) to get detailed information.
 
 ## Build
 
@@ -46,4 +46,4 @@ make ov_subgraphs_dumper_tests
 ```
 
 ## Architecture Diagram
-![SubgraphsDumper Architecture Diagram]((./../../../../../../docs/img/subgraphs_dumper_arch_diaram.png)
+![SubgraphsDumper Architecture Diagram](./../../../../../../docs/sphinx_setup/_static/images/img/subgraphs_dumper_arch_diaram.png)

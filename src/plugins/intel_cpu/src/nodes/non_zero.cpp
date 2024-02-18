@@ -7,11 +7,9 @@
 #include <nodes/common/cpu_memcpy.h>
 
 #include "openvino/core/parallel.hpp"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 #include <utils/bfloat16.hpp>
-#include <shape_inference/shape_inference_internal_dyn.hpp>
-
-using namespace InferenceEngine;
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -121,7 +119,7 @@ void NonZero::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void NonZero::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
               OV_CASE(ov::element::f32, float),
@@ -135,8 +133,8 @@ void NonZero::execute(dnnl::stream strm) {
 template <typename T>
 void NonZero::executeSpecified() {
     const T zero = 0;
-    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const T *src = getSrcDataAtPortAs<T>(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     Shape inShape = getParentEdgeAt(0)->getMemory().getShape();
     size_t inRank = inShape.getRank();
     std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
@@ -152,7 +150,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = reinterpret_cast<int*>(dstMemPtr->getData());
+    int* dst = dstMemPtr->getDataAs<int>();
     if (totalNonZeroCount == 0)
         return;
 

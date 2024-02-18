@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2022 Intel Corporation
+// Copyright (C) 2017-2024 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,18 @@
 
 #include "onnx_framework_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
-std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const {
+namespace onnx {
+std::shared_ptr<ov::Node> ONNXFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     return std::make_shared<ONNXFrameworkNode>(m_node, inputs);
 }
 
-std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_functions, inputs);
+std::shared_ptr<ov::Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
+    return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_models, inputs);
 }
 
-std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<ov::Node> NotSupportedONNXNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     const auto& attrs = get_attrs();
     std::string error_message = attrs.at(failed_conversion_key);
     return std::make_shared<NotSupportedONNXNode>(inputs,
@@ -36,7 +37,7 @@ std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVe
                                                   error_message);
 }
 
-bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
+bool NotSupportedONNXNode::visit_attributes(ov::AttributeVisitor& visitor) {
     const auto& attrs = get_attrs();
     auto domain = attrs.get_opset_name();
     auto op_type = attrs.get_type_name();
@@ -45,5 +46,6 @@ bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+}  // namespace onnx
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
@@ -38,14 +38,13 @@ protected:
     virtual void compile_model();
     virtual void infer();
     virtual void validate();
-    virtual void configure_model();
+    virtual void configure_model();;
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
-    bool is_allowed_convertion(ov::element::Type from, ov::element::Type to);
-    void get_convert_precision_map();
     void update_ref_model();
     void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
+    void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
     void TearDown() override {
         if (this->HasFailure() && !is_reported) {
@@ -70,6 +69,8 @@ protected:
     // to provide correct inputs for reference function
     std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Parameter>> matched_parameters;
     precisions_map convert_precisions;
+
+    std::function<void(const std::exception& exp)> callback_exception = nullptr;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;

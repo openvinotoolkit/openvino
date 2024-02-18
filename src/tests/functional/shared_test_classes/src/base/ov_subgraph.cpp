@@ -26,7 +26,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -79,8 +79,14 @@ void SubgraphBaseTest::run() {
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = ov::test::utils::PassRate::Statuses::FAILED;
-            errorMessage = ex.what();
+            if (callback_exception != nullptr) {
+                // exception will be checked by callback.
+                callback_exception(ex);
+                return;
+            } else {
+                status = ov::test::utils::PassRate::Statuses::FAILED;
+                errorMessage = ex.what();
+            }
         } catch (...) {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
@@ -90,10 +96,10 @@ void SubgraphBaseTest::run() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -164,7 +170,7 @@ void SubgraphBaseTest::query_model() {
                 actual.insert(res.first);
             }
             if (expected != actual) {
-                IE_THROW() << "Expected and actual are different";
+                OPENVINO_THROW("Expected and actual are different");
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
@@ -179,10 +185,10 @@ void SubgraphBaseTest::query_model() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -241,10 +247,10 @@ void SubgraphBaseTest::import_export() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -260,7 +266,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
                 std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
                     inputNode = nextNodePtr;
                 }
             }
@@ -295,57 +301,6 @@ void SubgraphBaseTest::configure_model() {
     function = p.build();
 }
 
-bool SubgraphBaseTest::is_allowed_convertion(ov::element::Type from, ov::element::Type to) {
-// based on logic from /src/common/transformations/src/transformations/convert_precision.cpp
-// and some restrictions on converting real to integral and vice versa from ops
-    if (from == to) {
-        return false;
-    }
-    if (from.is_real()) {
-        if ((from == ov::element::Type_t::f32 && to == ov::element::Type_t::f16) || to == ov::element::Type_t::f32) {
-            return true;
-        }
-    } else if (from.is_integral() && from.is_signed()) {
-        if ((from == ov::element::Type_t::i8 && to == ov::element::Type_t::i64) ||
-            (from != ov::element::Type_t::i8 && to == ov::element::Type_t::i32)) {
-            return true;
-        }
-    } else {
-        // integral and unsigned
-        if (to == ov::element::Type_t::i32) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void SubgraphBaseTest::get_convert_precision_map() {
-    try {
-        ov::element::Type inf_prec = core->get_property(targetDevice, ov::hint::inference_precision);
-        {
-            auto& params = function->get_parameters();
-            for (size_t i = 0; i < params.size(); i++) {
-                ov::element::Type param_type = params[i]->get_element_type();
-                if (is_allowed_convertion(param_type, inf_prec)) {
-                    convert_precisions.insert({ param_type , inf_prec });
-                }
-            }
-        }
-
-        {
-            auto results = function->get_results();
-            for (size_t i = 0; i < results.size(); i++) {
-                ov::element::Type result_type = results[i]->get_element_type();
-                if (is_allowed_convertion(result_type, inf_prec)) {
-                    convert_precisions.insert({ result_type , inf_prec });
-                }
-            }
-        }
-    } catch (const std::exception& ex) {
-        std::cout << "[ REFERENCE      ] Ref model will not be converted to plugin inference presicion: " << ex.what() << std::endl;
-    }
-}
-
 void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
@@ -354,7 +309,6 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     core_configuration(this);
-    get_convert_precision_map();
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
@@ -483,17 +437,13 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     update_ref_model();
     match_parameters();
 
-    auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
-    auto inferRequestRef = compiledModelRef.create_infer_request();
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
     for (const auto& param : functionRefs->get_parameters()) {
-        inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
+        inputs_ref[param] = inputs.at(matched_parameters[param]);
     }
-    inferRequestRef.infer();
 
-    auto outputs = std::vector<ov::Tensor>{};
-    for (const auto& output : functionRefs->outputs()) {
-        outputs.push_back(inferRequestRef.get_tensor(output));
-    }
+    auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
+
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
@@ -528,10 +478,22 @@ void SubgraphBaseTest::validate() {
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
-    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
-    t_device.join();
-    t_ref.join();
+    if (targetDevice == "TEMPLATE") {
+        // TODO: Fix it in CVS-129397
+        // This is workaround to reduce occurrence of SIGABRT on Windows build when using TEMPLATE device
+        actualOutputs = get_plugin_outputs();
+        expectedOutputs = calculate_refs();
+    } else {
+        std::thread t_device([&] {
+            actualOutputs = get_plugin_outputs();
+        });
+        std::thread t_ref([&] {
+            expectedOutputs = calculate_refs();
+        });
+
+        t_device.join();
+        t_ref.join();
+    }
 #endif
 
     if (expectedOutputs.empty()) {

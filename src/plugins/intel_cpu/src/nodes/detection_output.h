@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
 #include "common/permute_kernel.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {

@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief NormalizeL2Fusion transformation replaces sub-graphs:
  * x/(sqrt(max(reduce_sum(x[j0, ..., jN]**2, axes), eps))
  * x/(sqrt(add(reduce_sum(x[j0, ..., jN]**2, axes), eps))

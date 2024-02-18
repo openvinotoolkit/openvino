@@ -18,7 +18,7 @@
 #include "softmax_kernel.hpp"
 #include "common.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
@@ -27,16 +27,17 @@ void attn_softmax(float* a,
                   void* a_dst,
                   float scale,
                   float* alibi,
-                  float* attn_mask,
+                  void* attn_mask,
                   uint8_t* causal_mask,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
+                  ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
-    attn_softmax_kernel(a, a_dst, scale, alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, total_size, dst_precision);
+    attn_softmax_kernel(a, a_dst, scale, alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, total_size, attn_mask_prec, dst_precision);
 }
 
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

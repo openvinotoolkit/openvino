@@ -4,28 +4,20 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/op/logical_not.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline OutputVector logical_not(const Node& node) {
-    return {std::make_shared<default_opset::LogicalNot>(node.get_ng_inputs().at(0))};
+inline ov::OutputVector logical_not(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<ov::op::v1::LogicalNot>(node.get_ov_inputs().at(0))};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

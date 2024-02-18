@@ -8,11 +8,9 @@
 #include <tuple>
 #include <memory>
 
-#include "gpu/gpu_config.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
@@ -33,7 +31,6 @@
 #include <d3d11.h>
 #include <d3d11_4.h>
 
-#include "gpu/gpu_context_api_dx.hpp"
 #include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 
 #ifdef NOMINMAX_DEFINED_CTX_UT
@@ -156,7 +153,7 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         auto p = PrePostProcessor(fn_ptr_remote);
         p.input().tensor().set_element_type(ov::element::u8)
                         .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                        .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                        .set_memory_type(ov::intel_gpu::memory_type::surface);
         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
         p.input().model().set_layout("NCHW");
         auto model = p.build();

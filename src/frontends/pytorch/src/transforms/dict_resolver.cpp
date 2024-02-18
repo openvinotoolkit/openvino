@@ -48,6 +48,7 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
                                                                      getitem_node->get_output_partial_shape(0));
                     new_param->set_friendly_name(name);
                     getitem_node->output(0).replace(new_param);
+                    new_param->output(0).set_names({name});
                     new_params.push_back(new_param);
                     changed = true;
                 } else {
@@ -98,7 +99,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
                     return false;
                 }
                 auto name = attrs.at("string_value");
-                new_output.add_names({name});
+                new_output.set_names({name});
                 new_outputs.push_back(std::make_shared<v0::Result>(new_output));
             }
             bool after_res = false;

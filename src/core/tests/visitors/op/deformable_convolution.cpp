@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, deformable_convolution_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformableConvolution>();
+    NodeBuilder::opset().insert<ov::op::v1::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 5, 5});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 3, 3});
@@ -46,7 +46,7 @@ TEST(attributes, deformable_convolution_default_attributes) {
 }
 
 TEST(attributes, deformable_convolution_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformableConvolution>();
+    NodeBuilder::opset().insert<ov::op::v1::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 5, 5});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1, 3, 3});
@@ -82,7 +82,7 @@ TEST(attributes, deformable_convolution_attributes) {
 }
 
 TEST(attributes, deformable_convolution_v8_default_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::DeformableConvolution>();
+    NodeBuilder::opset().insert<ov::op::v8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 5, 5});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 3, 3});
@@ -116,7 +116,7 @@ TEST(attributes, deformable_convolution_v8_default_attributes) {
 }
 
 TEST(attributes, deformable_convolution_v8_attributes) {
-    NodeBuilder::get_ops().register_factory<ov::op::v8::DeformableConvolution>();
+    NodeBuilder::opset().insert<ov::op::v8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 5, 5});
     auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1, 3, 3});

@@ -53,6 +53,13 @@ if(WIN32)
     endif()
 endif()
 
+# WA to support old compiler version, removes unused header which may block build
+if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+    file(READ onnx/onnx/defs/parser.cc CONTENT)
+    string(REPLACE "#include <string_view>" "" CONTENT "${CONTENT}")
+    file(WRITE onnx/onnx/defs/parser.cc "${CONTENT}")
+endif()
+
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install

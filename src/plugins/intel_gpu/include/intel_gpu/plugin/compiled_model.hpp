@@ -31,7 +31,8 @@ public:
     CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
-                  const ExecutionConfig& config);
+                  const ExecutionConfig& config,
+                  const bool loaded_from_cache);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
@@ -54,9 +55,6 @@ public:
         return m_inputs;
     }
 
-    bool is_new_api() const {
-        return std::static_pointer_cast<const ov::intel_gpu::Plugin>(get_plugin())->is_new_api();
-    }
     RemoteContextImpl::Ptr get_context_impl() const {
         return m_context;
     }

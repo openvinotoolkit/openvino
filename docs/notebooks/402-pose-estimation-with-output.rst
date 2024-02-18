@@ -14,21 +14,25 @@ Additionally, you can also upload a video file.
    work. However, you can still do inference on a video in the final
    step.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Imports <#imports>`__
+-  `The model <#the-model>`__
 
-- `Imports <#imports>`__
-- `The model <#the-model>`__
-- `Download the model <#download-the-model>`__
-- `Load the model <#load-the-model>`__
-- `Processing <#processing>`__
-- `OpenPose Decoder <#openpose-decoder>`__
-- `Process Results <#process-results>`__
-- `Draw Pose Overlays <#draw-pose-overlays>`__
-- `Main Processing Function <#main-processing-function>`__
-- `Run <#run>`__
-- `Run Live Pose Estimation <#run-live-pose-estimation>`__
-- `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
+   -  `Download the model <#download-the-model>`__
+   -  `Load the model <#load-the-model>`__
+
+-  `Processing <#processing>`__
+
+   -  `OpenPose Decoder <#openpose-decoder>`__
+   -  `Process Results <#process-results>`__
+   -  `Draw Pose Overlays <#draw-pose-overlays>`__
+   -  `Main Processing Function <#main-processing-function>`__
+
+-  `Run <#run>`__
+
+   -  `Run Live Pose Estimation <#run-live-pose-estimation>`__
 
 .. code:: ipython3
 
@@ -37,12 +41,18 @@ Additionally, you can also upload a video file.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -62,11 +72,15 @@ Imports
     sys.path.append("../utils")
     import notebook_utils as utils
 
-The model 
----------------------------------------------------
+The model
+---------
 
-Download the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Download the model
+~~~~~~~~~~~~~~~~~~
+
+
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -107,8 +121,10 @@ precision in the code below.
     model/intel/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M […
 
 
-Load the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load the model
+~~~~~~~~~~~~~~
+
+
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, the name of the model and a precision.
@@ -176,11 +192,15 @@ there is 1 input and 2 outputs: PAFs and keypoints heatmap.
 
 
 
-Processing 
-----------------------------------------------------
+Processing
+----------
 
-OpenPose Decoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+OpenPose Decoder
+~~~~~~~~~~~~~~~~
+
+
 
 To transform the raw results from the neural network into pose
 estimations, you need OpenPose Decoder. It is provided in the `Open
@@ -198,8 +218,10 @@ of Open Model Zoo.
 
     decoder = OpenPoseDecoder()
 
-Process Results 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Process Results
+~~~~~~~~~~~~~~~
+
+
 
 A bunch of useful functions to transform results into poses.
 
@@ -269,8 +291,10 @@ factor.
         poses[:, :, :2] *= output_scale
         return poses, scores
 
-Draw Pose Overlays 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Draw Pose Overlays
+~~~~~~~~~~~~~~~~~~
+
+
 
 Draw pose overlays on the image to visualize estimated poses. Joints are
 drawn as circles and limbs are drawn as lines. The code is based on the
@@ -307,8 +331,10 @@ from Open Model Zoo.
         cv2.addWeighted(img, 0.4, img_limbs, 0.6, 0, dst=img)
         return img
 
-Main Processing Function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run pose estimation on the specified source. Either a webcam or a video
 file.
@@ -402,11 +428,15 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run 
----------------------------------------------
+Run
+---
 
-Run Live Pose Estimation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Run Live Pose Estimation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -421,41 +451,26 @@ Firefox, may cause flickering. If you experience flickering, set
    may not work if you run this notebook on a remote computer (for
    example, Binder).
 
-Run the pose estimation:
-
-.. code:: ipython3
-
-    run_pose_estimation(source=0, flip=True, use_popup=False)
-
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@2.988] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@2.988] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
-
-
-Run Pose Estimation on a Video File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
 OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work. You can skip first ``N`` frames to fast forward video.
 
+Run the pose estimation:
+
 .. code:: ipython3
 
+    USE_WEBCAM = False
+    cam_id = 0
     video_file = "https://github.com/intel-iot-devkit/sample-videos/blob/master/store-aisle-detection.mp4?raw=true"
+    source = cam_id if USE_WEBCAM else video_file
     
-    run_pose_estimation(video_file, flip=False, use_popup=False, skip_first_frames=500)
+    additional_options = {"skip_first_frames": 500} if not USE_WEBCAM else {}
+    run_pose_estimation(source=source, flip=isinstance(source, int), use_popup=False, **additional_options)
 
 
 
-.. image:: 402-pose-estimation-with-output_files/402-pose-estimation-with-output_22_0.png
+.. image:: 402-pose-estimation-with-output_files/402-pose-estimation-with-output_20_0.png
 
 
 .. parsed-literal::

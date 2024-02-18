@@ -43,6 +43,7 @@ class TestDiv(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_div_pt_spec(self, input_array, other_array, rounding_mode, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = np.float32
@@ -118,6 +119,7 @@ class TestDivTypes(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),

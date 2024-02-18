@@ -19,14 +19,14 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkupCanBeQuantized transformation marks Convolution, ConvolutionBackpropData, GroupConvolution and Concat
  * operations as able to be quantized or not. If an operation is not quantized, then PrecisionsAttribute attribute instance
  * is created with empty precisions.
  *
  * For more details about the transformation, refer to
  * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::MarkupCanBeQuantized : public ov::pass::ModelPass {
 public:

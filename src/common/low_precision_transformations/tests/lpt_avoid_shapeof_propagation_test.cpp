@@ -20,6 +20,7 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/interpolate.hpp"
+#include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_partial.hpp"
@@ -86,6 +87,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationAvgPoolTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::AvgPoolTransformation>();
     m.run_passes(f);
 
@@ -106,6 +108,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationClampTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ClampTransformation>();
     m.run_passes(f);
 
@@ -221,8 +224,8 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationDepthToSpaceTransformation) {
 TEST(LPT, AvoidDequantizationToShapeOfPropagationFakeQuantizeDecompositionTransformation) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 16, 16});
 
-    ngraph::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
-    auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
+    ov::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
+    auto fakeQuantize = ov::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(fakeQuantize);
 
     auto& outInfo = fakeQuantize->output(0).get_rt_info();
@@ -445,6 +448,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationPReluTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::PReluTransformation>();
     m.run_passes(f);
 
@@ -487,6 +491,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceMeanTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ReduceMeanTransformation>();
     m.run_passes(f);
 
@@ -529,6 +534,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceSumTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ReduceSumTransformation>();
     m.run_passes(f);
 

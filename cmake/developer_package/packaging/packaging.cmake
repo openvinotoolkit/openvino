@@ -41,10 +41,16 @@ endmacro()
 #
 function(ov_set_install_rpath TARGET_NAME lib_install_path)
     if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$" OR CPACK_GENERATOR STREQUAL "NPM")
+        if (APPLE)
+            set(RPATH_PREFIX "@loader_path")
+        else()
+            set(RPATH_PREFIX "$ORIGIN")
+        endif()
+
         unset(rpath_list)
         foreach(dependency_install_path IN LISTS ARGN)
             file(RELATIVE_PATH dependency_rpath "/${lib_install_path}" "/${dependency_install_path}")
-            set(dependency_rpath "@loader_path/${dependency_rpath}")
+            set(dependency_rpath "${RPATH_PREFIX}/${dependency_rpath}")
             list(APPEND rpath_list "${dependency_rpath}")
         endforeach()
 
@@ -67,7 +73,7 @@ endfunction()
 #
 # ov_cpack_add_component(NAME ...)
 #
-# Wraps original `cpack_add_component` and adds component to internal IE list
+# Wraps original `cpack_add_component` and adds component to internal OV list
 #
 function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)
@@ -139,9 +145,10 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES "openvino_req_files")
+    # nodejs
+    set(OV_CPACK_COMP_NPM "ov_node_addon")
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")
@@ -179,6 +186,8 @@ elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
+elseif(CPACK_GENERATOR STREQUAL "NPM")
+    include(packaging/npm)
 elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN|VCPKG)$")
     include(packaging/common-libraries)
 elseif(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$")

@@ -13,13 +13,13 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FakeQuantizeDecompositionTransformation decomposes FakeQuantize operations to quantize
  * (FakeQuantize with changes output intervals and low precision output type) and dequantize operations.
  *
  * For more details about the transformation, refer to
  * [FakeQuantizeDecompositionTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
 public:

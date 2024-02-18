@@ -53,7 +53,7 @@ std::unordered_set<std::string> get_broadcast_fused_nodes(const std::shared_ptr<
 
 }  // namespace
 
-ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()), m_is_new_api(true) {}
+ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -75,16 +75,10 @@ void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
     auto locked_core = m_core.lock();
-    if (locked_core)
-        m_is_new_api = locked_core->is_new_api();
 }
 
 std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
     return m_core.lock();
-}
-
-bool ov::IPlugin::is_new_api() const {
-    return m_is_new_api;
 }
 
 const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {

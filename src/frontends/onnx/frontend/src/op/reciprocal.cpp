@@ -1,32 +1,29 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/reciprocal.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
+using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector reciprocal(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+ov::OutputVector reciprocal(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
 
-    auto one_node = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
-    return {std::make_shared<default_opset::Divide>(one_node, data)};
+    auto one_node = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
+    return {std::make_shared<v1::Divide>(one_node, data)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

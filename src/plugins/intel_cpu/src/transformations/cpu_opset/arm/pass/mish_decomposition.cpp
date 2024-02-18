@@ -4,7 +4,7 @@
 
 #include "mish_decomposition.hpp"
 
-#include <openvino/opsets/opset4.hpp>
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/core/rt_info.hpp"
 
 ov::intel_cpu::MishDecomposition::MishDecomposition() {

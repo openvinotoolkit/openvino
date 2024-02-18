@@ -143,10 +143,10 @@ function(ov_download_tbb)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64-canary.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.4-mac-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "60b7ffa73797b173187a7b0ca883c64d7e4e8f24824c0ff233c1ee90e9000317"
+                SHA256 "5e4581b95648d1c5d8f0742badecf48a9529feab6bc55ac94b526eddaf6a18c9"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
@@ -221,47 +221,3 @@ Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake 
     update_deps_cache(TBBBIND_2_5_ROOT "${TBBBIND_2_5}" "Path to TBBBIND_2_5 root folder")
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
 endfunction()
-
-if(ENABLE_INTEL_GNA)
-    reset_deps_cache(
-            GNA_EXT_DIR
-            GNA_PLATFORM_DIR
-            GNA_KERNEL_LIB_NAME
-            GNA_LIBS_LIST
-            GNA_LIB_DIR
-            libGNA_INCLUDE_DIRS
-            libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.05.00.2116")
-        set(GNA_HASH "960350567702bda17276ac4c060d7524fb7ce7ced785004bd861c81ff2bfe2c5")
-
-        set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
-        if(WIN32)
-            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/win64)
-        else()
-            LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
-        endif()
-
-        RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "gna/gna_${GNA_VERSION}.zip"
-                TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
-                SHA256 ${GNA_HASH}
-                USE_NEW_LOCATION TRUE)
-    update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
-    debug_message(STATUS "gna=" ${GNA_EXT_DIR})
-
-    if (WIN32)
-        set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
-    elseif (UNIX)
-        set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
-    else ()
-        message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
-    endif ()
-    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
-    set(GNA_PATH ${GNA_EXT_DIR}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
-
-    if(NOT BUILD_SHARED_LIBS)
-        list(APPEND PATH_VARS "GNA_PATH")
-    endif()
-endif()

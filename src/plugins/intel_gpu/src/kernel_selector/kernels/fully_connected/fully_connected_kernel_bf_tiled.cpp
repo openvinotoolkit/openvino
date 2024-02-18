@@ -196,6 +196,10 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (params.engineInfo.deviceType != dev_type::integrated_gpu)
             return false;
 
+        const auto required_slm_size = tparams.tile_ofm * simd * tparams.tile_ifm * simd * 2; // 2 bytes per value (FP16 data type)
+        if (params.engineInfo.maxLocalMemSize < required_slm_size)
+            return false;
+
         return true;
     }
 
@@ -216,7 +220,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 }  // namespace
 
 FullyConnected_bf_tiled::tune_params
-FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type, int idx) const {
+FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
     if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
@@ -239,10 +243,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
-            return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+            // Tuning for Meteor Lake
+            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
         } else {
             // Try to use SLM kernels if possible
-            if (preffered_kernel_type != KernelType::DEFAULT) {
+            if (preferred_kernel_type != KernelType::DEFAULT) {
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -432,7 +437,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
-    jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
+    auto max_tile_b_size = dispatchData.tile_m;
+    if (params.compressed &&
+        params.is_shape_agnostic &&
+        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4))
+        max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
+
+    jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));

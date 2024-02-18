@@ -20,14 +20,14 @@ static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 
 namespace {
 template <typename T>
-void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
+void test_constant_folding(std::shared_ptr<ov::Model> ov_model,
                            const std::vector<T> expected_output,
                            const PartialShape expected_shape = PartialShape::dynamic()) {
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(ng_function);
+    pass_manager.run_passes(ov_model);
 
-    for (auto ng_node : ng_function->get_ordered_ops()) {
+    for (auto ng_node : ov_model->get_ordered_ops()) {
         if (ov::is_type<op::v0::Constant>(ng_node)) {
             const auto folded_node = ov::as_type_ptr<op::v0::Constant>(ng_node);
             const auto output_values = folded_node->cast_vector<T>();

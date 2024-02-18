@@ -13,12 +13,10 @@ LP_transformations:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
-    - POT
 
 preprocessing:
   revalidate:
     - inference
-    - GNA
     - C_API
     - Python_API
 
@@ -29,6 +27,7 @@ CPU:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
     - ONNX_RT
     - PyTorch_FE
@@ -48,18 +47,10 @@ GPU:
     - IR_FE
     - PROXY
 
-GNA:
-  build:
-    - HETERO
-    - AUTO_BATCH
-    - TEMPLATE
-    - IR_FE
-
 HETERO:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -72,7 +63,6 @@ AUTO_BATCH:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -85,7 +75,6 @@ TEMPLATE:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -115,6 +104,7 @@ IR_FE:
   revalidate:
     - C_API
     - Python_API
+    - JS_API
     - samples
   build:
     - CPU
@@ -139,6 +129,7 @@ TF_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 TFL_FE:
   revalidate:
@@ -153,6 +144,7 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 C_API:
   build:
@@ -166,7 +158,6 @@ Python_API:
   revalidate:
     - samples
     - MO
-    - POT
     - tools
   build:
     - CPU
@@ -181,6 +172,13 @@ Python_API:
     - TFL_FE
     - PyTorch_FE
 
+JS_API:
+  revalidate:
+    - samples
+  build:
+    - CPU
+    - IR_FE
+
 samples:
   build:
     - CPU
@@ -194,7 +192,6 @@ IE_Tests:
   revalidate:
     - CPU
     - GPU
-    - GNA
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -205,13 +202,9 @@ IE_Tests:
 
 MO:
   revalidate:
-    - POT
+    - PyTorch_FE
+    - TF_FE
   build:
-    - Python_API
-
-POT:
-  build:
-    - CPU
     - Python_API
 
 tools:
@@ -232,5 +225,9 @@ NVIDIA:
   build: []
 
 ONNX_RT:
+  revalidate: []
+  build: []
+
+TOKENIZERS:
   revalidate: []
   build: []

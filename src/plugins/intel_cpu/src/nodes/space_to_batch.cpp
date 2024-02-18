@@ -7,8 +7,6 @@
 #include "openvino/core/parallel.hpp"
 #include <openvino/op/space_to_batch.hpp>
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -86,7 +84,7 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     }
 }
 
-static std::vector<int64_t> getShape5D(const SizeVector &shape) {
+static std::vector<int64_t> getShape5D(const VectorDims &shape) {
     std::vector<int64_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];
@@ -98,24 +96,24 @@ static std::vector<int64_t> getShape5D(const SizeVector &shape) {
 
 template<typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
-    const auto& srcMem = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    const auto& dstMem = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto& srcMem = getSrcMemoryAtPort(0);
+    const auto& dstMem = getDstMemoryAtPort(0);
 
-    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const auto *blockShapesPtr = getSrcDataAtPortAs<int>(1);
     size_t dataRank = srcMem->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
-    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    const auto *padsBeginPtr = getSrcDataAtPortAs<int>(2);
     padsBeginIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         padsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    const auto *srcData = reinterpret_cast<const T *>(srcMem->getData());
-    auto *dstData = reinterpret_cast<T *>(dstMem->getData());
+    const auto *srcData = srcMem->getDataAs<const T>();
+    auto *dstData = dstMem->getDataAs<T>();
 
     const int64_t srcLen = srcMem->getSize() / sizeof(T);
     const int64_t dstLen = dstMem->getSize() / sizeof(T);

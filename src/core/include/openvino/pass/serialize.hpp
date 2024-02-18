@@ -7,24 +7,13 @@
 #include <functional>
 #include <string>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#endif
-
-#include "ngraph/opsets/opset.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_SERIALIZE
-#endif
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 /**
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
@@ -42,18 +31,8 @@ public:
     };
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(std::ostream& xmlFile,
-              std::ostream& binFile,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    Serialize(const std::string& xmlPath,
-              const std::string& binPath,
-              std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::UNSPECIFIED);
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
 
 private:
@@ -62,7 +41,7 @@ private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
-    const std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
 
 /**
@@ -86,22 +65,14 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
-    StreamSerialize(std::ostream& stream,
-                    std::map<std::string, ngraph::OpSet>&& custom_opsets = {},
-                    const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    Serialize::Version version = Serialize::Version::UNSPECIFIED);
     StreamSerialize(std::ostream& stream,
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
     std::ostream& m_stream;
-    std::map<std::string, ngraph::OpSet> m_custom_opsets;
     std::function<void(std::ostream&)> m_custom_data_serializer;
     const Serialize::Version m_version;
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 }  // namespace pass
 }  // namespace ov

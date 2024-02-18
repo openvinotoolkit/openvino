@@ -11,7 +11,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
@@ -295,8 +295,9 @@ void InputModel::InputModelTFImpl::load_places() {
             auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
-                                                              std::vector<std::string>{output_name});
-            m_tensor_places[output_name] = output_place;
+                                                              std::vector<std::string>{output_name + ":0"});
+            // TODO: Create tensor places for each ouput port, ticket-129464
+            m_tensor_places[output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }
         return;
@@ -688,7 +689,7 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
                             "TensorFlow Frontend: specify static shape for " + name + " to be frozen.");
     FRONT_END_GENERAL_CHECK(type.is_static(),
                             "TensorFlow Frontend: define static size type for " + name + " to be frozen.");
-    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     m_tensor_values[name] = constant;
 }

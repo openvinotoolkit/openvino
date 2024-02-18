@@ -249,6 +249,37 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest14) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest15) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input3 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+
+        auto convert = std::make_shared<ov::opset1::Convert>(input3, ov::element::f32);
+        ov::mark_as_decompression(convert);
+
+        auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
+        auto matmul2 = std::make_shared<ov::opset1::MatMul>(input2, convert, false, false);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+        manager.register_pass<ConvertMatMulToFullyConnected>();
+    }
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 64});
+        auto input3 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{64, 32}, {1});
+
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(input3, transpose_constant);
+        auto convert = std::make_shared<ov::opset1::Convert>(transpose, ov::element::f32);
+
+        auto matmul1 = std::make_shared<op::FullyConnected>(input1, convert);
+        auto matmul2 = std::make_shared<op::FullyConnected>(input2, convert);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank_adj_1) {
     {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{5, 2, 3});

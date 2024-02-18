@@ -105,6 +105,7 @@ ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
             new_gather_node = std::make_shared<op::GatherCompressed>(gather_input_a,
                                                                      gather_input_b,
                                                                      gather_input_c,
+                                                                     gather_node->get_batch_dims(),
                                                                      gather_input_scale,
                                                                      gather_input_zp,
                                                                      gather_node->get_output_element_type(0));
@@ -112,6 +113,7 @@ ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
             new_gather_node = std::make_shared<op::GatherCompressed>(gather_input_a,
                                                                      gather_input_b,
                                                                      gather_input_c,
+                                                                     gather_node->get_batch_dims(),
                                                                      gather_input_scale,
                                                                      gather_node->get_output_element_type(0));
         }
