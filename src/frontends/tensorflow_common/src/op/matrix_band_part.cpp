@@ -53,14 +53,16 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
 
     // Create indicator function using logical operations
     // Create indicator function using logical operations
+    auto zero = make_shared<v1::Constant>(element::i64, Shape{}, {0});
+
     auto in_band_rows = make_shared<v1::LogicalAnd>(
         make_shared<v1::LogicalOr>(
-            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
-            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(m, n), make_shared<v1::Constant>(element::i64, Shape{}, {num_lower}))
+        make_shared<v1::Less>(num_lower, zero),
+        make_shared<v1::LessEqual>(make_shared<v1::Subtract>(m, n), zero)
         ),
         make_shared<v1::LogicalOr>(
-            make_shared<v1::Less>(make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}), make_shared<v1::Constant>(element::i64, Shape{}, {0})),
-            make_shared<v1::LessEqual>(make_shared<v1::Subtract>(n, m), make_shared<v1::Constant>(element::i64, Shape{}, {num_upper}))
+        make_shared<v1::Less>(num_upper, zero),
+        make_shared<v1::LessEqual>(make_shared<v1::Subtract>(n, m), zero)
         )
     );
 
