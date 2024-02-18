@@ -442,6 +442,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::index_add_", op::inplace_op<op::translate_index_add>},
         {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
+        {"aten::inverse", op::translate_inverse},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
