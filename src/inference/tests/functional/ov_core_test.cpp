@@ -8,6 +8,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "file_utils.h"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -36,7 +37,7 @@ static void remove_plugin_xml(const std::string& file_name) {
 TEST(CoreBaseTest, LoadPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -45,7 +46,7 @@ TEST(CoreBaseTest, LoadPluginXML) {
 TEST(CoreBaseTest, LoadPluginDifferentXMLExtension) {
     std::string xml_file_name = "test_plugin.test";
     std::string xml_file_path =
-        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_name));
     remove_plugin_xml(xml_file_path);
@@ -54,7 +55,7 @@ TEST(CoreBaseTest, LoadPluginDifferentXMLExtension) {
 TEST(CoreBaseTest, LoadAbsoluteOVPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string xml_file_path =
-        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(xml_file_path);
     EXPECT_NO_THROW(ov::Core core(xml_file_path));
     remove_plugin_xml(xml_file_path);
@@ -82,7 +83,8 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string cwd_file_path =
         ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
-    std::string ov_file_path = ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+    std::string ov_file_path =
+        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(cwd_file_path);
     create_plugin_xml(ov_file_path, "2");
     ov::Core core(xml_file_name);
