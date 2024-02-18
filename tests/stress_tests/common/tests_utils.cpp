@@ -19,7 +19,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     std::vector<TestCase> tests_cases;
     const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
 
-    std::vector<int> processes, threads, iterations, api_versions;
+    std::vector<int> processes, threads, iterations;
     std::vector<std::string> devices, models, models_names, precisions;
 
     pugi::xml_node values;
@@ -40,10 +40,6 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
             values = test_config.child("attributes").child("devices");
             for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
                 devices.emplace_back(val.text().as_string());
-        } else if (field == "api_versions") {
-            values = test_config.child("attributes").child("api_versions");
-            for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
-                api_versions.push_back(val.text().as_int());
         } else if (field == "models") {
             values = test_config.child("attributes").child("models");
             for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling()) {
@@ -66,7 +62,6 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     processes = !processes.empty() ? processes : std::vector<int>{1};
     threads = !threads.empty() ? threads : std::vector<int>{1};
     iterations = !iterations.empty() ? iterations : std::vector<int>{1};
-    api_versions = !api_versions.empty() ? api_versions : std::vector<int>{1, 2};
     devices = !devices.empty() ? devices : std::vector<std::string>{"NULL"};
     models = !models.empty() ? models : std::vector<std::string>{"NULL"};
     precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
@@ -75,11 +70,10 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     for (auto &numprocesses: processes)
         for (auto &numthreads: threads)
             for (auto &numiters: iterations)
-                for (auto &api_version: api_versions)
-                    for (auto &device: devices)
-                        for (int i = 0; i < models.size(); i++)
-                            tests_cases.emplace_back(numprocesses, numthreads, numiters, api_version, device, models[i],
-                                                     models_names[i], precisions[i]);
+                for (auto &device: devices)
+                    for (int i = 0; i < models.size(); i++)
+                        tests_cases.emplace_back(numprocesses, numthreads, numiters, device, models[i],
+                                                    models_names[i], precisions[i]);
     return tests_cases;
 }
 
@@ -99,7 +93,6 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
         numprocesses = device.attribute("processes").as_int(1);
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
-        std::vector<int> api_versions{1, 2};
 
         std::vector<std::map<std::string, std::string>> models;
 
@@ -117,9 +110,7 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
                                                          {"precision", precision}};
             models.push_back(model_map);
         }
-        for (auto api_version: api_versions) {
-            tests_cases.emplace_back(numprocesses, numthreads, numiterations, api_version, device_name, models);
-        }
+        tests_cases.emplace_back(numprocesses, numthreads, numiterations, device_name, models);
     }
 
     return tests_cases;
@@ -133,16 +124,16 @@ std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCas
     return obj.param.test_case_name;
 }
 
-void test_wrapper(const std::function<void(std::string, std::string, int, int)> &tests_pipeline,
+void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline,
                   const TestCase &params) {
-    tests_pipeline(params.model, params.device, params.numiters, params.api_version);
+    tests_pipeline(params.model, params.device, params.numiters);
 }
 
-void _runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params) {
+void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params) {
     run_in_threads(params.numthreads, test_wrapper, tests_pipeline, params);
 }
 
-void runTest(const std::function<void(std::string, std::string, int, int)> &tests_pipeline, const TestCase &params) {
+void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params) {
 #if DEBUG_MODE
     tests_pipeline(params.model, params.device, params.numiters);
 #else
