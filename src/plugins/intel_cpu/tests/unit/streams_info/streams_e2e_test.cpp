@@ -28,7 +28,7 @@ struct StreamGenerateionTestCase {
     bool input_cpu_value;
     bool input_cpu_changed;
     ov::hint::PerformanceMode input_pm_hint;
-    ov::intel_cpu::Config::LatencyThreadingMode input_latency_threading_mode;
+    ov::intel_cpu::Config::MaxThreadsPerStream hint_max_threads_per_stream;
     std::vector<std::vector<int>> input_proc_type_table;
     ov::hint::SchedulingCoreType output_type;
     bool output_ht_value;
@@ -45,7 +45,7 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.enableHyperThreading = test_data.input_ht_value;
     config.changedHyperThreading = test_data.input_ht_changed;
     config.hintPerfMode = test_data.input_pm_hint;
-    config.latencyThreadingMode = test_data.input_latency_threading_mode;
+    config.hintMaxThreadsPerStream = test_data.hint_max_threads_per_stream;
     config.hintNumRequests = test_data.input_request;
     config.streams = test_data.input_stream_changed ? test_data.input_stream
                                                     : (test_data.input_stream == 0 ? 1 : test_data.input_stream);
@@ -96,7 +96,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_pinning = {
     true,                                    // param[in]: simulated setting for enableCpuPinning
     true,                                    // param[in]: simulated setting for changedCpuPinning
     ov::hint::PerformanceMode::LATENCY,      // param[in]: simulated setting for performance mode (throughput/latency)
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,  // param[in]: simulated setting for scope of candidate
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,  // param[in]: simulated setting for scope of candidate
                                                               // processors on latency mode
     {{20, 6, 8, 6, 0, 0}},  // param[in]: simulated proc_type_table for platform which has one socket, 6 Pcores, 8
                             // Ecores and hyper threading enabled
@@ -126,7 +126,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2_pinning = {
     true,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{14, 6, 8, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -149,7 +149,7 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_1_pinning = {
     true,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
@@ -172,7 +172,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_unpinning = {
     true,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
@@ -198,7 +198,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2_unpinning = {
     true,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{14, 6, 8, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -221,7 +221,7 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_1_unpinning = {
     true,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
@@ -244,7 +244,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_3 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{14, 6, 8, 0, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -267,7 +267,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_4 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
@@ -290,7 +290,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_5 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -313,7 +313,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_6 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -336,7 +336,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -359,7 +359,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -382,7 +382,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -405,7 +405,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_10 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -428,7 +428,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_11 = {
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -451,7 +451,7 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_2 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
@@ -474,7 +474,7 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_3 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
@@ -497,7 +497,7 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_4 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
@@ -520,7 +520,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_5 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
@@ -546,7 +546,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_6 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -569,7 +569,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_7 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -592,7 +592,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_8 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -615,7 +615,7 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_9 = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -637,7 +637,7 @@ StreamGenerateionTestCase generation_latency_1sockets_96cores_pinning = {
     true,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -659,7 +659,7 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_pinning = {
     true,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -681,7 +681,7 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_2_pinning = {
     true,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -703,7 +703,7 @@ StreamGenerateionTestCase generation_latency_1sockets_96cores_unpinning = {
     true,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -725,7 +725,7 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_unpinning = {
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
@@ -747,7 +747,7 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_2_unpinning = {
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{96, 0, 96, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,

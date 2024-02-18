@@ -22,7 +22,7 @@ struct StreamsCalculationTestCase {
     int model_prefer_threads;
     int input_socket_id;
     std::string input_perf_hint;
-    ov::intel_cpu::Config::LatencyThreadingMode latencyThreadingMode;
+    ov::intel_cpu::Config::MaxThreadsPerStream hint_max_threads_per_stream;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> stream_info_table;
 };
@@ -41,7 +41,7 @@ public:
                                                   test_data.model_prefer_threads,
                                                   test_data.input_socket_id,
                                                   test_data.input_perf_hint,
-                                                  test_data.latencyThreadingMode,
+                                                  test_data.hint_max_threads_per_stream,
                                                   test_data.proc_type_table);
 
         ASSERT_EQ(test_data.stream_info_table, test_stream_info_table);
@@ -49,17 +49,16 @@ public:
 };
 
 StreamsCalculationTestCase _2sockets_104cores_latency_auto_1 = {
-    1,      // param[in]: the number of streams in this simulation.
-    false,  // param[in]: Whether the user explicitly sets the number of streams is higher priority in streams
-            // calculation logic. If this param is true, the following performance hint and LatencyThreadingMode will be
-            // ignored.
-    0,      // param[in]: the number of threads in this simulation
-    0,      // param[in]: the number of infer requests in this simulation
-    0,      // param[in]: the model preferred number of threads in this simulation
-    0,      // param[in]: the current socket id of the running thread in this simulation
-    "LATENCY",                                          // param[in]: the performance hint in this simulation
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,  // param[in]: the LatencyThreadingMode in this
-                                                        // simulation
+    1,          // param[in]: the number of streams in this simulation.
+    false,      // param[in]: Whether the user explicitly sets the number of streams is higher priority in streams
+                // calculation logic. If this param is true, the following performance hint will be ignored.
+    0,          // param[in]: the number of threads in this simulation
+    0,          // param[in]: the number of infer requests in this simulation
+    0,          // param[in]: the model preferred number of threads in this simulation
+    0,          // param[in]: the current socket id of the running thread in this simulation
+    "LATENCY",  // param[in]: the performance hint in this simulation
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,  // param[in]: the hint of max threads per stream in this
+                                                       // simulation
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[in]: the proc_type_table in this simulation
@@ -80,7 +79,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}, {-1, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -92,7 +91,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{208, 104, 0, 104, -1, -1},
      {52, 26, 0, 26, 0, 0},
      {52, 26, 0, 26, 1, 0},
@@ -117,7 +116,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_4 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
     {{1, ALL_PROC, 52, -1, 0},
      {0, MAIN_CORE_PROC, 26, 0, 0},
@@ -134,7 +133,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 208, -1, -1},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -150,7 +149,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, ALL_PROC, 104, -1, -1}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -162,7 +161,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1},
      {52, 26, 0, 26, 0, 0},
      {52, 26, 0, 26, 1, 0},
@@ -186,7 +185,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_4 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
     {{1, ALL_PROC, 104, -1, -1},
      {0, MAIN_CORE_PROC, 26, 0, 0},
@@ -202,7 +201,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
 };
@@ -214,7 +213,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}},
 };
@@ -226,7 +225,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1},
      {52, 26, 0, 26, 0, 0},
      {52, 26, 0, 26, 1, 0},
@@ -246,7 +245,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_4 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
     {{1, ALL_PROC, 52, -1, 0}, {0, MAIN_CORE_PROC, 26, 0, 0}, {0, MAIN_CORE_PROC, 26, 1, 0}},
 };
@@ -258,7 +257,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_5 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {10, 10, 0, 0, 1, 0}, {20, 20, 0, 0, 2, 1}, {20, 20, 0, 0, 3, 1}},
     {{1, ALL_PROC, 20, -1, 0}, {0, MAIN_CORE_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 10, 1, 0}},
 };
@@ -270,7 +269,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_6 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}, {10, 10, 0, 0, 2, 0}, {20, 20, 0, 0, 3, 1}},
     {{1, ALL_PROC, 20, -1, 0}, {0, MAIN_CORE_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 10, 2, 0}},
 };
@@ -282,7 +281,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_7 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
     {{1, ALL_PROC, 52, -1, 0}, {0, MAIN_CORE_PROC, 26, 0, 0}, {0, MAIN_CORE_PROC, 26, 1, 0}},
 };
@@ -294,7 +293,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_8 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
 };
@@ -306,7 +305,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_9 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
 };
@@ -318,7 +317,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_10 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}},
 };
@@ -331,7 +330,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
 };
@@ -343,7 +342,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
 };
@@ -355,7 +354,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 208, -1, -1},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -371,7 +370,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_4 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
 };
@@ -383,7 +382,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_5 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
 };
@@ -395,7 +394,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_6 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 208, -1, -1},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -411,7 +410,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{13, MAIN_CORE_PROC, 4, 0, 0},
      {13, MAIN_CORE_PROC, 4, 1, 1},
@@ -426,7 +425,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -443,7 +442,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{5, MAIN_CORE_PROC, 4, 0, 0}},
 };
@@ -455,7 +454,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{2, MAIN_CORE_PROC, 10, 0, 0}},
 };
@@ -467,7 +466,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_5 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{52, MAIN_CORE_PROC, 1, 0, 0},
      {52, MAIN_CORE_PROC, 1, 1, 1},
@@ -482,7 +481,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_6 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{26, MAIN_CORE_PROC, 2, 0, 0},
      {26, MAIN_CORE_PROC, 2, 1, 1},
@@ -497,7 +496,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7 = {
     8,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{6, MAIN_CORE_PROC, 8, 0, 0},
      {6, MAIN_CORE_PROC, 8, 1, 1},
@@ -518,7 +517,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_1 = {
     8,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{6, MAIN_CORE_PROC, 8, 0, 0},
      {6, MAIN_CORE_PROC, 8, 1, 1},
@@ -539,7 +538,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_2 = {
     4,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1},
      {52, 26, 0, 26, 0, 0},
      {52, 26, 0, 26, 1, 0},
@@ -561,7 +560,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_8 = {
     8,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{5, MAIN_CORE_PROC, 8, 0, 0}},
 };
@@ -574,7 +573,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_9 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{2, MAIN_CORE_PROC, 10, 0, 0}},
 };
@@ -587,7 +586,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_10 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -605,7 +604,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_11 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -623,7 +622,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_12 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, ALL_PROC, 104, 0, 0},
      {0, MAIN_CORE_PROC, 52, 0, 0},
@@ -641,7 +640,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_13 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{13, MAIN_CORE_PROC, 4, 0, 0}, {13, MAIN_CORE_PROC, 4, 1, 1}},
 };
@@ -654,7 +653,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_14 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}, {1, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -667,7 +666,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_15 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{52, MAIN_CORE_PROC, 1, 0, 0}, {52, MAIN_CORE_PROC, 1, 1, 1}},
 };
@@ -680,7 +679,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_16 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{26, MAIN_CORE_PROC, 2, 0, 0}, {26, MAIN_CORE_PROC, 2, 1, 1}},
 };
@@ -693,7 +692,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_17 = {
     8,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{6, MAIN_CORE_PROC, 8, 0, 0},
      {6, MAIN_CORE_PROC, 8, 1, 1},
@@ -710,7 +709,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_18 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}, {1, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -723,7 +722,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_19 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}, {1, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -736,7 +735,7 @@ StreamsCalculationTestCase _2sockets_104cores_tput_20 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 52, 0, 0}, {1, MAIN_CORE_PROC, 52, 1, 1}},
 };
@@ -749,7 +748,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
 };
@@ -761,7 +760,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
@@ -773,7 +772,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
@@ -785,7 +784,7 @@ StreamsCalculationTestCase _2sockets_48cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{6, MAIN_CORE_PROC, 4, 0, 0}, {6, MAIN_CORE_PROC, 4, 1, 1}},
 };
@@ -798,7 +797,7 @@ StreamsCalculationTestCase _2sockets_48cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{24, MAIN_CORE_PROC, 1, 0, 0}, {24, MAIN_CORE_PROC, 1, 1, 1}},
 };
@@ -811,7 +810,7 @@ StreamsCalculationTestCase _2sockets_48cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{6, MAIN_CORE_PROC, 4, 0, 0}, {6, MAIN_CORE_PROC, 4, 1, 1}},
 };
@@ -824,7 +823,7 @@ StreamsCalculationTestCase _2sockets_48cores_tput_4 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{2, MAIN_CORE_PROC, 10, 0, 0}},
 };
@@ -837,7 +836,7 @@ StreamsCalculationTestCase _2sockets_20cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 20, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {10, 10, 0, 0, 1, 1}},
     {{2, MAIN_CORE_PROC, 5, 0, 0}, {2, MAIN_CORE_PROC, 5, 1, 1}},
 };
@@ -850,7 +849,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -863,7 +862,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -876,7 +875,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_3 = {
     6,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
@@ -889,7 +888,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_4 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -905,7 +904,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_5 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -921,7 +920,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_6 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -937,7 +936,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_7 = {
     6,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
@@ -950,7 +949,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_8 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -963,7 +962,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_9 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -976,7 +975,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_10 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -989,7 +988,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_11 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1002,7 +1001,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_12 = {
     6,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
@@ -1015,7 +1014,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_13 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -1031,7 +1030,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_14 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -1047,7 +1046,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_15 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
@@ -1063,7 +1062,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_16 = {
     6,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
@@ -1076,7 +1075,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_17 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1089,7 +1088,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_18 = {
     14,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{14, 6, 8, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1102,7 +1101,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}, {2, HYPER_THREADING_PROC, 3, 0, 0}},
 };
@@ -1115,7 +1114,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}, {1, EFFICIENT_CORE_PROC, 6, 0, 0}},
 };
@@ -1128,7 +1127,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
@@ -1141,7 +1140,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}},
 };
@@ -1154,7 +1153,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_5 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {6, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1167,7 +1166,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_6 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{3, MAIN_CORE_PROC, 2, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {3, HYPER_THREADING_PROC, 2, 0, 0}},
 };
@@ -1180,7 +1179,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_7 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {8, EFFICIENT_CORE_PROC, 1, 0, 0}, {6, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1193,7 +1192,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_8 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}, {2, HYPER_THREADING_PROC, 3, 0, 0}},
 };
@@ -1206,7 +1205,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_9 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
@@ -1219,7 +1218,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_10 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
@@ -1232,7 +1231,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_11 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}, {1, EFFICIENT_CORE_PROC, 6, 0, 0}},
 };
@@ -1245,7 +1244,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_12 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}, {1, EFFICIENT_CORE_PROC, 6, 0, 0}},
 };
@@ -1258,7 +1257,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_13 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 1, 0, 0}},
 };
@@ -1271,7 +1270,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_14 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {1, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1284,7 +1283,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_15 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {3, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1297,7 +1296,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {1, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1310,7 +1309,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_17 = {
     6,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1323,7 +1322,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0},
      {0, MAIN_CORE_PROC, 2, 0, 0},
@@ -1339,7 +1338,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, EFFICIENT_CORE_PROC, 6, 0, 0}},
 };
@@ -1352,7 +1351,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_3 = {
     2,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, ALL_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, HYPER_THREADING_PROC, 2, 0, 0}},
 };
@@ -1365,7 +1364,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_4 = {
     10,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0},
      {0, MAIN_CORE_PROC, 2, 0, 0},
@@ -1381,7 +1380,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_5 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{10, 2, 8, 0, 0, 0}},
     {{1, ALL_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1394,7 +1393,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_6 = {
     2,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{10, 2, 8, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}},
 };
@@ -1407,7 +1406,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_7 = {
     10,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{10, 2, 8, 0, 0, 0}},
     {{1, ALL_PROC, 10, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1420,7 +1419,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {1, HYPER_THREADING_PROC, 2, 0, 0}},
 };
@@ -1433,7 +1432,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1446,7 +1445,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}, {3, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1459,7 +1458,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1472,7 +1471,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_5 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{2, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {2, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1485,7 +1484,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_6 = {
     2,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
     {{1, MAIN_CORE_PROC, 2, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {1, HYPER_THREADING_PROC, 2, 0, 0}},
 };
@@ -1498,7 +1497,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0},
      {0, MAIN_CORE_PROC, 4, 0, 0},
@@ -1514,7 +1513,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0},
      {0, MAIN_CORE_PROC, 4, 0, 0},
@@ -1530,7 +1529,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_3 = {
     4,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}},
 };
@@ -1543,7 +1542,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_4 = {
     8,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0},
      {0, MAIN_CORE_PROC, 4, 0, 0},
@@ -1559,7 +1558,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_5 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{8, 4, 4, 0, 0, 0}},
     {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}, {0, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1572,7 +1571,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_6 = {
     4,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{8, 4, 4, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}},
 };
@@ -1585,7 +1584,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_7 = {
     8,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{8, 4, 4, 0, 0, 0}},
     {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}, {0, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1598,7 +1597,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}, {1, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
@@ -1611,7 +1610,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}, {1, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1624,7 +1623,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1637,7 +1636,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}, {2, HYPER_THREADING_PROC, 2, 0, 0}},
 };
@@ -1650,7 +1649,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_5 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1663,7 +1662,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_6 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1676,7 +1675,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_7 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
     {{4, MAIN_CORE_PROC, 1, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}, {4, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1689,7 +1688,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_8 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{8, 4, 4, 0, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {2, EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
@@ -1702,7 +1701,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
@@ -1715,7 +1714,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
@@ -1728,7 +1727,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{6, 6, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
@@ -1741,7 +1740,7 @@ StreamsCalculationTestCase _1sockets_6cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, HYPER_THREADING_PROC, 3, 0, 0}},
 };
@@ -1754,7 +1753,7 @@ StreamsCalculationTestCase _1sockets_6cores_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}, {1, HYPER_THREADING_PROC, 6, 0, 0}},
 };
@@ -1767,7 +1766,7 @@ StreamsCalculationTestCase _1sockets_6cores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}},
 };
@@ -1780,7 +1779,7 @@ StreamsCalculationTestCase _1sockets_6cores_tput_4 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {6, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1793,7 +1792,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 16, 0, 0}},
 };
@@ -1806,7 +1805,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_2 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1819,7 +1818,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_3 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 16, 0, 0}},
 };
@@ -1832,7 +1831,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
     4,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 16, 0, 0}},
 };
@@ -1845,7 +1844,7 @@ StreamsCalculationTestCase _1sockets_ecores_tput_1 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{16, EFFICIENT_CORE_PROC, 1, 0, 0}},
 };
@@ -1858,7 +1857,7 @@ StreamsCalculationTestCase _1sockets_ecores_tput_2 = {
     4,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{4, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1871,7 +1870,7 @@ StreamsCalculationTestCase _1sockets_ecores_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{2, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1884,7 +1883,7 @@ StreamsCalculationTestCase _1sockets_ecores_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{4, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
@@ -1897,7 +1896,7 @@ StreamsCalculationTestCase _1sockets_ecores_tput_5 = {
     4,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
     {{2, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
@@ -1910,7 +1909,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_1 = {
     1,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{20, 6, 7, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {3, EFFICIENT_CORE_PROC, 2, 0, 0}, {3, HYPER_THREADING_PROC, 1, 0, 0}},
 };
@@ -1923,7 +1922,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_2 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{27, 27, 0, 0, -1, -1}, {19, 19, 0, 0, 0, 0}, {8, 8, 0, 0, 1, 1}},
     {{4, MAIN_CORE_PROC, 4, 0, 0}, {2, MAIN_CORE_PROC, 4, 1, 1}},
 };
@@ -1936,7 +1935,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_3 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{19, 19, 0, 0, -1, -1}, {11, 11, 0, 0, 0, 0}, {8, 8, 0, 0, 1, 1}},
     {{5, MAIN_CORE_PROC, 2, 0, 0}, {4, MAIN_CORE_PROC, 2, 1, 1}},
 };
@@ -1948,7 +1947,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 0}, {10, 10, 0, 0, 2, 1}, {20, 20, 0, 0, 3, 1}},
     {{1, MAIN_CORE_PROC, 20, 1, 0}},
 };
@@ -1960,7 +1959,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_2 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {40, 40, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 1, 1}},
 };
@@ -1972,7 +1971,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_3 = {
     0,
     1,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {40, 40, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 1, 1}},
 };
@@ -1984,7 +1983,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_4 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {40, 40, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 10, 1, 1}},
 };
@@ -1996,7 +1995,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_5 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {40, 40, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 1, 1}},
 };
@@ -2008,7 +2007,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_6 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 0, 60, 0, -1, -1}, {40, 0, 40, 0, 0, 0}, {20, 0, 20, 0, 1, 1}},
     {{1, EFFICIENT_CORE_PROC, 20, 1, 1}},
 };
@@ -2020,7 +2019,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_7 = {
     0,
     1,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 0, 60, 0, -1, -1}, {40, 0, 40, 0, 0, 0}, {20, 0, 20, 0, 1, 1}},
     {{1, EFFICIENT_CORE_PROC, 20, 1, 1}},
 };
@@ -2032,7 +2031,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_8 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 0, 60, 0, -1, -1}, {40, 0, 40, 0, 0, 0}, {20, 0, 20, 0, 1, 1}},
     {{1, EFFICIENT_CORE_PROC, 10, 1, 1}},
 };
@@ -2044,7 +2043,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_9 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 0, 60, 0, -1, -1}, {40, 0, 40, 0, 0, 0}, {20, 0, 20, 0, 1, 1}},
     {{1, EFFICIENT_CORE_PROC, 20, 1, 1}},
 };
@@ -2056,7 +2055,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_10 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 10, 1, 1}, {0, HYPER_THREADING_PROC, 10, 1, 1}},
 };
@@ -2068,7 +2067,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_11 = {
     0,
     1,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 10, 1, 1}, {0, HYPER_THREADING_PROC, 10, 1, 1}},
 };
@@ -2080,7 +2079,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_12 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 15, 1, 1}, {0, MAIN_CORE_PROC, 10, 1, 1}, {0, HYPER_THREADING_PROC, 5, 1, 1}},
 };
@@ -2092,7 +2091,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_13 = {
     0,
     1,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 10, 1, 1}, {0, HYPER_THREADING_PROC, 10, 1, 1}},
 };
@@ -2104,7 +2103,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_14 = {
     0,
     3,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
@@ -2120,7 +2119,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_15 = {
     0,
     3,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
@@ -2136,7 +2135,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_16 = {
     0,
     3,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
@@ -2152,7 +2151,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_17 = {
     0,
     3,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
@@ -2168,7 +2167,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_18 = {
     0,
     6,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{440, 220, 0, 220, -1, -1},
      {90, 45, 0, 45, 0, 0},
      {70, 35, 0, 35, 1, 1},
@@ -2188,7 +2187,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_19 = {
     0,
     6,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{440, 220, 0, 220, -1, -1},
      {90, 45, 0, 45, 0, 0},
      {70, 35, 0, 35, 1, 1},
@@ -2208,7 +2207,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_20 = {
     0,
     6,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{440, 220, 0, 220, -1, -1},
      {90, 45, 0, 45, 0, 0},
      {70, 35, 0, 35, 1, 1},
@@ -2228,7 +2227,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_21 = {
     0,
     6,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{440, 220, 0, 220, -1, -1},
      {90, 45, 0, 45, 0, 0},
      {70, 35, 0, 35, 1, 1},
@@ -2248,7 +2247,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_22 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 40, 0, 0},
      {0, MAIN_CORE_PROC, 20, 0, 0},
@@ -2265,7 +2264,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_23 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 60, -1, -1},
      {0, MAIN_CORE_PROC, 20, 0, 0},
@@ -2281,7 +2280,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_24 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
     {{1, ALL_PROC, 40, 0, 0}, {0, MAIN_CORE_PROC, 20, 0, 0}, {0, HYPER_THREADING_PROC, 20, 0, 0}},
 };
@@ -2293,7 +2292,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_25 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2318,7 +2317,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_26 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2342,7 +2341,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_27 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2362,7 +2361,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_28 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2387,7 +2386,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_29 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2411,7 +2410,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_30 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2431,7 +2430,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_31 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2451,7 +2450,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_32 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2467,7 +2466,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_33 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 0},
@@ -2483,7 +2482,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_34 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::AUTO,
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };

@@ -32,7 +32,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const int input_current_socket_id,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode latencyThreadingMode,
+                                                     const Config::MaxThreadsPerStream hint_max_threads_per_stream,
                                                      const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
@@ -191,7 +191,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         stream_info[NUMBER_OF_STREAMS] = n_streams;
         current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
         if (input_threads > 0) {
-            if (latencyThreadingMode == Config::LatencyThreadingMode::PER_SOCKET) {
+            if (hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_SOCKET) {
                 for (auto& row : proc_socket_table) {
                     if (current_socket_id == row[PROC_SOCKET_ID]) {
                         n_threads_per_stream = std::min(input_threads, row[ALL_PROC]);
@@ -207,8 +207,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 }
             }
         } else if ((((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
-                        (latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) ||
-                    (latencyThreadingMode == Config::LatencyThreadingMode::AUTO)) ||
+                        (hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_PLATFORM) ||
+                    (hint_max_threads_per_stream == Config::MaxThreadsPerStream::AUTO)) ||
                    (proc_type_table.size() == 1)) {
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
@@ -231,7 +231,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
         } else if (((input_streams_changed == false) || ((input_streams_changed == true) && (input_streams == 1))) &&
-                   (latencyThreadingMode == Config::LatencyThreadingMode::PER_SOCKET)) {
+                   (hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_SOCKET)) {
             for (auto& row : proc_socket_table) {
                 if (row[PROC_SOCKET_ID] == current_socket_id) {
                     n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
@@ -367,7 +367,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
         if (total_streams == n_streams) {
             size_t n_max_proc = 0;
-            if (latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) {
+            if (hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_PLATFORM) {
                 update_mix_stream_info(proc_type_table[0],
                                        proc_type_table,
                                        n_threads_per_stream,
@@ -478,7 +478,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
-    const int sockets = get_default_latency_streams(config.latencyThreadingMode);
+    const int sockets = get_default_latency_streams(config.hintMaxThreadsPerStream);
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
         const auto isa = dnnl::get_effective_cpu_isa();
@@ -609,7 +609,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     auto cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
                                            config.changedCpuPinning,
                                            streams,
-                                           config.latencyThreadingMode,
+                                           config.hintMaxThreadsPerStream,
                                            proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
@@ -622,7 +622,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      model_prefer_threads,
                                                      input_current_socket_id,
                                                      ov::util::to_string(config.hintPerfMode),
-                                                     config.latencyThreadingMode,
+                                                     config.hintMaxThreadsPerStream,
                                                      proc_type_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
@@ -645,7 +645,7 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     generate_stream_info(streams, -1, model, config, proc_type_table);
 }
 
-int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {
+int get_default_latency_streams(Config::MaxThreadsPerStream hint_max_threads_per_stream) {
     return 1;
 }
 
