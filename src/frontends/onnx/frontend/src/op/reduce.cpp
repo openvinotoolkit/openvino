@@ -126,16 +126,22 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
-    auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
+        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
+        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+    }
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
 }
 }  // namespace set_13
 
 
 namespace set_11 {
 ov::OutputVector reduce_l2(const Node& node) {
-    auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
+        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
+        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+    }
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
     }
 } // namespace set_11
 
