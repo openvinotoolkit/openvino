@@ -31,8 +31,7 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node);
 
 
-
-ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node);
+using set_11::reduce_l2;
 
 }  // namespace set_13
 
