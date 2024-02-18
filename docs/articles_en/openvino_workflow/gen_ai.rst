@@ -4,25 +4,41 @@ Optimize and Deploy Generative AI Models
 ========================================
 
 
-Generative AI is an innovative technique that creates new data, such as text, images, video, or audio, using neural networks. OpenVINO accelerates Generative AI use cases as they mostly rely on model inference, allowing for faster development and better performance. When it comes to generative models, OpenVINO supports:
+Generative AI is an innovative technique that creates new data, such as text, images, video,
+or audio, using neural networks. OpenVINO accelerates Generative AI use cases as they mostly
+rely on model inference, allowing for faster development and better performance. When it
+comes to generative models, OpenVINO supports:
 
-* Conversion, optimization and inference for text, image and audio generative models, for example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.
+* Conversion, optimization and inference for text, image and audio generative models, for
+  example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.
 * Int8 weight compression for text generation models.
-* Storage format reduction (fp16 precision for non-compressed models and int8 for compressed models).
-* Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics, discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
+* Storage format reduction (fp16 precision for non-compressed models and int8 for compressed
+  models).
+* Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics,
+  discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
 
 
 OpenVINO offers two main paths for Generative AI use cases:
 
-* Using OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
+* Using OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through
+  the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
 * Using OpenVINO native APIs (Python and C++) with custom pipeline code.
 
 
-In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred API and the final solution's footprint. Native APIs enable the use of generative models in C++ applications, ensure minimal runtime dependencies, and minimize application footprint. The Native APIs approach requires the implementation of glue code (generation loop, text tokenization, or scheduler functions), which is hidden within Hugging Face libraries for a better developer experience.
+In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred
+API and the final solution's footprint. Native APIs enable the use of generative models in
+C++ applications, ensure minimal runtime dependencies, and minimize application footprint.
+The Native APIs approach requires the implementation of glue code (generation loop, text
+tokenization, or scheduler functions), which is hidden within Hugging Face libraries for a
+better developer experience.
 
-It is recommended to start with Hugging Face frameworks. Experiment with different models and scenarios to find your fit, and then consider converting to OpenVINO native APIs based on your specific requirements.
+It is recommended to start with Hugging Face frameworks. Experiment with different models and
+scenarios to find your fit, and then consider converting to OpenVINO native APIs based on your
+specific requirements.
 
-Optimum Intel provides interfaces that enable model optimization (weight compression) using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__, and export models to the OpenVINO model format for use in native API applications.
+Optimum Intel provides interfaces that enable model optimization (weight compression) using
+`Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
+and export models to the OpenVINO model format for use in native API applications.
 
 The table below summarizes the differences between Hugging Face and Native APIs approaches.
 
@@ -85,14 +101,16 @@ To start using OpenVINO as a backend for Hugging Face, change the original Huggi
     +model = OVModelForCausalLM.from_pretrained(model_id, export=True)
 
 
-After that, you can call ``save_pretrained()`` method to save model to the folder in the OpenVINO Intermediate Representation and use it further.
+After that, you can call ``save_pretrained()`` method to save model to the folder in the OpenVINO
+Intermediate Representation and use it further.
 
 .. code-block:: python
 
     model.save_pretrained(model_dir)
 
 
-Alternatively, you can download and convert the model using CLI interface: ``optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf llama_openvino``.
+Alternatively, you can download and convert the model using CLI interface:
+``optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf llama_openvino``.
 In this case, you can load the converted model in OpenVINO representation directly from the disk:
 
 .. code-block:: python
@@ -101,27 +119,33 @@ In this case, you can load the converted model in OpenVINO representation direct
     model = OVModelForCausalLM.from_pretrained(model_id)
 
 
-By default, inference will run on CPU. To select a different inference device, for example, GPU, add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after the model has been loaded, use the ``.to()`` method. The device naming convention is the same as in OpenVINO native API:
+By default, inference will run on CPU. To select a different inference device, for example, GPU,
+add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after
+the model has been loaded, use the ``.to()`` method. The device naming convention is the same
+as in OpenVINO native API:
 
 .. code-block:: python
 
     model.to("GPU")
 
 
-Optimum-Intel API also provides out-of-the-box model optimization through weight compression using NNCF which substantially reduces the model footprint and inference latency:
+Optimum-Intel API also provides out-of-the-box model optimization through weight compression
+using NNCF which substantially reduces the model footprint and inference latency:
 
 .. code-block:: python
 
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
 
 
-Weight compression is applied by default to models larger than one billion parameters and is also available for CLI interface as the ``--int8`` option.
+Weight compression is applied by default to models larger than one billion parameters and is
+also available for CLI interface as the ``--int8`` option.
 
 .. note::
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression, which is supported by OpenVINO. It can be applied to Optimum objects as follows:
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression,
+which is supported by OpenVINO. It can be applied to Optimum objects as follows:
 
 .. code-block:: python
 
@@ -131,21 +155,16 @@ Weight compression is applied by default to models larger than one billion param
     model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
 
 
-The optimized model can be saved as usual with a call to ``save_pretrained()``. For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
+The optimized model can be saved as usual with a call to ``save_pretrained()``.
+For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
 
 .. note::
 
-   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized
-   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
-
-Another optimization that is applied by default when using ``OVModelForCausalLM`` class is transformation of the model to a stateful form.
-This transformation further improves inference performance and decreases amount of allocated runtime memory in long running text generation scenarios.
-It is achieved by hiding inputs and outputs of the model that represent past KV-cache tensors and handling them inside the model in a more efficient way.
-This feature is activated automatically for a wide range of supported text generation models, keeping not supported models in a regular, stateless form.
-
-Model usage are identical for stateful and stateless models as long as Optimum-Intel API is used because KV-cache handling is an internal detail of the text-generation API of Transformers library.
-But a form of a model matterns in case when exported from Optimum-Intel OpenVINO model IR is used in an application implemented with native OpenVINO API, because stateful and stateless models have different number of inputs and outputs.
-Please refer to a dedicated section of this document below for more information about using native OpenVINO API.
+   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__
+   library optimized with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case,
+   there is no need for an additional model optimization step because model conversion
+   will automatically preserve the INT4 optimization results, allowing model inference
+   to benefit from it.
 
 Below are some examples of using Optimum-Intel for model conversion and inference:
 
@@ -153,6 +172,20 @@ Below are some examples of using Optimum-Intel for model conversion and inferenc
 * `Image generation with Stable Diffusion XL and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/248-stable-diffusion-xl/248-stable-diffusion-xl.ipynb>`__
 * `Instruction following using Databricks Dolly 2.0 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/240-dolly-2-instruction-following/240-dolly-2-instruction-following.ipynb>`__
 * `Create an LLM-powered Chatbot using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb>`__
+
+Stateful Model Optimization
++++++++++++++++++++++++++++
+
+When you use the ``OVModelForCausalLM`` class, the model is transformed into a stateful form by default for optimization.
+This transformation improves inference performance and decreases runtime memory usage in long running text generation tasks.
+It is achieved by hiding the model's inputs and outputs that represent past KV-cache tensors, and handling them inside the model in a more efficient way.
+This feature is activated automatically for many supported text generation models, while unsupported models remain in a regular, stateless form.
+
+Model usage remains the same for stateful and stateless models with the Optimum-Intel API, as KV-cache is handled internally by text-generation API of Transformers library.
+The model's form matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
+This is because stateful and stateless models have a different number of inputs and outputs.
+Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
+
 
 Working with Models Tuned with LoRA
 ++++++++++++++++++++++++++++++++++++
@@ -175,19 +208,20 @@ Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI
 Running Generative AI Models using Native OpenVINO APIs
 ########################################################
 
-To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with a few simplifications.
+To run Generative AI models using native OpenVINO APIs, you need to follow regular **Convert -> Optimize -> Deploy** path with a few simplifications.
 
-To convert the Hugging Face model, the recommended way is to use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above.
-In this case, the conversion process is significantly simplified because Optimum-Intel provides necessary conversion parameters which in many cases model-specific and require knowlege of a lot of model input properties.
-Moreover, Optimum-Intel applies several model optimization like weight compression and using stateful form by default that further similifies model exporting flow.
-You can still use a regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, TensorFlow etc.)
+The recommended way for converting a Hugging Face model is to use the Optimum-Intel export feature. This feature enables model export in OpenVINO format without directly invoking conversion API and tools, as demonstrated above.
+The conversion process is significantly simplified as Optimum-Intel provides the necessary conversion parameters. These parameters are often model-specific and require knowledge of various model input properties.
+
+Moreover, Optimum-Intel applies several model optimizations, such as weight compression and using stateful form by default, that further simplify the model exporting flow.
+You can still use the regular conversion path if the model comes from outside the Hugging Face ecosystem, such as in its source framework format (PyTorch, TensorFlow, etc.).
 
 Model optimization can be performed within Hugging Face or directly using NNCF as described in the :doc:`weight compression guide <weight_compression>`.
 
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
-* In case of LLMs for text generation, you need to handle tokenization, inference and token sampling, and de-tokenization. If token sampling involves beam search, it also needs to be written. This is covered in details by `C++ Text Generation Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__.
-* For image generation models, you need to make a pipeline that includes several model inferences: inference for source (e.g., text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. `C++ Implementation of Stable Diffusion <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__ is a good reference point.
+* In case of LLMs for text generation, you need to handle tokenization, inference and token sampling, and de-tokenization. If token sampling involves beam search, you need to implement it as well. This is covered in details by `C++ Text Generation Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__.
+* For image generation models, you need to make a pipeline that includes several model inferences: inference for source (for example, text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. `C++ Implementation of Stable Diffusion <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__ is a good reference point.
 
 
 Additional Resources

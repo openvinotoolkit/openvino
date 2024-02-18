@@ -33,17 +33,17 @@ used to convert the models to OpenVINO™ IR format.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install Prerequisites <#install-prerequisites>`__
+-  `Install prerequisites <#install-prerequisites>`__
 -  `SSD-1B Base model <#ssd-1b-base-model>`__
 
    -  `Select inference device SSD-1B Base
       model <#select-inference-device-ssd-1b-base-model>`__
    -  `Run Text2Image generation
       pipeline <#run-text2image-generation-pipeline>`__
-   -  `Text2image Generation Interactive
-      Demo <#text2image-generation-interactive-demo>`__
+   -  `Image2Image Generation Interactive
+      Demo <#image2image-generation-interactive-demo>`__
 
--  `Latent Consistency Model (LCM) <#latent-consistencymodel-lcm>`__
+-  `Latent Consistency Model (LCM) <#latent-consistency-model-lcm>`__
 
    -  `Infer the original model <#infer-the-original-model>`__
    -  `Convert the model to OpenVINO
@@ -171,9 +171,11 @@ decrease ``num_inference_steps`` and image size (using ``height`` and
 target hardware. We also specified a ``generator`` parameter based on a
 numpy random state with a specific seed for results reproducibility.
 
-**Note**: Generating a default size 1024x1024 image requires about
-53GB for the SSD-1B model in case if the converted model is loaded from
-disk and up to 64GB RAM for the SDXL model after exporting.
+
+   **NOTE**: Generating a default size 1024x1024 image requires about
+   53GB for the SSD-1B model in case if the converted model is loaded from
+   disk and up to 64GB RAM for the SDXL model after exporting.
+
 
 .. code:: ipython3
 
