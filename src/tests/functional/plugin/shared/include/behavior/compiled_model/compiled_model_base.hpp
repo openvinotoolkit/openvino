@@ -2,16 +2,23 @@
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
-#include <exec_graph_info.hpp>
 #include <fstream>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
+#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/single_split.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -239,7 +246,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
 
 TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    std::shared_ptr<ov::Model> function = ov::test::utils::make_single_concat_with_constant();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
@@ -265,6 +272,42 @@ TEST_P(OVCompiledModelBaseTest, canCreateTwoCompiledModel) {
 TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
+}
+
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoCompiledModelsAndCheckRuntimeModel) {
+    std::vector<ov::CompiledModel> vec;
+    for (size_t i = 0; i < 2; i++) {
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
+    }
+}
+
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
+    // compare 2 networks
+    auto referenceNetwork = ov::test::utils::make_conv_pool_relu();
+    compare_functions(function, referenceNetwork);
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::InputInfo& input = ppp.input();
+    input.model().set_layout("??HW");
+    input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::OutputInfo& output = ppp.output();
+    output.postprocess().convert_element_type(ov::element::u8);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
@@ -310,7 +353,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
     }
     int constCnt = 0;
 
-    std::shared_ptr<const ngraph::Function> getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    std::shared_ptr<const ov::Model> getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     ASSERT_NE(getFunction, nullptr);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -318,15 +361,15 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
 
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
         // Each layer from the execGraphInfo network must have PM data option set
-        EXPECT_EQ("not_executed", getExecValue(ExecGraphInfoSerialization::PERF_COUNTER));
+        EXPECT_EQ("not_executed", getExecValue(ov::exec_model_info::PERF_COUNTER));
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        auto origFromExecLayer = getExecValue(ov::exec_model_info::ORIGINAL_NAMES);
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
@@ -362,7 +405,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     int constCnt = 0;
     // Store all the layers from the executable graph information represented as CNNNetwork
     bool hasOpWithValidTime = false;
-    auto getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
+    auto getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
     ASSERT_NE(nullptr, getFunction);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -370,13 +413,13 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
         // At least one layer in the topology should be executed and have valid perf counter value
         try {
-            float x = static_cast<float>(std::atof(getExecValue(ExecGraphInfoSerialization::PERF_COUNTER).c_str()));
+            float x = static_cast<float>(std::atof(getExecValue(ov::exec_model_info::PERF_COUNTER).c_str()));
             std::cout << "TIME: " << x << std::endl;
             EXPECT_GE(x, 0.0f);
             hasOpWithValidTime = true;
@@ -385,7 +428,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
-        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        auto origFromExecLayer = getExecValue(ov::exec_model_info::ORIGINAL_NAMES);
         std::vector<std::string> origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
         if (origFromExecLayer.empty()) {
             constCnt++;
@@ -410,10 +453,23 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     }
 }
 
+TEST_P(OVCompiledModelBaseTest, CheckExecGraphInfoSerialization) {
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
+    std::string out_xml_path = filePrefix + ".xml";
+    std::string out_bin_path = filePrefix + ".bin";
+
+    std::shared_ptr<const ov::Model> runtime_model;
+
+    auto compiled_model = core->compile_model(function, target_device, configuration);
+    ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
+    ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
 TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -427,7 +483,7 @@ TEST_P(OVCompiledModelBaseTest, getInputFromFunctionWithSingleInput) {
 TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -441,7 +497,7 @@ TEST_P(OVCompiledModelBaseTest, getOutputFromFunctionWithSingleInput) {
 TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeConcatWithParams();
+    function = ov::test::utils::make_concat_with_params();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
@@ -462,7 +518,7 @@ TEST_P(OVCompiledModelBaseTest, getInputsFromFunctionWithSeveralInputs) {
 TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat();
+    function = ov::test::utils::make_multiple_input_output_double_concat();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
@@ -483,7 +539,7 @@ TEST_P(OVCompiledModelBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 TEST_P(OVCompiledModelBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     ov::CompiledModel execNet;
 
-    function = ngraph::builder::subgraph::makeSingleSplit();
+    function = ov::test::utils::make_single_split();
 
     execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(function->outputs().size(), 2);
@@ -526,10 +582,10 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -537,7 +593,7 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV10Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleConcat");
     }
@@ -549,10 +605,10 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
         auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{param1, param2}, 1);
@@ -560,7 +616,7 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
         concat->output(0).get_tensor().set_names({"concat"});
         auto result = std::make_shared<ov::op::v0::Result>(concat);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleConcat");
     }
@@ -591,6 +647,83 @@ TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
     EXPECT_ANY_THROW(execNet.set_property(config));
 }
 
+typedef std::tuple<
+        ov::element::Type,     // Type to convert
+        std::string,           // Device name
+        ov::AnyMap             // Config
+> CompiledModelSetTypeParams;
+
+class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSetTypeParams>,
+                             public OVCompiledNetworkTestBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<CompiledModelSetTypeParams> obj) {
+        ov::element::Type convert_type;
+        std::string target_device;
+        ov::AnyMap configuration;
+        std::tie(convert_type, target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
+
+        std::ostringstream result;
+        result << "ConvertType=" << convert_type.get_type_name() << "_";
+        result << "targetDevice=" << target_device << "_";
+        for (auto& configItem : configuration) {
+            result << "configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+            result << "_";
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::tie(convert_type, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+    }
+    void TearDown() override {
+        if (!configuration.empty()) {
+            ov::test::utils::PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
+    ov::element::Type convert_type;
+    ov::AnyMap configuration;
+};
+
+TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& input = ppp.input();
+    input.preprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& output = ppp.output();
+    output.postprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    auto& input = ppp.input();
+    input.preprocess().convert_element_type(convert_type);
+    auto& output = ppp.output();
+    output.postprocess().convert_element_type(convert_type);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

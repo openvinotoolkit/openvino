@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <string>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -77,7 +73,7 @@ struct jit_uni_bin_conv_kernel {
 
 class BinaryConvolution : public Node {
 public:
-    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
@@ -90,7 +86,7 @@ public:
     void setPostOps(dnnl::primitive_attr &attr);
     bool canFuse(const NodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     impl_desc_type getImplType() { return implType; }
 

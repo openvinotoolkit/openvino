@@ -21,13 +21,14 @@ OutputVector translate_identity_op(const NodeContext& node) {
                                     "StopGradient",
                                     "ReadVariableOp",
                                     "ShardedFilename",
-                                    "MergeV2Checkpoints"};
-    default_op_checks(node, 1, supported_ops);
+                                    "MergeV2Checkpoints",
+                                    // TF Lite nodes
+                                    "DENSIFY"};
+    default_op_checks(node, 1, supported_ops, true);
     auto input = node.get_input(0);
 
     // set only tensor names
     // no need to change node name since Identity node is skipped
-    set_out_name(node.get_name(), input);
     set_out_name(node.get_name() + ":" + "0", input);
     return {input};
 }

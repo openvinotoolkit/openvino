@@ -56,7 +56,7 @@ DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(con
     return k;
 }
 
-FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int) const {
+FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     if (!params.has_dynamic_tensors()) {

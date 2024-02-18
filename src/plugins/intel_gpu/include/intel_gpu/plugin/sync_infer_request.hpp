@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/plugin/variable_state.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
@@ -79,13 +80,16 @@ private:
     std::unordered_map<std::string, std::string> m_output_names_map;
 
     std::map<cldnn::primitive_id, cldnn::network_output> m_internal_outputs;
+    VariablesMap m_variables;
 
     std::shared_ptr<Graph> m_graph;
     RemoteContextImpl::Ptr m_context = nullptr;
     std::shared_ptr<ov::threading::IStreamsExecutor> m_stream_executor = nullptr;
+    std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor = nullptr;
     bool m_enable_profiling = false;
     bool m_use_external_queue = false;
 
+    void prepare_state(const std::string& name, const std::shared_ptr<VariableStateBase>& variable);
     std::vector<cldnn::event::ptr> prepare_input(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_output(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(const std::string& name,
@@ -108,7 +112,7 @@ private:
     void allocate_output(const ov::Output<const ov::Node>& port, const std::string& name);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const;
 
-    void init_mappings(bool is_legacy_api);
+    void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
 };
 

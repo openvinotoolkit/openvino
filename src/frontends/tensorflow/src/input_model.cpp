@@ -11,7 +11,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
@@ -149,7 +149,44 @@ void InputModel::InputModelTFImpl::load_places() {
         all_op_names.insert(op_name);
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
+
+        // compute non-terminating nodes in the graph
+        // and put such nodes into op_names_with_consumers
+        for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
+            std::string producer_op_name;
+            std::string producer_output_port_name;
+            size_t producer_output_port_idx;
+            try {
+                node_decoder->get_input_node(input_port_idx,
+                                             producer_op_name,
+                                             producer_output_port_name,
+                                             producer_output_port_idx);
+                if (is_conditional_edge(producer_op_name)) {
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_op_name = producer_op_name.substr(1);
+                }
+
+                op_names_with_consumers.insert(producer_op_name);
+            } catch (const std::exception&) {
+                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
+                                " for op '" + node_decoder->get_op_name() + "', expected input name: '" +
+                                producer_op_name +
+                                "', expected input port index: " + std::to_string(producer_output_port_idx));
+            }
+        }
+
+        // put places for all inputs of a model into m_inputs
         if (op_type == "Placeholder" || op_type == "PlaceholderWithDefault") {
+            if (m_input_names.size() > 0 &&
+                std::find(m_input_names.begin(), m_input_names.end(), op_name) == m_input_names.end()) {
+                // this is a body graph since it contains non-empty m_input_names
+                // such node not included into m_input_names should be skipped
+                continue;
+            }
+
             // in case Placeholder we put created TensorPlace to both m_tensor_places container and m_inputs
             // since they can be used if user does not override them
             // in case PlaceholderWithDefault we put created TensorPlace only to m_tensor_places container
@@ -199,6 +236,13 @@ void InputModel::InputModelTFImpl::load_places() {
                 m_inputs.push_back(tensor_place);
             }
         } else if (op_type == "input_arg") {
+            if (m_input_names.size() > 0 &&
+                std::find(m_input_names.begin(), m_input_names.end(), op_name) == m_input_names.end()) {
+                // this is a body graph since it contains non-empty m_input_names
+                // such node not included into m_input_names should be skipped
+                continue;
+            }
+
             // create a tensor place for the body graph parameter node and save it in the m_inputs
             // it allows to set shapes for the body graph InputModel for its more optimal conversion
             auto param_type = node_decoder->get_attribute("type");
@@ -211,31 +255,6 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               type,
                                                               std::vector<std::string>{op_name});
             m_inputs.push_back(tensor_place);
-        }
-        for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
-            std::string producer_op_name;
-            std::string producer_output_port_name;
-            size_t producer_output_port_idx;
-            try {
-                node_decoder->get_input_node(input_port_idx,
-                                             producer_op_name,
-                                             producer_output_port_name,
-                                             producer_output_port_idx);
-                if (is_conditional_edge(producer_op_name)) {
-                    // exclude "^" mark indicating (execution) conditional dependency
-                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
-                    // if a node has dependent operation nodes and has no data consumers,
-                    // this node is not terminating and will not output to the Result node
-                    producer_op_name = producer_op_name.substr(1);
-                }
-
-                op_names_with_consumers.insert(producer_op_name);
-            } catch (const std::exception&) {
-                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + node_decoder->get_op_name() + "', expected input name: '" +
-                                producer_op_name +
-                                "', expected input port index: " + std::to_string(producer_output_port_idx));
-            }
         }
     }
 
@@ -276,8 +295,9 @@ void InputModel::InputModelTFImpl::load_places() {
             auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
-                                                              std::vector<std::string>{output_name});
-            m_tensor_places[output_name] = output_place;
+                                                              std::vector<std::string>{output_name + ":0"});
+            // TODO: Create tensor places for each ouput port, ticket-129464
+            m_tensor_places[output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }
         return;
@@ -669,7 +689,7 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
                             "TensorFlow Frontend: specify static shape for " + name + " to be frozen.");
     FRONT_END_GENERAL_CHECK(type.is_static(),
                             "TensorFlow Frontend: define static size type for " + name + " to be frozen.");
-    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     m_tensor_values[name] = constant;
 }

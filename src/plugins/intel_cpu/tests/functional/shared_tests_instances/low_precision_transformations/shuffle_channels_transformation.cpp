@@ -10,12 +10,11 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };
@@ -26,23 +25,23 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
 
 const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         0,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
             256ul,
-            ngraph::Shape { 1, 3, 1, 1 },
+            ov::Shape { 1, 3, 1, 1 },
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f },
@@ -51,12 +50,12 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
             256ul,
-            ngraph::Shape { 1, 3, 1, 1 },
+            ov::Shape { 1, 3, 1, 1 },
             { 0.f },
             { 25.5f },
             { -4.f, -3.f, 0.f },
@@ -65,19 +64,19 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -3,
         1,
         "output_original",
-        "U8"
+        "u8"
     },
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         2,
         4,
         "output_original",
-        "U8"
+        "u8"
     },
     {
         {
             256ul,
-            ngraph::Shape { 1, 3, 1, 1 },
+            ov::Shape { 1, 3, 1, 1 },
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f },
@@ -86,7 +85,7 @@ const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> par
         -1,
         8,
         "output_original",
-        "U8"
+        "u8"
     },
 };
 

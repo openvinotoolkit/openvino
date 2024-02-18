@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "nodes/executors/transpose.hpp"
-#include <utils/general_utils.h>
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -18,8 +16,8 @@ namespace node {
 
 class Reorder : public Node {
 public:
-    Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
-    Reorder(const std::string& name, const GraphContext::CPtr context);
+    Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Reorder(const MemoryDesc& input, const MemoryDesc& output, const std::string& name, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -34,16 +32,6 @@ public:
     void prepareParams() override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
-
-    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
-        this->input = input.clone();
-        inputShapes.clear();
-        inputShapes.push_back(this->input->getShape());
-
-        this->output = output.clone();
-        outputShapes.clear();
-        outputShapes.push_back(this->output->getShape());
-    }
 
     void setSrcPermutation(const std::vector<int> & src_perm) {
         this->src_permutation = src_perm;

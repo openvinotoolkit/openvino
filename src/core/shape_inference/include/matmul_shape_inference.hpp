@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/matmul.hpp>
-
+#include "openvino/op/matmul.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -111,11 +109,11 @@ std::vector<TRShape> shape_infer(const MatMul* op, const std::vector<T>& input_s
     // Output shape of two 1D tensors multiplication will be a 0D tensor (scalar).
     if (arg0_shape.rank().get_length() == 1) {
         // arg0 input temporary axis inserted at ROW_INDEX_DIM is removed
-        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+        output_shape.erase(output_shape.begin() + (output_shape.size() - 2));
     }
     if (arg1_shape.rank().get_length() == 1) {
         // arg1 input temporary axis inserted at COL_INDEX_DIM is removed
-        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+        output_shape.erase(std::prev(output_shape.end()));
     }
     output_shapes.emplace_back(std::move(output_shape));
     return output_shapes;

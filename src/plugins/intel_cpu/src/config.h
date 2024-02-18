@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
-#include <ie_performance_hints.hpp>
-#include <ie/ie_common.h>
-#include <openvino/runtime/properties.hpp>
-#include <openvino/util/common_util.hpp>
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/common_util.hpp"
+
+#include "internal_properties.hpp"
 #include "utils/debug_caps_config.h"
-#include <openvino/core/type/element_type.hpp>
 
 #include <bitset>
-#include <string>
 #include <map>
 #include <mutex>
 
@@ -56,14 +55,24 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
+    uint64_t fcDynamicQuantizationGroupSize = 0;
+    ov::element::Type kvCachePrecision = ov::element::f16;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
 #else
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
-    InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-    InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    ov::threading::IStreamsExecutor::Config streamExecutorConfig;
+    int streams = 1;
+    bool streamsChanged = false;
+    int threads = 0;
+    int threadsPerStream = 0;
+    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
+    ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    bool changedHintPerfMode = false;
+    ov::log::Level logLevel = ov::log::Level::NO;
+    uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
@@ -88,12 +97,11 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
+
     void updateProperties();
 
     std::map<std::string, std::string> _config;
-
-    bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;

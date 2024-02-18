@@ -19,6 +19,7 @@ SW_PLUGINS = {'HETERO': '1', 'AUTO': '2', 'BATCH': '3', 'MULTI': '4'}
 
 logger = get_logger('AnalyzerConformanceLog')
 
+API_CONFORMANCE_SUFFIX = 'ov_api_conformance_tests'
 
 class AnalyzerConformanceLog:
     def __init__(self):
@@ -75,14 +76,23 @@ class AnalyzerConformanceLog:
                     extended_path = "\\\\?\\%s" % os.path.join(dest_path, LOGS_ZIP_NAME)
                 with zipfile.ZipFile(extended_path, "r") as zipObj:
                     for name in zipObj.namelist():
-                        if 'apiconformancetests' in name and 'logs' in name and self.status_folder_exists(name):
+                        if API_CONFORMANCE_SUFFIX in name and 'logs' in name and self.status_folder_exists(name):
                             zipObj.extract(name, dest_path)
                 logger.info(f'DONE')
+
+    def get_real_device(self, device):
+        real_device = device.upper()
+        if device.upper() == 'DGPU':
+            real_device = 'GPU'
+        elif device.upper() == 'ARM':
+            real_device = 'CPU'
+
+        return real_device
 
     def collect_tests_result(self, exclude_from_log):
         logger.info(f'Collecting results')
         for root, dirs, files in os.walk(self.local_log_dir, topdown=False):
-            if not 'apiconformancetests' in root or not 'logs' in root or\
+            if not API_CONFORMANCE_SUFFIX in root or not 'logs' in root or\
                not self.status_folder_exists(root):
                 continue
 
@@ -96,8 +106,8 @@ class AnalyzerConformanceLog:
                         lines = f.readlines()
 
                     path_components = os.path.normpath(extended_path).split(os.path.sep)
-                    # examle: /cpu_conformance_dlb_apiconformancetests_nightly/logs/passed/[hash].log
-                    retult_root_match = re.match(r'(\w*)_conformance_(dlb|omz)_apiconformancetests_.*', path_components[-4])
+                    # examle: /cpu_conformance_dlb_ov_api_conformancetests_tests_nightly/logs/passed/[hash].log
+                    retult_root_match = re.match(f'(\w*)_conformance_(dlb|omz)_{API_CONFORMANCE_SUFFIX}_.*', path_components[-4])
                     device = retult_root_match.group(1)
                     self.analyzed_hw_devices.add(device)
 
@@ -124,7 +134,11 @@ class AnalyzerConformanceLog:
                         error_msg += ' ' + line + ' '
 
                     test_name = test_name or file_name
-                    test_name = re.sub(device.upper(), '[HWDevice]', test_name)
+                    real_device = self.get_real_device(device)
+                    test_name = re.sub(f'^(.+/.+\..+/.*?){real_device}(.*)$', r'\1[HWDevice]\2', test_name, count=1)
+                    if real_device in SW_PLUGINS:
+                        test_name = re.sub(f'(configItem|config)=.*$', '', test_name)
+
                     test_group = test_name.split('/')[0] if len(test_name.split('/')) > 1 else test_name.split('.')[0]
                     # cover case ov_infer_request_1/2/...
                     if 'ov_infer_request_' in test_group:
@@ -140,7 +154,7 @@ class AnalyzerConformanceLog:
                 except Exception as e:
                     logger.error(f'Analyzing of {extended_path} FAIL: {e}')
 
-    def create_exel(self, expected_devices, exclude_sw_plugins):
+    def create_exel(self, expected_devices):
         logger.info(f'Creating exel file with results')
 
         if not expected_devices:
@@ -182,9 +196,6 @@ class AnalyzerConformanceLog:
             column = 1
 
             for test_name, devices_info in group_info.items():
-                if exclude_sw_plugins and re.search(exclude_sw_plugins, test_name):
-                    continue
-
                 # if test passed or skipped on all devices, it is not need to analyze it here
                 all_pass = all([dev.lower() not in devices_info or (dev.lower() in devices_info and\
                                                                      (devices_info[dev.lower()]['status'] == 'passed' or\
@@ -231,7 +242,11 @@ class AnalyzerConformanceLog:
             if worksheet.max_row <= 3:
                 workbook.remove(worksheet)
 
-        workbook.save(os.path.join(self.output_path, self.output_file_name))
+        if len(workbook.worksheets) > 0:
+            workbook.save(os.path.join(self.output_path, self.output_file_name))
+            logger.info(f'Exel file with results is created: {self.output_file_name}')
+        else:
+            logger.info(f'Excel file hasn`t created because there is no content. This means that no errors were detected or something went wrong during the analysis')
 
 
 if __name__ == '__main__':
@@ -270,13 +285,6 @@ Example: CPU TEMPLATE')
     parser.add_argument('--exclude_from_log',
                         type=str,
                         help='This arguments could be use to removing repeated pattern in log, for example long paths of files with code')
-    parser.add_argument('--exclude_sw_plugins',
-                        required=False,
-                        nargs="*",
-                        help='Setup sw plagins to exclude. If it is not be setup, all plugins will be in report.\
-Example1 - exclude several: AUTO HETERO\
-Example2 - exclude all from AUTO/HETERO/MULTI/BATCH: ALL')
-
 
     args = parser.parse_args()
 
@@ -293,13 +301,5 @@ Example2 - exclude all from AUTO/HETERO/MULTI/BATCH: ALL')
 
     analyzerConformanceLog.collect_tests_result(args.exclude_from_log)
 
-    exclude_sw_plugins = None
-    if args.exclude_sw_plugins:
-        if 'ALL' in args.exclude_sw_plugins:
-            exclude_sw_plugins = '(' + '|'.join(SW_PLUGINS.keys()) + '|\/[1234]$)'
-        else:
-            exclude_sw_plugins = '(' + '|'.join(args.exclude_sw_plugins)
-            sw_plugins_numbers = ''.join([SW_PLUGINS[plugin.upper()] for plugin in args.exclude_sw_plugins if plugin.upper() in SW_PLUGINS])
-            exclude_sw_plugins += '|\/[' +  + ']&)' if sw_plugins_numbers else ')'
-    analyzerConformanceLog.create_exel(args.expected_devices, exclude_sw_plugins)
+    analyzerConformanceLog.create_exel(args.expected_devices)
 

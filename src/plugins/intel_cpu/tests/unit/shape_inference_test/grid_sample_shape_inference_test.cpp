@@ -11,11 +11,11 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class GridSampleStaticShapeInferenceTest : public OpStaticShapeInferenceTest<opset9::GridSample> {};
+class GridSampleStaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v9::GridSample> {};
 
 TEST_F(GridSampleStaticShapeInferenceTest, GridSample) {
-    const auto data = std::make_shared<opset9::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    const auto grid = std::make_shared<opset9::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    const auto grid = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     op = make_op(data, grid, opset9::GridSample::Attributes{});
 

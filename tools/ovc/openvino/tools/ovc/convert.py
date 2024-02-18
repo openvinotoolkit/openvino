@@ -5,14 +5,14 @@ import pathlib
 from typing import Any
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
-
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
 
 
 def convert_model(
-        input_model: [str, pathlib.Path, Any, list],    # TODO: Instead of list just accept arbitrary number of positional arguments
+        input_model: [str, pathlib.Path, Any, list],
+        # TODO: Instead of list just accept arbitrary number of positional arguments
 
         # Framework-agnostic parameters
         input: [list, dict, str] = None,
@@ -82,8 +82,7 @@ def convert_model(
         :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
-            objects. To disable all extensions including those that are placed
-            at the default location, pass an empty string.
+            objects.
         :param verbose:
             Print detailed information about conversion.
         :param share_weights:

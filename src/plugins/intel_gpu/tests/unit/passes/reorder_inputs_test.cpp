@@ -361,6 +361,44 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
     ASSERT_EQ(in_order.size(), out_shape.size());
 }
 
+TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
+    // Topology:
+    //
+    // (4d)___conv___(4d)___rdft___(5d)
+    //            \__(4d)___eltw___(4d)
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout1 = layout{ ov::PartialShape{1, 240, 96, 96}, data_types::f16, format::b_fs_yx_fsv16 };
+    auto in_layout2 = layout{ ov::PartialShape{1, 120, 96, 96}, data_types::f16, format::bfyx };
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {120, 240, 1, 1} });
+    auto bias = engine.allocate_memory({ data_types::f16, format::bfyx, {1, 120, 1, 1} });
+
+    topology topology(
+        input_layout("input1", in_layout1),
+        input_layout("input2", in_layout2),
+        data("weights", weights),
+        data("bias", bias),
+        convolution("conv", input_info("input1"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        eltwise("eltwise", input_info("input2"), input_info("conv"), eltwise_mode::sum),
+        dft("rdft", input_info("conv"), {1, 1}, {1, 1}, {1, 120, 96, 49, 2}, dft_direction::forward, dft_mode::real),
+        reorder("reorder", input_info("rdft"), format::bfzyx, data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    layout_optimizer lo(true);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+
+    ASSERT_NE(program, nullptr);
+
+    auto& dft_node = program->get_node("rdft");
+    ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
+}
+
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();

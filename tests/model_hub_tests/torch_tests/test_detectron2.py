@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
+import subprocess
 import pytest
 import torch
-from models_hub_common.test_convert_model import TestConvertModel
-from openvino import convert_model
 from models_hub_common.utils import get_models_list, compare_two_tensors
 
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 
-class TestDetectron2ConvertModel(TestConvertModel):
+
+class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
@@ -18,7 +20,10 @@ class TestDetectron2ConvertModel(TestConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.image = self.image.resize([640, 480])
 
-    def load_model(self, model_name, model_link):
+        subprocess.run([sys.executable, "-m", "pip", "install",
+                       "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
+
+    def load_model_impl(self, model_name, model_link):
         from detectron2 import model_zoo, export
         from detectron2.modeling import build_model, PanopticFPN
         from detectron2.checkpoint import DetectionCheckpointer
@@ -53,16 +58,6 @@ class TestDetectron2ConvertModel(TestConvertModel):
         self.example = adapter.flattened_inputs
         return adapter
 
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        return [i.numpy() for i in self.example]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
-        return ov_model
-
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -91,6 +86,10 @@ class TestDetectron2ConvertModel(TestConvertModel):
             is_ok = compare_two_tensors(cur_ov_res[:l], cur_fw_res[:l], fw_eps)
         assert is_ok, "Accuracy validation failed"
 
+    def teardown_class(self):
+        subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", "-y", "detectron2"])
+
     @pytest.mark.parametrize("name,type,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
@@ -98,7 +97,7 @@ class TestDetectron2ConvertModel(TestConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_models"))])
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "detectron2_models")))
     @pytest.mark.nightly
     def test_detectron2_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

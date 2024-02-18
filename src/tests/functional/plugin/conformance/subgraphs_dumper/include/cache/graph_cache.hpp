@@ -5,12 +5,10 @@
 #pragma once
 
 #include "cache/cache.hpp"
-#include "cache/meta/input_info.hpp"
-#include "utils/model_comparator.hpp"
 #include "matchers/subgraph/manager.hpp"
-#include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
 #include "matchers/subgraph/repeat_pattern.hpp"
+#include "matchers/subgraph/read_value_assign.hpp"
 
 namespace ov {
 namespace tools {
@@ -42,17 +40,18 @@ public:
     };
 
 protected:
-    std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
+    std::map<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo> m_graph_cache;
     // cache byte size
     uint64_t m_graph_cache_bytesize = 0;
     ExtractorsManager m_manager;
-    ModelComparator::Ptr m_model_comparator = ModelComparator::get();
+    ov::util::ModelComparator::Ptr m_model_comparator = ov::util::ModelComparator::get();
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     static std::shared_ptr<GraphCache> m_cache_instance;
 
     GraphCache(const std::string& device = "") {
         ExtractorsManager::ExtractorsMap matchers = {
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "read_value_assign", ReadValueAssignExtractor::Ptr(new ReadValueAssignExtractor) },
         };
         try {
             matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });
@@ -65,7 +64,7 @@ protected:
 
     void update_cache(const std::shared_ptr<ov::Model>& model,
                       const std::string& model_path,
-                      const std::map<std::string, InputInfo>& input_info,
+                      const std::map<std::string, ov::conformance::InputInfo>& input_info,
                       const std::string& extractor_name,
                       size_t model_op_cnt);
 };

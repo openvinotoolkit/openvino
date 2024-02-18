@@ -17,6 +17,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "perf_counter.hpp"
 #include "plugin.hpp"
 #include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
@@ -90,9 +91,8 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
         }
-        auto state = std::make_shared<VariableState>(
-            variable->get_info().variable_id,
-            get_tensor_impl(variable_context.get_variable_value(variable)->get_state()));
+        auto state = std::make_shared<VariableState>(variable->get_info().variable_id,
+                                                     variable_context.get_variable_value(variable));
         m_variable_states.emplace_back(state);
     }
     m_eval_context.emplace("VariableContext", variable_context);
@@ -268,9 +268,19 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
         p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
         return p_info;
     };
+
     info.emplace_back(fill_profiling_info("input preprocessing", m_durations[Preprocess]));
     info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
+    auto template_model = get_template_model();
+    for (const auto& op : template_model->get_runtime_model()->get_ops()) {
+        auto rt_info = op->get_rt_info();
+        const auto& it = rt_info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
+        OPENVINO_ASSERT(it != rt_info.end(), "Operation ", op, " doesn't contain performance counter");
+        auto counter = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        info.emplace_back(fill_profiling_info(op->get_friendly_name(), counter->duration()));
+    }
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
+
     return info;
 }
 // ! [infer_request:get_profiling_info]

@@ -15,19 +15,11 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
-#include "ie_layouts.h"
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace ov {
 namespace autobatch_plugin {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
-                                                 ov::device::priorities.name(),
-                                                 ov::auto_batch_timeout.name(),
-                                                 ov::cache_dir.name()};
-OPENVINO_SUPPRESS_DEPRECATED_END
+std::vector<std::string> supported_configKeys = {ov::device::priorities.name(), ov::auto_batch_timeout.name()};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
@@ -49,7 +41,7 @@ DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batc
             OPENVINO_THROW("Batch value for '", deviceName, "' must be > 0, while ", batch, "is passed");
         }
     }
-    return {deviceName, {{}}, static_cast<uint32_t>(batch)};
+    return {std::move(deviceName), {{}}, static_cast<uint32_t>(batch)};
 }
 
 DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_config,
@@ -69,22 +61,17 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     auto full_properties = remote_properties;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == full_properties.end())
-        it = full_properties.find(ov::device::priorities.name());
+    auto it = full_properties.find(ov::device::priorities.name());
     if (it == full_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = it->second.as<std::string>();
+    auto& val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     full_properties.erase(it);
     return get_core()->create_context(metaDevice.device_name, full_properties);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = m_plugin_config.find(name);
         if (it == m_plugin_config.end()) {
@@ -92,10 +79,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         } else {
             return {it->second};
         }
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        return std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
-                                        ov::device::full_name.name(),
-                                        METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
     } else if (name == ov::supported_properties.name()) {
         return std::vector<ov::PropertyName>{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
@@ -104,12 +87,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name.name()) {
         return get_device_name();
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        return supported_configKeys;
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -118,11 +98,9 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         const auto& val = c.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             OPENVINO_THROW("Unsupported config key: ", name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || name == ov::device::priorities.name()) {
+        if (name == ov::device::priorities.name()) {
             parse_batch_device(val.as<std::string>());
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
         m_plugin_config[name] = val;
     }
 }
@@ -150,14 +128,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // merge configs from func properties and m_plugin_config
     auto full_properties = merge_properties(m_plugin_config, properties);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto device_batch = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    if (device_batch == full_properties.end())
-        device_batch = full_properties.find(ov::device::priorities.name());
+    auto device_batch = full_properties.find(ov::device::priorities.name());
     if (device_batch == full_properties.end()) {
         OPENVINO_THROW("ov::device::priorities key for AUTO NATCH is not set for BATCH device");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
     const auto& device_name = meta_device.device_name;
@@ -237,18 +211,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // let's query the optimal batch size
         // auto cloned_model = model->clone();
         ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
-        unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
-        auto requests = core->get_property(device_name, ov::hint::num_requests);
-        const auto& reqs = properties.find(ov::hint::num_requests.name());
-        if (reqs != properties.end())
-            requests = reqs->second.as<unsigned int>();
-        if (requests)
-            opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
-        if (opt_batch_size >
-            2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
-            meta_device.device_batch_size = opt_batch_size;
-        else
+        auto supported_properties = core->get_property(device_name, ov::supported_properties);
+        if (std::count(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size)) {
+            unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
+            auto requests = core->get_property(device_name, ov::hint::num_requests);
+            const auto& reqs = properties.find(ov::hint::num_requests.name());
+            if (reqs != properties.end())
+                requests = reqs->second.as<unsigned int>();
+            if (requests)
+                opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
+            if (opt_batch_size >
+                2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
+                meta_device.device_batch_size = opt_batch_size;
+            else
+                meta_device.device_batch_size = 1;
+        } else {
             meta_device.device_batch_size = 1;
+        }
     }
 
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
@@ -297,29 +276,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
 
             reshaped->reshape(partial_shapes);
-
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            for (auto&& input : reshaped->inputs()) {
-                auto& rt_info = input.get_rt_info();
-                auto it = rt_info.find("ie_legacy_td");
-                if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
-                    rt_info["ie_legacy_td"] =
-                        InferenceEngine::TensorDesc(td.getPrecision(), input.get_shape(), td.getLayout());
-                }
-            }
-            for (auto&& result : reshaped->get_results()) {
-                auto output = result->input_value(0);
-                auto& rt_info = output.get_rt_info();
-                auto it = rt_info.find("ie_legacy_td");
-                if (it != rt_info.end()) {
-                    auto td = it->second.as<InferenceEngine::TensorDesc>();
-                    rt_info["ie_legacy_td"] =
-                        InferenceEngine::TensorDesc(td.getPrecision(), output.get_shape(), td.getLayout());
-                }
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
-
             compiled_model_with_batch = context
                                             ? core->compile_model(reshaped, context, device_config_no_auto_batch)
                                             : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
@@ -330,15 +286,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ov::SoPtr<ov::IRemoteContext> device_context;
     if (!context) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         try {
             device_context = compiled_model_without_batch->get_context();
             if (!device_context._so)
                 device_context._so = compiled_model_without_batch._so;
         } catch (const ov::NotImplemented&) {
-        } catch (const InferenceEngine::NotImplemented&) {
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         device_context = context;
     }
@@ -360,28 +313,22 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OPENVINO_ASSERT(get_core(), "Core is missing!");
     auto cfg = properties;
     for (const auto& c : cfg) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || c.first == ov::device::priorities.name()) {
+        if (c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = parse_meta_device(val.as<std::string>(), cfg);
             return get_core()->query_model(model, metaDevice.device_name, cfg);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     OPENVINO_THROW("Value for ov::device::priorities for AUTO BATCH PLUGIN is not set");
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = remote_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == remote_properties.end())
-        it = remote_properties.find(ov::device::priorities.name());
+    auto it = remote_properties.find(ov::device::priorities.name());
     if (it == remote_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = it->second.as<std::string>();
+    const auto& val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     return get_core()->get_default_context(metaDevice.device_name);
 }

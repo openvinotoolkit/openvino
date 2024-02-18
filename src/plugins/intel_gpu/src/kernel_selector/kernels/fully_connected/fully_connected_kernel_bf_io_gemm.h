@@ -18,7 +18,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
 };

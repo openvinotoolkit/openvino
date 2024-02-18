@@ -8,12 +8,10 @@
 #include <limits>
 
 #include "base_reference_test.hpp"
-#include "ie_core.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 struct IfFunctionalBase {
     virtual std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,

@@ -45,13 +45,16 @@ bool evaluate(const Node* const op, TensorVector& outputs, const TensorVector& i
 
     outputs[0].set_shape(infer_broadcast_shape(op, inputs));
     using namespace ov::element;
-    return IfTypeOf<boolean>::apply<logxor::Evaluate>(inputs[0].get_element_type(),
-                                                      inputs[0],
-                                                      inputs[1],
-                                                      outputs[0],
-                                                      inputs[0].get_shape(),
-                                                      inputs[1].get_shape(),
-                                                      op->get_autob());
+    return IF_TYPE_OF(Xor_evaluate,
+                      boolean,
+                      logxor::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      op->get_autob());
 }
 }  // namespace
 }  // namespace logxor

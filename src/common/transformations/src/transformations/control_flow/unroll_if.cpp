@@ -31,9 +31,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
             continue;
         }
         Output<Node> cond = if_node->input_value(0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto cond_is_const = ov::get_constant_from_source(cond);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto cond_is_const = ov::util::get_constant_from_source(cond);
         if (!cond_is_const) {
             continue;
         }

@@ -1643,6 +1643,45 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     ASSERT_TRUE(outputs.at("r2").get_memory()->get_layout().format == format::yxfb);
 }
 
+TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
+{
+    auto& engine = get_test_engine();
+
+    memory::ptr in = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 4, 4, 1 } });
+    layout r2_output(data_types::f32, format::b_fs_yx_fsv16, { 1, 4, 4, 1 });
+    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    set_values(scale_mem, { 2.0f });
+
+    topology tpl{
+        input_layout("in", in->get_layout()),
+        data("scale_data", scale_mem),
+        eltwise("eltwise", { input_info("in"), input_info("scale_data") }, eltwise_mode::prod),
+        reorder("r1", input_info("eltwise"), format::bfyx, data_types::f32, std::vector<float>{0, 0, 0, 1}),
+        reorder("r2", input_info("r1"), r2_output.with_padding(padding({ 0, 0, 1, 1 }, 0.f))),
+        eltwise("output", { input_info("r2"), input_info("scale_data") }, eltwise_mode::prod)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, tpl, config);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto executed_primitives = net.get_executed_primitives();
+
+    ASSERT_EQ(executed_primitives.count("r1"), 1);
+
+    // r2 would be removed, but the padding value should be remained at the input primitive of r2.
+    std::vector<int32_t> gt = {0, 0, 1, 1};
+    auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
+    auto upper_padding = r1_output_data_padding.upper_size().sizes();
+    auto lower_padding = r1_output_data_padding.lower_size().sizes();
+    for (int32_t i = 0 ; i < 4; i++) {
+        ASSERT_EQ(upper_padding[i], gt[i]);
+        ASSERT_EQ(lower_padding[i], gt[i]);
+    }
+}
+
 TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
 {
     auto& engine = get_test_engine();
@@ -1680,7 +1719,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
     };
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -1708,7 +1747,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
         softmax("output", input_info("r1"))
     };
 
@@ -2065,101 +2104,6 @@ TEST(reorder_gpu_i64, basic)
     cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
     for (auto& val : output_ptr)
         ASSERT_EQ(*(a_ptr++), val);
-}
-
-TEST(reorder_gpu_binary, binary_output)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::u1, format::b_fs_yx_32fp, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    set_values(input, {
-        1.f, 0.f, 1.f, 1.f,
-        0.f, 1.f, 1.f, 0.f,
-
-        1.f, 1.f, 0.f, 1.f,
-        0.f, 0.f, 0.f, 1.f
-    });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint32_t> output_ptr(output, get_test_stream());
-
-    std::vector<uint32_t > answers = { 1, 2, 3, 1,
-                                       1, 1, 0, 3 };
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), answers.size() * sizeof(uint32_t));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
-}
-
-TEST(reorder_gpu_binary, binary_input)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::u1, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    std::vector<float> answers = {
-            1.f, -1.f, 1.f, 1.f,
-            -1.f, 1.f, 1.f, -1.f,
-
-            1.f, 1.f, -1.f, 1.f,
-            -1.f, -1.f, -1.f, 1.f
-    };
-
-    set_values<int32_t>(input, { 1, 2, 3, 1,
-                                 1, 1, 0, 3 });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    ASSERT_EQ(output->size(), answers.size() * sizeof(float));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
 }
 
 TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
@@ -2859,10 +2803,7 @@ public:
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
-        if (l.data_type == data_types::u1) {
-            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+        if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {

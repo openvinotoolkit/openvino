@@ -3,16 +3,21 @@
 //
 #include "prepare_buffer_fusing.h"
 #include "pooling_inst.h"
+#include "kv_cache_inst.h"
+#include "gather_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
+#include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "lstm_elt_inst.h"
 #include "strided_slice_inst.h"
+#include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -76,6 +81,21 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
         do_runtime_buffer_fusing = false;
     }
+
+    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
+    size_t concat_axis_index = concat_axis < 0 ? concat_axis + concat_params.get_output_layout().get_rank() : concat_axis;
+    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
+    // If static padding exists in non dyn_pad axis, returns false to avoid optimized out.
+    if (concat_node.is_dynamic()) {
+        for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
+            if (j != concat_axis_index) {
+                if ((concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[j] != 0)
+                    || (concat_params.get_output_layout().data_padding.upper_size().sizes(def_fmt)[j] != 0))
+                    return false;
+            }
+        }
+    }
+
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -101,9 +121,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     // Otherwise, use explicit concat instead.
     auto output_format = concat_params.get_output_layout().format;
     auto output_datatype = concat_params.get_output_layout().data_type;
-    auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
 
-    auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
     auto lower_padd_in_axis = concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
                                   pred_params[0].get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
@@ -406,6 +424,19 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     return false;
 }
 
+static bool can_read_value_be_optimize(const read_value_node& node) {
+    if (node.get_users().size() == 1)
+        return true;
+
+    const auto non_shape_of_users_count = std::count_if(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+        return !user->is_type<shape_of>();
+    });
+    if (non_shape_of_users_count <= 1)
+        return true;
+
+    return false;
+}
+
 static void propagate_padding_to_opt_out_users(program_node& node, cldnn::padding padding_data) {
     if (padding_data == cldnn::padding())
         return;
@@ -432,6 +463,9 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layout(0).data_padding;
+        if (node->is_type<read_value>() || node->is_type<kv_cache>())
+            return true;
+
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
@@ -483,7 +517,7 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
+                if (p.is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
 
@@ -601,6 +635,104 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+        });
+        program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
+            auto kv_out_layout = node.get_output_layout();
+
+            program_node* rv_prim = nullptr;
+            program_node* gather_prim = nullptr;
+            if (node.get_dependency(0).is_type<read_value>()) {
+                rv_prim = &node.get_dependency(0);
+            } else {
+                if (node.get_dependency(0).is_type<gather>()) {
+                    gather_prim = &node.get_dependency(0);
+                } else {
+                    return;
+                }
+
+                if (gather_prim->get_dependency(0).is_type<read_value>()) {
+                    rv_prim = &gather_prim->get_dependency(0);
+                }
+            }
+
+            if (!rv_prim)
+                return;
+
+            if (kv_out_layout.data_type != rv_prim->get_output_layout().data_type)
+                return;
+
+            auto concat_axis_legacy = node.get_primitive()->concat_axis;
+            if (concat_axis_legacy < 0)
+                concat_axis_legacy = kv_out_layout.get_partial_shape().size() + concat_axis_legacy;
+            if (concat_axis_legacy >= 2) {
+                auto spatial_axis = concat_axis_legacy - 2;
+                // Default and minimum number of dimensions is 4
+                auto spatial_size = std::max<size_t>(kv_out_layout.get_partial_shape().size(), 4) - 2;
+                concat_axis_legacy = spatial_size - spatial_axis - 1 + 2;
+            }
+
+            if (kv_out_layout.is_dynamic()) {
+                // set dynamic pad dims for shape agnostic kernel
+                auto info_dynamic_pad = tensor(0).sizes();
+                info_dynamic_pad[concat_axis_legacy] = 1;
+                auto dynamic_pad_mask = tensor(info_dynamic_pad);
+                kv_out_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                node.set_output_layout(kv_out_layout);
+                node.can_share_buffer(false);
+
+                auto update_dep = [&dynamic_pad_mask](program_node* dep) {
+                    auto prev_layout = dep->get_output_layout();
+                    prev_layout.data_padding.set_dynamic_pad(dynamic_pad_mask);
+                    dep->set_output_layout(prev_layout);
+                    dep->can_share_buffer(false);
+                };
+
+                if (rv_prim) {
+                    update_dep(rv_prim);
+                }
+                if (gather_prim) {
+                    update_dep(gather_prim);
+                }
+
+                // Fallback to ocl impl since oneDNN doesn't support dynamic paddings
+                for (auto user : node.get_users()) {
+                    if (user->get_preferred_impl_type() == impl_types::onednn) {
+                        GPU_DEBUG_TRACE_DETAIL << user->id() << ": change impl to ocl because of dynamic input paddings\n";
+                        user->set_preferred_impl_type(impl_types::ocl);
+                    }
+                }
+            }
+        });
+        program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
+            // Current implementation allows to avoid copy on read_value primitive
+            // only in cases when it has single user
+            // Otherwise we may face an issue with exeuction of read_value users and assign to the same variable
+            // Graph below is an example of unsupported case
+            //     ┌────────┐     ┌───────┐
+            //     │ Param1 │     │ Const │
+            //     └───┬────┘     └───┬───┘
+            //         │              │
+            //         │         ┌────┴──────┐
+            //  .......│.........│ ReadValue │
+            //  .      │         └────┬─────┬┘
+            //  .      │              │     │
+            //  .      │   ┌─────┐    │     │
+            //  .      └───┤ Add ├────┘     │
+            //  .          └──┬──┘          │
+            //  .             │             │
+            //  .             │             │
+            //  . ┌────────┐  │    ┌─────┐  │
+            //  ..│ Assign ├──┴────┤ Add ├──┘
+            //    └────────┘       └──┬──┘
+            //                        │
+            //                        │
+            //                   ┌────┴──────┐
+            //                   │  Result   │
+            //                   └───────────┘
+            // If read_value here returns variable memory w/o copy, then based on Add-s and Assign execution order we may have different results
+            // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
+            // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
+            node.can_be_optimized(can_read_value_be_optimize(node));
         });
     }
 }

@@ -33,6 +33,8 @@ public:
         uint32_t last_rg_size = 0;
         uint32_t rg_count = 0;
 
+        bool use_slm = false;
+
         // Gemm style params
         uint32_t tile_m = 0;
         uint32_t tile_n = 0;
@@ -54,13 +56,14 @@ public:
 protected:
     using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
-    virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const;
+    virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const;
     KernelsData GetCommonKernelsData(const Params &params,
                                      const optional_params &options,
                                      DataLayout dl,
                                      WeightsLayout wl,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
-                                     int autoTuneIndex = -1) const;
+                                     int autoTuneIndex = -1,
+                                     int kernel_number = 0) const;
 
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
@@ -69,5 +72,6 @@ protected:
     // --Fused ops
 
     bool Validate(const Params& p, const optional_params&) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -21,9 +21,20 @@ from openvino import Type
     ("uint32", np.uint32, Type.u32),
     ("uint64", np.uint64, Type.u64),
     ("bool", bool, Type.boolean),
+    ("bytes_", np.bytes_, Type.string),
+    ("str_", np.str_, Type.string),
+    ("bytes", bytes, Type.string),
+    ("str", str, Type.string),
+    ("|S", np.dtype("|S"), Type.string),
+    ("|U", np.dtype("|U"), Type.string),
 ])
 def test_dtype_ovtype_conversion(dtype_string, dtype, ovtype):
-    assert ovtype.to_dtype() == dtype
+    if hasattr(dtype, "kind"):
+        assert ovtype.to_dtype() == np.bytes_
+    elif issubclass(dtype, (str, np.str_)):
+        assert ovtype.to_dtype() == np.bytes_
+    else:
+        assert ovtype.to_dtype() == dtype
     assert Type(dtype_string) == ovtype
     assert Type(dtype) == ovtype
 

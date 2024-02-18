@@ -23,6 +23,15 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         return make_unique<rms_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<rms>();
         auto params = get_default_params<kernel_selector::rms_params>(impl_param, is_shape_agnostic);
@@ -30,12 +39,21 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.epsilon = primitive->epsilon;
+        params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        return impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
     }
 };
 
@@ -63,3 +81,6 @@ attach_rms_impl::attach_rms_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::rms_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::rms)

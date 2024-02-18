@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_op/logical.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/logical.hpp"
 
 namespace ov {
 namespace test {
@@ -63,7 +63,7 @@ void LogicalLayerTest::SetUp() {
             secondInput = param;
             params.push_back(param);
         }
-        logical_node = ngraph::builder::makeLogical(params[0], secondInput, logical_op_type);
+        logical_node = ov::test::utils::make_logical(params[0], secondInput, logical_op_type);
     } else {
         logical_node = std::make_shared<ov::op::v1::LogicalNot>(params[0]);
     }

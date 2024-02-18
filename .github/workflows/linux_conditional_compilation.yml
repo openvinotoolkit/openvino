@@ -2,23 +2,11 @@ name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
+  merge_group:
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -30,16 +18,41 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -47,15 +60,24 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: |
           apt-get update
@@ -96,19 +118,17 @@ jobs:
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         run: |
@@ -132,14 +152,15 @@ jobs:
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
+            -DCMAKE_CXX_STANDARD=20 \
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_INTEL_GNA=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
+            -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -154,7 +175,9 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
@@ -180,12 +203,36 @@ jobs:
             tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
           popd
 
-          pushd ${OPENVINO_REPO}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
-              bin/intel64/Release/ov_cpu_func_tests \
-              src/tests/test_utils/functional_test_utils/layer_tests_summary/* \
-              scripts/install_dependencies/*
+          pushd ${INSTALL_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz \
+              install_dependencies/install_openvino_dependencies.sh
           popd
+
+          pushd ${INSTALL_TEST_DIR}
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
+              tests/ov_cpu_func_tests \
+              tests/libopenvino_template_extension.so \
+              tests/functional_test_utils/layer_tests_summary/*
+          popd
+
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
@@ -206,20 +253,22 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
@@ -228,6 +277,9 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
 
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
 
@@ -262,9 +314,9 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
       #
       # Build
       #
@@ -275,10 +327,8 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_CPPLINT=OFF \
             -DSELECTIVE_BUILD=ON \
-            -DENABLE_LTO=OFF \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \
-            -DENABLE_INTEL_GNA=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
             -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
@@ -301,65 +351,23 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-8-cores
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-    env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
-      PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_cpu_functional_tests.yml
+    with:
+      runner: 'aks-linux-8-cores-32gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
+  Overall_Status:
+    name: ci/gha_overall_status_linux_cc
+    needs: [Smart_CI, Build, CC_Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO tests package
-        run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
-
-      - name: Install OpenVINO dependencies
-        run: bash ${INSTALL_TEST_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get install -y libssl3
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt
-
-      - name: Restore tests execution time
-        uses: actions/cache/restore@v3
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-tests-functional-cpu-stamp
-
-      - name: Intel CPU plugin func tests (parallel)
-        run: python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 20
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
-          if-no-files-found: 'error'
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

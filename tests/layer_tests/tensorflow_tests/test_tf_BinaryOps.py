@@ -15,6 +15,8 @@ def generate_input(op_type, size):
 
     logical_type = ['LogicalAnd', 'LogicalOr', 'LogicalXor']
 
+    bitwise_type = ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']
+
     # usual function domain
     lower = -256
     upper = 256
@@ -26,6 +28,8 @@ def generate_input(op_type, size):
 
     if op_type in logical_type:
         return np.random.randint(0, 1, size).astype(bool)
+    elif op_type in bitwise_type:
+        return np.random.randint(lower, upper, size).astype(np.int32)
     elif op_type in narrow_borders:
         return np.random.uniform(lower, upper, size).astype(np.float32)
     else:
@@ -39,7 +43,7 @@ class TestBinaryOps(CommonTFLayerTest):
         return inputs_dict
 
     def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
-                                         use_new_frontend):
+                                         use_legacy_frontend):
         """
             Tensorflow net                       IR net
 
@@ -48,7 +52,7 @@ class TestBinaryOps(CommonTFLayerTest):
             Const-------/                         Const-------/
 
         """
-        if not use_new_frontend and op_type == "Xdivy":
+        if not use_legacy_frontend and op_type == "Xdivy":
             pytest.xfail(reason="95499")
 
         self.current_op_type = op_type
@@ -79,21 +83,26 @@ class TestBinaryOps(CommonTFLayerTest):
             'FloorMod': tf.math.floormod,
             'FloorDiv': tf.math.floordiv,
             'Xdivy': tf.raw_ops.Xdivy,
+            'BitwiseAnd': tf.raw_ops.BitwiseAnd,
+            'BitwiseOr': tf.raw_ops.BitwiseOr,
+            'BitwiseXor': tf.raw_ops.BitwiseXor,
         }
 
-        op_type_kw_args = [ 'AddV2', 'Xdivy' ]
+        op_type_kw_args = ["AddV2", "Xdivy", "BitwiseAnd", "BitwiseOr", "BitwiseXor"]
 
         type = np.float32
         if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
             type = bool
+        elif op_type in ["BitwiseAnd", "BitwiseOr", "BitwiseXor"]:
+            type = np.int32
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = x_shape.copy()
             tf_y_shape = y_shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
+            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_legacy_frontend)
 
             x = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
             constant_value = generate_input(op_type, tf_y_shape)
@@ -125,18 +134,20 @@ class TestBinaryOps(CommonTFLayerTest):
                               'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
                               'LessEqual',
                               'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod', 'FloorDiv',
-                              'Xdivy'])
+                              'Xdivy', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor',])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_new_frontend, use_old_api):
+                       use_legacy_frontend):
+        if not use_legacy_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if precision == "FP16":
             pytest.skip("BinaryOps tests are skipped with FP16 precision."
                         "They don't pass accuracy checks because chaotic output.")
         self._test(
             *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                   use_new_frontend=use_new_frontend), ie_device,
+                                                   use_legacy_frontend=use_legacy_frontend), ie_device,
             precision,
-            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+            ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

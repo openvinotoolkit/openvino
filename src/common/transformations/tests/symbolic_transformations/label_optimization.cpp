@@ -13,7 +13,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"

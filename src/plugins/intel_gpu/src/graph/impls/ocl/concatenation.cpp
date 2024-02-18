@@ -17,7 +17,7 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     if (cldnn_axis >= static_cast<int64_t>(rank))
         OPENVINO_THROW("Concatenation axis exceeds number of dimensions");
 
-    // Difference in dimension ordering between IE and GPU plugin,
+    // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     if (cldnn_axis >= 2) {
         auto spatial_axis = cldnn_axis - 2;
@@ -51,6 +51,15 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 public:

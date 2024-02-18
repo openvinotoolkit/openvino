@@ -19,6 +19,7 @@ namespace lowered {
 
 class LinearIR;
 using ExpressionPtr = std::shared_ptr<Expression>;
+using ExressionMap = std::unordered_map<Expression*, ExpressionPtr>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
     friend class ExpressionPort;
@@ -31,7 +32,7 @@ public:
     std::shared_ptr<Emitter> get_emitter() const;
 
     RegInfo get_reg_info() const;
-    void set_reg_info(RegInfo rinfo);
+    void set_reg_info(const RegInfo& rinfo);
 
     const PortConnectorPtr& get_input_port_connector(size_t i) const;
     const PortConnectorPtr& get_output_port_connector(size_t i) const;
@@ -46,22 +47,30 @@ public:
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
+    void set_input_port_connector(size_t port, PortConnectorPtr to);
+
     void validate() const;
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
+    std::vector<ExpressionPort> get_input_ports();
+    std::vector<ExpressionPort> get_output_ports();
+
     void updateShapes();
     virtual bool needShapeInfer() const {return true; }
 
-    std::vector<size_t> get_loop_ids() const;
+    const std::vector<size_t>& get_loop_ids() const;
     void set_loop_ids(const std::vector<size_t>& loops);
+    virtual ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                                const std::shared_ptr<Node>& new_node) const;
+    ExpressionPtr clone_with_new_inputs(const ExressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
 
 protected:
+    Expression(const Expression& other);
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
     Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
-
-    void replace_input(size_t port, PortConnectorPtr to);
+    void update_node_and_connectors(const std::vector<PortConnectorPtr>& new_inputs, const std::shared_ptr<Node>& new_node);
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};
@@ -80,12 +89,14 @@ class IOExpression : public Expression {
 
 public:
     enum class io_type {INPUT, OUTPUT, UNDEFINED};
-
+    ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                        const std::shared_ptr<Node>& new_node) const override;
     int64_t get_index() const  { return m_index; }
     io_type get_type() const { return m_type; }
     // Result needs shapeInfer to copy shape from Parent's output to this expr input
     bool needShapeInfer() const override {return m_type == io_type::OUTPUT; }
 private:
+    IOExpression(const IOExpression& other) = default;
     explicit IOExpression(const std::shared_ptr<ov::opset1::Parameter>& n, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
     explicit IOExpression(const std::shared_ptr<ov::opset1::Result>& n, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 

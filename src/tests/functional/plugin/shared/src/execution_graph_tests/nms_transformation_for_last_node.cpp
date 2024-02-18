@@ -6,10 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
-
-#include <inference_engine.hpp>
+#include "openvino/core/model.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/runtime/core.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -36,51 +35,42 @@ std::string ExecGraphNmsTransformLastNode::getTestCaseName(
 TEST_P(ExecGraphNmsTransformLastNode, CheckIfCanBeInfered) {
   SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-  using namespace ngraph;
-
   auto device_name = this->GetParam();
-  ngraph::Shape boxes_shape = {1, 2, 4};
-  ngraph::Shape scores_shape = {1, 1, 2};
+  ov::Shape boxes_shape = {1, 2, 4};
+  ov::Shape scores_shape = {1, 1, 2};
   float in_boxes[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   float in_scores[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  auto boxes = std::make_shared<opset5::Parameter>(element::f32, boxes_shape);
-  auto scores = std::make_shared<opset5::Parameter>(element::f32, scores_shape);
-  auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
-  auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
-  auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-  auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                                                                                  iou_threshold, score_threshold,
-                                                                                  opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i64);
-  ngraph::ResultVector results {
-      std::make_shared<opset5::Result>(nms->output(0)),
+  auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, boxes_shape);
+  auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scores_shape);
+  auto max_output_boxes_per_class = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {10});
+  auto iou_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.75});
+  auto score_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.7});
+  auto nms = std::make_shared<ov::op::v5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                                                             iou_threshold, score_threshold,
+                                                             ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER, true, ov::element::i64);
+  nms->output(0).set_names({"nms"});
+  ov::ResultVector results {
+      std::make_shared<ov::op::v0::Result>(nms->output(0)),
   };
 
-  auto f = std::make_shared<Function>(results, ParameterVector{boxes, scores}, "NMS");
+  auto f = std::make_shared<ov::Model>(results, ov::ParameterVector{boxes, scores}, "NMS");
 
-  auto ie = InferenceEngine::Core();
-  auto net = InferenceEngine::CNNNetwork(f);
-  auto exec_net = ie.LoadNetwork(net, device_name);
-  auto infer_req = exec_net.CreateInferRequest();
+  auto core = ov::Core();
+  auto exec_net = core.compile_model(f, device_name);
+  auto infer_req = exec_net.create_infer_request();
+  ov::Tensor boxes_tensor(ov::element::f32, boxes_shape, in_boxes);
+  ov::Tensor scores_tensor(ov::element::f32, scores_shape, in_scores);
+  infer_req.set_tensor(boxes, boxes_tensor);
+  infer_req.set_tensor(scores, scores_tensor);
+  infer_req.infer();
 
-  InferenceEngine::TensorDesc tDesc1(InferenceEngine::Precision::FP32, boxes_shape,
-                                    InferenceEngine::Layout::CHW);
-  InferenceEngine::TensorDesc tDesc2(InferenceEngine::Precision::FP32, scores_shape,
-                                    InferenceEngine::Layout::CHW);
+  const auto& initial_outputs = f->outputs();
+  const auto& final_outputs = exec_net.outputs();
 
-  InferenceEngine::Blob::Ptr inBlob1 = InferenceEngine::make_shared_blob<float>(tDesc1, in_boxes);
-  infer_req.SetBlob(boxes->get_name(), inBlob1);
-  InferenceEngine::Blob::Ptr inBlob2 = InferenceEngine::make_shared_blob<float>(tDesc2, in_scores);
-  infer_req.SetBlob(scores->get_name(), inBlob2);
-
-  infer_req.Infer();
-
-  const auto& initial_outputs = net.getOutputsInfo();
-  const auto& final_outputs = exec_net.GetOutputsInfo();
-
-  auto compareOutputNames = [] (const std::pair<std::string, InferenceEngine::CDataPtr>& lhs,
-                                const std::pair<std::string, InferenceEngine::CDataPtr>& rhs)
-  { return lhs.first == rhs.first; };
+  auto compareOutputNames = [] (const ov::Output<ov::Node>& lhs,
+                                const ov::Output<const ov::Node>& rhs)
+  { return lhs.get_any_name() == rhs.get_any_name(); };
 
   ASSERT_TRUE(std::equal(initial_outputs.begin(), initial_outputs.end(), final_outputs.begin(), compareOutputNames));
 }

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/reduce_base_transformation.hpp"
 #include <memory>
 
-#include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/util/log.hpp"
+
+#include "low_precision/network_helper.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -27,7 +29,9 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
-    moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+    const auto newOperation = moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
@@ -49,9 +53,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const std::vector<size_t> axes = ov::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

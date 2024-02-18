@@ -148,9 +148,7 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     for (size_t i = 0; i <= 6; ++i)
         set_input_is_relevant_to_shape(i);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     auto output_shapes = shape_infer(this, input_shapes);
 
     // Set output size, type and shape
@@ -207,9 +205,7 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     for (size_t i = 0; i <= 6; ++i)
         set_input_is_relevant_to_shape(i);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     auto output_shapes = shape_infer(this, input_shapes);
 
     // Set output size, type and shape

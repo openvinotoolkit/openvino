@@ -42,7 +42,7 @@ ConvertExecutorPtr ConvertExecutorFactory::makeExecutor(const ConvertParams& con
         }
     }
 
-    IE_THROW() << "Supported executor is not found";
+    OPENVINO_THROW("Supported executor is not found");
 }
 
 }   // namespace intel_cpu

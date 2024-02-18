@@ -53,6 +53,7 @@ struct kernel_impl_params {
     optional_layout weights_zero_points_layout = optional_layout();
     optional_layout activations_zero_points_layout = optional_layout();
     optional_layout compensation_layout = optional_layout();
+    optional_layout state_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
@@ -63,6 +64,9 @@ struct kernel_impl_params {
     // Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
+
+    std::map<size_t, size_t> in_port_to_shape_info_offset = {};
+    std::map<size_t, size_t> out_port_to_shape_info_offset = {};
 
     kernel_impl_params() : prog(nullptr), dev_type(cldnn::device_type::integrated_gpu), strm(nullptr), desc(nullptr), unique_id(0) {
     }
@@ -141,8 +145,6 @@ struct kernel_impl_params {
 
     virtual primitive_type_id type() const { return desc->type; }
 
-    void save(BinaryOutputBuffer& ob) const;
-    void load(BinaryInputBuffer& ib);
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;

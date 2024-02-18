@@ -87,11 +87,6 @@ function(ov_set_temp_directory temp_variable source_tree_dir)
     endif()
 endfunction()
 
-macro(set_temp_directory)
-    message(WARNING "'set_temp_directory' is deprecated. Please, use 'ov_set_temp_directory'")
-    ov_set_temp_directory(${ARGV})
-endmacro()
-
 #
 # For cross-compilation
 #
@@ -211,6 +206,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
 # CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
 set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+# CMake 3.1+: Simplify variable reference and escape sequence evaluation.
+set(CMAKE_POLICY_DEFAULT_CMP0053 NEW)
 # CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 # CMake 3.12+: find_package() uses <PackageName>_ROOT variables.
@@ -292,11 +289,6 @@ function(ov_mark_target_as_cc TARGET_NAME)
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)
-endfunction()
-
-function(ie_mark_target_as_cc TARGET_NAME)
-    message(WARNING "This function is deprecated. Please use ov_mark_target_as_cc(TARGET_NAME) instead.")
-    ov_mark_target_as_cc(${TARGET_NAME})
 endfunction()
 
 include(python_requirements)

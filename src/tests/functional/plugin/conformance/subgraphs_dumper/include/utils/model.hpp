@@ -4,93 +4,35 @@
 
 #pragma once
 
-#include <vector>
-#include <map>
-#include <regex>
-#include <unordered_set>
-#include <string>
-#include <functional>
-
-#include "openvino/util/file_util.hpp"
-
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/test_constants.hpp"
-
-#include "cache/cache.hpp"
 #include "utils/node.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
-static std::vector<std::regex> FROTEND_REGEXP = {
-#ifdef ENABLE_OV_ONNX_FRONTEND
-    std::regex(R"(.*\.onnx)"),
-#endif
-#ifdef ENABLE_OV_PADDLE_FRONTEND
-    std::regex(R"(.*\.pdmodel)"),
-    std::regex(R"(.*__model__)"),
-#endif
-#ifdef ENABLE_OV_TF_FRONTEND
-    std::regex(R"(.*\model.pb)"),
-#endif
-#ifdef ENABLE_OV_IR_FRONTEND
-    std::regex(R"(.*\.xml)"),
-#endif
-#ifdef ENABLE_OV_TF_LITE_FRONTEND
-    std::regex(R"(.*\.tflite)"),
-#endif
-#ifdef ENABLE_OV_PYTORCH_FRONTEND
-    std::regex(R"(.*\.pt)"),
-#endif
-};
-
-enum ModelCacheStatus {
-    SUCCEED = 0,
-    NOT_FULLY_CACHED = 1,
-    NOT_READ = 2,
-    LARGE_MODELS_EXCLUDED = 3,
-    LARGE_MODELS_INCLUDED = 4,
-};
-
-static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
-    { ModelCacheStatus::SUCCEED, "successful_models" },
-    { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
-    { ModelCacheStatus::NOT_READ, "not_read_models" },
-    { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
-    { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
-};
-
-const std::shared_ptr<ov::Core> core = std::make_shared<ov::Core>();
-
-std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
-find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
-
-// model_cache_status: model_list
-std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::shared_ptr<ICache>& cache,
-    const std::vector<std::string>& models,
-    bool extract_body, bool from_cache = false);
-
-void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
-                               const std::string& output_dir);
-
-bool is_dynamic_model(const std::shared_ptr<ov::Model>& model);
 std::string get_model_type(const std::shared_ptr<ov::Model>& model);
 
-std::map<std::string, InputInfo>
+std::map<std::string, ov::conformance::InputInfo>
 get_input_info_by_model(const std::shared_ptr<ov::Model>& model);
 
-std::map<std::string, InputInfo>
+std::map<std::string, ov::conformance::InputInfo>
 align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::shared_ptr<ov::Model>& model_ref,
-                 const std::map<std::string, InputInfo> &in_info,
-                 const std::map<std::string, InputInfo> &in_info_ref,
-                 const std::map<std::string, std::string> &matched_op = {});
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info,
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
+                 const std::unordered_map<std::string, std::string> &matched_op);
 
-inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
+// get set nodes of subgraph after start_node                
+void
+get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
+                      const std::shared_ptr<ov::Node>& node);
+
+bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
+                           const std::shared_ptr<ov::Model> &second_model);
+
+bool build_control_dependency(std::shared_ptr<ov::Model> &model);
+
+inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
 generate_model(ov::NodeVector& nodes,
-               std::unordered_set<std::string>& checked_ops,
                bool is_copy_constants = true,
                bool is_save_only_borders = false) {
     // map to recover graph using cloned nodes and original connections
@@ -99,14 +41,14 @@ generate_model(ov::NodeVector& nodes,
     // map to fill output nodes in models:
     // { original_node_names, out_port_idx_without_orig_node_to_check }
     std::unordered_map<std::string, std::unordered_set<size_t>> model_output_nodes;
-    std::map<std::string, InputInfo> model_input_info;
+    std::map<std::string, ov::conformance::InputInfo> model_input_info;
     ov::ParameterVector model_parameters;
+    ov::SinkVector model_sinks;
     {
         // prepare map { original_op_name, cloned_node }
         size_t functional_node_cnt = 0;
         for (const auto& node : nodes) {
             auto orig_node_name = node->get_friendly_name();
-            checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
                                      clone_node(node, is_copy_constants, false, orig_node_name) });
             
@@ -146,7 +88,10 @@ generate_model(ov::NodeVector& nodes,
                             if (cloned_node_map.count(orig_in_node_name)) {
                                 auto orig_in_node = cloned_node_map[orig_in_node_name];
                                 auto cloned_in_node_name = cloned_in_node->get_friendly_name();
-                                ov::replace_output_update_name(cloned_in_node->output(out_idx), orig_in_node->output(out_idx));
+                                size_t cloned_in_node_out_idx = ov::op::util::is_parameter(cloned_in_node) ||
+                                                                ov::op::util::is_constant(cloned_in_node) ? 0 : out_idx;
+                                // cloned_in_node is parameter or constant, it could have only one input
+                                ov::replace_output_update_name(cloned_in_node->output(cloned_in_node_out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);
@@ -160,6 +105,8 @@ generate_model(ov::NodeVector& nodes,
                                     }
                                     node_input_info.insert({ orig_in_node->get_friendly_name(),
                                                              node_input_info[cloned_in_node_name]});
+                                } else if (ov::op::util::is_sink(cloned_node)) {
+                                    model_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(cloned_node->shared_from_this()));
                                 }
                                 filled_input_idx++;
                                 // clean up replaced node data
@@ -202,7 +149,12 @@ generate_model(ov::NodeVector& nodes,
             }
         }
     }
-    auto model = std::make_shared<ov::Model>(model_results, model_parameters);
+
+    auto model = std::make_shared<ov::Model>(model_results, model_sinks, model_parameters);
+
+    if (!build_control_dependency(model)) {
+        throw std::runtime_error("Incorrect ReadValue/Assign amout, correct model could not be created!");
+    }
 
     // prepare unique model name based on operations from model
     std::string string_to_hash;
@@ -254,6 +206,5 @@ generate_model(ov::NodeVector& nodes,
     return { model, model_input_info };
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov

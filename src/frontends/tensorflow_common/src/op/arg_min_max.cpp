@@ -3,10 +3,12 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/topk.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -14,13 +16,14 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
+    default_op_checks(node, 1, {"ArgMax", "ArgMin", "ARG_MAX", "ARG_MIN"});
     auto input = node.get_input(0);
 
     // TensorFlow uses axis with default value equal to zero
     int64_t axis = 0;
     if (node.get_input_size() > 1) {
         TENSORFLOW_OP_VALIDATION(node,
-                                 std::dynamic_pointer_cast<opset8::Constant>(node.get_input(1).get_node_shared_ptr()),
+                                 as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
                                  "ArgMax/ArgMin is not supported with non-constant axis input");
         std::vector<int64_t> axes;
         get_const_input(node, 1, &axes);
@@ -30,12 +33,13 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     auto output_type = node.get_attribute<element::Type>("output_type", element::i64);
 
     // compute indices of max/min values using TopK
-    auto k = make_shared<Constant>(element::i64, Shape{}, 1);
-    // TODO: define sort attribute for TensorFlow case
-    auto top_k = std::make_shared<TopK>(input, k, axis, mode, "none", output_type);
+    auto k = make_shared<v0::Constant>(element::i64, Shape{}, 1);
+    auto top_k_mode = (mode == "max" ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN);
+    auto sort_type = v11::TopK::SortType::SORT_VALUES;
+    auto top_k = make_shared<v11::TopK>(input, k, axis, top_k_mode, sort_type, output_type, true);
 
-    auto axis_to_remove = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>({axis}));
-    auto res = make_shared<Squeeze>(top_k->output(1), axis_to_remove);
+    auto axis_to_remove = make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>({axis}));
+    auto res = make_shared<v0::Squeeze>(top_k->output(1), axis_to_remove);
     set_node_name(node.get_name(), res);
     return {res};
 }

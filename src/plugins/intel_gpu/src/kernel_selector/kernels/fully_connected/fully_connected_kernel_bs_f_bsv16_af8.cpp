@@ -28,7 +28,7 @@ DeviceFeaturesKey FullyConnected_bs_f_bsv16_af8::get_required_device_features_ke
 }
 
 FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDefault(const fully_connected_params& arg,
-                                                                                      int) const {
+                                                                                      int, int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);

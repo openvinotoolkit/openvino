@@ -7,6 +7,9 @@
 #include <cstdint>
 
 #include "openvino/runtime/properties.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+
+#include <locale.h>
 
 namespace ov {
 namespace test {
@@ -72,7 +75,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
     std::tie(target_device, userConfig) = GetParam();
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ov::test::utils::make_conv_pool_relu();
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
@@ -119,6 +122,11 @@ TEST_P(OVCompiledModelIncorrectDevice, CanNotCompileModelWithIncorrectDeviceID) 
     ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
 }
 
+TEST_P(OVCompiledModelIncorrectDevice, CanNotCompileModelWithEmpty) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, ""), ov::Exception);
+}
+
 TEST_P(OVCompiledModelPropertiesDefaultSupportedTests, CanCompileWithDefaultValueFromPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
@@ -149,7 +157,7 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property)
+        ASSERT_EQ(default_property.second.as<std::string>(), property.as<std::string>())
             << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
@@ -255,6 +263,12 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
     ASSERT_EXEC_METRIC_SUPPORTED(ov::optimal_number_of_infer_requests);
 }
 
+TEST_P(OVClassCompiledModelGetPropertyTest, CanCompileModelWithEmptyProperties) {
+    ov::Core core = createCoreWithTemplate();
+
+    OV_ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
+}
+
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
     ov::Core ie = createCoreWithTemplate();
     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
@@ -349,6 +363,17 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_EQ(property_vector, updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
+}
+
+TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
+    auto prev = std::locale().name();
+    setlocale(LC_ALL, "en_GB.UTF-8");
+
+    ov::Core core = createCoreWithTemplate();
+
+    ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device););
+
+    setlocale(LC_ALL, prev.c_str());
 }
 
 }  // namespace behavior

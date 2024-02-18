@@ -123,7 +123,6 @@ struct format {
         bs_fs_fsv8_bsv16,                       ///< format used only for fully connected
         bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
                                                 ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
-        b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
         image_2d_rgba,                          ///< format for image2d RGBA, always allocates memory for 4 feature maps (even when only 3 are used)
@@ -157,6 +156,8 @@ struct format {
         is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
+        os_is_yx_isa8_osv16_isv2,                     ///< format used for weights for blocked 2D onednn convolution
+        os_is_zyx_isa8_osv16_isv2,                    ///< format used for weights for blocked 3D onednn convolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -219,9 +220,6 @@ struct format {
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
         os_is_zyx_osv32_isv4,                         ///< format for weights for IMAD convolutions
-        os_is_yx_osv32_isv32p,                        ///< format for weights for binary convolutions
-        lstm_weights_dio,                             ///< dynamic_lstm, direction,
-                                                      ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
         os_iyx_osv8,
         os_iyx_osv32__ai32,
@@ -234,14 +232,20 @@ struct format {
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,
         os_y_is_x_osv8_isv4,
+        os_y_is_x_osv16_isv4,
         os_yx_is_osv8_isv2,
         os_yx_is_osv8_isv4,
+        os_yx_is_osv16_isv2,
         os_zyx_is_osv8_isv2,
         os_zyx_is_osv8_isv4,
         os_zy_is_x_osv8_isv2,
         os_zy_is_x_osv8_isv4,
         os_is_yx_osv4_isv16,
+        os_is_yx_osv4_isv2,
+        os_is_yx_osv8_isv16,
+        os_is_yx_osv2_isv4,
         os_is_yx_osv2_isv16,
+        os_is_yx_osv2_isv32,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
@@ -296,6 +300,7 @@ struct format {
         g_os_is_zyx_isa8_osv8_isv4,
         g_os_yx_is_osv8_isv2,
         g_os_yx_is_osv8_isv4,
+        g_os_yx_is_osv16_isv2,
         g_os_y_is_x_osv8_isv2,
         g_os_y_is_x_osv8_isv4,
 

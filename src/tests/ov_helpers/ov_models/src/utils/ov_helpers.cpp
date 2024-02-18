@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "backend.hpp"
+#include "common_test_utils/specialize_function.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ngraph/specialize_function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -68,9 +68,9 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreter
         const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 
         auto input = inputs[parameterIndex];
-        const auto inType = inputTypes.empty() ? element::undefined : inputTypes[i];
+        const auto inType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
 
-        if (inType != element::undefined && inType != parameterType) {
+        if (inType != ov::element::undefined && inType != parameterType) {
             input = ngraph::helpers::convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
         }
 
@@ -112,7 +112,7 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreter
     return outputs;
 }
 
-std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& function,
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& function,
                                           const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     auto backend = ov::runtime::Backend::create();
 
@@ -173,9 +173,9 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& funct
     return outputTensors;
 }
 
-std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function,
-                                       const std::vector<std::vector<std::uint8_t>>& inputs,
-                                       const std::vector<ov::element::Type>& inputTypes) {
+std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
+                                        const std::vector<std::vector<std::uint8_t>>& inputs,
+                                        const std::vector<ov::element::Type>& inputTypes) {
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
@@ -198,8 +198,8 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function
                         " types");
     }
 
-    std::vector<element::Type> paramElementTypes;
-    std::vector<PartialShape> paramShapes;
+    std::vector<ov::element::Type> paramElementTypes;
+    std::vector<ov::PartialShape> paramShapes;
     std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
     vecTmpConvertedInputs.reserve(inputs.size());
 
@@ -213,9 +213,9 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function
         auto parameterIndex = function->get_parameter_index(param);
         auto& input = inputs[parameterIndex];
 
-        const auto inpType = inputTypes.empty() ? element::undefined : inputTypes[i];
+        const auto inpType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
 
-        if (inpType != element::undefined && inpType != paramElementTypes.back()) {
+        if (inpType != ov::element::undefined && inpType != paramElementTypes.back()) {
             vecTmpConvertedInputs.emplace_back(
                 convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
             inBuffers.push_back(vecTmpConvertedInputs.back().data());
@@ -226,130 +226,16 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function
         }
     }
 
-    NGRAPH_SUPPRESS_DEPRECATED_START;
-    const auto& foldedFunc = ngraph::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    NGRAPH_SUPPRESS_DEPRECATED_END;
+    const auto& foldedFunc = ov::test::utils::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
     ov::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto& op : foldedFunc->get_ops()) {
-        OPENVINO_ASSERT(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
+        OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
                         "Function was not fully folded to constant state!\n",
                         "At least one non constant node with type ",
                         op->get_type_name(),
                         " present in function.");
     }
     return foldedFunc;
-}
-
-std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> getConstData(
-    const std::shared_ptr<Function>& function) {
-    size_t numOutputs = function->get_output_size();
-    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
-    auto funcResults = function->get_results();
-    for (size_t i = 0; i < numOutputs; i++) {
-        outputs[i].first = funcResults[i]->get_element_type();
-        const auto& output = function->output(i).get_node_shared_ptr();
-        OPENVINO_ASSERT(output->inputs().size() == 1);
-        auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        OPENVINO_ASSERT(op::is_constant(parrentNode),
-                        "Function was not fully folded to constant state!\n",
-                        "Parent node of one of results is not constant and has type ",
-                        parrentNode->get_type_name());
-
-        const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
-        const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
-        outputs[i].second.resize(dataSize);
-        std::copy(data, data + dataSize, outputs[i].second.data());
-    }
-    return outputs;
-}
-
-namespace {
-
-std::string toString(const NodeTypeInfo& typeInfo) {
-    return std::string(typeInfo.name) + " ver. " + std::string(typeInfo.version_id);
-}
-
-void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
-    OPENVINO_ASSERT(actual.relaxes(expected) && actual.refines(expected),
-                    "Functions compare: Different shape detected ",
-                    actual,
-                    " and ",
-                    expected);
-}
-
-void CompareNodes(const Node& actual, const Node& expected) {
-    const auto& actualType = actual.get_type_info();
-    const auto& expectedType = expected.get_type_info();
-    OPENVINO_ASSERT(actualType == expectedType,
-                    "Functions compare: data types must be equal ",
-                    toString(actualType),
-                    " != ",
-                    toString(expectedType));
-
-    const auto& numActualInputs = actual.inputs().size();
-    const auto& numExpectedInputs = expected.inputs().size();
-    OPENVINO_ASSERT(numActualInputs == numExpectedInputs,
-                    "Functions compare: numbers of inputs are different: ",
-                    numActualInputs,
-                    " and ",
-                    numExpectedInputs);
-
-    const auto& numActualOutputs = actual.outputs().size();
-    const auto& numExpectedOutputs = expected.outputs().size();
-    OPENVINO_ASSERT(numActualOutputs == numExpectedOutputs,
-                    "Functions compare: numbers of outputs are different: ",
-                    numActualOutputs,
-                    " and ",
-                    numExpectedOutputs);
-}
-
-}  // namespace
-
-void CompareFunctions(const Function& actual, const Function& expected) {
-    const auto& actualOrderedOps = actual.get_ordered_ops();
-    const auto& expectedOrderedOps = expected.get_ordered_ops();
-
-    OPENVINO_ASSERT(expectedOrderedOps.size() == actualOrderedOps.size(),
-                    "Functions compare: expected and actual ops number should be equal "
-                    "but got ",
-                    expectedOrderedOps.size(),
-                    " and ",
-                    actualOrderedOps.size(),
-                    " respectively");
-
-    for (std::size_t i = 0; i < expectedOrderedOps.size(); i++) {
-        const auto& expectedOp = expectedOrderedOps[i];
-        const auto& actualOp = actualOrderedOps[i];
-
-        CompareNodes(*actualOp, *expectedOp);
-        for (std::size_t i = 0; i < actualOp->inputs().size(); ++i) {
-            const auto& actualShape = actualOp->input(i).get_partial_shape();
-            const auto& expectedShape = expectedOp->input(i).get_partial_shape();
-            CompareShapes(actualShape, expectedShape);
-        }
-
-        for (std::size_t i = 0; i < actualOp->outputs().size(); ++i) {
-            const auto& actualShape = actualOp->output(i).get_partial_shape();
-            const auto& expectedShape = expectedOp->output(i).get_partial_shape();
-            CompareShapes(actualShape, expectedShape);
-        }
-    }
-}
-
-std::shared_ptr<ov::Node> getNodeSharedPtr(const ov::NodeTypeInfo& type_info, const ov::OutputVector& outputVector) {
-    for (const auto& it : get_available_opsets()) {
-        const auto& opset = it.second();
-        if (opset.contains_type(type_info)) {
-            const auto node = std::shared_ptr<ov::Node>(opset.create(type_info.name));
-            node->set_arguments(outputVector);
-            node->validate_and_infer_types();
-            return node;
-        }
-    }
-    OPENVINO_THROW("supported opsets does not contain op with name: ",
-                   type_info.name,
-                   " version: ",
-                   type_info.version_id);
 }
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func) {
@@ -458,59 +344,59 @@ public:
     const uint8_t* data;
 };
 
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
                                   bool>::type = true>
-const fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
-    return reinterpret_cast<const fundamental_type_for<FromType>*>(data);
+const ov::fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
+    return reinterpret_cast<const ov::fundamental_type_for<FromType>*>(data);
 }
 
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
                                   bool>::type = true>
-fundamental_type_for<FromType>* cast_to(uint8_t* data) {
-    return reinterpret_cast<fundamental_type_for<FromType>*>(data);
+ov::fundamental_type_for<FromType>* cast_to(uint8_t* data) {
+    return reinterpret_cast<ov::fundamental_type_for<FromType>*>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
 LowPrecistionConstRange<1, uint8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<1, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
 LowPrecistionRange<1, uint8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<1, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
 LowPrecistionConstRange<4, uint8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<4, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
 LowPrecistionRange<4, uint8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<4, uint8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
 LowPrecistionConstRange<4, int8_t> cast_to(const uint8_t* data) {
     return LowPrecistionConstRange<4, int8_t>(data);
 }
 
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
 LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
     return LowPrecistionRange<4, int8_t>(data);
 }
 
-template <element::Type_t FromType, element::Type_t ToType>
+template <ov::element::Type_t FromType, ov::element::Type_t ToType>
 std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buffer, const size_t elementsCount) {
-    using fromPrec = fundamental_type_for<FromType>;
-    using toPrec = fundamental_type_for<ToType>;
+    using fromPrec = ov::fundamental_type_for<FromType>;
+    using toPrec = ov::fundamental_type_for<ToType>;
 
     const size_t min_buffer_size = [&] {
-        element::Type from_type(FromType);
+        ov::element::Type from_type(FromType);
         if (from_type.bitwidth() >= 8) {
             return elementsCount * sizeof(fromPrec);
         }
@@ -530,144 +416,124 @@ std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buff
     return convertedData;
 }
 
-template <element::Type_t FromType>
+template <ov::element::Type_t FromType>
 std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t>& output,
-                                               const element::Type_t& toPrecision,
+                                               const ov::element::Type_t& toPrecision,
                                                const size_t elementsCount) {
     switch (toPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecision<FromType, element::Type_t::boolean>(output, elementsCount);
+    case ov::element::Type_t::boolean: {
+        return convertPrecision<FromType, ov::element::Type_t::boolean>(output, elementsCount);
     }
-    case element::Type_t::bf16: {
-        return convertPrecision<FromType, element::Type_t::bf16>(output, elementsCount);
+    case ov::element::Type_t::bf16: {
+        return convertPrecision<FromType, ov::element::Type_t::bf16>(output, elementsCount);
     }
-    case element::Type_t::f16: {
-        return convertPrecision<FromType, element::Type_t::f16>(output, elementsCount);
+    case ov::element::Type_t::f16: {
+        return convertPrecision<FromType, ov::element::Type_t::f16>(output, elementsCount);
     }
-    case element::Type_t::f32: {
-        return convertPrecision<FromType, element::Type_t::f32>(output, elementsCount);
+    case ov::element::Type_t::f32: {
+        return convertPrecision<FromType, ov::element::Type_t::f32>(output, elementsCount);
     }
-    case element::Type_t::f64: {
-        return convertPrecision<FromType, element::Type_t::f64>(output, elementsCount);
+    case ov::element::Type_t::f64: {
+        return convertPrecision<FromType, ov::element::Type_t::f64>(output, elementsCount);
     }
-    case element::Type_t::i4: {
-        return convertPrecision<FromType, element::Type_t::i4>(output, elementsCount);
+    case ov::element::Type_t::i4: {
+        return convertPrecision<FromType, ov::element::Type_t::i4>(output, elementsCount);
     }
-    case element::Type_t::i8: {
-        return convertPrecision<FromType, element::Type_t::i8>(output, elementsCount);
+    case ov::element::Type_t::i8: {
+        return convertPrecision<FromType, ov::element::Type_t::i8>(output, elementsCount);
     }
-    case element::Type_t::i16: {
-        return convertPrecision<FromType, element::Type_t::i16>(output, elementsCount);
+    case ov::element::Type_t::i16: {
+        return convertPrecision<FromType, ov::element::Type_t::i16>(output, elementsCount);
     }
-    case element::Type_t::i32: {
-        return convertPrecision<FromType, element::Type_t::i32>(output, elementsCount);
+    case ov::element::Type_t::i32: {
+        return convertPrecision<FromType, ov::element::Type_t::i32>(output, elementsCount);
     }
-    case element::Type_t::i64: {
-        return convertPrecision<FromType, element::Type_t::i64>(output, elementsCount);
+    case ov::element::Type_t::i64: {
+        return convertPrecision<FromType, ov::element::Type_t::i64>(output, elementsCount);
     }
-    case element::Type_t::u1: {
-        return convertPrecision<FromType, element::Type_t::u1>(output, elementsCount);
+    case ov::element::Type_t::u1: {
+        return convertPrecision<FromType, ov::element::Type_t::u1>(output, elementsCount);
     }
-    case element::Type_t::u4: {
-        return convertPrecision<FromType, element::Type_t::u4>(output, elementsCount);
+    case ov::element::Type_t::u4: {
+        return convertPrecision<FromType, ov::element::Type_t::u4>(output, elementsCount);
     }
-    case element::Type_t::u8: {
-        return convertPrecision<FromType, element::Type_t::u8>(output, elementsCount);
+    case ov::element::Type_t::u8: {
+        return convertPrecision<FromType, ov::element::Type_t::u8>(output, elementsCount);
     }
-    case element::Type_t::u16: {
-        return convertPrecision<FromType, element::Type_t::u16>(output, elementsCount);
+    case ov::element::Type_t::u16: {
+        return convertPrecision<FromType, ov::element::Type_t::u16>(output, elementsCount);
     }
-    case element::Type_t::u32: {
-        return convertPrecision<FromType, element::Type_t::u32>(output, elementsCount);
+    case ov::element::Type_t::u32: {
+        return convertPrecision<FromType, ov::element::Type_t::u32>(output, elementsCount);
     }
-    case element::Type_t::u64: {
-        return convertPrecision<FromType, element::Type_t::u64>(output, elementsCount);
+    case ov::element::Type_t::u64: {
+        return convertPrecision<FromType, ov::element::Type_t::u64>(output, elementsCount);
     }
     default:
         throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(FromType).get_type_name() +
-                                 " to: " + element::Type(toPrecision).get_type_name());
+                                 ov::element::Type(FromType).get_type_name() +
+                                 " to: " + ov::element::Type(toPrecision).get_type_name());
     }
 }
 
 }  // namespace
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
-                                                 const element::Type_t& fromPrecision,
-                                                 const element::Type_t& toPrecision,
+                                                 const ov::element::Type_t& fromPrecision,
+                                                 const ov::element::Type_t& toPrecision,
                                                  const size_t elementsCount) {
     switch (fromPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecisionFrom<element::Type_t::boolean>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::boolean: {
+        return convertPrecisionFrom<ov::element::Type_t::boolean>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::bf16: {
-        return convertPrecisionFrom<element::Type_t::bf16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::bf16: {
+        return convertPrecisionFrom<ov::element::Type_t::bf16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f16: {
-        return convertPrecisionFrom<element::Type_t::f16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f16: {
+        return convertPrecisionFrom<ov::element::Type_t::f16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f32: {
-        return convertPrecisionFrom<element::Type_t::f32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f32: {
+        return convertPrecisionFrom<ov::element::Type_t::f32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::f64: {
-        return convertPrecisionFrom<element::Type_t::f64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::f64: {
+        return convertPrecisionFrom<ov::element::Type_t::f64>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i4: {
-        return convertPrecisionFrom<element::Type_t::i4>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i4: {
+        return convertPrecisionFrom<ov::element::Type_t::i4>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i8: {
-        return convertPrecisionFrom<element::Type_t::i8>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i8: {
+        return convertPrecisionFrom<ov::element::Type_t::i8>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i16: {
-        return convertPrecisionFrom<element::Type_t::i16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i16: {
+        return convertPrecisionFrom<ov::element::Type_t::i16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i32: {
-        return convertPrecisionFrom<element::Type_t::i32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i32: {
+        return convertPrecisionFrom<ov::element::Type_t::i32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::i64: {
-        return convertPrecisionFrom<element::Type_t::i64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::i64: {
+        return convertPrecisionFrom<ov::element::Type_t::i64>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u1: {
-        return convertPrecisionFrom<element::Type_t::u1>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u1: {
+        return convertPrecisionFrom<ov::element::Type_t::u1>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u4: {
-        return convertPrecisionFrom<element::Type_t::u4>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u4: {
+        return convertPrecisionFrom<ov::element::Type_t::u4>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u8: {
-        return convertPrecisionFrom<element::Type_t::u8>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u8: {
+        return convertPrecisionFrom<ov::element::Type_t::u8>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u16: {
-        return convertPrecisionFrom<element::Type_t::u16>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u16: {
+        return convertPrecisionFrom<ov::element::Type_t::u16>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u32: {
-        return convertPrecisionFrom<element::Type_t::u32>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u32: {
+        return convertPrecisionFrom<ov::element::Type_t::u32>(output, toPrecision, elementsCount);
     }
-    case element::Type_t::u64: {
-        return convertPrecisionFrom<element::Type_t::u64>(output, toPrecision, elementsCount);
+    case ov::element::Type_t::u64: {
+        return convertPrecisionFrom<ov::element::Type_t::u64>(output, toPrecision, elementsCount);
     }
     default:
         throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(fromPrecision).get_type_name() + " precision");
+                                 ov::element::Type(fromPrecision).get_type_name() + " precision");
     }
-}
-
-std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
-    switch (type) {
-    case MemoryTransformation::NONE:
-        os << "NONE";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2:
-        os << "LOW_LATENCY_V2";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
-        os << "LOW_LATENCY_V2_REGULAR_API";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
-        os << "LOW_LATENCY_V2_ORIGINAL_INIT";
-        break;
-    default:
-        throw std::runtime_error("NOT_SUPPORTED_TYPE");
-    }
-    return os;
 }
 
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {

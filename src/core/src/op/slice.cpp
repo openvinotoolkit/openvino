@@ -6,6 +6,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
 
@@ -66,9 +67,7 @@ void Slice::validate_and_infer_types() {
         }
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_input_is_relevant_to_shape(0);
@@ -148,9 +147,7 @@ bool Slice::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool Slice::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return slice_bound_check(this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return slice_bound_check(this) && ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v8
 }  // namespace op

@@ -249,11 +249,7 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
 void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                              const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
-                           "",
-                           false,
-                           "Not Implemented",
-                           "set_input_tensors/set_tensors are not supported by this plugin");
+    OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented set_input_tensors/set_tensors are not supported by this plugin");
 }
 
 void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,

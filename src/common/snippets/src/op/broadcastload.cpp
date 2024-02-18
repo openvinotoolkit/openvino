@@ -11,8 +11,8 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::PartialShape shape, size_t offset)
-    : MemoryAccess({x}, std::set<size_t>{0}, std::set<size_t>{}), output_shape(std::move(shape)) {
+BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset)
+    : MemoryAccess({x}, std::set<size_t>{0}, std::set<size_t>{}), bcast_dimension(std::move(bcast_dimension)) {
     set_input_port_descriptor({1, offset}, 0);
     constructor_validate_and_infer_types();
 }
@@ -25,7 +25,7 @@ bool BroadcastLoad::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> BroadcastLoad::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BroadcastLoad);
     check_new_args_count(this, new_args);
-    return std::make_shared<BroadcastLoad>(new_args.at(0), output_shape, get_offset());
+    return std::make_shared<BroadcastLoad>(new_args.at(0), bcast_dimension, get_offset());
 }
 
 void BroadcastLoad::validate_and_infer_types() {
@@ -34,7 +34,11 @@ void BroadcastLoad::validate_and_infer_types() {
     const auto output_ma_ports = get_memory_access_output_ports();
     OPENVINO_ASSERT(input_ma_ports.size() == 1 && is_memory_access_input_port(0), "BroadcastLoad node must have memory access input port");
     OPENVINO_ASSERT(output_ma_ports.size() == 0, "BroadcastLoad node mustn't have memory access output port");
-    set_output_type(0, get_input_element_type(0), output_shape);
+    auto broadcasted_shape = get_input_partial_shape(0);
+    if (broadcasted_shape.size() == 0)
+        broadcasted_shape.resize(1);
+    *broadcasted_shape.rbegin() = bcast_dimension;
+    set_output_type(0, get_input_element_type(0), broadcasted_shape);
 }
 
 } // namespace op

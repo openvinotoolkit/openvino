@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <map>
 #include "kernels/x64/rdft_kernel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,7 +72,7 @@ struct RDFTExecutor {
 
 class RDFT : public Node {
 public:
-    RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -85,7 +82,7 @@ public:
     bool created() const override;
     void createPrimitive() override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     bool axesChanged() const;

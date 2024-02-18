@@ -5,14 +5,12 @@ import importlib.util
 import logging as log
 import os
 import re
-import sys
-from argparse import Namespace
 from copy import copy
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
 if importlib.util.find_spec('absl') is not None:
-    import absl.logging
+    import absl.logging # pylint: disable=import-error
 
     log.root.removeHandler(absl.logging._absl_handler)
 
@@ -79,9 +77,11 @@ def init_logger(lvl: str, verbose: bool):
         logger.addHandler(handler)
         handler_num += 1
 
+
 def get_logger_state():
     logger = log.getLogger()
     return logger.level, copy(logger.filters), copy(logger.handlers)
+
 
 def restore_logger_state(state: tuple):
     level, filters, handlers = state

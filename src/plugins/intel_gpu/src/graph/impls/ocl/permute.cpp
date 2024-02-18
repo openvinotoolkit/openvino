@@ -12,7 +12,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
+// This helper function is needed to convert permute order from OV format (bfyx) into cldnn format (bfxy)
 inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
     std::vector<uint16_t> ie_order_aligned = ie_order;
     // if order size is less than 4 - fill the rest with just copy
@@ -48,6 +48,15 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<permute_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {

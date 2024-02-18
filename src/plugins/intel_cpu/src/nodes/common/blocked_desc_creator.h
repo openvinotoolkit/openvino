@@ -28,9 +28,9 @@ public:
     makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
-    virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const = 0;
+    virtual CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const = 0;
 
-    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const {
+    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const ov::element::Type& precision, const Shape& srcShape) const {
         return std::make_shared<CpuBlockedMemoryDesc>(createDesc(precision, srcShape));
     }
 

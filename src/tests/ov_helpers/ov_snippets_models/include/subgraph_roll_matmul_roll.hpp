@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vector>
+
 #include "openvino/core/model.hpp"
 #include "snippets_helpers.hpp"
 

@@ -8,7 +8,6 @@
 
 #include "async_infer_request.hpp"
 #include "graph_debug_dump.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -17,9 +16,9 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "plugin.hpp"
 #include "properties.hpp"
-#include "xml_parse_utils.h"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -136,11 +135,12 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg)
+                                         const Configuration& cfg,
+                                         const bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
       m_cfg(cfg),
       m_name(),
-      m_loaded_from_cache(true) {
+      m_loaded_from_cache(loaded_from_cache) {
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 
@@ -150,23 +150,23 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     if (res.status != pugi::status_ok)
         OPENVINO_THROW("Failed to read Hetero device xml header");
 
-    using namespace pugixml::utils;
+    using namespace ov::util::pugixml;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
-    m_name = GetStrAttr(heteroNode, "name");
+    m_name = get_str_attr(heteroNode, "name");
 
     ov::AnyMap properties;
     auto heteroConfigsNode = heteroNode.child("hetero_config");
     // clang-format off
     FOREACH_CHILD(heteroConfigNode, heteroConfigsNode, "config") {
-        properties.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
+        properties.emplace(get_str_attr(heteroConfigNode, "key"), get_str_attr(heteroConfigNode, "value"));
     }
 
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
     pugi::xml_node subnetworksNode = heteroNode.child("compiled_submodels");
     FOREACH_CHILD(subnetworkNode, subnetworksNode, "compiled_submodel") {
-        auto device = GetStrAttr(subnetworkNode, "device");
+        auto device = get_str_attr(subnetworkNode, "device");
 
         auto meta_devices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
         assert(meta_devices.size() == 1);
@@ -206,20 +206,20 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     auto inputs_map_node = heteroNode.child("inputs_to_submodels_inputs");
     FOREACH_CHILD(xml_node, inputs_map_node, "pair") {
-        m_mapping_info._inputs_to_submodels_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
-                                                  GetUInt64Attr(xml_node, "node_idx"));
+        m_mapping_info._inputs_to_submodels_inputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
+                                                  get_uint64_attr(xml_node, "node_idx"));
     }
     auto outputs_map_node = heteroNode.child("outputs_to_submodels_outputs");
     FOREACH_CHILD(xml_node, outputs_map_node, "pair") {
-        m_mapping_info._outputs_to_submodels_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
-                                                    GetUInt64Attr(xml_node, "node_idx"));
+        m_mapping_info._outputs_to_submodels_outputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
+                                                    get_uint64_attr(xml_node, "node_idx"));
     }
     auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
     FOREACH_CHILD(xml_node, submodels_input_to_prev_output_node, "record") {
-        std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
-                                                 GetUInt64Attr(xml_node, "in_node_idx")};
-        std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
-                                                  GetUInt64Attr(xml_node, "out_node_idx")};
+        std::pair<uint64_t, uint64_t> in_pair = {get_uint64_attr(xml_node, "in_submodel_idx"),
+                                                 get_uint64_attr(xml_node, "in_node_idx")};
+        std::pair<uint64_t, uint64_t> out_pair = {get_uint64_attr(xml_node, "out_submodel_idx"),
+                                                  get_uint64_attr(xml_node, "out_node_idx")};
         m_mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
     // clang-format on
@@ -242,7 +242,8 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                   "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
@@ -266,7 +267,6 @@ std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_
 }
 
 ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -278,13 +278,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
                                                     ov::hetero::number_of_submodels};
         return ro_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
 
     if (ov::supported_properties == name) {
         auto supported_properties = default_ro_properties();
@@ -292,13 +285,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         add_ro_properties(ov::device::properties.name(), supported_properties);
         add_ro_properties(ov::device::priorities.name(), supported_properties);
         return decltype(ov::supported_properties)::value_type(supported_properties);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(m_cfg.get_supported());
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
         for (const auto& comp_model_desc : m_compiled_submodels) {
@@ -338,7 +324,6 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
     }
     return m_cfg.get(name);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs() const {
@@ -412,9 +397,6 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
 
     auto subnetworksNode = heteroNode.append_child("compiled_submodels");
     for (const auto& comp_model_desc : m_compiled_submodels) {
-        auto sub_comp_model = comp_model_desc.compiled_model;
-        OPENVINO_ASSERT(sub_comp_model);
-
         auto subnetworkNode = subnetworksNode.append_child("compiled_submodel");
         subnetworkNode.append_attribute("device").set_value(comp_model_desc.device.c_str());
     }
@@ -431,6 +413,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     model_stream << std::endl;
 
     for (const auto& comp_model_desc : m_compiled_submodels) {
+        OPENVINO_ASSERT(comp_model_desc.compiled_model);
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
             try {
                 // Batch plugin reports property of low level plugin
@@ -441,7 +424,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
             } catch (ov::NotImplemented&) {
             }
         }
-        auto model = comp_model_desc.model;
+        auto& model = comp_model_desc.model;
         if (!model)
             OPENVINO_THROW("OpenVINO Model is empty");
 

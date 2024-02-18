@@ -45,8 +45,7 @@ from tests import (
     xfail_issue_82038,
     xfail_issue_82039,
     xfail_issue_90649,
-    xfail_issue_91151,
-    xfail_issue_91490,
+    skip_bitwise_ui64,
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -62,6 +61,7 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
+    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -73,6 +73,18 @@ from tests import (
     xfail_issue_119922,
     xfail_issue_119925,
     xfail_issue_119926,
+    xfail_issue_125485,
+    xfail_issue_125488,
+    skip_issue_125487,
+    skip_issue_125489,
+    xfail_issue_125491,
+    xfail_issue_125492,
+    xfail_issue_125493,
+    xfail_issue_125495,
+    xfail_issue_122775,
+    xfail_issue_122776,
+    skip_misalignment,
+    skip_issue_124587,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -193,6 +205,20 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_expanded_cpu",
         "OnnxBackendNodeModelTest.test_equal_string_broadcast_cpu",
         "OnnxBackendNodeModelTest.test_equal_string_cpu",
+        "OnnxBackendNodeModelTest.test_regex_full_match_basic_cpu",
+        "OnnxBackendNodeModelTest.test_regex_full_match_email_domain_cpu",
+        "OnnxBackendNodeModelTest.test_regex_full_match_empty_cpu",
+        "OnnxBackendNodeModelTest.test_string_concat_broadcasting_cpu",
+        "OnnxBackendNodeModelTest.test_string_concat_cpu",
+        "OnnxBackendNodeModelTest.test_string_concat_empty_string_cpu",
+        "OnnxBackendNodeModelTest.test_string_concat_utf8_cpu",
+        "OnnxBackendNodeModelTest.test_string_concat_zero_dimensional_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_basic_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_consecutive_delimiters_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_empty_string_delimiter_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_empty_tensor_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_maxsplit_cpu",
+        "OnnxBackendNodeModelTest.test_string_split_no_delimiter_cpu",
     ),
     (
         xfail_issue_33651,
@@ -291,11 +317,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
     ),
     (
-        xfail_issue_91490,
-        "OnnxBackendNodeModelTest.test_tril_zero_cpu",
-        "OnnxBackendNodeModelTest.test_triu_zero_cpu",
-    ),
-    (
         skip_dynamic_model,
         "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
@@ -389,37 +410,21 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
     ),
     (
-        xfail_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
-        xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_and_i16_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_and_i32_2d_cpu",
+        skip_bitwise_ui64,
         "OnnxBackendNodeModelTest.test_bitwise_and_ui64_bcast_3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_i16_4d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_i32_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_or_ui64_bcast_3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_ui8_bcast_4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_i16_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_xor_i32_2d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_and_ui8_bcast_4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_or_ui8_bcast_4v3d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_xor_ui64_bcast_3v1d_cpu",
     ),
     (
+        xfail_issue_99949,
+        "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
+    ),
+    (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_and_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
@@ -575,8 +580,11 @@ tests_expected_to_fail = [
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-        "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
-        "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
+    ),
+    (
+        skip_issue_91151,
+        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
         xfail_issue_101965,
@@ -634,6 +642,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_dequantizelinear_e5m2_cpu",
         "OnnxBackendNodeModelTest.test_quantizelinear_e4m3fn_cpu",
         "OnnxBackendNodeModelTest.test_quantizelinear_e5m2_cpu",
+        "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_float16_cpu",
+        "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_zero_point_cpu",
     ),
     (
         xfail_issue_119900,
@@ -666,6 +676,10 @@ tests_expected_to_fail = [
         xfail_issue_119922,
         "OnnxBackendNodeModelTest.test_ai_onnx_ml_array_feature_extractor_cpu",
         "OnnxBackendNodeModelTest.test_ai_onnx_ml_binarizer_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_string_int_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_string_int_no_default_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_tensor_mapping_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_tensor_value_only_mapping_cpu",
     ),
     (
         xfail_issue_119925,
@@ -674,6 +688,86 @@ tests_expected_to_fail = [
     (
         xfail_issue_119926,
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
+    ),
+    (
+        xfail_issue_125485,
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
+    ),
+    (
+        xfail_issue_125488,
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_bmp_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_jpeg2k_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_jpeg_bgr_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_jpeg_grayscale_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_jpeg_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_png_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_pnm_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_tiff_rgb_cpu",
+        "OnnxBackendNodeModelTest.test_image_decoder_decode_webp_rgb_cpu",
+    ),
+    (
+        skip_issue_125487,
+        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_0_additional_1_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bicubic_align_corners_1_additional_1_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_0_additional_1_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bilinear_align_corners_1_additional_1_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_0_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_volumetric_bilinear_align_corners_1_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_0_cpu",
+        "OnnxBackendNodeModelTest.test_gridsample_volumetric_nearest_align_corners_1_cpu",
+    ),
+    (
+        skip_issue_125489,
+        "OnnxBackendNodeModelTest.test_isinf_float16_cpu",
+    ),
+    (
+        xfail_issue_125491,
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_0_ceil_mode_is_False_cpu",
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_0_ceil_mode_is_True_cpu",
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_False_cpu",
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_True_cpu",
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_small_cpu",
+    ),
+    (
+        xfail_issue_125492,
+        "OnnxBackendNodeModelTest.test_dft_axis_opset19_cpu",
+        "OnnxBackendNodeModelTest.test_dft_inverse_opset19_cpu",
+        "OnnxBackendNodeModelTest.test_dft_opset19_cpu",
+    ),
+    (
+        xfail_issue_125493,
+        "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_min_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_prod_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_sum_square_empty_set_cpu",
+    ),
+    (
+        xfail_issue_125495,
+        "OnnxBackendNodeModelTest.test_reduce_max_bool_inputs_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_min_bool_inputs_cpu",
+    ),
+    (
+        skip_misalignment,
+        "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+    ),
+    (
+        skip_issue_124587,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset13_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset18_cpu",
     ),
 ]
 
@@ -691,6 +785,14 @@ if platform.system() == 'Darwin':
             skip_issue_58676,
             "OnnxBackendNodeModelTest.test_div_uint8_cpu"
         )]
+    )
+
+if platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+    tests_expected_to_fail.extend(
+        [
+            (xfail_issue_122775, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"),
+            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu")
+        ]
     )
 
 for test_group in tests_expected_to_fail:

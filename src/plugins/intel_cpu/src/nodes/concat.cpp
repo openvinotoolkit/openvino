@@ -4,27 +4,23 @@
 
 #include "concat.h"
 
+#include "openvino/op/concat.hpp"
+
 #include <map>
 #include <utility>
 #include <vector>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>
-#include "ie_parallel.hpp"
-#include "conv.h"
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "eltwise.h"
-#include <limits>
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <partitioned_mem_mgr.h>
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -37,11 +33,14 @@ bool Concat::isExecutable() const {
     return !isInPlace() && !hasEmptyOutputTensors();
 }
 
-bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
+        const auto concatOp = ov::as_type_ptr<const ov::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
+            return false;
+        }
+        if (concatOp->get_output_element_type(0) == ov::element::string) {
             return false;
         }
     } catch (...) {
@@ -50,21 +49,21 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
+    auto concatOp = ov::as_type_ptr<ov::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
-        IE_THROW() << "Concat node with name '" << getName() << "' has invalid value of axis parameter: " << axis;
+        OPENVINO_THROW("Concat node with name '", getName(), "' has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -83,7 +82,7 @@ void Concat::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.size() == 0) {
-            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
+            OPENVINO_THROW("Incorrect input dimensions for concat node ", getName());
         }
     }
 
@@ -111,7 +110,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // Concat doesn't support different precision on inputs so fallback on FP32 in such case
     if (isMixedPrecision)
-        inputPrecision = Precision::FP32;
+        inputPrecision = ov::element::f32;
 
     // Concat supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
@@ -213,7 +212,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto &parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size()))
-            IE_THROW() << "Cannot find index of output node";
+            OPENVINO_THROW("Cannot find index of output node");
         const auto &port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -231,7 +230,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto &config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size()))
-            IE_THROW() << "Cannot find index of output node";
+            OPENVINO_THROW("Cannot find index of output node");
         const auto &port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -319,17 +318,17 @@ void Concat::prepareParams() {
     if (canOptimizeNspc || isInPlace())
         return;
 
-    const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->getDataType());
-    const auto& src0BlkMemDesc = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& src0BlkMemDesc = getSrcMemoryAtPort(0)->getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputOrder = src0BlkMemDesc->getOrder();
     for (size_t i = 0; i < outputOrder.size(); i++) {
         if (outputOrder[i] == axis) {
@@ -343,13 +342,32 @@ void Concat::prepareParams() {
             hasOuterLoop = true;
         }
     }
+
+    canOptimize1DCase = false;
+    if (outputShape.size() == 1 && outputStrides[0] == 1 && outputShape[0] <= 64 && elemSize == 4) {
+        // output is small 1d vector (which is typical in shape inference subgraph),
+        // in this case, inputs are also small 1d vector and single thread naive impl is faster
+        canOptimize1DCase = true;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            const auto& srcMemPtr = getSrcMemoryAtPort(i);
+            const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& inputShape = srcMemDesc->getBlockDims();
+            const auto& strides = srcMemDesc->getStrides();
+            if (inputShape.size() != 1 || strides.size() != 1) {
+                canOptimize1DCase = false;
+                break;
+            }
+        }
+        if (canOptimize1DCase)
+            return;
+    }
+
     std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+        const auto& srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isAllocated()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                       << getName() << ".";
+            OPENVINO_THROW("Source memory from ", parent->getName(), " didn't allocate for node ", getName(), ".");
         }
 
         if (canExecRef) {
@@ -401,7 +419,7 @@ void Concat::prepareParams() {
     }
 }
 
-size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
+size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
     for (size_t i = 0; i < order.size(); i++) {
         if (axis == order[i]) {
             return i;
@@ -413,7 +431,7 @@ size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
 void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
    if (!isInPlace()) {
        Node::initOptimalPrimitiveDescriptor();
@@ -453,6 +471,11 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
+    if (canOptimize1DCase) {
+        exec1DCase();
+        return;
+    }
+
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;
@@ -466,7 +489,7 @@ void Concat::execute(dnnl::stream strm) {
         std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.getPrimitive()}};
         size_t nonZeroInShapes = 0;
         for (size_t i = 0; i < num_src; i++) {
-            const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+            const auto& srcMem = getParentEdgeAt(i)->getMemory();
             if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
@@ -477,14 +500,27 @@ void Concat::execute(dnnl::stream strm) {
     }
 }
 
-InferenceEngine::Precision Concat::getRuntimePrecision() const {
+ov::element::Type Concat::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
+}
+
+void Concat::exec1DCase() {
+    DEBUG_LOG(getName(), " exec1DCase");
+    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcShape = srcMemPtr->getStaticDims();
+        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        for (size_t i = 0; i < srcShape[0]; i++) {
+            *dst++ = src[i];
+        }
+    }
 }
 
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.getData());
+    uint8_t* dst_ptr = dst_memory.getDataAs<uint8_t>();
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
@@ -495,14 +531,14 @@ void Concat::execNspcSpecCase() {
     size_t nonZeroInShapes = 0;
     int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
-        const auto& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto& src_mem = getParentEdgeAt(i)->getMemory();
         if (src_mem.getShape().hasZeroDims()) {
             continue;
         }
         const size_t num_channels = src_mem.getStaticDims()[channelAxis];
 
         channelsDataSize.push_back(num_channels * dataSize);
-        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.getData()));
+        src_ptrs.push_back(src_mem.getDataAs<const uint8_t>());
         dst_ptrs.push_back(dst_ptr + channels_size);
         channels_size += num_channels * dataSize;
 
@@ -529,10 +565,10 @@ void Concat::execRef() {
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
     const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputShape = dstMemBlkDesc->getBlockDims();
-    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.getData());
+    uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
-        const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.getData());
+        const auto& srcMem = getParentEdgeAt(i)->getMemory();
+        srcPtrs[i] = srcMem.getDataAs<const uint8_t>();
     }
 
     size_t outputStrides[MAX_RANK_REF] = {0};
@@ -633,28 +669,36 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
     auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
-    IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
+    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+                    " Concat node: ",
+                    getName(),
+                    " can't use inPlace memory with concatenation on dynamic dimension");
 
-    auto& edges = getChildEdgesAtPort(inplaceOutIndx);
+    auto edges = getChildEdgesAtPort(inplaceOutIndx);
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
-    IE_ASSERT(itr != edges.end()) << " Could not find allocated child edge for concat node: " << getName();
+    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: " , getName());
 
     auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
-    IE_ASSERT(baseMemMngr != nullptr) << " NULL base memory manager in concat node: " << getName();
+    OPENVINO_ASSERT(baseMemMngr != nullptr, " NULL base memory manager in concat node: " , getName());
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
         auto partDim = inputShapes[i].getDims()[axis];
-        IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
+        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
+                        " Concat node: ",
+                        getName(),
+                        " can't use inPlace memory with concatenation on dynamic dimension");
 
         auto parentEdge = getParentEdgeAt(i);
 
-        IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
+        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
+                        " Unexpected inplace resolve call to an allocated edge: ",
+                        parentEdge->name());
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
         MemoryPtr newMem;

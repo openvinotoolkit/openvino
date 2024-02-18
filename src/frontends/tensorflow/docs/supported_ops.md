@@ -1,4 +1,4 @@
-# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend 
+# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend
 
 Here is a table of operations supported by the TensorFlow Frontend from [tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
 A "supported operation" is one that TensorFlow Frontend can convert to the OpenVINO representation.
@@ -67,15 +67,15 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AssertCardinalityDataset                                | NO                            |                               |
 | AssertNextDataset                                       | NO                            |                               |
 | AssertPrevDataset                                       | NO                            |                               |
-| Assign                                                  | YES                           |                               |
-| AssignAdd                                               | NO                            |                               |
-| AssignAddVariableOp                                     | NO                            |                               |
-| AssignSub                                               | NO                            |                               |
-| AssignSubVariableOp                                     | NO                            |                               |
-| AssignVariableOp                                        | YES                           |                               |
+| Assign<sup><mark style="background-color: #00FF00">NEW</mark></sup>              | YES                           |                               |
+| AssignAdd<sup><mark style="background-color: #00FF00">NEW</mark></sup>           | YES                           |                               |
+| AssignAddVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AssignSub<sup><mark style="background-color: #00FF00">NEW</mark></sup>           | YES                           |                               |
+| AssignSubVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AssignVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup>    | YES                           |                               |
 | AssignVariableXlaConcatND                               | NO                            |                               |
 | Atan                                                    | YES                           |                               |
-| Atan2                                                   | NO                            |                               |
+| Atan2                                                   | YES                           |                               |
 | Atanh                                                   | YES                           |                               |
 | AudioSpectrogram                                        | NO                            |                               |
 | AudioSummary                                            | NO                            |                               |
@@ -141,9 +141,9 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BiasAddV1                                               | NO                            |                               |
 | Bincount                                                | NO                            |                               |
 | Bitcast                                                 | NO                            |                               |
-| BitwiseAnd                                              | NO                            |                               |
-| BitwiseOr                                               | NO                            |                               |
-| BitwiseXor                                              | NO                            |                               |
+| BitwiseAnd                                              | YES                           |                               |
+| BitwiseOr                                               | YES                           |                               |
+| BitwiseXor                                              | YES                           |                               |
 | BlockLSTM                                               | YES                           |                               |
 | BlockLSTMGrad                                           | NO                            |                               |
 | BlockLSTMGradV2                                         | NO                            |                               |
@@ -218,8 +218,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | CollectiveReduceV2                                      | NO                            |                               |
 | CollectiveReduceV3                                      | NO                            |                               |
 | CombinedNonMaxSuppression                               | NO                            |                               |
-| Complex                                                 | NO                            |                               |
-| ComplexAbs                                              | NO                            |                               |
+| Complex                                                 | YES                           |                               |
+| ComplexAbs                                              | YES                           |                               |
 | CompositeTensorVariantFromComponents                    | NO                            |                               |
 | CompositeTensorVariantToComponents                      | NO                            |                               |
 | CompressElement                                         | NO                            |                               |
@@ -232,8 +232,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ConditionalAccumulator                                  | NO                            |                               |
 | ConfigureDistributedTPU                                 | NO                            |                               |
 | ConfigureTPUEmbedding                                   | NO                            |                               |
-| Conj                                                    | NO                            |                               |
-| ConjugateTranspose                                      | NO                            |                               |
+| Conj<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| ConjugateTranspose                                      | YES                           |                               |
 | Const                                                   | YES                           |                               |
 | ConsumeMutexLock                                        | NO                            |                               |
 | ControlTrigger                                          | NO                            |                               |
@@ -342,7 +342,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | DirectedInterleaveDataset                               | NO                            |                               |
 | DisableCopyOnRead                                       | NO                            |                               |
 | DistributedSave                                         | NO                            |                               |
-| Div                                                     | NO                            |                               |
+| Div<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | DivNoNan                                                | YES                           |                               |
 | DrawBoundingBoxes                                       | NO                            |                               |
 | DrawBoundingBoxesV2                                     | NO                            |                               |
@@ -425,9 +425,9 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ExtractImagePatches                                     | YES                           |                               |
 | ExtractJpegShape                                        | NO                            |                               |
 | ExtractVolumePatches                                    | NO                            |                               |
-| FFT                                                     | NO                            |                               |
-| FFT2D                                                   | NO                            |                               |
-| FFT3D                                                   | NO                            |                               |
+| FFT                                                     | YES                           |                               |
+| FFT2D                                                   | YES                           |                               |
+| FFT3D                                                   | YES                           |                               |
 | FIFOQueue                                               | YES                           |                               |
 | FIFOQueueV2                                             | YES                           |                               |
 | Fact                                                    | NO                            |                               |
@@ -492,12 +492,12 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | HashTableV2                                             | YES                           |                               |
 | HistogramFixedWidth                                     | NO                            |                               |
 | HistogramSummary                                        | NO                            |                               |
-| IFFT                                                    | NO                            |                               |
-| IFFT2D                                                  | NO                            |                               |
-| IFFT3D                                                  | NO                            |                               |
-| IRFFT                                                   | NO                            |                               |
-| IRFFT2D                                                 | NO                            |                               |
-| IRFFT3D                                                 | NO                            |                               |
+| IFFT                                                    | YES                           |                               |
+| IFFT2D                                                  | YES                           |                               |
+| IFFT3D                                                  | YES                           |                               |
+| IRFFT                                                   | YES                           |                               |
+| IRFFT2D                                                 | YES                           |                               |
+| IRFFT3D                                                 | YES                           |                               |
 | Identity                                                | YES                           |                               |
 | IdentityN                                               | YES                           |                               |
 | IdentityReader                                          | NO                            |                               |
@@ -507,7 +507,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | IgammaGradA                                             | NO                            |                               |
 | Igammac                                                 | NO                            |                               |
 | IgnoreErrorsDataset                                     | NO                            |                               |
-| Imag                                                    | NO                            |                               |
+| Imag                                                    | YES                           |                               |
 | ImageProjectiveTransformV2                              | NO                            |                               |
 | ImageProjectiveTransformV3                              | NO                            |                               |
 | ImageSummary                                            | NO                            |                               |
@@ -529,9 +529,9 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | InplaceSub                                              | NO                            |                               |
 | InplaceUpdate                                           | NO                            |                               |
 | InterleaveDataset                                       | NO                            |                               |
-| Inv                                                     | NO                            |                               |
+| Inv                                                     | YES                           |                               |
 | InvGrad                                                 | NO                            |                               |
-| Invert                                                  | NO                            |                               |
+| Invert                                                  | YES                           |                               |
 | InvertPermutation                                       | YES                           |                               |
 | IsBoostedTreesEnsembleInitialized                       | NO                            |                               |
 | IsBoostedTreesQuantileStreamResourceInitialized         | NO                            |                               |
@@ -594,12 +594,12 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LogicalOr                                               | YES                           |                               |
 | LookupTableExport                                       | NO                            |                               |
 | LookupTableExportV2                                     | NO                            |                               |
-| LookupTableFind                                         | NO                            |                               |
-| LookupTableFindV2                                       | NO                            |                               |
-| LookupTableImport                                       | NO                            |                               |
-| LookupTableImportV2                                     | NO                            |                               |
-| LookupTableInsert                                       | YES                           |                               |
-| LookupTableInsertV2                                     | YES                           |                               |
+| LookupTableFind<sup><mark style="background-color: #00FF00">NEW</mark></sup>     | YES                           |                               |
+| LookupTableFindV2<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableImport<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableImportV2<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| LookupTableInsert<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableInsertV2<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | LookupTableRemoveV2                                     | NO                            |                               |
 | LookupTableSize                                         | NO                            |                               |
 | LookupTableSizeV2                                       | NO                            |                               |
@@ -665,13 +665,13 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Mod                                                     | YES                           |                               |
 | ModelDataset                                            | NO                            |                               |
 | Mul                                                     | YES                           |                               |
-| MulNoNan                                                | NO                            |                               |
+| MulNoNan                                                | YES                           |                               |
 | MultiDeviceIterator                                     | NO                            |                               |
 | MultiDeviceIteratorFromStringHandle                     | NO                            |                               |
 | MultiDeviceIteratorGetNextFromShard                     | NO                            |                               |
 | MultiDeviceIteratorInit                                 | NO                            |                               |
 | MultiDeviceIteratorToStringHandle                       | NO                            |                               |
-| Multinomial                                             | NO                            |                               |
+| Multinomial                                             | YES                           |                               |
 | MutableDenseHashTable                                   | NO                            |                               |
 | MutableDenseHashTableV2                                 | NO                            |                               |
 | MutableHashTable                                        | YES                           |                               |
@@ -826,9 +826,9 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | QueueIsClosedV2                                         | NO                            |                               |
 | QueueSize                                               | NO                            |                               |
 | QueueSizeV2                                             | NO                            |                               |
-| RFFT                                                    | NO                            |                               |
-| RFFT2D                                                  | NO                            |                               |
-| RFFT3D                                                  | NO                            |                               |
+| RFFT                                                    | YES                           |                               |
+| RFFT2D                                                  | YES                           |                               |
+| RFFT3D                                                  | YES                           |                               |
 | RGBToHSV                                                | NO                            |                               |
 | RaggedBincount                                          | NO                            |                               |
 | RaggedCountSparseOutput                                 | NO                            |                               |
@@ -876,7 +876,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReaderRestoreStateV2                                    | NO                            |                               |
 | ReaderSerializeState                                    | NO                            |                               |
 | ReaderSerializeStateV2                                  | NO                            |                               |
-| Real                                                    | NO                            |                               |
+| Real                                                    | YES                           |                               |
 | RealDiv                                                 | YES                           |                               |
 | RebatchDataset                                          | NO                            |                               |
 | RebatchDatasetV2                                        | NO                            |                               |
@@ -1297,7 +1297,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorDataset                                           | NO                            |                               |
 | TensorListConcat                                        | NO                            |                               |
 | TensorListConcatLists                                   | NO                            |                               |
-| TensorListConcatV2                                      | NO                            |                               |
+| TensorListConcatV2                                      | YES                           |                               |
 | TensorListElementShape                                  | NO                            |                               |
 | TensorListFromTensor                                    | YES                           |                               |
 | TensorListGather                                        | NO                            |                               |
@@ -1363,7 +1363,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Unique                                                  | YES                           |                               |
 | UniqueDataset                                           | NO                            |                               |
 | UniqueV2                                                | NO                            |                               |
-| UniqueWithCounts                                        | NO                            |                               |
+| UniqueWithCounts                                        | YES                           |                               |
 | UniqueWithCountsV2                                      | NO                            |                               |
 | Unpack                                                  | YES                           |                               |
 | UnravelIndex                                            | YES                           |                               |

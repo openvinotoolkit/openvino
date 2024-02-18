@@ -3,6 +3,8 @@
 import gc
 
 import numpy as np
+# noinspection PyUnresolvedReferences
+import openvino_tokenizers  # do not delete, needed for text models
 from models_hub_common.multiprocessing_utils import multiprocessing_run
 from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
@@ -87,6 +89,7 @@ class TestConvertModel:
         gc.collect()
 
     def _run(self, model_name, model_link, ie_device):
+        self.model_name = model_name
         print("Load the model {} (url: {})".format(model_name, model_link))
         fw_model = self.load_model(model_name, model_link)
         print("Retrieve inputs info")

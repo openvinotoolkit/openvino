@@ -13,6 +13,7 @@ namespace kernel_selector {
 struct rms_params : public base_params {
     rms_params() : base_params(KernelType::RMS) {}
     float epsilon = 0.0f;
+    int32_t ov_input_rank = -1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,5 +47,6 @@ protected:
     virtual DispatchData SetDefault(const rms_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     Datatype GetAccumulatorType(const rms_params& params) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

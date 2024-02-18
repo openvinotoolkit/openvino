@@ -80,9 +80,6 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::F32:
             key.inputType.val.F32 = 1;
             break;
-        case Datatype::BINARY:
-            key.inputType.val.binary = 1;
-            break;
         default:
             break;
     }
@@ -125,9 +122,6 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
         case Datatype::F32:
             key.outputType.val.F32 = 1;
             break;
-        case Datatype::BINARY:
-            key.outputType.val.binary = 1;
-            break;
         default:
             break;
     }
@@ -151,9 +145,6 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
             break;
         case WeightsType::UINT4:
             key.inputWeightsType.val.uint4 = 1;
-            break;
-        case WeightsType::BINARY:
-            key.inputWeightsType.val.binary = 1;
             break;
         case WeightsType::INT32:
             key.inputWeightsType.val.int32 = 1;
@@ -180,9 +171,6 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::UINT4:
             key.outputWeightsType.val.uint4 = 1;
-            break;
-        case WeightsType::BINARY:
-            key.outputWeightsType.val.binary = 1;
             break;
         case WeightsType::INT32:
             key.outputWeightsType.val.int32 = 1;

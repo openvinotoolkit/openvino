@@ -44,7 +44,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
 }
 
 FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
-                                                                          int) const {
+                                                                          int, int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     std::vector<size_t> global = { params.outputs[0].Feature().v, params.outputs[0].Batch().v, 1 };

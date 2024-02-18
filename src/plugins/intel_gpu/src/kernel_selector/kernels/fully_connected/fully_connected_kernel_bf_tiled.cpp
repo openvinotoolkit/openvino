@@ -177,6 +177,32 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
+    if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
+        const auto required_batch_alignment = 64;
+        if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
+            return false;
+
+        const auto required_tile_b = 8;
+        if (tparams.tile_b != required_tile_b)
+            return false;
+
+        const auto required_tile_ofm = 2;
+        if (tparams.tile_ofm != required_tile_ofm)
+            return false;
+
+        if (params.weights.GetDType() != WeightsType::INT4 && params.weights.GetDType() != WeightsType::UINT4)
+            return false;
+
+        if (params.engineInfo.deviceType != dev_type::integrated_gpu)
+            return false;
+
+        const auto required_slm_size = tparams.tile_ofm * simd * tparams.tile_ifm * simd * 2; // 2 bytes per value (FP16 data type)
+        if (params.engineInfo.maxLocalMemSize < required_slm_size)
+            return false;
+
+        return true;
+    }
+
     // Reject tile sizes that are guaranteed to spill out of registers.
     unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(params.inputs[0].GetDType());
     unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
@@ -194,7 +220,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 }  // namespace
 
 FullyConnected_bf_tiled::tune_params
-FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, int idx) const {
+FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
     if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
@@ -216,7 +242,17 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         max_tile_ofm *= 2;
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
-        return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+        if (!params.is_shape_agnostic && batch == 1) {
+            // Tuning for Meteor Lake
+            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+        } else {
+            // Try to use SLM kernels if possible
+            if (preferred_kernel_type != KernelType::DEFAULT) {
+                selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                        .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+            }
+            return selector.Default(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+        }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT));
     } else if (params.is_shape_agnostic) {
@@ -281,9 +317,17 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 }
 
 FullyConnected_bf_tiled::DispatchData
-FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int autoTuneIndex) const {
+FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int autoTuneIndex, int kernel_number) const {
     auto dispatchData = Parent::SetDefault(params);
-    auto tparams = GetAutoTuneParams(params, autoTuneIndex);
+
+    // Use KernelType::ANY by default, in case of shape-agnostic kernel, choose kernel type based
+    // on `kernel_number` (this implementation allows to have 2 shape-agnostic kernels at the same time
+    // for small batches and large batches and change them during inference on the fly)
+    auto kernel_type = KernelType::ANY;
+    if (params.is_shape_agnostic)
+        kernel_type = kernel_number == 0 ? KernelType::DEFAULT : KernelType::SLM;
+
+    auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
     size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
     size_t batch_threads = params.outputs[0].Batch().v;
@@ -294,13 +338,18 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     batch_threads = CeilDiv(batch_threads, tparams.tile_b);
 
-    dispatchData.gws[0] = feature_threads * batch_threads * simd;
+    const size_t lws_batches = 8;
+    const size_t aligned_batch = Align(batch_threads, lws_batches); // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
+    const bool can_use_slm = tparams.kernel_type == KernelType::SLM;
+
+    dispatchData.gws[0] = can_use_slm ? feature_threads * simd
+                                      : feature_threads * batch_threads * simd;
     dispatchData.gws[1] = 1;
-    dispatchData.gws[2] = 1;
+    dispatchData.gws[2] = can_use_slm ? aligned_batch : 1;
 
     dispatchData.lws[0] = simd;
     dispatchData.lws[1] = 1;
-    dispatchData.lws[2] = 1;
+    dispatchData.lws[2] = can_use_slm ? lws_batches : 1;
 
     dispatchData.tile_m = tparams.tile_b;
     dispatchData.tile_n = tparams.tile_ofm;
@@ -308,6 +357,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.tile_nk = tparams.tile_k;
     dispatchData.tile_ms = tparams.dispatch_bsv;
     dispatchData.tile_ns = tparams.dispatch_fsv;
+    dispatchData.use_slm = can_use_slm;
 
     return dispatchData;
 }
@@ -332,13 +382,49 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     size_t tile_k_ofm = dispatchData.tile_nk * dispatchData.tile_n;
     size_t tile_k_ofm_packed = tile_k_ofm;
-    if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
+
+    WeightsType weights_dt = params.weights.GetDType();
+    if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
 
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", params.weights.GetDType(), tile_k_ofm));
+        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-        if (scale_group_size % simd == 0)
+        // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
+        if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+    }
+
+    if (dispatchData.use_slm) {
+        OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
+        OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
+
+        auto lws_batches = dispatchData.lws[2];
+        auto total_weights_elements = simd * dispatchData.tile_n * simd * dispatchData.tile_mk; // SIMD * TILE_OFM * SIMD * TILE_IFM
+        auto weights_elements_per_sg = total_weights_elements / lws_batches;
+        auto weights_elements_per_wi = weights_elements_per_sg / simd;
+        auto weights_elements_per_wi_8bit = weights_elements_per_wi / 2; // number of pairs of int4 weights per WI
+
+        auto block_read_size = 0;
+        auto preferred_block_sizes = { 8, 4, 2 };
+
+        for (auto block_size : preferred_block_sizes) {
+            if (weights_elements_per_wi_8bit % block_size == 0) {
+                block_read_size = block_size;
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(block_read_size != 0, "[GPU] Can't configure proper block size");
+
+        auto weights_load_iters = weights_elements_per_wi_8bit / block_read_size;
+        auto weights_elements_per_load = block_read_size * 2;
+
+        jit.AddConstant(MakeJitConstant("USE_SLM", 1));
+        jit.AddConstant(MakeJitConstant("LWS_BATCHES", lws_batches));
+        jit.AddConstant(MakeJitConstant("FILTER_LOAD_ITERS", weights_load_iters));
+        jit.AddConstant(MakeJitConstant("FILTER_LOAD_BLOCK_SIZE", block_read_size));
+        jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_LOAD", weights_elements_per_load));
+        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -351,7 +437,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
-    jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
+    auto max_tile_b_size = dispatchData.tile_m;
+    if (params.compressed &&
+        params.is_shape_agnostic &&
+        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4))
+        max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
+
+    jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
@@ -404,6 +496,40 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     return jit;
 }
 
+void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    if (kd.kernels.size() == 1) {
+        Parent::GetUpdateDispatchDataFunc(kd);
+    } else {
+        kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+            const auto& prim_params = static_cast<const fully_connected_params&>(params);
+
+            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func, expected 2, got ", kd.kernels.size());
+
+            size_t output_batch = prim_params.outputs[0].Batch().v;
+            if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
+                output_batch *= prim_params.outputs[0].Feature().v;
+
+            // Choose one of the two shape agnostic kernels:
+            // - kd.kernels[0] for batches <= 240 (default version)
+            // - kd.kernels[1] for batches >= 256 (slm version)
+            const auto default_alignment = 16;
+            // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
+            const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
+            const auto execute_kernel_idx = 1 - skip_kernel_idx;
+
+            kd.kernels[skip_kernel_idx].skip_execution = true;
+
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
+                                    << "will be used for batch size = " << output_batch << "\n";
+
+            auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
+            kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
+            kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
+            kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        };
+    }
+}
+
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
                                                                 const optional_params &options,
                                                                 const int autoTuneIndex) const {
@@ -413,7 +539,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
         return {};
 
-    tune_params tparams = GetAutoTuneParams(fc_params, autoTuneIndex);
+    tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (tparams.tile_ofm * simd == 32)
@@ -421,12 +547,39 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     else if (tparams.tile_ofm * simd == 64)
         weights_layout = WeightsLayout::os_iyx_osv64;
 
-    return GetCommonKernelsData(params,
-                                options,
-                                fc_params.inputs[0].GetLayout(),
-                                weights_layout,
-                                tparams.exec_options,
-                                autoTuneIndex);
+    auto kernels_data = GetCommonKernelsData(params,
+                                             options,
+                                             fc_params.inputs[0].GetLayout(),
+                                             weights_layout,
+                                             tparams.exec_options,
+                                             autoTuneIndex);
+
+    // In case of dynamic params try to configure additional optimized SLM kernel for large batches
+    if (params.is_shape_agnostic) {
+        auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+        auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
+
+        if (!can_select_slm_kernel)
+            return kernels_data;
+
+        auto slm_kernel = GetCommonKernelsData(params,
+                                               options,
+                                               fc_params.inputs[0].GetLayout(),
+                                               weights_layout,
+                                               tparams.exec_options,
+                                               autoTuneIndex,
+                                               1);
+
+        if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
+            return kernels_data;
+
+        kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+
+        // Update default update_dispatch_data_func function
+        GetUpdateDispatchDataFunc(kernels_data[0]);
+    }
+
+    return kernels_data;
 }
 
 KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {

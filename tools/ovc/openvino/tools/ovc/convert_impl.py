@@ -7,6 +7,7 @@ import logging as log
 import os
 import sys
 import traceback
+import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
@@ -17,7 +18,7 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
-from openvino.tools.ovc.moc_frontend.check_config import new_extensions_used
+from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
@@ -39,7 +40,6 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
-import re
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -132,15 +132,13 @@ def get_moc_frontends(argv: argparse.Namespace):
 
     available_moc_front_ends = get_available_front_ends(fem)
     if argv.framework:
-        moc_front_end = fem.load_by_framework(argv.framework) # WA to prevent process hanging. Need to remove when 115994 fixed.
         moc_front_end = fem.load_by_framework(argv.framework)
         return moc_front_end, available_moc_front_ends
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
-            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]]) # WA to prevent process hanging. Need to remove when 115994 fixed.
-            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
+            moc_front_end = fem.load_by_model(
+                [argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
         else:
-            moc_front_end = fem.load_by_model(argv.input_model) # WA to prevent process hanging. Need to remove when 115994 fixed.
             moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
@@ -173,7 +171,7 @@ def prepare_ir(argv: argparse.Namespace):
                                                         argv.share_weights)
         t.send_event("ovc", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
-        if new_extensions_used(argv):
+        if any_extensions_used(argv):
             for extension in argv.extension:
                 moc_front_end.add_extension(extension)
         ov_model = moc_pipeline(argv, moc_front_end)
@@ -192,12 +190,13 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
             return "pytorch"
         try:
             from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            if isinstance(model, TorchScriptPythonDecoder):
+            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
                 return "pytorch"
         except Exception as e:
             pass
@@ -214,37 +213,22 @@ def check_model_object(argv):
         import paddle
         if isinstance(model, paddle.hapi.model.Model) or isinstance(model,
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
-                model, paddle.fluid.executor.Executor):
+            model, paddle.fluid.executor.Executor):
             return "paddle"
 
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
-    if not hasattr(argv, 'log_level'):
-        argv.log_level = 'ERROR'
-    init_logger(argv.log_level.upper(), argv.verbose)
+    init_logger('ERROR', argv.verbose)
 
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
 
-    start_time = datetime.datetime.now()
-
     ov_model = moc_emit_ir(prepare_ir(argv), argv)
 
-    if argv.verbose:
-        elapsed_time = datetime.datetime.now() - start_time
-        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
-        try:
-            import resource
-            mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
-            if sys.platform == 'darwin':
-                mem_usage = round(mem_usage / 1024)
-            print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
-        except ImportError:
-            pass
-
     return ov_model
+
 
 def get_non_default_params(argv, cli_parser):
     import numbers
@@ -416,11 +400,21 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
-def is_verbose(argv: argparse.Namespace):
-    return argv is not None and hasattr(argv, 'verbose') and argv.verbose
+def is_verbose(argv, args=None):
+    if argv is not None and hasattr(argv, 'verbose') and argv.verbose:
+        return True
+    if args is not None and 'verbose' in args and args['verbose']:
+        return True
+    if '--verbose' in sys.argv:
+        return True
+    return False
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
+    start_time = datetime.datetime.now()
+    if is_verbose(None, args):
+        tracemalloc.start()
+
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
@@ -500,6 +494,16 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 print(ov_update_message)
 
         send_conversion_result('success')
+
+        if is_verbose(argv):
+            elapsed_time = datetime.datetime.now() - start_time
+            print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+
+            _, peak_size = tracemalloc.get_traced_memory()
+            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(
+                peak_size / (1024 * 1024)))
+            tracemalloc.stop()
+
         return ov_model, argv
 
     except Exception as e:

@@ -17,7 +17,7 @@ class Place;
 class TorchDecoder;
 
 struct PlaceDesc {
-    PlaceDesc(std::shared_ptr<Node> value) : m_value(value) {}
+    PlaceDesc(const std::shared_ptr<Node>& value) : m_value(value) {}
     std::shared_ptr<Node> m_value;
 };
 

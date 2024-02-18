@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-
 #include "kernels/x64/dft_uni_kernel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +13,7 @@ namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
@@ -26,7 +23,7 @@ public:
 
     void prepareParams() override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     std::vector<int32_t> getAxes() const;

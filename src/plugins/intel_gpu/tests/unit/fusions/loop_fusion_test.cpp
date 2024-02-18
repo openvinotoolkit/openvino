@@ -111,7 +111,8 @@ TEST_P(permute_eltwise_loop, basic) {
         data("trip_count", trip_count_mem),
         data("initial_condition", initial_condition_mem),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("num_iteration"), input_info("eltwise"), input_info("loop_eltwise_init_values") }, body_program,
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"),
+                input_info("eltwise"), input_info("loop_eltwise_init_values") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, p.loop_trip_count),
         reorder("output", input_info("loop"), format::bfyx, p.default_type)

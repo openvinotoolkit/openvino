@@ -41,8 +41,8 @@ public:
     bool isSupported(const MVNAttrs& mvnAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16) ||
+        if ((srcDescs[0]->getPrecision() != ov::element::f32 &&
+             srcDescs[0]->getPrecision() != ov::element::f16) ||
              srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
             DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",
                       " src[0]=", srcDescs[0]->getPrecision(),

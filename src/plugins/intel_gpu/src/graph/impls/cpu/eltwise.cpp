@@ -64,11 +64,13 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << make_data(&mode, sizeof(eltwise_mode));
         ob << coefficients;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> make_data(&mode, sizeof(eltwise_mode));
         ib >> coefficients;
     }

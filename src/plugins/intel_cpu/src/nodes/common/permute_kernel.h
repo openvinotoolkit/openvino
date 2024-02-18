@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
 
 struct PermuteParams {
-    InferenceEngine::SizeVector src_block_dims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_block_order;
-    InferenceEngine::SizeVector dst_block_order;
-    InferenceEngine::SizeVector order;
+    VectorDims src_block_dims;
+    VectorDims dst_block_dims;
+    VectorDims src_block_order;
+    VectorDims dst_block_order;
+    VectorDims order;
     size_t data_size;
 
     size_t hash() const;
@@ -25,9 +23,9 @@ struct PermuteParams {
 
 struct jit_permute_config_params {
     uint32_t ndims;
-    InferenceEngine::SizeVector dst_block_dims;
-    InferenceEngine::SizeVector src_strides;
-    InferenceEngine::SizeVector dst_strides;
+    VectorDims dst_block_dims;
+    VectorDims src_strides;
+    VectorDims dst_strides;
     int n;
     int data_size;
 

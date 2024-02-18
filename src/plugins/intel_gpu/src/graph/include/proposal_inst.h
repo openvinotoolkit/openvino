@@ -45,14 +45,6 @@ public:
             end_x = e_x;
             end_y = e_y;
         }
-
-        void save(BinaryOutputBuffer& ob) const {
-            ob << start_x << start_y << end_x << end_y;
-        }
-
-        void load(BinaryInputBuffer& ib) {
-            ib >> start_x >> start_y >> end_x >> end_y;
-        }
     };
 
     // indices of the memory objects used by the layer
@@ -81,8 +73,6 @@ public:
     typed_primitive_inst(network& network, proposal_node const& desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
-    void save(BinaryOutputBuffer& ob) const override;
-    void load(BinaryInputBuffer& ib) override;
 
 private:
     std::vector<anchor> _anchors;

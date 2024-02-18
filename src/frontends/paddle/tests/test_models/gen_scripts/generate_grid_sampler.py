@@ -51,6 +51,8 @@ def main():
     x = np.random.randn(2, 3, 128, 128).astype(dtype)
     grid = np.random.uniform(-1, 1, [2, 130, 130, 2]).astype(dtype)
     padding_mode = "border"
+    grid_sampler(name='grid_sampler_3', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
+                 align_corners=align_corners)
     grid_sampler(name='grid_sampler_dyn', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
                  align_corners=align_corners, is_dynamic=True)
 

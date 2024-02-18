@@ -113,7 +113,7 @@ TEST_F(TransformationTestsF, FuseU4WeightsAndZeroPointNotScalarLikeZP) {
     ov::Shape decompression_shape{32, 1, 64};
     auto weights = ov::op::v0::Constant::create(weights_precision, weights_shape, {4});
     auto convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
-    std::vector<std::int8_t> zero_point_values(ov::shape_size(decompression_shape), 8);
+    std::vector<int> zero_point_values(ov::shape_size(decompression_shape), 8);
     zero_point_values.back() = 6;
     auto zero_point = ov::op::v0::Constant::create(weights_precision, decompression_shape, zero_point_values);
     auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, decompression_precision);

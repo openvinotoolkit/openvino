@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "openvino/openvino.hpp"
+#include "openvino/core/model.hpp"
 
-#include "cache/meta/meta_info.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "matchers/single_op/manager.hpp"
 
 namespace ov {
@@ -45,7 +45,9 @@ public:
 
     bool is_model_large_to_store_const(const std::shared_ptr<ov::Model>& model) {
         auto model_bytesize = model->get_graph_size();
-        if (mem_size < model_bytesize * 4) {
+        size_t gb_8 = 1;
+        gb_8 <<= 33;
+        if (mem_size <= model_bytesize * 4 || model_bytesize >= gb_8) {
             return true;
         }
         return false;
@@ -58,7 +60,7 @@ protected:
 
     ICache() = default;
 
-    bool serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInfo>& graph_info,
+    bool serialize_model(const std::pair<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo>& graph_info,
                          const std::string& rel_serialization_path);
 };
 }  // namespace subgraph_dumper

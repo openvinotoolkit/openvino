@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
-
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
+#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 
 namespace ov {
@@ -39,11 +39,11 @@ void MulConvFusion::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
     auto spatial_dims = input_shape.size() - 2;
 
-    auto mul_const = ngraph::builder::makeConstant<float>(precision, const_shape, {}, true);
+    auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, const_shape, {}, true);
     auto mul = std::make_shared<ov::op::v1::Multiply>(param, mul_const);
     ov::Shape strides(spatial_dims, 1);
     std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-    auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
+    auto weights = ov::test::utils::deprecated::make_constant<float>(precision, weights_shape, {}, true);
     std::shared_ptr<ov::Node> conv;
     if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
         conv = std::make_shared<ov::op::v1::Convolution>(mul, weights, strides, pad_begin, pad_end, strides);
@@ -81,7 +81,7 @@ void MulConvFusion::SetUp() {
         std::shared_ptr<ov::Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             weights = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ov::op::v1::GroupConvolution::get_type_info_static()) {
@@ -94,7 +94,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ov::op::v1::ConvolutionBackpropData::get_type_info_static()) {
@@ -106,7 +106,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
                                                                          weights,
@@ -125,7 +125,7 @@ void MulConvFusion::SetUp() {
                 ov::op::v0::Constant::create(ov::element::u64, ov::Shape{const_shape.size()}, const_shape),
                 false);
             weights = std::make_shared<ov::op::v1::Multiply>(weights, reshape);
-            weights = ov::get_constant_from_source(weights);
+            weights = ov::util::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
                                                                               weights,

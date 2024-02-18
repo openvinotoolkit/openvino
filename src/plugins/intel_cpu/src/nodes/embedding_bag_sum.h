@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,14 +13,14 @@ namespace node {
 class EmbeddingBagSum {
 public:
     EmbeddingBagSum(
-            const std::shared_ptr<ngraph::Node>&,
+            const std::shared_ptr<ov::Node>&,
             size_t requiredInputsNum,
             size_t indicesIdx,
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
-    void execute(const uint8_t* srcData, const uint8_t* weightsData, const InferenceEngine::Precision &srcPrc,
-                 const InferenceEngine::SizeVector& inDims, const MemoryPtr& outMemory);
+    void execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
+                 const VectorDims& inDims, const MemoryPtr& outMemory);
 
     ~EmbeddingBagSum() = default;
 
@@ -41,7 +37,7 @@ protected:
 
     template<typename T>
     void processData(const T* srcData, const T* weightsData,
-                     const InferenceEngine::SizeVector& inDataDims, const MemoryPtr& outMemory);
+                     const VectorDims& inDataDims, const MemoryPtr& outMemory);
 
     const size_t EMB_TABLE_IDX = 0lu;
     const size_t INDICES_IDX;

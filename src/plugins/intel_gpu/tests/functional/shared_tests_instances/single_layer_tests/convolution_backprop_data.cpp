@@ -137,7 +137,7 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds3D),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
         ::testing::ValuesIn(emptyOutputPadding)
 );
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
@@ -147,7 +147,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::Values(ov::op::PadType::VALID),
         ::testing::ValuesIn(emptyOutputPadding)
 );
 

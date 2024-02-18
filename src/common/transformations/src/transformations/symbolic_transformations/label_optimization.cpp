@@ -4,20 +4,19 @@
 
 #include "transformations/symbolic_transformations/label_optimization.hpp"
 
-#include <openvino/core/bound_evaluation_util.hpp>
-#include <openvino/core/dimension_tracker.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/util/symbolic_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 
 namespace {
 void update_label(const ov::EqTable& table, ov::label_t& label) {

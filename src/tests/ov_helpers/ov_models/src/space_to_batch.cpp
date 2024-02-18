@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
-                                           const element::Type& type,
+std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<ov::Node>& in,
+                                           const ov::element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& padsBegin,
                                            const std::vector<int64_t>& padsEnd) {

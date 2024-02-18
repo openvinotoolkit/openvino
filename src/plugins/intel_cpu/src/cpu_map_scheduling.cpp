@@ -5,8 +5,8 @@
 #include "cpu_map_scheduling.hpp"
 
 #include "cpu_streams_calculation.hpp"
-#include "ie_parallel.hpp"
-#include "ie_system_conf.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -87,7 +87,7 @@ bool get_cpu_pinning(bool& input_value,
             result_value = latency ? false : true;
         }
     }
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    if defined(_WIN32)
     if (proc_type_table.size() > 1) {
         result_value = false;

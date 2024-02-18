@@ -5,7 +5,9 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "shared_test_classes/single_op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/lstm_cell.hpp"
+#include "common_test_utils/node_builders/gru_cell.hpp"
+#include "common_test_utils/node_builders/rnn_cell.hpp"
 
 namespace ov {
 namespace test {
@@ -106,7 +108,7 @@ void TensorIteratorTest::SetUp() {
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
             std::vector<ov::Shape> WRB = {input_shapes[3], input_shapes[4], input_shapes[5]};
             ov::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
-            auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
+            auto lstm_cell = ov::test::utils::make_lstm(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm_cell->output(0), axis);
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
                                      std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
@@ -155,7 +157,7 @@ void TensorIteratorTest::SetUp() {
             std::vector<ov::Shape> WRB = {input_shapes[2], input_shapes[3], input_shapes[4]};
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1]};
-            auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
+            auto gru_cell = ov::test::utils::make_gru(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                      {}, {}, clip, false);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gru_cell->output(0), axis);
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
@@ -202,7 +204,7 @@ void TensorIteratorTest::SetUp() {
             std::vector<ov::Shape> WRB = {input_shapes[2], input_shapes[3], input_shapes[4]};
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1]};
-            auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
+            auto rnn_cell = ov::test::utils::make_rnn(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(rnn_cell->output(0), axis);
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell),
                                      std::make_shared<ov::op::v0::Result>(unsqueeze)};

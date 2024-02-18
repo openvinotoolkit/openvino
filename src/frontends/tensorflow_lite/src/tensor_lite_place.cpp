@@ -11,6 +11,7 @@ void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::No
                                                                bool convert_tensor_attrs_to_nodes) {
     output.set_names({*get_names().begin()});
     output.get_rt_info()[ov::frontend::tensorflow_lite::QuantizationInfo::get_type_info_static()] = m_quantization;
+    output.get_rt_info()[ov::frontend::tensorflow_lite::SparsityInfo::get_type_info_static()] = m_sparsity;
     if (convert_tensor_attrs_to_nodes)
         apply_quantization(output, get_element_type());
 }

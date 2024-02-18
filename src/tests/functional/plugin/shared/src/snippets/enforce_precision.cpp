@@ -6,7 +6,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_roll_matmul_roll.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -34,9 +33,8 @@ void EnforcePrecisionTest::SetUp() {
 
     function = SubgraphRollMatMulRollFunction(input_shapes, ov::element::f32).getOriginal();
 
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({ InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK });
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 
     setInferenceType(element::bf16);

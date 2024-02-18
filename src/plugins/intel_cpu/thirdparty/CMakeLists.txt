@@ -62,7 +62,7 @@ function(ov_add_onednn)
         set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Conpute Library kernels in oneDNN" FORCE)
     endif()
 
-    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
@@ -126,10 +126,12 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT ${OV_CPACK_COMP_CORE})
+                COMPONENT ${OV_CPACK_COMP_CORE}
+                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+                ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endfunction()
 

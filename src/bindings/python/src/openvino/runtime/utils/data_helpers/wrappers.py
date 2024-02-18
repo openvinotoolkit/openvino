@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-# TODO: remove this WA and refactor OVDict when Python3.8
-# becomes minimal supported version.
-try:
-    from functools import singledispatchmethod
-except ImportError:
-    from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
-
+from functools import singledispatchmethod
 from collections.abc import Mapping
 from typing import Dict, Set, Tuple, Union, Iterator, Optional
 from typing import KeysView, ItemsView, ValuesView
@@ -31,6 +25,9 @@ class _InferRequestWrapper(InferRequestBase):
         # Private memeber to store newly created shared memory data
         self._inputs_data = None
         super().__init__(other)
+
+    def _is_single_input(self) -> bool:
+        return len(self.input_tensors) == 1
 
 
 class OVDict(Mapping):

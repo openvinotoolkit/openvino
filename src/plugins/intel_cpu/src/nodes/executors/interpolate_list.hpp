@@ -24,12 +24,12 @@ struct InterpolateExecutorDesc {
 
 const std::vector<InterpolateExecutorDesc>& getInterpolateExecutorsList();
 
-class InterpolateExecutorFactory : public ExecutorFactory {
+class InterpolateExecutorFactory : public ExecutorFactoryLegacy {
 public:
     InterpolateExecutorFactory(const InterpolateAttrs& InterpolateAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                          const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getInterpolateExecutorsList()) {
             if (desc.builder->isSupported(InterpolateAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
@@ -66,7 +66,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported Interpolate executor is not found";
+        OPENVINO_THROW("Supported Interpolate executor is not found");
     }
 
     bool isEmpty() {

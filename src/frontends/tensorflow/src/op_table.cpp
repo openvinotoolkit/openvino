@@ -5,12 +5,71 @@
 #include "op_table.hpp"
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/tan.hpp"
+#include "openvino/op/tanh.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
 namespace ov {
@@ -18,9 +77,15 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-#define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+#define TF_OP_CONVERTER(op)       OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+#define TF_OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
+TF_OP_CONVERTER(translate_assign_op);
+TF_OP_CONVERTER(translate_assign_add_op);
+TF_OP_CONVERTER(translate_assign_sub_op);
 TF_OP_CONVERTER(translate_assignvariable_op);
+TF_OP_CONVERTER(translate_add_variable_op);
+TF_OP_CONVERTER(translate_sub_variable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
 TF_OP_CONVERTER(translate_enter_op);
 TF_OP_CONVERTER(translate_exit_op);
@@ -30,6 +95,8 @@ TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_lookup_table_import_op);
+TF_OP_CONVERTER(translate_lookup_table_find_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -40,8 +107,8 @@ TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
-TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
-TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
@@ -60,73 +127,80 @@ TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
 TF_OP_CONVERTER(translate_xla_conv_v2_op);
 TF_OP_CONVERTER(translate_xla_dot_op);
+TF_OP_CONVERTER(translate_write_file);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
-        {"Abs", CreatorFunction(translate_unary_op<opset8::Abs>)},
-        {"Acos", CreatorFunction(translate_unary_op<opset8::Acos>)},
-        {"Acosh", CreatorFunction(translate_unary_op<opset8::Acosh>)},
-        {"Asin", CreatorFunction(translate_unary_op<opset8::Asin>)},
-        {"Asinh", CreatorFunction(translate_unary_op<opset8::Asinh>)},
-        {"Atan", CreatorFunction(translate_unary_op<opset8::Atan>)},
-        {"Atanh", CreatorFunction(translate_unary_op<opset8::Atanh>)},
-        {"Ceil", CreatorFunction(translate_unary_op<opset8::Ceiling>)},
-        {"Cos", CreatorFunction(translate_unary_op<opset8::Cos>)},
-        {"Cosh", CreatorFunction(translate_unary_op<opset8::Cosh>)},
-        {"Erf", CreatorFunction(translate_unary_op<opset8::Erf>)},
-        {"Exp", CreatorFunction(translate_unary_op<opset8::Exp>)},
-        {"Floor", CreatorFunction(translate_unary_op<opset8::Floor>)},
-        {"IsFinite", CreatorFunction(translate_unary_op<opset10::IsFinite>)},
-        {"IsInf", CreatorFunction(translate_unary_op<opset10::IsInf>)},
-        {"IsNan", CreatorFunction(translate_unary_op<opset10::IsNaN>)},
-        {"Log", CreatorFunction(translate_unary_op<opset8::Log>)},
-        {"LogicalNot", CreatorFunction(translate_unary_op<opset8::LogicalNot>)},
-        {"Mish", CreatorFunction(translate_unary_op<opset8::Mish>)},
-        {"Neg", CreatorFunction(translate_unary_op<opset8::Negative>)},
-        {"Relu", CreatorFunction(translate_unary_op<opset8::Relu>)},
+        {"Abs", CreatorFunction(translate_unary_op<v0::Abs>)},
+        {"Acos", CreatorFunction(translate_unary_op<v0::Acos>)},
+        {"Acosh", CreatorFunction(translate_unary_op<v3::Acosh>)},
+        {"Asin", CreatorFunction(translate_unary_op<v0::Asin>)},
+        {"Asinh", CreatorFunction(translate_unary_op<v3::Asinh>)},
+        {"Atan", CreatorFunction(translate_unary_op<v0::Atan>)},
+        {"Atanh", CreatorFunction(translate_unary_op<v3::Atanh>)},
+        {"Ceil", CreatorFunction(translate_unary_op<v0::Ceiling>)},
+        {"Cos", CreatorFunction(translate_unary_op<v0::Cos>)},
+        {"Cosh", CreatorFunction(translate_unary_op<v0::Cosh>)},
+        {"Erf", CreatorFunction(translate_unary_op<v0::Erf>)},
+        {"Exp", CreatorFunction(translate_unary_op<v0::Exp>)},
+        {"Floor", CreatorFunction(translate_unary_op<v0::Floor>)},
+        {"Invert", CreatorFunction(translate_unary_op<v13::BitwiseNot>)},
+        {"IsFinite", CreatorFunction(translate_unary_op<v10::IsFinite>)},
+        {"IsInf", CreatorFunction(translate_unary_op<v10::IsInf>)},
+        {"IsNan", CreatorFunction(translate_unary_op<v10::IsNaN>)},
+        {"Log", CreatorFunction(translate_unary_op<v0::Log>)},
+        {"LogicalNot", CreatorFunction(translate_unary_op<v1::LogicalNot>)},
+        {"Mish", CreatorFunction(translate_unary_op<v4::Mish>)},
+        {"Neg", CreatorFunction(translate_unary_op<v0::Negative>)},
+        {"Relu", CreatorFunction(translate_unary_op<v0::Relu>)},
         {"Selu", CreatorFunction(translate_selu_op)},
-        {"Sigmoid", CreatorFunction(translate_unary_op<opset8::Sigmoid>)},
-        {"Sin", CreatorFunction(translate_unary_op<opset8::Sin>)},
-        {"Sinh", CreatorFunction(translate_unary_op<opset8::Sinh>)},
-        {"Sign", CreatorFunction(translate_unary_op<opset8::Sign>)},
-        {"Softplus", CreatorFunction(translate_unary_op<opset8::SoftPlus>)},
-        {"Softsign", CreatorFunction(translate_unary_op<opset9::SoftSign>)},
-        {"Tan", CreatorFunction(translate_unary_op<opset8::Tan>)},
-        {"Tanh", CreatorFunction(translate_unary_op<opset8::Tanh>)},
-        {"Swish", CreatorFunction(translate_unary_op<opset8::Swish>)},
+        {"Sigmoid", CreatorFunction(translate_unary_op<v0::Sigmoid>)},
+        {"Sin", CreatorFunction(translate_unary_op<v0::Sin>)},
+        {"Sinh", CreatorFunction(translate_unary_op<v0::Sinh>)},
+        {"Sign", CreatorFunction(translate_unary_op<v0::Sign>)},
+        {"Softplus", CreatorFunction(translate_unary_op<v4::SoftPlus>)},
+        {"Softsign", CreatorFunction(translate_unary_op<v9::SoftSign>)},
+        {"Tan", CreatorFunction(translate_unary_op<v0::Tan>)},
+        {"Tanh", CreatorFunction(translate_unary_op<v0::Tanh>)},
+        {"Swish", CreatorFunction(translate_unary_op<v4::Swish>)},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
-        {"Add", CreatorFunction(translate_binary_op<opset8::Add>)},
-        {"AddV2", CreatorFunction(translate_binary_op<opset8::Add>)},
-        {"Equal", CreatorFunction(translate_binary_op<opset8::Equal>)},
-        {"FloorMod", CreatorFunction(translate_binary_op<opset8::FloorMod>)},
-        {"Greater", CreatorFunction(translate_binary_op<opset8::Greater>)},
-        {"GreaterEqual", CreatorFunction(translate_binary_op<opset8::GreaterEqual>)},
-        {"Less", CreatorFunction(translate_binary_op<opset8::Less>)},
-        {"LessEqual", CreatorFunction(translate_binary_op<opset8::LessEqual>)},
-        {"LogicalAnd", CreatorFunction(translate_binary_op<opset8::LogicalAnd>)},
-        {"LogicalOr", CreatorFunction(translate_binary_op<opset8::LogicalOr>)},
-        {"LogicalXor", CreatorFunction(translate_binary_op<opset8::LogicalXor>)},
-        {"Maximum", CreatorFunction(translate_binary_op<opset8::Maximum>)},
-        {"Minimum", CreatorFunction(translate_binary_op<opset8::Minimum>)},
-        {"Mul", CreatorFunction(translate_binary_op<opset8::Multiply>)},
-        {"Mod", CreatorFunction(translate_binary_op<opset8::Mod>)},
-        {"NotEqual", CreatorFunction(translate_binary_op<opset8::NotEqual>)},
-        {"Pow", CreatorFunction(translate_binary_op<opset8::Power>)},
-        {"RealDiv", CreatorFunction(translate_binary_op<opset8::Divide>)},
-        {"SquaredDifference", CreatorFunction(translate_binary_op<opset8::SquaredDifference>)},
-        {"Sub", CreatorFunction(translate_binary_op<opset8::Subtract>)},
+        {"Add", CreatorFunction(translate_binary_op<v1::Add>)},
+        {"AddV2", CreatorFunction(translate_binary_op<v1::Add>)},
+        {"Atan2", CreatorFunction(translate_atan2_op)},
+        {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
+        {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
+        {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},
+        {"Div", CreatorFunction(translate_div_op)},
+        {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
+        {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
+        {"Greater", CreatorFunction(translate_binary_op<v1::Greater>)},
+        {"GreaterEqual", CreatorFunction(translate_binary_op<v1::GreaterEqual>)},
+        {"Less", CreatorFunction(translate_binary_op<v1::Less>)},
+        {"LessEqual", CreatorFunction(translate_binary_op<v1::LessEqual>)},
+        {"LogicalAnd", CreatorFunction(translate_binary_op<v1::LogicalAnd>)},
+        {"LogicalOr", CreatorFunction(translate_binary_op<v1::LogicalOr>)},
+        {"LogicalXor", CreatorFunction(translate_binary_op<v1::LogicalXor>)},
+        {"Maximum", CreatorFunction(translate_binary_op<v1::Maximum>)},
+        {"Minimum", CreatorFunction(translate_binary_op<v1::Minimum>)},
+        {"Mul", CreatorFunction(translate_mul_op)},
+        {"Mod", CreatorFunction(translate_binary_op<v1::Mod>)},
+        {"NotEqual", CreatorFunction(translate_binary_op<v1::NotEqual>)},
+        {"Pow", CreatorFunction(translate_binary_op<v1::Power>)},
+        {"RealDiv", CreatorFunction(translate_binary_op<v1::Divide>)},
+        {"SquaredDifference", CreatorFunction(translate_binary_op<v0::SquaredDifference>)},
+        {"Sub", CreatorFunction(translate_binary_op<v1::Subtract>)},
 
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
-        {"Any", CreatorFunction(translate_direct_reduce_op<opset8::ReduceLogicalOr>)},
-        {"All", CreatorFunction(translate_direct_reduce_op<opset8::ReduceLogicalAnd>)},
-        {"EuclideanNorm", CreatorFunction(translate_direct_reduce_op<opset8::ReduceL2>)},
-        {"Max", CreatorFunction(translate_direct_reduce_op<opset8::ReduceMax>)},
-        {"Mean", CreatorFunction(translate_direct_reduce_op<opset8::ReduceMean>)},
-        {"Min", CreatorFunction(translate_direct_reduce_op<opset8::ReduceMin>)},
-        {"Prod", CreatorFunction(translate_direct_reduce_op<opset8::ReduceProd>)},
-        {"Sum", CreatorFunction(translate_direct_reduce_op<opset8::ReduceSum>)},
+        {"Any", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalOr>)},
+        {"All", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalAnd>)},
+        {"EuclideanNorm", CreatorFunction(translate_direct_reduce_op<v4::ReduceL2>)},
+        {"Max", CreatorFunction(translate_direct_reduce_op<v1::ReduceMax>)},
+        {"Mean", CreatorFunction(translate_direct_reduce_op<v1::ReduceMean>)},
+        {"Min", CreatorFunction(translate_direct_reduce_op<v1::ReduceMin>)},
+        {"Prod", CreatorFunction(translate_direct_reduce_op<v1::ReduceProd>)},
+        {"Sum", CreatorFunction(translate_direct_reduce_op<v1::ReduceSum>)},
 
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
@@ -148,6 +222,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
         {"ClipByValue", CreatorFunction(translate_clip_by_value_op)},
+        {"Complex", CreatorFunction(translate_complex_op)},
+        {"ComplexAbs", CreatorFunction(translate_complex_abs_op)},
+        {"Conj", CreatorFunction(translate_conj_op)},
+        {"ConjugateTranspose", CreatorFunction(translate_conj_transpose_op)},
         {"Concat", CreatorFunction(translate_concat_op)},
         {"ConcatV2", CreatorFunction(translate_concat_op)},
         {"Const", CreatorFunction(translate_const_op)},
@@ -172,6 +250,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxArgs", CreatorFunction(translate_fake_quant_with_min_max_args)},
+        {"FFT", CreatorFunction(translate_fft_op)},
+        {"FFT2D", CreatorFunction(translate_fft_op)},
+        {"FFT3D", CreatorFunction(translate_fft_op)},
         {"FIFOQueue", CreatorFunction(translate_fifo_queue_op)},
         {"FIFOQueueV2", CreatorFunction(translate_fifo_queue_op)},
         {"Fill", CreatorFunction(translate_fill_op)},
@@ -188,8 +269,16 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
+        {"Inv", CreatorFunction(translate_inv_op)},
         {"If", CreatorFunction(translate_if_op)},
+        {"IFFT", CreatorFunction(translate_ifft_op)},
+        {"IFFT2D", CreatorFunction(translate_ifft_op)},
+        {"IFFT3D", CreatorFunction(translate_ifft_op)},
+        {"Imag", CreatorFunction(translate_real_imag_op)},
         {"input_arg", CreatorFunction(translate_input_arg_op)},
+        {"IRFFT", CreatorFunction(translate_irfft_op)},
+        {"IRFFT2D", CreatorFunction(translate_irfft_op)},
+        {"IRFFT3D", CreatorFunction(translate_irfft_op)},
         {"Iterator", CreatorFunction(translate_iterator_op)},
         {"IteratorGetNext", CreatorFunction(translate_iterator_get_next_op)},
         {"IteratorV2", CreatorFunction(translate_iterator_op)},
@@ -201,6 +290,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ListDiff", CreatorFunction(translate_list_diff_op)},
         {"LogSoftmax", CreatorFunction(translate_log_softmax_op)},
         {"Log1p", CreatorFunction(translate_log_1p_op)},
+        {"LookupTableFind", CreatorFunction(translate_lookup_table_find_op)},
+        {"LookupTableFindV2", CreatorFunction(translate_lookup_table_find_op)},
+        {"LookupTableImport", CreatorFunction(translate_lookup_table_import_op)},
+        {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
@@ -209,9 +302,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
-        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
+        {"MulNoNan", CreatorFunction(translate_mul_no_nan_op)},
+        {"Multinomial", CreatorFunction(translate_multinomial_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
         {"MutableHashTableV2", CreatorFunction(translate_hash_table_op)},
         {"NonMaxSuppression", CreatorFunction(translate_non_max_suppression_op)},
@@ -241,6 +336,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rank", CreatorFunction(translate_rank_op)},
         {"RandomUniform", CreatorFunction(translate_random_uniform_op)},
         {"RandomUniformInt", CreatorFunction(translate_random_uniform_int_op)},
+        {"Real", CreatorFunction(translate_real_imag_op)},
         {"Reciprocal", CreatorFunction(translate_reciprocal_op)},
         {"Relu6", CreatorFunction(translate_relu_6_op)},
         {"Reshape", CreatorFunction(translate_reshape_op)},
@@ -250,6 +346,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ResizeBilinear", CreatorFunction(translate_interpolate_op)},
         {"ResizeNearestNeighbor", CreatorFunction(translate_interpolate_op)},
         {"ResourceGather", CreatorFunction(translate_resource_gather_op)},
+        {"RFFT", CreatorFunction(translate_rfft_op)},
+        {"RFFT2D", CreatorFunction(translate_rfft_op)},
+        {"RFFT3D", CreatorFunction(translate_rfft_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},
@@ -295,6 +394,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TensorListStack", CreatorFunction(translate_tensor_list_stack_op)},
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
         {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
+        {"TensorListConcatV2", CreatorFunction(translate_tensor_list_concat_v2_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"ToBool", CreatorFunction(translate_tobool_op)},
         {"TopK", CreatorFunction(translate_top_k_op)},
@@ -302,6 +402,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Transpose", CreatorFunction(translate_transpose_op)},
         {"TruncateDiv", CreatorFunction(translate_truncate_div_op)},
         {"TruncateMod", CreatorFunction(translate_truncate_mod_op)},
+        {"UniqueWithCounts", CreatorFunction(translate_unique_with_counts_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
         {"UnsortedSegmentSum", CreatorFunction(translate_unsorted_segment_sum_op)},
@@ -313,8 +414,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
 
         // Translators for SavedModel and MetaGraph
-        {"Assign", CreatorFunction(translate_readvariable_op)},
+        {"Assign", CreatorFunction(translate_assign_op)},
+        {"AssignAdd", CreatorFunction(translate_assign_add_op)},
+        {"AssignSub", CreatorFunction(translate_assign_sub_op)},
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
+        {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
+        {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
@@ -345,6 +450,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Exit", CreatorFunction(translate_exit_op)},
         {"LoopCond", CreatorFunction(translate_loop_cond_op)},
         {"NextIteration", CreatorFunction(translate_next_iteration_op)},
+
+        // Unsupported operations, which should be kept in Graph
+        {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
 }  // namespace op

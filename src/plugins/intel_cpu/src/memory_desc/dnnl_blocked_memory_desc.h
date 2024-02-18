@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "dnnl_memory_desc.h"
 #include "blocked_memory_desc.h"
 #include "openvino/util/util.hpp"
-#include <cpu_memory.h>
-#include <dnnl_extension_utils.h>
+#include "cpu_memory.h"
+#include "dnnl_extension_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 
 namespace ov {
@@ -18,7 +19,7 @@ OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inher
 class DnnlBlockedMemoryDesc : public BlockedMemoryDesc, public DnnlMemoryDesc {
 public:
     // Creates planar DnnlBlockedMemoryDesc
-    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides = {});
+    DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& strides = {});
 
     DnnlBlockedMemoryDesc(const Shape& shape, dnnl::memory::data_type dataType, dnnl::memory::format_tag format);
 
@@ -59,13 +60,13 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
 
     using DnnlMemoryDesc::setPrecision;
     using DnnlMemoryDesc::getPrecision;
 
 private:
-    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+    DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                           const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                           const VectorDims& strides = {});
 

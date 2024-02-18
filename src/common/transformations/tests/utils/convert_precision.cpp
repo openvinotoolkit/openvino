@@ -19,11 +19,13 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -134,6 +136,74 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     static const precisions_map precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset9::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset9::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset9::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset9::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset9::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset9::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset9::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -2267,6 +2337,163 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
 
         model_ref = make_shared<Model>(NodeVector{convert_to_f32}, ParameterVector{input_1, shape_input});
     }
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+
+        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
+        auto convert_2 = make_shared<opset10::Convert>(convert_1, element::f32);
+
+        auto read_value = make_shared<opset10::ReadValue>(convert_2, variable);
+        auto convert_3 = make_shared<opset10::Convert>(read_value, element::f16);
+
+        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(convert_3, some_value);
+        auto convert_4 = make_shared<opset10::Convert>(mul, element::f32);
+        auto res = make_shared<opset10::Result>(convert_4);
+
+        auto convert_5 = make_shared<opset10::Convert>(mul, element::f32);
+        auto assign = make_shared<opset10::Assign>(convert_5, variable);
+
+        model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_type) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+
+        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        bool convert_input_output_precision = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f16, Shape{10, 10});
+        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+
+        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types_as_rt_attribute) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+
+        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        bool convert_input_output_precision = false;
+        bool store_original_precision_as_rt_attribute = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision,
+                                                      store_original_precision_as_rt_attribute);
+        manager.run_passes(model);
+        EXPECT_EQ(ov::get_original_precision(read_value), element::f32);
+        EXPECT_EQ(ov::get_original_precision(assign), element::f32);
+    }
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
+        auto read_value = make_shared<opset10::ReadValue>(convert_1, variable);
+
+        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto convert_2 = make_shared<opset10::Convert>(mul, element::f32);
+        auto res = make_shared<opset10::Result>(convert_2);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+    }
+
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;

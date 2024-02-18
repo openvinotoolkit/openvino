@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -45,5 +45,5 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
             COMPONENT ${INSTALL_COMPONENT}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
-    ov_set_apple_rpath(${TARGET_NAME} ${frontend_install_path} ${OV_CPACK_RUNTIMEDIR})
+    ov_set_install_rpath(${TARGET_NAME} ${frontend_install_path} ${OV_CPACK_RUNTIMEDIR})
 endfunction()

@@ -40,12 +40,12 @@ std::vector<std::vector<ov::Shape>> in_shapes_static_check_collapse = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> in_shapes_dynamic = {
-        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}},
-         {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
+        {{{ov::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}},
+         {{ov::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> in_shapes_dynamic_large_upper_bound = {
-        {{{ngraph::Dimension(1, 1000000000000), 200}, {{2, 200}, {5, 200}}}},
+        {{{ov::Dimension(1, 1000000000000), 200}, {{2, 200}, {5, 200}}}},
 };
 
 std::vector<ov::test::ElementType> model_types = {
@@ -156,7 +156,7 @@ std::vector<EltwiseTypes> eltwise_op_typesSingleThread = {
 };
 
 ov::AnyMap additional_config_single_thread = {
-        {"CPU_THREADS_NUM", "1"}
+    ov::inference_num_threads(1),
 };
 
 const auto single_thread_params = ::testing::Combine(

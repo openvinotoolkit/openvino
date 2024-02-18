@@ -6,7 +6,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,7 +14,6 @@
 
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
-#include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
@@ -384,46 +382,12 @@ static void CreateDeformableConvolutionOp(ProgramBuilder& p, const std::shared_p
                               op->get_bilinear_interpolation_pad());
 }
 
-static void CreateBinaryConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::BinaryConvolution>& op) {
-    validate_inputs_count(op, {2});
-    auto inputs = p.GetInputInfo(op);
-    std::string layerName = layer_type_name_ID(op);
-
-    auto outDims = op->get_output_shape(0);
-
-    std::vector<cldnn::primitive_id> weights = {inputs[1].pid};
-    cldnn::data_types calc_precision = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-
-    auto strides = op->get_strides();
-    auto pads_begin = op->get_pads_begin();
-    auto dilations = op->get_dilations();
-
-    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-    strides.resize(std::max<size_t>(2, strides.size()), 1);
-    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
-
-    auto convPrim = cldnn::binary_convolution(layerName,
-                                              inputs[0],
-                                              weights,
-                                              strides,
-                                              pads_begin,
-                                              dilations,
-                                              tensor_from_dims(outDims),
-                                              1,
-                                              op->get_pad_value(),
-                                              calc_precision);
-
-    p.add_primitive(*op, convPrim);
-}
-
 REGISTER_FACTORY_IMPL(v1, GroupConvolution);
 REGISTER_FACTORY_IMPL(v1, Convolution);
 REGISTER_FACTORY_IMPL(v1, ConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
-REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
 }  // namespace intel_gpu
 }  // namespace ov

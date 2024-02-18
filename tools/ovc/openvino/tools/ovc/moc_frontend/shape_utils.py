@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 from openvino.runtime import Shape, PartialShape, Dimension  # pylint: disable=no-name-in-module,import-error
-
 from openvino.tools.ovc.error import Error
 
 
@@ -74,9 +73,10 @@ def tensor_to_int_list(tensor):
         tensor_numpy.dtype)
     return tensor_numpy.tolist()
 
+
 def to_partial_shape(shape):
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf  # pylint: disable=import-error
         if isinstance(shape, tf.Tensor):
             return PartialShape(tensor_to_int_list(shape))
         if isinstance(shape, tf.TensorShape):
@@ -92,7 +92,7 @@ def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(value, (tf.TensorShape, tf.Tensor)):
             return True
     if 'paddle' in sys.modules:
@@ -107,4 +107,3 @@ def is_shape_type(value):
                 return False
         return True
     return False
-

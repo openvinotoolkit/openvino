@@ -6,22 +6,34 @@
 
 #include <cmath>
 #include <cstddef>
-#include <type_traits>
+
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
-void erf(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(std::erf(arg[i]));
-    }
+namespace func {
+
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T erf(const T v) {
+    return static_cast<T>(std::round(std::erf(v)));
 }
 
-template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-void erf(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(std::round(std::erf(arg[i])));
-    }
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T erf(const T v) {
+    return std::erf(v);
+}
+}  // namespace func
+
+/**
+ * @brief Reference implementation of Erf operator.
+ *
+ * @param arg    Pointer to input data.
+ * @param out    Pointer to output data.
+ * @param count  Number of elements in input buffer.
+ */
+template <class T>
+void erf(const T* arg, T* out, const size_t count) {
+    std::transform(arg, arg + count, out, func::erf<T>);
 }
 }  // namespace reference
 }  // namespace ov

@@ -53,7 +53,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, const kernel_impl_params& impl_param) {
     assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto prim = impl_param.typed_desc<reshape>();
@@ -132,7 +132,12 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         run_shape_infer(prim->mode);
     }
 
-    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_format = input_layout.format;
+    if (node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
+
+    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size())} };
 }
 
 template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);
@@ -159,7 +164,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
 
 reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
         parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
                                     "Input layout data typr",
@@ -182,25 +187,15 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             _outputs = allocate_outputs();
             _mem_allocated = true;
         } else {
-            reuse_input();
+            update_output_memory();
         }
     } else {
         if (_exec_deps.size() > 0 && input_memory_ptr())
-            reuse_input();
+            update_output_memory();
     }
 }
 
 void reshape_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void reshape_inst::reuse_input() {
     update_output_memory();
 }
 

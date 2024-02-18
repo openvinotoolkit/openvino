@@ -117,9 +117,9 @@ private:
         auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, inputLow, inputHigh, outputLow, outputHigh, levels);
         fakeQuantize->set_friendly_name("fakeQuantize");
 
-        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
+        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
 
-        ngraph::ParameterVector inputs{ input };
+        ov::ParameterVector inputs{ input };
         if (as_type_ptr<ov::op::v0::Parameter>(inputLow)) {
             inputs.push_back(as_type_ptr<ov::op::v0::Parameter>(inputLow));
         }

@@ -103,16 +103,17 @@ BroadcastShapeInfer<BroadcastOP>::BroadcastShapeInfer(const std::shared_ptr<Node
         static_assert(std::is_base_of<snippets::op::BroadcastMove, BroadcastOP>() ||
                       std::is_base_of<snippets::op::BroadcastLoad, BroadcastOP>(),
                       "This ShapeInfer class could be used only for BroadcastMove and BroadcastLoad operations.");
-        const auto& broadcast = as_type_ptr<BroadcastOP>(n);
-        OPENVINO_ASSERT(broadcast, "Invalid node passed to BroadcastShapeInfer.",
+        broadcast_op = as_type_ptr<BroadcastOP>(n);
+        OPENVINO_ASSERT(broadcast_op, "Invalid node passed to BroadcastShapeInfer.",
                         "Expected ", typeid(BroadcastOP).name(), "got ", n->get_type_name());
-        const auto last_dim = *broadcast->get_output_shape().rbegin();
-        m_broadcasted_dim = last_dim.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : last_dim.get_length();
 }
+
 template<class BroadcastOP>
 Result BroadcastShapeInfer<BroadcastOP>::infer(const std::vector<VectorDimsRef>& input_shapes) {
     auto out_shape = input_shapes[0].get();
-    out_shape.back() = m_broadcasted_dim;
+    const auto& bcasted_dim = broadcast_op->get_bcast_dimension();
+    OPENVINO_ASSERT(bcasted_dim.is_static());
+    out_shape.back() = bcasted_dim.get_length();
     return {{out_shape}, ShapeInferStatus::success};
 }
 

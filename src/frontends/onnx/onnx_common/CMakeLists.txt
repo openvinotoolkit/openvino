@@ -28,7 +28,7 @@ target_include_directories(${TARGET_NAME}
            $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
     PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::util)
 
 ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
 

@@ -81,6 +81,8 @@ public:
     void update_output_layout();
     void postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch);
 
+    static layout adjust_scalar_to_1d_layout(layout& target, layout& other);
+
 private:
     network::ptr _net_true;
     network::ptr _net_false;

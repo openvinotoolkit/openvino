@@ -90,7 +90,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
+        output_shapes[0] = desc->output_pshape.rank().is_static() ? desc->output_pshape : ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
@@ -127,7 +127,7 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
 }
 
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     if (input_layout.is_dynamic())
         return;
     const auto& output_sizes = argument->broadcast_sizes;

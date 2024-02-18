@@ -29,6 +29,7 @@ public:
     void unregisterMemory(Memory* memPtr) override;
 
     void setMemMngr(std::shared_ptr<IMemoryMngr> pMngr);
+    void setMemMngrResize(std::shared_ptr<IMemoryMngr> pMngr);
     void reset();
 
 private:

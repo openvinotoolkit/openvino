@@ -100,6 +100,7 @@ public:
     int verbose_color;                                          // Print verbose color
     int list_layers;                                            // Print list layers
     int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
+    int print_input_data_shapes;                                  // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
@@ -122,6 +123,7 @@ public:
     int serialize_compile;                                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
+    int impls_cache_capacity;                                   // The maximum number of entries in the kernel impl cache
     int disable_async_compilation;                              // Disable async compilation
     int disable_winograd_conv;                                  // Disable Winograd conv
     int disable_dynamic_impl;                                   // Disable dynamic implementation

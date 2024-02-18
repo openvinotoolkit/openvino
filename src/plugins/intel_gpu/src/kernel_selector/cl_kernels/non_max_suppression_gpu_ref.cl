@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (c) Facebook, Inc. and its affiliates.
+// The implementation for rotated boxes intersection is based on the code from:
+// https://github.com/facebookresearch/detectron2/blob/v0.6/detectron2/layers/csrc/box_iou_rotated/box_iou_rotated_utils.h
 
 #include "include/batch_headers/fetch_data.cl"
 
@@ -563,16 +566,6 @@ inline void FUNC(swap)(__global BOX_INFO* a, __global BOX_INFO* b)
     *b = temp;
 }
 
-#ifdef ROTATION
-inline void FUNC(reverseOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum)
-{
-    for (int i = 0; i < boxNum / 2; ++i) {
-        FUNC_CALL(swap)(&outBoxes[i], &outBoxes[boxNum - 1 - i]);
-    }
-}
-
-#else
-
 inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNum)
 {
     for (int i = 0; i < boxNum - 1; ++i) {
@@ -594,7 +587,6 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
             break;
     }
 }
-#endif // ROTATION
 
 
 #ifdef NMS_STAGE_0
@@ -877,11 +869,7 @@ KERNEL (non_max_suppression_ref_stage_3)(
     }
 
 #if SORT_RESULT_DESCENDING == 1
-#ifdef ROTATION
-    FUNC_CALL(reverseOutputBoxList)(sortedBoxList, outputIdx);
-#else
     FUNC_CALL(sortOutputBoxList)(sortedBoxList, outputIdx);
-#endif
 #endif
 
     unroll_for (int i = 0; i < outputIdx; i++) {

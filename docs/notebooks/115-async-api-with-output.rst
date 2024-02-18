@@ -11,36 +11,55 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Imports <#imports>`__
-- `Prepare model and data processing <#prepare-model-and-data-processing>`__
+-  `Imports <#imports>`__
+-  `Prepare model and data
+   processing <#prepare-model-and-data-processing>`__
 
-  - `Download test model <#download-test-model>`__
-  - `Load the model <#load-the-model>`__
-  - `Create functions for data processing <#create-functions-for-data-processing>`__
-  - `Get the test video <#get-the-test-video>`__
+   -  `Download test model <#download-test-model>`__
+   -  `Load the model <#load-the-model>`__
+   -  `Create functions for data
+      processing <#create-functions-for-data-processing>`__
+   -  `Get the test video <#get-the-test-video>`__
 
-- `How to improve the throughput of video processing <#how-to-improve-the-throughput-of-video-processing>`__
+-  `How to improve the throughput of video
+   processing <#how-to-improve-the-throughput-of-video-processing>`__
 
-  - `Sync Mode (default) <#sync-mode-default>`__
-  - `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
-  - `Async Mode <#async-mode>`__
-  - `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
-  - `Compare the performance <#compare-the-performance>`__
+   -  `Sync Mode (default) <#sync-mode-default>`__
+   -  `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
+   -  `Async Mode <#async-mode>`__
+   -  `Test the performance in Async
+      Mode <#test-the-performance-in-async-mode>`__
+   -  `Compare the performance <#compare-the-performance>`__
 
-- `AsyncInferQueue <#asyncinferqueue>`__
+-  `AsyncInferQueue <#asyncinferqueue>`__
 
-  - `Setting Callback <#setting-callback>`__
-  - `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+   -  `Setting Callback <#setting-callback>`__
+   -  `Test the performance with
+      AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports
-###############################################################################################################################
+-------
+
+
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0.dev20230811"
-    !pip install -q opencv-python matplotlib
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q opencv-python matplotlib
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -61,10 +80,14 @@ Imports
     import notebook_utils as utils
 
 Prepare model and data processing
-###############################################################################################################################
+---------------------------------
+
+
 
 Download test model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~
+
+
 
 We use a pre-trained model from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
@@ -95,15 +118,210 @@ each frame of the video.
     ################|| Downloading person-detection-0202 ||################
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
-    
+
+
+.. parsed-literal::
+
+    ... 12%, 32 KB, 1341 KB/s, 0 seconds passed
+... 25%, 64 KB, 1341 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 38%, 96 KB, 1143 KB/s, 0 seconds passed
+... 51%, 128 KB, 1326 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 64%, 160 KB, 1323 KB/s, 0 seconds passed
+... 77%, 192 KB, 1444 KB/s, 0 seconds passed
+... 89%, 224 KB, 1678 KB/s, 0 seconds passed
+... 100%, 248 KB, 1859 KB/s, 0 seconds passed
+
     
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
-    
+
+
+.. parsed-literal::
+
+    ... 0%, 32 KB, 1301 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 1%, 64 KB, 1298 KB/s, 0 seconds passed
+... 2%, 96 KB, 1907 KB/s, 0 seconds passed
+... 3%, 128 KB, 1722 KB/s, 0 seconds passed
+... 4%, 160 KB, 2133 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 5%, 192 KB, 2234 KB/s, 0 seconds passed
+... 6%, 224 KB, 2577 KB/s, 0 seconds passed
+... 7%, 256 KB, 2312 KB/s, 0 seconds passed
+... 8%, 288 KB, 2581 KB/s, 0 seconds passed
+... 9%, 320 KB, 2614 KB/s, 0 seconds passed
+... 9%, 352 KB, 2855 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 10%, 384 KB, 2608 KB/s, 0 seconds passed
+... 11%, 416 KB, 2811 KB/s, 0 seconds passed
+... 12%, 448 KB, 2817 KB/s, 0 seconds passed
+... 13%, 480 KB, 2999 KB/s, 0 seconds passed
+... 14%, 512 KB, 2785 KB/s, 0 seconds passed
+... 15%, 544 KB, 2949 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 16%, 576 KB, 2947 KB/s, 0 seconds passed
+... 17%, 608 KB, 3097 KB/s, 0 seconds passed
+... 18%, 640 KB, 2903 KB/s, 0 seconds passed
+... 18%, 672 KB, 3035 KB/s, 0 seconds passed
+... 19%, 704 KB, 3035 KB/s, 0 seconds passed
+... 20%, 736 KB, 3158 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 21%, 768 KB, 2990 KB/s, 0 seconds passed
+... 22%, 800 KB, 3107 KB/s, 0 seconds passed
+... 23%, 832 KB, 3100 KB/s, 0 seconds passed
+... 24%, 864 KB, 3209 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 25%, 896 KB, 3055 KB/s, 0 seconds passed
+... 26%, 928 KB, 3153 KB/s, 0 seconds passed
+... 27%, 960 KB, 3148 KB/s, 0 seconds passed
+... 27%, 992 KB, 3242 KB/s, 0 seconds passed
+... 28%, 1024 KB, 3104 KB/s, 0 seconds passed
+... 29%, 1056 KB, 3191 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 30%, 1088 KB, 3186 KB/s, 0 seconds passed
+... 31%, 1120 KB, 3271 KB/s, 0 seconds passed
+... 32%, 1152 KB, 3144 KB/s, 0 seconds passed
+... 33%, 1184 KB, 3225 KB/s, 0 seconds passed
+... 34%, 1216 KB, 3217 KB/s, 0 seconds passed
+... 35%, 1248 KB, 3293 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 36%, 1280 KB, 3177 KB/s, 0 seconds passed
+... 36%, 1312 KB, 3250 KB/s, 0 seconds passed
+... 37%, 1344 KB, 3243 KB/s, 0 seconds passed
+... 38%, 1376 KB, 3311 KB/s, 0 seconds passed
+... 39%, 1408 KB, 3204 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 40%, 1440 KB, 3198 KB/s, 0 seconds passed
+... 41%, 1472 KB, 3260 KB/s, 0 seconds passed
+... 42%, 1504 KB, 3324 KB/s, 0 seconds passed
+... 43%, 1536 KB, 3225 KB/s, 0 seconds passed
+... 44%, 1568 KB, 3218 KB/s, 0 seconds passed
+... 45%, 1600 KB, 3279 KB/s, 0 seconds passed
+... 45%, 1632 KB, 3339 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 46%, 1664 KB, 3246 KB/s, 0 seconds passed
+... 47%, 1696 KB, 3234 KB/s, 0 seconds passed
+... 48%, 1728 KB, 3291 KB/s, 0 seconds passed
+... 49%, 1760 KB, 3349 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 50%, 1792 KB, 3263 KB/s, 0 seconds passed
+... 51%, 1824 KB, 3249 KB/s, 0 seconds passed
+... 52%, 1856 KB, 3303 KB/s, 0 seconds passed
+... 53%, 1888 KB, 3357 KB/s, 0 seconds passed
+... 54%, 1920 KB, 3280 KB/s, 0 seconds passed
+... 54%, 1952 KB, 3328 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 55%, 1984 KB, 3314 KB/s, 0 seconds passed
+... 56%, 2016 KB, 3365 KB/s, 0 seconds passed
+... 57%, 2048 KB, 3294 KB/s, 0 seconds passed
+... 58%, 2080 KB, 3337 KB/s, 0 seconds passed
+... 59%, 2112 KB, 3325 KB/s, 0 seconds passed
+... 60%, 2144 KB, 3372 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 61%, 2176 KB, 3306 KB/s, 0 seconds passed
+... 62%, 2208 KB, 3345 KB/s, 0 seconds passed
+... 63%, 2240 KB, 3335 KB/s, 0 seconds passed
+... 64%, 2272 KB, 3379 KB/s, 0 seconds passed
+... 64%, 2304 KB, 3316 KB/s, 0 seconds passed
+... 65%, 2336 KB, 3351 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 66%, 2368 KB, 3343 KB/s, 0 seconds passed
+... 67%, 2400 KB, 3385 KB/s, 0 seconds passed
+... 68%, 2432 KB, 3322 KB/s, 0 seconds passed
+... 69%, 2464 KB, 3312 KB/s, 0 seconds passed
+... 70%, 2496 KB, 3349 KB/s, 0 seconds passed
+... 71%, 2528 KB, 3390 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 72%, 2560 KB, 3331 KB/s, 0 seconds passed
+... 73%, 2592 KB, 3322 KB/s, 0 seconds passed
+... 73%, 2624 KB, 3356 KB/s, 0 seconds passed
+... 74%, 2656 KB, 3395 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 75%, 2688 KB, 3338 KB/s, 0 seconds passed
+... 76%, 2720 KB, 3328 KB/s, 0 seconds passed
+... 77%, 2752 KB, 3363 KB/s, 0 seconds passed
+... 78%, 2784 KB, 3399 KB/s, 0 seconds passed
+... 79%, 2816 KB, 3344 KB/s, 0 seconds passed
+... 80%, 2848 KB, 3335 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 81%, 2880 KB, 3369 KB/s, 0 seconds passed
+... 82%, 2912 KB, 3321 KB/s, 0 seconds passed
+... 82%, 2944 KB, 3352 KB/s, 0 seconds passed
+... 83%, 2976 KB, 3342 KB/s, 0 seconds passed
+... 84%, 3008 KB, 3374 KB/s, 0 seconds passed
+... 85%, 3040 KB, 3407 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 86%, 3072 KB, 3360 KB/s, 0 seconds passed
+... 87%, 3104 KB, 3351 KB/s, 0 seconds passed
+... 88%, 3136 KB, 3380 KB/s, 0 seconds passed
+... 89%, 3168 KB, 3411 KB/s, 0 seconds passed
+... 90%, 3200 KB, 3364 KB/s, 0 seconds passed
+
+.. parsed-literal::
+
+    ... 91%, 3232 KB, 3357 KB/s, 0 seconds passed
+... 91%, 3264 KB, 3384 KB/s, 0 seconds passed
+... 92%, 3296 KB, 3342 KB/s, 0 seconds passed
+... 93%, 3328 KB, 3368 KB/s, 0 seconds passed
+... 94%, 3360 KB, 3358 KB/s, 1 seconds passed
+... 95%, 3392 KB, 3388 KB/s, 1 seconds passed
+
+.. parsed-literal::
+
+    ... 96%, 3424 KB, 3346 KB/s, 1 seconds passed
+... 97%, 3456 KB, 3372 KB/s, 1 seconds passed
+... 98%, 3488 KB, 3363 KB/s, 1 seconds passed
+... 99%, 3520 KB, 3392 KB/s, 1 seconds passed
+... 100%, 3549 KB, 3419 KB/s, 1 seconds passed
+
     
 
 
 Load the model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -123,7 +341,9 @@ Load the model
     shape = (H, W)
 
 Create functions for data processing
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -165,20 +385,26 @@ Create functions for data processing
         return image
 
 Get the test video
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
 How to improve the throughput of video processing
-###############################################################################################################################
+-------------------------------------------------
+
+
 
 Below, we compare the performance of the synchronous and async-based
 approaches:
 
 Sync Mode (default)
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~
+
+
 
 Let us see how video processing works with the default approach. Using
 the synchronous approach, the frame is captured with OpenCV and then
@@ -268,7 +494,9 @@ immediately processed:
             return sync_fps
 
 Test performance in Sync Mode
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -283,11 +511,13 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 38.75 fps
+    average throuput in sync mode: 47.04 fps
 
 
 Async Mode
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~
+
+
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
 of an application. The key advantage of the Async approach is as
@@ -335,6 +565,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
         curr_request = compiled_model.create_infer_request()
         next_request = compiled_model.create_infer_request()
         player = None
+        async_fps = 0
         try:
             # Create a video player
             player = utils.VideoPlayer(source, flip=flip, fps=fps, skip_first_frames=skip_first_frames)
@@ -361,28 +592,28 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 # Start the NEXT inference request
                 next_request.start_async()
                 # Waiting for CURRENT inference result
-                if curr_request.wait_for(-1) == 1:
-                    res = curr_request.get_output_tensor(0).data
-                    stop_time = time.time()
-                    total_time = stop_time - start_time
-                    frame_number = frame_number + 1
-                    async_fps = frame_number / total_time  
-                    frame = postprocess(res, frame, async_fps)
-                    # Display the results
-                    if use_popup:
-                        cv2.imshow(title, frame)
-                        key = cv2.waitKey(1)
-                        # escape = 27
-                        if key == 27:
-                            break
-                    else:
-                        # Encode numpy array to jpg
-                        _, encoded_img = cv2.imencode(".jpg", frame, params=[cv2.IMWRITE_JPEG_QUALITY, 90])
-                        # Create IPython image
-                        i = display.Image(data=encoded_img)
-                        # Display the image in this notebook
-                        display.clear_output(wait=True)
-                        display.display(i)
+                curr_request.wait()
+                res = curr_request.get_output_tensor(0).data
+                stop_time = time.time()
+                total_time = stop_time - start_time
+                frame_number = frame_number + 1
+                async_fps = frame_number / total_time  
+                frame = postprocess(res, frame, async_fps)
+                # Display the results
+                if use_popup:
+                    cv2.imshow(title, frame)
+                    key = cv2.waitKey(1)
+                    # escape = 27
+                    if key == 27:
+                        break
+                else:
+                    # Encode numpy array to jpg
+                    _, encoded_img = cv2.imencode(".jpg", frame, params=[cv2.IMWRITE_JPEG_QUALITY, 90])
+                    # Create IPython image
+                    i = display.Image(data=encoded_img)
+                    # Display the image in this notebook
+                    display.clear_output(wait=True)
+                    display.display(i)
                 # Swap CURRENT and NEXT frames
                 frame = next_frame
                 # Swap CURRENT and NEXT infer requests
@@ -402,7 +633,9 @@ pipeline (decoding vs inference) and not by the sum of the stages.
             return async_fps
 
 Test the performance in Async Mode
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -417,11 +650,13 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 71.45 fps
+    average throuput in async mode: 74.61 fps
 
 
 Compare the performance
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -449,17 +684,21 @@ Compare the performance
 
 
 ``AsyncInferQueue``
-###############################################################################################################################
+-------------------
+
+
 
 Asynchronous mode pipelines can be supported with the
-```AsyncInferQueue`` <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a
 simpler way to manage the infer request queue in Asynchronous mode.
 
 Setting Callback
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~
+
+
 
 When ``callback`` is set, any job that ends inference calls upon the
 Python function. The ``callback`` function must have two arguments: one
@@ -536,7 +775,9 @@ the possibility of passing runtime values.
             player.stop()
 
 Test the performance with ``AsyncInferQueue``
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -552,5 +793,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 102.86 fps
+    average throughput in async mode with async infer queue: 113.01 fps
 

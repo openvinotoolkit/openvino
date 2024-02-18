@@ -47,6 +47,12 @@ public:
         set_output_type(0, output_type, output_shape);
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto next_iteration_node = std::make_shared<NextIteration>(m_decoder);
+        next_iteration_node->set_attrs(get_attrs());
+        return next_iteration_node;
+    }
+
 private:
     bool m_back_edge_set;
     std::string m_producer_name;

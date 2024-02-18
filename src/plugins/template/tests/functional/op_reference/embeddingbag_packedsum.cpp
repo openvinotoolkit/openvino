@@ -9,7 +9,6 @@
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 struct EmbeddingBagPackedSumParams {
     template <class IT>

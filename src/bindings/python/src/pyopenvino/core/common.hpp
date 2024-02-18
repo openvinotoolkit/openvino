@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,16 +40,39 @@ constexpr size_t min_bitwidth = sizeof(int8_t) * CHAR_BIT;
 
 }; // namespace values
 
+// Helpers for dtypes and OpenVINO types
+namespace type_helpers {
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
+py::dtype get_dtype(const ov::element::Type& ov_type);
+
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+
+ov::element::Type get_ov_type(const py::array& array);
+
+ov::element::Type get_ov_type(py::dtype& dtype);
+}
+
+// Helpers for string types and numpy arrays of strings
+namespace string_helpers {
+
+py::array bytes_array_from_tensor(ov::Tensor&& t);
+
+py::array string_array_from_tensor(ov::Tensor&& t);
+
+void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array);
+
+void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array);
+
+void fill_string_tensor_data(ov::Tensor& tensor, py::array& array);
+
+}; // namespace string_helpers
 
 // Helpers for numpy arrays
 namespace array_helpers {
 
 bool is_contiguous(const py::array& array);
-
-ov::element::Type get_ov_type(const py::array& array);
 
 std::vector<size_t> get_shape(const py::array& array);
 
@@ -93,7 +116,7 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 

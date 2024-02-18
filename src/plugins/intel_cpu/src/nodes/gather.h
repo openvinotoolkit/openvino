@@ -17,7 +17,7 @@ namespace node {
 
 class Gather : public Node {
 public:
-    Gather(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -27,7 +27,10 @@ public:
     bool isExecutable() const override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void fuseDecompressionMultiply(const MemoryCPtr& memory);
+    void fuseDecompressionSubtract(const MemoryCPtr& memory);
+
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     struct threadExecParams {
         std::vector<int> specIdxInBytes;
@@ -55,6 +58,13 @@ protected:
 private:
     void initShortParams(threadExecParams& p, uint64_t start);
     void execReference();
+    void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
+
+    bool canOptimize1DCase = false;
+    void exec1DCase();
+
+    bool canOptimizeCompressedEmbedding = false;
+    void execCompressedCase();
 
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;
@@ -88,6 +98,9 @@ private:
     static constexpr size_t GATHER_AXIS = 2;
 
     std::shared_ptr<jitGatherKernelBase> jitKernel;
+
+    MemoryCPtr decompressionSubtractPtr = nullptr;
+    MemoryCPtr decompressionMultiplyPtr = nullptr;
 };
 
 }   // namespace node

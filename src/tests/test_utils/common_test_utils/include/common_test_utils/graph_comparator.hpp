@@ -15,6 +15,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 
 class FunctionsComparator {
 public:
@@ -75,9 +76,16 @@ public:
         return compare(f, f_ref);
     }
 
+    void set_accuracy_thresholds(float abs_threshold, float rel_threshold) {
+        m_abs_threshold = abs_threshold;
+        m_rel_threshold = rel_threshold;
+    }
+
 private:
     explicit FunctionsComparator(CmpValues f) noexcept : m_comparison_flags(f) {}
     CmpValues m_comparison_flags;
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 ///
@@ -295,7 +303,10 @@ public:
     using Result = FunctionsComparator::Result;
     using ComparedNodes = std::pair<ov::Node*, ov::Node*>;
 
-    explicit Comparator(CmpValues f) : m_comparison_flags(f) {}
+    explicit Comparator(CmpValues f, float abs_threshold = 1e-7f, float rel_threshold = 1e-7f)
+        : m_comparison_flags(f),
+          m_abs_threshold(abs_threshold),
+          m_rel_threshold(rel_threshold) {}
 
     Result compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
 
@@ -337,6 +348,9 @@ private:
 
     std::queue<ComparedNodes> q;
     std::unordered_set<ov::Node*> used;
+
+    float m_abs_threshold = 1e-7f;
+    float m_rel_threshold = 1e-7f;
 };
 
 inline namespace tools {
@@ -457,7 +471,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
                 private AttributeStorage<std::shared_ptr<ov::op::util::Variable>>,
                 private AttributeStorage<ov::PartialShape>,
-                private AttributeStorage<ov::Dimension> {
+                private AttributeStorage<ov::Dimension>,
+                private AttributeStorage<std::shared_ptr<ov::StringAlignedBuffer>> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -491,7 +506,8 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ov::op::util::Variable>>().get_attributes_number() +
-               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number() +
+               storage<std::shared_ptr<ov::StringAlignedBuffer>>().get_attributes_number();
     }
 };
 
@@ -757,6 +773,12 @@ struct Equal<std::shared_ptr<Constant>> {
             return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
             break;
         }
+        case ov::element::Type_t::string: {
+            const auto& lhs_v = lhs->cast_vector<std::string>();
+            const auto& rhs_v = rhs->cast_vector<std::string>();
+            return Equal<std::vector<std::string>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         default: {
             const auto& lhs_v = lhs->cast_vector<double>();
             const auto& rhs_v = rhs->cast_vector<double>();
@@ -947,6 +969,7 @@ private:
     void verify(const std::string& name, const AttrValue& attr_value);
 
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ov::AlignedBuffer>& buffer);
+    void verify_string_aligned_buffer(const std::string& name, const std::shared_ptr<ov::StringAlignedBuffer>& buffer);
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 
@@ -1008,4 +1031,6 @@ struct AccuracyCheckResult {
 };
 
 AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
-                                   const std::shared_ptr<ov::Model>& cur_function);
+                                   const std::shared_ptr<ov::Model>& cur_function,
+                                   float abs_threshold,
+                                   float rel_threshold);

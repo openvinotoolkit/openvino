@@ -2,13 +2,52 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
 import torch
 from huggingface_hub import model_info
-from models_hub_common.test_convert_model import TestConvertModel
-from openvino import convert_model
-from models_hub_common.utils import get_models_list, cleanup_dir
 from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.utils import cleanup_dir
+
+from torch_utils import TestTorchConvertModel
+from torch_utils import process_pytest_marks
+
+def is_gptq_model(config):
+    config_dict = config.to_dict() if not isinstance(config, dict) else config
+    quantization_config = config_dict.get("quantization_config", None)
+    return quantization_config and quantization_config["quant_method"] == "gptq"
+
+
+def patch_gptq():
+    orig_cuda_check = torch.cuda.is_available
+    orig_post_init_model = None
+    torch.set_default_dtype(torch.float32)
+    torch.cuda.is_available = lambda: True
+
+    from optimum.gptq import GPTQQuantizer
+
+    orig_post_init_model = GPTQQuantizer.post_init_model
+
+    def post_init_model(self, model):
+        from auto_gptq import exllama_set_max_input_length
+
+        class StoreAttr(object):
+            pass
+
+        model.quantize_config = StoreAttr()
+        model.quantize_config.desc_act = self.desc_act
+        if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
+            model = exllama_set_max_input_length(model, self.max_input_length)
+        return model
+
+    GPTQQuantizer.post_init_model = post_init_model
+    return orig_cuda_check, orig_post_init_model
+
+
+def unpatch_gptq(orig_cuda_check, orig_post_init_model):
+    from optimum.gptq import GPTQQuantizer
+    torch.cuda.is_available = orig_cuda_check
+    GPTQQuantizer.post_init_model = orig_post_init_model
 
 
 def flattenize_tuples(list_input):
@@ -48,21 +87,40 @@ def filter_example(model, example):
 torch.manual_seed(0)
 
 
-class TestTransformersModel(TestConvertModel):
+class TestTransformersModel(TestTorchConvertModel):
     def setup_class(self):
         from PIL import Image
         import requests
 
-        self.infer_timeout = 1200
+        self.infer_timeout = 1000
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
+        self.cuda_available, self.gptq_postinit = None, None
 
-    def load_model(self, name, type):
+    def load_model_impl(self, name, type):
+        import torch
+        name_suffix = ''
+        from transformers import AutoConfig
+        if name.find(':') != -1:
+            name_suffix = name[name.find(':') + 1:]
+            name = name[:name.find(':')]
+
         mi = model_info(name)
         auto_processor = None
         model = None
         example = None
+        try:
+            config = AutoConfig.from_pretrained(name)
+        except Exception:
+            config = {}
+        is_gptq = is_gptq_model(config)
+        model_kwargs = {"torchscript": True}
+        if is_gptq:
+            self.cuda_available, self.gptq_postinit = patch_gptq()
+            model_kwargs["torch_dtype"] = torch.float32
+        if "bart" in mi.tags:
+            model_kwargs["attn_implementation"] = "eager"
         try:
             auto_model = mi.transformersInfo['auto_model']
             if "processor" in mi.transformersInfo:
@@ -75,6 +133,77 @@ class TestTransformersModel(TestConvertModel):
             preprocessor = CLIPFeatureExtractor.from_pretrained(name)
             encoded_input = preprocessor(self.image, return_tensors='pt')
             example = dict(encoded_input)
+        elif 'xclip' in mi.tags:
+            from transformers import XCLIPVisionModel
+            
+            model = XCLIPVisionModel.from_pretrained(name, **model_kwargs)
+            # needs video as input
+            example = {'pixel_values': torch.randn(*(16, 3, 224, 224), dtype=torch.float32)}
+        elif 'audio-spectrogram-transformer' in mi.tags:
+            example = {'input_values': torch.randn(*(1, 1024, 128), dtype=torch.float32)}
+        elif 'mega' in mi.tags:
+            from transformers import AutoModel
+            
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            model.config.output_attentions = True
+            model.config.output_hidden_states = True
+            model.config.return_dict = True
+            example = dict(model.dummy_inputs)
+        elif 'bros' in mi.tags:
+            from transformers import AutoProcessor, AutoModel
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            encoding = processor("to the moon!", return_tensors="pt")
+            bbox = torch.randn([1, 6, 8], dtype=torch.float32)
+            example = dict(input_ids=encoding["input_ids"], bbox=bbox, attention_mask=encoding["attention_mask"])
+        elif 'upernet' in mi.tags:
+            from transformers import AutoProcessor, UperNetForSemanticSegmentation
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = UperNetForSemanticSegmentation.from_pretrained(name, **model_kwargs)
+            example = dict(processor(images=self.image, return_tensors="pt"))
+        elif 'deformable_detr' in mi.tags or 'universal-image-segmentation' in mi.tags:
+            from transformers import AutoProcessor, AutoModel
+            
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, **model_kwargs)
+            example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
+        elif 'clap' in mi.tags:
+            from transformers import AutoModel
+            model = AutoModel.from_pretrained(name)
+            
+            import torch
+            example_inputs_map = {
+                'audio_model': {'input_features': torch.randn([1, 1, 1001, 64], dtype=torch.float32)},
+                'audio_projection': {'hidden_states': torch.randn([1, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
+        elif 'git' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForCausalLM
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForCausalLM.from_pretrained(name)
+            import torch
+            example = {'pixel_values': torch.randn(*(1, 3, 224, 224), dtype=torch.float32), 
+                       'input_ids': torch.randint(1, 100, size=(1, 13), dtype=torch.int64)}
+        elif 'blip-2' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
+
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForVisualQuestionAnswering.from_pretrained(name)
+
+            example = dict(processor(images=self.image, return_tensors="pt"))
+            import torch
+            example_inputs_map = {
+                'vision_model' :  {'pixel_values': torch.randn([1, 3, 224, 224], dtype=torch.float32)},
+                'qformer': {'query_embeds' : torch.randn([1, 32, 768], dtype=torch.float32), 
+                            'encoder_hidden_states' : torch.randn([1, 257, 1408], dtype=torch.float32),
+                            'encoder_attention_mask' : torch.ones([1, 257], dtype=torch.int64)},
+                'language_projection': {'input' : torch.randn([1, 32, 768], dtype=torch.float32)},
+            }
+            model = model._modules[name_suffix]
+            example = example_inputs_map[name_suffix]
         elif "t5" in mi.tags:
             from transformers import T5Tokenizer
             tokenizer = T5Tokenizer.from_pretrained(name)
@@ -89,7 +218,7 @@ class TestTransformersModel(TestConvertModel):
         elif "vit-gpt2" in name:
             from transformers import VisionEncoderDecoderModel, ViTImageProcessor
             model = VisionEncoderDecoderModel.from_pretrained(
-                name, torchscript=True)
+                name, **model_kwargs)
             feature_extractor = ViTImageProcessor.from_pretrained(name)
             encoded_input = feature_extractor(
                 images=[self.image], return_tensors="pt")
@@ -104,6 +233,125 @@ class TestTransformersModel(TestConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif 'idefics' in mi.tags:
+            from transformers import IdeficsForVisionText2Text, AutoProcessor
+            model = IdeficsForVisionText2Text.from_pretrained(name)
+            processor = AutoProcessor.from_pretrained(name)
+            
+            prompts = [[
+                "User: What is in this image?",
+                "https://upload.wikimedia.org/wikipedia/commons/8/86/Id%C3%A9fix.JPG",
+                "<end_of_utterance>",
+
+                "\nAssistant: This picture depicts Idefix, the dog of Obelix in Asterix and Obelix. Idefix is running on the ground.<end_of_utterance>",
+
+                "\nUser:",
+                "https://static.wikia.nocookie.net/asterix/images/2/25/R22b.gif/revision/latest?cb=20110815073052",
+                "And who is that?<end_of_utterance>",
+
+                "\nAssistant:",
+            ]]
+
+            inputs = processor(prompts, add_end_of_utterance_token=False, return_tensors="pt")
+            exit_condition = processor.tokenizer("<end_of_utterance>", add_special_tokens=False).input_ids
+            bad_words_ids = processor.tokenizer(["<image>", "<fake_token_around_image>"], add_special_tokens=False).input_ids
+            
+            example = dict(inputs)
+            example.update({
+                'eos_token_id': exit_condition, 
+                'bad_words_ids': bad_words_ids,
+            })
+
+            class Decorator(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, input_ids, attention_mask, pixel_values, image_attention_mask, eos_token_id, bad_words_ids):
+                    return self.model.generate(
+                        input_ids=input_ids, 
+                        attention_mask=attention_mask, 
+                        pixel_values=pixel_values, 
+                        image_attention_mask=image_attention_mask, 
+                        eos_token_id=eos_token_id,
+                        bad_words_ids=bad_words_ids,
+                        max_length=100
+                    )
+            model = Decorator(model)
+        elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
+            from transformers import BlipProcessor, BlipForConditionalGeneration
+
+            processor = BlipProcessor.from_pretrained(name)
+            model = BlipForConditionalGeneration.from_pretrained(name)
+            text = "a photography of"
+            inputs = processor(self.image, text, return_tensors="pt")
+
+            class DecoratorForBlipForConditional(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+
+                def forward(self, pixel_values, input_ids, attention_mask):
+                    return self.model.generate(pixel_values, input_ids, attention_mask)
+
+            model = DecoratorForBlipForConditional(model)
+            example = dict(inputs)
+        elif 'speecht5' in mi.tags:
+            from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+            from datasets import load_dataset
+
+            processor = SpeechT5Processor.from_pretrained(name)
+            model = SpeechT5ForTextToSpeech.from_pretrained(name)
+
+            inputs = processor(text="Hello, my dog is cute.", return_tensors="pt")
+            # load xvector containing speaker's voice characteristics from a dataset
+            embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+            speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+
+            example = {'input_ids': inputs["input_ids"], 'speaker_embeddings': speaker_embeddings}
+            class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, input_ids, speaker_embeddings):
+                    return self.model.generate_speech(input_ids=input_ids, speaker_embeddings=speaker_embeddings) #, vocoder=vocoder)
+            model = DecoratorModelForSeq2SeqLM(model)
+        elif 'layoutlmv2' in mi.tags:
+            from transformers import LayoutLMv2Processor
+            processor = LayoutLMv2Processor.from_pretrained(name)
+
+            question = "What's the content of this image?"
+            encoding = processor(self.image, question, max_length=512, truncation=True, return_tensors="pt")
+            example = dict(encoding)
+        elif 'pix2struct' in mi.tags:
+            from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+            model = Pix2StructForConditionalGeneration.from_pretrained(name, **model_kwargs)
+            processor = AutoProcessor.from_pretrained(name)
+
+            import requests
+            from PIL import Image
+            image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
+            image = Image.open(requests.get(image_url, stream=True).raw)
+            question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
+            inputs = processor(images=image, text=question, return_tensors="pt")
+            example = dict(inputs)
+
+            class DecoratorModelForSeq2SeqLM(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+                def forward(self, flattened_patches, attention_mask):
+                    return self.model.generate(flattened_patches=flattened_patches, attention_mask=attention_mask)
+            model = DecoratorModelForSeq2SeqLM(model)
+        elif "mms-lid" in name:
+            # mms-lid model config does not have auto_model attribute, only direct loading available
+            from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(
+                name, **model_kwargs)
+            processor = AutoFeatureExtractor.from_pretrained(name)
+            input_values = processor(torch.randn(16000).numpy(),
+                                     sampling_rate=16_000,
+                                     return_tensors="pt")
+            example = {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
@@ -155,13 +403,34 @@ class TestTransformersModel(TestConvertModel):
                 0, 255, [16, 3, 224, 224]).to(torch.float32))
             inputs = processor(video, return_tensors="pt")
             example = dict(inputs)
+        elif 'text-to-speech' in mi.tags:
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(name)
+            text = "some example text in the English language"
+            inputs = tokenizer(text, return_tensors="pt")
+            example = dict(inputs)
+        elif 'musicgen' in mi.tags:
+            from transformers import AutoProcessor, AutoModelForTextToWaveform
+            processor = AutoProcessor.from_pretrained(name)
+            model = AutoModelForTextToWaveform.from_pretrained(name, **model_kwargs)
+            
+            inputs = processor(
+                text=["80s pop track with bassy drums and synth"],
+                padding=True,
+                return_tensors="pt",
+            )
+            example = dict(inputs)
+            # works for facebook/musicgen-small
+            pad_token_id = model.generation_config.pad_token_id
+            example["decoder_input_ids"] = torch.ones(
+                (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":
-                    from transformers import AutoTokenizer, AutoModelForCausalLM
+                    from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForCausalLM.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
                     inputs_dict = dict(encoded_input)
@@ -172,7 +441,7 @@ class TestTransformersModel(TestConvertModel):
                     from transformers import AutoTokenizer, AutoModelForMaskedLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForMaskedLM.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     text = "Replace me by any text you'd like."
                     encoded_input = tokenizer(text, return_tensors='pt')
                     example = dict(encoded_input)
@@ -180,7 +449,7 @@ class TestTransformersModel(TestConvertModel):
                     from transformers import AutoProcessor, AutoModelForImageClassification
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForImageClassification.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     encoded_input = processor(
                         images=self.image, return_tensors="pt")
                     example = dict(encoded_input)
@@ -188,7 +457,7 @@ class TestTransformersModel(TestConvertModel):
                     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForSeq2SeqLM.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     inputs = tokenizer(
                         "Studies have been shown that owning a dog is good for you", return_tensors="pt")
                     decoder_inputs = tokenizer(
@@ -203,34 +472,37 @@ class TestTransformersModel(TestConvertModel):
                     from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                        name, torchscript=True)
-                    inputs = processor(torch.randn(1000).numpy(), sampling_rate=16000, return_tensors="pt")
+                        name, **model_kwargs)
+                    inputs = processor(torch.randn(1000).numpy(),
+                                       sampling_rate=16000,
+                                       return_tensors="pt")
                     example = dict(inputs)
                 elif auto_model == "AutoModelForCTC":
                     from transformers import AutoProcessor, AutoModelForCTC
                     from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     model = AutoModelForCTC.from_pretrained(
-                        name, torchscript=True)
-                    input_values = processor(torch.randn(1000).numpy(), return_tensors="pt")
+                        name, **model_kwargs)
+                    input_values = processor(torch.randn(1000).numpy(),
+                                             return_tensors="pt")
                     example = dict(input_values)
                 elif auto_model == "AutoModelForTableQuestionAnswering":
                     import pandas as pd
                     from transformers import AutoTokenizer, AutoModelForTableQuestionAnswering
                     tokenizer = AutoTokenizer.from_pretrained(name)
                     model = AutoModelForTableQuestionAnswering.from_pretrained(
-                        name, torchscript=True)
+                        name, **model_kwargs)
                     data = {"Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
                             "Number of movies": ["87", "53", "69"]}
                     queries = ["What is the name of the first actor?",
                                "How many movies has George Clooney played in?",
-                               "What is the total number of movies?",]
+                               "What is the total number of movies?", ]
                     answer_coordinates = [[(0, 0)], [(2, 1)], [
                         (0, 1), (1, 1), (2, 1)]]
                     answer_text = [["Brad Pitt"], ["69"], ["209"]]
                     table = pd.DataFrame.from_dict(data)
                     encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
-                                              answer_text=answer_text, padding="max_length", return_tensors="pt",)
+                                              answer_text=answer_text, padding="max_length", return_tensors="pt", )
                     example = dict(input_ids=encoded_input["input_ids"],
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
@@ -249,7 +521,7 @@ class TestTransformersModel(TestConvertModel):
                 pass
         if model is None:
             from transformers import AutoModel
-            model = AutoModel.from_pretrained(name, torchscript=True)
+            model = AutoModel.from_pretrained(name, **model_kwargs)
         if hasattr(model, "set_default_language"):
             model.set_default_language("en_XX")
         if example is None:
@@ -266,32 +538,13 @@ class TestTransformersModel(TestConvertModel):
             model(*self.example)
         return model
 
-    def get_inputs_info(self, model_obj):
-        return None
-
-    def prepare_inputs(self, inputs_info):
-        if isinstance(self.example, dict):
-            return dict((k, v.numpy()) for k, v in self.example.items())
-        else:
-            return [i.numpy() for i in self.example]
-
-    def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj,
-                                 example_input=self.example,
-                                 verbose=True)
-        return ov_model
-
-    def infer_fw_model(self, model_obj, inputs):
-        if isinstance(inputs, dict):
-            inps = dict((k, torch.from_numpy(v)) for k, v in inputs.items())
-            fw_outputs = model_obj(**inps)
-        else:
-            fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
-        return flattenize_outputs(fw_outputs)
-
     def teardown_method(self):
         # remove all downloaded files from cache
         cleanup_dir(hf_hub_cache_dir)
+        # restore after gptq patching
+        if self.cuda_available is not None:
+            unpatch_gptq(self.cuda_available, self.gptq_postinit)
+            self.cuda_available, self.gptq_postinit = None, None
         super().teardown_method()
 
     @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
@@ -299,14 +552,15 @@ class TestTransformersModel(TestConvertModel):
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip")
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ("OpenVINO/opt-125m-gptq", "opt")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail(reason=r) if m == "xfail" else pytest.mark.skip(reason=r)) if m else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models"))])
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(model_name=name, model_link=None, ie_device=ie_device)

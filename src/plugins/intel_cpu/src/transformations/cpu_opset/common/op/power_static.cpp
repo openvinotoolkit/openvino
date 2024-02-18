@@ -5,16 +5,16 @@
 #include "power_static.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
+ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ov::Output<Node> &data,
                                                const float &power,
                                                const float &scale,
                                                const float &shift,
-                                               const ngraph::element::Type output_type)
+                                               const ov::element::Type output_type)
     : Op({data}), scale(scale), power(power), shift(shift), m_output_type(output_type) {
     validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     INTERNAL_OP_SCOPE(PowerStaticNode_clone_with_new_inputs);
     if (new_args.size() != 1) {
         OPENVINO_THROW("Incorrect number of new arguments");
@@ -25,10 +25,10 @@ std::shared_ptr<ngraph::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inp
 
 void ov::intel_cpu::PowerStaticNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(PowerStaticNode_validate_and_infer_types);
-    set_output_type(0, m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
+    set_output_type(0, m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
 }
 
-bool ov::intel_cpu::PowerStaticNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+bool ov::intel_cpu::PowerStaticNode::visit_attributes(ov::AttributeVisitor &visitor) {
     INTERNAL_OP_SCOPE(PowerStaticNode_visit_attributes);
     visitor.on_attribute("scale", scale);
     visitor.on_attribute("power", power);

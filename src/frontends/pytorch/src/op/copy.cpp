@@ -29,6 +29,17 @@ OutputVector translate_copy_(const NodeContext& context) {
     return {res};
 };
 
+OutputVector translate_alias_copy(const NodeContext& context) {
+    // aten::alias_copy(Tensor self) -> Tensor
+    // aten::alias_copy.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 1, 2);
+    auto self = context.get_input(0);
+    if (!context.input_is_none(1)) {
+        context.mutate_input(1, self);
+    }
+    return {self};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

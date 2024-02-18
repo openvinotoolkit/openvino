@@ -3,9 +3,9 @@
 //
 
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -13,12 +13,12 @@ FakeQuantizeOnData::FakeQuantizeOnData() : quantizationLevel(0) {}
 
 FakeQuantizeOnData::FakeQuantizeOnData(
     const uint64_t quantizationLevel,
-    const ngraph::Shape& constantShape,
+    const ov::Shape& constantShape,
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues,
-    const ngraph::element::Type outputPrecision,
+    const ov::element::Type outputPrecision,
     const std::vector<ov::Any>& attributes) :
     quantizationLevel(quantizationLevel),
     constantShape(constantShape),
@@ -48,16 +48,16 @@ bool FakeQuantizeOnData::empty() const {
 
 FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant() :
     quantizationLevel(0),
-    outputPrecision(ngraph::element::undefined) {}
+    outputPrecision(ov::element::undefined) {}
 
 FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const uint64_t quantizationLevel,
-    const std::vector<ngraph::Shape>& constantShapes,
+    const std::vector<ov::Shape>& constantShapes,
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues,
-    const ngraph::element::Type outputPrecision,
+    const ov::element::Type outputPrecision,
     const std::vector<ov::Any>& attributes,
     const bool addConverts) :
     quantizationLevel(quantizationLevel),
@@ -84,4 +84,4 @@ bool FakeQuantizeOnDataWithConstant::empty() const {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

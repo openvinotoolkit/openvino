@@ -4,15 +4,9 @@
 
 #include "internal/pass/transform_fakequantize.hpp"
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "default_opset.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
@@ -43,24 +37,24 @@ using namespace ov::frontend::paddle::op;
                                                         Multiply
 */
 ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
-    const auto input_label = ngraph::pattern::any_input();
-    const auto q_zp_label = ngraph::pattern::any_input();
+    const auto input_label = pattern::any_input();
+    const auto q_zp_label = pattern::any_input();
     // quantize phase
-    const auto q_zp_cvt_label = ngraph::pattern::wrap_type<Convert>({q_zp_label});
-    const auto q_sub_label = ngraph::pattern::wrap_type<Subtract>({input_label, q_zp_cvt_label});
-    const auto q_real_scale_label = ngraph::pattern::wrap_type<Multiply>();
-    const auto div_label = ngraph::pattern::wrap_type<Divide>({q_sub_label, q_real_scale_label});
-    const auto round_label = ngraph::pattern::wrap_type<Round>({div_label});
-    const auto q_clamp_label = ngraph::pattern::wrap_type<Clamp>({round_label});
+    const auto q_zp_cvt_label = pattern::wrap_type<Convert>({q_zp_label});
+    const auto q_sub_label = pattern::wrap_type<Subtract>({input_label, q_zp_cvt_label});
+    const auto q_real_scale_label = pattern::wrap_type<Multiply>();
+    const auto div_label = pattern::wrap_type<Divide>({q_sub_label, q_real_scale_label});
+    const auto round_label = pattern::wrap_type<Round>({div_label});
+    const auto q_clamp_label = pattern::wrap_type<Clamp>({round_label});
     // dequantize phase
-    const auto dq_cvt_label = ngraph::pattern::wrap_type<Convert>({q_clamp_label});
-    const auto dq_zp_label = ngraph::pattern::any_input();
-    const auto dq_zp_cvt_label = ngraph::pattern::wrap_type<Convert>({dq_zp_label});
-    const auto dq_sub_label = ngraph::pattern::wrap_type<Subtract>({dq_cvt_label, dq_zp_cvt_label});
-    const auto dq_real_scale_label = ngraph::pattern::wrap_type<Multiply>();
-    const auto output_label = ngraph::pattern::wrap_type<Multiply>({dq_sub_label, dq_real_scale_label});
+    const auto dq_cvt_label = pattern::wrap_type<Convert>({q_clamp_label});
+    const auto dq_zp_label = pattern::any_input();
+    const auto dq_zp_cvt_label = pattern::wrap_type<Convert>({dq_zp_label});
+    const auto dq_sub_label = pattern::wrap_type<Subtract>({dq_cvt_label, dq_zp_cvt_label});
+    const auto dq_real_scale_label = pattern::wrap_type<Multiply>();
+    const auto output_label = pattern::wrap_type<Multiply>({dq_sub_label, dq_real_scale_label});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -127,6 +121,6 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         replace_node(output_node, fake_node);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(output_label, "TransformFakeQuantize");
+    auto m = std::make_shared<pattern::Matcher>(output_label, "TransformFakeQuantize");
     this->register_matcher(m, callback);
 }

@@ -528,9 +528,53 @@ const auto gatherWithIndicesParams = testing::Combine(
         testing::ValuesIn(indicesData)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
         Gather8withIndicesDataLayerTest,
         gatherWithIndicesParams,
+        Gather8withIndicesDataLayerTest::getTestCaseName
+);
+
+std::vector<std::vector<int64_t>> nagativeSingleindicesData = {
+        {-1},
+        {-2},
+        {-3}
+};
+
+gather7ParamsTuple dummyParams2 = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{4, 8, 2, 2}})),
+        ov::Shape({}),
+        std::tuple<int, int>{0, 0},
+        ov::element::f32,
+        ov::test::utils::DEVICE_GPU,
+};
+
+const auto gatherWithNagativeIndicesParams1 = testing::Combine(
+        testing::Values(dummyParams2),
+        testing::ValuesIn(nagativeSingleindicesData)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Gather8NagativeIndice1,
+        Gather8withIndicesDataLayerTest,
+        gatherWithNagativeIndicesParams1,
+        Gather8withIndicesDataLayerTest::getTestCaseName
+);
+
+gather7ParamsTuple dummyParams3 = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{6, 8, 2, 2}})),
+        ov::Shape({}),
+        std::tuple<int, int>{0, 0},
+        ov::element::f32,
+        ov::test::utils::DEVICE_GPU,
+};
+
+const auto gatherWithNagativeIndicesParams2 = testing::Combine(
+        testing::Values(dummyParams3),
+        testing::ValuesIn(nagativeSingleindicesData)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Gather8NagativeIndice2,
+        Gather8withIndicesDataLayerTest,
+        gatherWithNagativeIndicesParams2,
         Gather8withIndicesDataLayerTest::getTestCaseName
 );
 

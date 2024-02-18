@@ -32,14 +32,12 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
         ov::op::v0::Constant::create(div->get_input_element_type(1), ov::Shape{}, {-1}));
 
     if (std::dynamic_pointer_cast<ov::op::v0::Constant>(div->get_input_node_shared_ptr(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto const_pow = ov::get_constant_from_source(pow)) {
+        if (auto const_pow = ov::util::get_constant_from_source(pow)) {
             pow = const_pow;
         } else {
             OPENVINO_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
             return false;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         ov::copy_runtime_info(div, pow);
     }

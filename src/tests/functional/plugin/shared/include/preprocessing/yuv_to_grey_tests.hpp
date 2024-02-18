@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/preprocess/resize_algorithm.hpp>
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using TParams = std::tuple<std::string>;

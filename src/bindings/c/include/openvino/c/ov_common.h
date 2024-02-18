@@ -187,6 +187,8 @@ typedef enum {
     U32,             //!< u32 element type
     U64,             //!< u64 element type
     NF4,             //!< nf4 element type
+    F8E4M3,          //!< f8e4m3 element type
+    F8E5M3,          //!< f8e5m2 element type
 } ov_element_type_e;
 
 /**
@@ -204,3 +206,10 @@ ov_get_error_info(ov_status_e status);
  */
 OPENVINO_C_API(void)
 ov_free(const char* content);
+
+/**
+ * @brief Get the last error msg.
+ * @ingroup ov_base_c_api
+ */
+OPENVINO_C_API(const char*)
+ov_get_last_err_msg();

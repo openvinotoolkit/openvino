@@ -5,18 +5,17 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "dnnl_types.h"
+#include "openvino/core/parallel.hpp"
 #include "region_yolo.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/opsets/opset1.hpp"
 #include "common/cpu_convert.h"
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "utils/bfloat16.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
@@ -173,12 +172,12 @@ private:
         int float_1   = 0x3f800000;  // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, ov::element::Type src_dt) {
         switch (src_dt) {
-            case InferenceEngine::Precision::FP32:
+            case ov::element::f32:
                 uni_vmovups(vmm_src, op);
                 break;
-            case InferenceEngine::Precision::BF16:
+            case ov::element::bf16:
                 vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
@@ -186,14 +185,14 @@ private:
                 assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, InferenceEngine::Precision dst_dt) {
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, ov::element::Type dst_dt) {
         Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
-            case InferenceEngine::Precision::FP32:
+            case ov::element::f32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case InferenceEngine::Precision::BF16:
+            case ov::element::bf16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
@@ -201,12 +200,12 @@ private:
                 assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
+    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_dt) {
         switch (src_dt) {
-            case InferenceEngine::Precision::FP32:
+            case ov::element::f32:
                 uni_vmovss(xmm_src, op);
                 break;
-            case InferenceEngine::Precision::BF16:
+            case ov::element::bf16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
@@ -214,12 +213,12 @@ private:
                 assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
+    inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
         switch (dst_dt) {
-            case InferenceEngine::Precision::FP32:
+            case ov::element::f32:
                 uni_vmovss(op, xmm_dst);
                 break;
-            case InferenceEngine::Precision::BF16:
+            case ov::element::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
@@ -230,9 +229,9 @@ private:
 };
 #endif
 
-bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+        const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
@@ -247,18 +246,18 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+    const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
@@ -274,17 +273,17 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     input_prec = getOriginalInputPrecisionAtPort(0);
     output_prec = getOriginalOutputPrecisionAtPort(0);
 
-    if (input_prec != Precision::FP32 && input_prec != Precision::BF16) {
-        input_prec = Precision::FP32;
+    if (input_prec != ov::element::f32 && input_prec != ov::element::bf16) {
+        input_prec = ov::element::f32;
     }
 
-    if (output_prec != Precision::FP32 && output_prec != Precision::BF16) {
-        output_prec = Precision::FP32;
+    if (output_prec != ov::element::f32 && output_prec != ov::element::bf16) {
+        output_prec = ov::element::f32;
     }
 
-    if (Precision::BF16 == output_prec) {
+    if (ov::element::bf16 == output_prec) {
         if (!mayiuse(avx512_core)) {
-            output_prec = Precision::FP32;
+            output_prec = ov::element::f32;
         }
     }
 
@@ -363,18 +362,18 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
             (*logistic_kernel)(&arg);
         });
     } else {
-        if (Precision::FP32 == output_prec) {
+        if (ov::element::f32 == output_prec) {
             auto float_dst_data = reinterpret_cast<float*>(dst_data);
             for (int i = 0; i < count; i++) {
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
-        } else if (Precision::BF16 == output_prec) {
+        } else if (ov::element::bf16 == output_prec) {
             auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            IE_THROW() << "Unsupported precision configuration outPrc=" << output_prec.name();
+            OPENVINO_THROW("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }
@@ -403,15 +402,17 @@ void RegionYolo::execute(dnnl::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount())
-        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
-                   << getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount();
+    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount())
+        OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
+                       output_size,
+                       " != ",
+                       getDstMemoryAtPort(0)->getShape().getElementsCount());
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *src_data = getSrcDataAtPortAs<const uint8_t>(0);
+    auto *dst_data = getDstDataAtPortAs<uint8_t>(0);
 
     cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);

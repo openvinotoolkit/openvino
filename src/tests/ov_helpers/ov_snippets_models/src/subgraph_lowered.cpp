@@ -5,7 +5,6 @@
 #include "subgraph_lowered.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {
@@ -15,7 +14,7 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     std::shared_ptr<Node> add_input0 = nullptr;
     if (!broadcast_shapes[0].empty() && broadcast_shapes[0].back() != input_shapes[0].rbegin()->get_length()) {
-        add_input0 = std::make_shared<ov::snippets::op::BroadcastLoad>(data0, broadcast_shapes[0]);
+        add_input0 = std::make_shared<ov::snippets::op::BroadcastLoad>(data0, *broadcast_shapes[0].rbegin());
     } else {
         add_input0 = std::make_shared<ov::snippets::op::Load>(data0);
     }
@@ -23,7 +22,7 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     std::shared_ptr<Node> add_input1 = nullptr;
     if (!broadcast_shapes[1].empty() && broadcast_shapes[1].back() != input_shapes[1].rbegin()->get_length()) {
-        add_input1 = std::make_shared<ov::snippets::op::BroadcastLoad>(data1, broadcast_shapes[1]);
+        add_input1 = std::make_shared<ov::snippets::op::BroadcastLoad>(data1, *broadcast_shapes[1].rbegin());
     } else {
         add_input1 = std::make_shared<ov::snippets::op::Load>(data1);
     }
@@ -45,13 +44,13 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
         } else {
             // The last dim is processed by vector Tile, so BroadcastLoad is required if the last dim being broadcasted
             if (input_shapes[i].rbegin()->get_length() == 1 && broadcast_shapes[i].back() != 1) {
-                return std::make_shared<ov::snippets::op::BroadcastLoad>(input_params[i], broadcast_shapes[i]);
+                return std::make_shared<ov::snippets::op::BroadcastLoad>(input_params[i], *broadcast_shapes[i].rbegin());
             // Todo: Cover this logics with functional tests, Review FakeBroadcast Emitter
             // Broadcasting of other dims is handled by BroadcastMove. Strictly speaking, broadcasting is achieved via
             // appropriate pointer arithmetics in this case.
             } else {
                 auto load = std::make_shared<ov::snippets::op::Load>(input_params[i]);
-                return std::make_shared<ov::snippets::op::BroadcastMove>(load, broadcast_shapes[i]);
+                return std::make_shared<ov::snippets::op::BroadcastMove>(load, *broadcast_shapes[i].rbegin());
             }
         }
     };
@@ -66,7 +65,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     if (broadcast_shapes[2].empty())
         sub_out = sub;
     else
-        sub_out = std::make_shared<ov::snippets::op::BroadcastMove>(sub, broadcast_shapes[2]);
+        sub_out = std::make_shared<ov::snippets::op::BroadcastMove>(sub, *broadcast_shapes[2].rbegin());
     auto mul = std::make_shared<op::v1::Multiply>(add, sub_out);
     auto store = std::make_shared<ov::snippets::op::Store>(mul);
     return std::make_shared<ov::Model>(NodeVector{store}, input_params);
@@ -119,9 +118,7 @@ std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
     ov::NodeVector loads(datas.size(), nullptr);
     for (auto i = 0; i < datas.size(); i++) {
         if (input_shapes[i].get_shape().back() != last_dim) {
-            auto new_shape = input_shapes[i];
-            new_shape[new_shape.size() - 1] = last_dim;
-            loads[i] = std::make_shared<ov::snippets::op::BroadcastLoad>(datas[i], new_shape);
+            loads[i] = std::make_shared<ov::snippets::op::BroadcastLoad>(datas[i], ov::Dimension(last_dim));
         } else {
             loads[i] = std::make_shared<ov::snippets::op::Load>(datas[i]);
         }

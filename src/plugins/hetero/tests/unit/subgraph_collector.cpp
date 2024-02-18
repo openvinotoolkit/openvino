@@ -479,3 +479,16 @@ TEST_F(SubgraphCollectorTest2, submodel_replacement_both_devices) {
     ASSERT_EQ(exptected_mapping_info._submodels_input_to_prev_output,
               actual_mapping_info._submodels_input_to_prev_output);
 }
+
+TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
+    const std::map<std::string, std::string> supported_ops_with_affinity = {
+        {"input", "MOCK.0"},
+        {"const_val", "MOCK.0"},
+        {"add", "MOCK.1"},
+        {"reshape_val", "MOCK.0"},
+        {"reshape", "MOCK.0"},
+        {"res", "MOCK.0"},
+    };
+    auto supported_ops = supported_ops_with_affinity;
+    ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
+}

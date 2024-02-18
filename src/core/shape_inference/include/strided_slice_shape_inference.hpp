@@ -108,10 +108,15 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     AxisSet begin_mask = convert_mask_to_axis_set(op->get_begin_mask());
     AxisSet end_mask = convert_mask_to_axis_set(op->get_end_mask());
     AxisSet shrink_axis_mask = convert_mask_to_axis_set(op->get_shrink_axis_mask());
-    NODE_VALIDATION_CHECK(op,
-                          input_rank + new_axis_mask.size() >= static_cast<size_t>(number_axes),
-                          "Input rank plus number of new axis has to be at least the size of Lower "
-                          "and Upper bounds vector.");
+
+    // If ellipsis_mask is set, Lower and Upper bownd vectors can be less than input rank + number of new axes,
+    // because ellipsis adds missing dimensions, which can be missing in begin or end inputs
+    if (!ellipsis_mask.size()) {
+        NODE_VALIDATION_CHECK(op,
+                              input_rank + new_axis_mask.size() >= static_cast<size_t>(number_axes),
+                              "Input rank plus number of new axis has to be at least the size of Lower "
+                              "and Upper bounds vector.");
+    }
 
     auto& out = output_shapes.front();
     out.resize(0);

@@ -55,20 +55,3 @@ function (ov_print_enabled_features)
     endforeach()
     message(STATUS "")
 endfunction()
-
-# deprecated
-
-macro (ie_option variable description value)
-    message(WARNING "'ie_option' is deprecated, please, use 'ov_option' instead")
-    ov_option(${variable} "${description}" ${value})
-endmacro()
-
-macro(ie_dependent_option variable description def_value condition fallback_value)
-    message(WARNING "'ie_dependent_option' is deprecated, please, use 'ov_dependent_option' instead")
-    ov_dependent_option(${variable} "${description}" ${def_value} "${condition}" ${fallback_value})
-endmacro()
-
-function(print_enabled_features)
-    message(WARNING "'print_enabled_features' is deprecated, please, use 'ov_print_enabled_features' instead")
-    ov_print_enabled_features()
-endfunction()

@@ -446,7 +446,7 @@ def parse_path(path, app_input_info):
                 files = list()
                 if input_path.is_dir():
                     files = input_path.iterdir()
-                elif input_path.is_file:
+                elif input_path.is_file():
                     files = [input_path]
                 for file in files:
                     if file.suffix.lower() in IMAGE_EXTENSIONS:

@@ -97,7 +97,10 @@ void GRUSequenceTest::SetUp() {
         seq_lengths_node = param;
     } else if (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
                mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, targetStaticShapes[0][2], seq_lengths, 0);
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = seq_lengths;
+        auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, targetStaticShapes[0][2], in_data);
         seq_lengths_node = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
         std::vector<int64_t> lengths(batch, seq_lengths);

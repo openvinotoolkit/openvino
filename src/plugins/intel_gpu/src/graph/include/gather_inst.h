@@ -34,6 +34,11 @@ public:
     static std::string to_string(gather_node const& node);
 
     typed_primitive_inst(network& network, gather_node const& desc);
+
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using gather_inst = typed_primitive_inst<gather>;

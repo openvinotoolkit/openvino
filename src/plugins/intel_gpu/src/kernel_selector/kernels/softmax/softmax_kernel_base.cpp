@@ -92,9 +92,9 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
 
     switch (params.dim) {
         case SoftmaxDim::X:
-            return !input.Y().is_dynamic && input.Y().v == 1 &&
+            return ((!input.Y().is_dynamic && input.Y().v == 1) || input.GetLayout() == DataLayout::bfyx) &&
                    !input.Z().is_dynamic && input.Z().v == 1 &&
-                   !input.Feature().is_dynamic && input.Feature().v == 1;
+                   ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
         case SoftmaxDim::Y:
             return !input.X().is_dynamic && input.X().v == 1 &&
                    !input.Z().is_dynamic && input.Z().v == 1 &&
@@ -122,6 +122,10 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_pa
         OPENVINO_ASSERT(input.X().v == 1, "[GPU] SoftmaxKernelBaseBF: input.X() is expected to be 1 while actual value is ", input.X().v);
         dispatchData.dataSetSize = input.Y().v;
         dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
+    } else if (params.dim == SoftmaxDim::X && (input.Feature().v > 1 || input.Y().v > 1) && input.GetLayout() == DataLayout::bfyx) {
+        // Flatten BFY for such case
+        dispatchData.dataSetSize = input.X().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v * input.Y().v;
     } else {
         auto flatten_input = input.FlattenFeatureAndSpatials();
         dispatchData.dataSetSize = flatten_input.Feature().v;

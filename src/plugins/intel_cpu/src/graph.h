@@ -4,28 +4,29 @@
 
 #pragma once
 
-#include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "cpu_memory.h"
-#include "normalize_preprocess.h"
+#include "openvino/runtime/profiling_info.hpp"
 #include "node.h"
 #include "edge.h"
-#include "cache/multi_cache.h"
-#include "dnnl_scratch_pad.h"
 #include "graph_context.h"
+#include "openvino/runtime/profiling_info.hpp"
+
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <atomic>
 
+#include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_mgr.h"
 
 namespace ov {
 namespace intel_cpu {
 
-class InferRequestBase;
-class InferRequest;
+class SyncInferRequest;
+namespace node {
+class MemoryStateNode;
+} // namespace node
 
 class Graph {
 public:
@@ -38,6 +39,7 @@ public:
     };
 
     Graph() = default;
+
     ~Graph();
 
     bool IsReady() {
@@ -56,29 +58,17 @@ public:
                      const GraphContext::CPtr ctx,
                      std::string name);
 
-    bool hasMeanImageFor(const std::string& name) {
-        return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
-    }
+    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input);
+    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
 
-    void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
-
-    void Infer(InferRequestBase* request = nullptr);
+    void Infer(SyncInferRequest* request = nullptr);
 
     const std::vector<NodePtr>& GetNodes() const {
         return graphNodes;
     }
 
-    std::vector<NodePtr>& GetNodes() {
-        return graphNodes;
-    }
-
     std::string GetName() const {
         return _name;
-    }
-
-    std::vector<EdgePtr>& GetEdges() {
-        return graphEdges;
     }
 
     std::map<std::string, NodePtr>& GetInputNodesMap() {
@@ -92,14 +82,14 @@ public:
     NodePtr getInputNodeByName(const std::string &name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
         return input->second;
     }
 
     NodePtr getOutputNodeByName(const std::string &name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
@@ -115,11 +105,16 @@ public:
         return context;
     }
 
-    void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
+    void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
 
+    void CreateEdge(const NodePtr& parent,
+                 const NodePtr& child,
+                 int parentPort = 0,
+                 int childPort = 0);
+    void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void RemoveEdge(EdgePtr& edge);
+    void AddNode(NodePtr node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
@@ -150,7 +145,7 @@ public:
     /**
      * @brief Insert Node at the edge-specified location.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
@@ -166,7 +161,7 @@ public:
      * @brief Insert Node between two specified nodes.
      * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param parent
      * pointer to the parent node
@@ -182,7 +177,7 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    std::shared_ptr<ngraph::Function> dump() const;
+    std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -193,10 +188,13 @@ public:
     }
 
     Status getStatus() const {return status;}
+    const std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>>&
+    getInternalStateNodes() const {
+        return internalStateNodes;
+    }
+    void InitGraph(bool optimize = true);
 
 protected:
-    void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
-
     void ForgetGraphData() {
         status = Status::NotReady;
 
@@ -204,7 +202,6 @@ protected:
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        _normalizePreprocMap.clear();
         syncNodesInds.clear();
     }
     Status status { Status::NotReady };
@@ -220,32 +217,29 @@ protected:
     std::vector<NodePtr> graphNodes;
     std::vector<EdgePtr> graphEdges;
 
-    std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
-    void InitGraph();
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
-    void InitEdges();
+    void ResolveEdgeConflicts();
+    void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
+    void SearchInternalStateNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
-    void InferStatic(InferRequestBase* request);
-    void InferDynamic(InferRequestBase* request);
+    void InferStatic(SyncInferRequest* request);
+    void InferDynamic(SyncInferRequest* request);
 
-    friend class LegacyInferRequest;
-    friend class intel_cpu::InferRequest;
-    friend class intel_cpu::InferRequestBase;
-    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph);
+    friend class intel_cpu::SyncInferRequest;
+    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
     // TODO: change std::map to std::unordered_map
@@ -253,6 +247,7 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -265,8 +260,10 @@ private:
 
     void EnforceInferencePrecision();
     void EnforceBF16();
-    void resolveInPlaceDirection(const NodePtr& node) const;
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+using GraphPtr = std::shared_ptr<Graph>;
+
+}  // namespace intel_cpu
+}  // namespace ov

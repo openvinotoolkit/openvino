@@ -19,10 +19,7 @@ namespace {
 static void CreateSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::Slice>& op) {
     validate_inputs_count(op, { 4, 5 });
     auto inputs = p.GetInputInfo(op);
-    auto output_shape = tensor_from_dims(op->get_output_shape(0));
-    auto slice_prim = cldnn::slice(layer_type_name_ID(op),
-                                   inputs,
-                                   output_shape);
+    cldnn::slice slice_prim {layer_type_name_ID(op), inputs};
     p.add_primitive(*op, slice_prim);
 }
 

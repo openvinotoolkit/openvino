@@ -72,7 +72,7 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
                 }
             };
             std::unordered_set<Node*> visited;
-            ov::op::util::visit_shape_path(input.get_node(), visited, keep_const_precision);
+            ov::op::util::visit_constant_path(input.get_node(), visited, keep_const_precision);
         }
 
         if (subtract_it != pattern_map.end()) {

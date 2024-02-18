@@ -62,7 +62,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
 
         auto body = loop_op->get_function();
         std::shared_ptr<Node> chunk_param;
-        for (auto input_desc : loop_op->get_input_descriptions()) {
+        for (auto& input_desc : loop_op->get_input_descriptions()) {
             if (input_desc->m_input_index == chunk_idx) {
                 chunk_param = body->get_parameters().at(input_desc->m_body_parameter_index);
                 break;

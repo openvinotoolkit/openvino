@@ -2,134 +2,135 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
 #include <algorithm>
-#include <string>
-#include <map>
-#include <vector>
-#include <cmath>
-#include <tuple>
 #include <cctype>
+#include <cmath>
+#include <limits>
+#include <map>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/rnn_cell.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/normalize_l2.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
-
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/core/deprecated.hpp"
-#include "openvino/core/validation_util.hpp"
-
-#include "openvino/pass/visualize_tree.hpp"
-#include "transformations/einsum_decomposition.hpp"
-#include "transformations/convert_pooling_to_reduce.hpp"
-#include "transformations/decompose_reduce_for_false_keepdims.hpp"
-#include "transformations/convert_shapeof.hpp"
-
-#include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
-#include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
-
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/resolve_names_collisions.hpp"
-
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
-#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/mvn_fusion.hpp"
-
-#include "transformations/op_conversions/convert_depth_to_space.hpp"
-#include "transformations/op_conversions/convert_space_to_depth.hpp"
-#include "transformations/op_conversions/convert_gelu.hpp"
-#include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_broadcast3.hpp"
-#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
-#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
-#include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
-#include "transformations/op_conversions/softplus_decomposition.hpp"
-#include "transformations/op_conversions/convert_space_to_batch.hpp"
-#include "transformations/op_conversions/convert_batch_to_space.hpp"
-#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
-#include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
-#include "transformations/op_conversions/convert_shuffle_channels3.hpp"
-#include "transformations/op_conversions/hswish_decomposition.hpp"
-#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
-#include "transformations/op_conversions/log_softmax_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "transformations/op_conversions/convert_subtract.hpp"
-#include "transformations/op_conversions/convert_ti_to_sequences.hpp"
-#include "transformations/op_conversions/gru_cell_decomposition.hpp"
-#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
-#include "transformations/op_conversions/rnn_cell_decomposition.hpp"
-#include "transformations/op_conversions/mvn6_decomposition.hpp"
-#include "transformations/op_conversions/normalize_l2_decomposition.hpp"
-#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
-#include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
-#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
-#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
-#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_gather_downgrade.hpp"
-#include "transformations/op_conversions/convert_gather_0d.hpp"
-#include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
-#include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
-#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
-#include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
-#include "transformations/op_conversions/softmax_decomposition.hpp"
-#include "transformations/op_conversions/gelu7_downgrade.hpp"
-#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
-#include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
-#include "transformations/op_conversions/convert_shapeof3.hpp"
-#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
-#include "transformations/op_conversions/group_normalization_decomposition.hpp"
-#include "transformations/op_conversions/eye_decomposition.hpp"
-#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
-#include "transformations/convert_precision.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
-#include "transformations/smart_reshape/matmul_sr.hpp"
-
-#include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
-#include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/rms_fusion.hpp"
-
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "low_precision/pull_reshape_through_dequantization.hpp"
-#include "low_precision/pull_transpose_through_dequantization.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/strided_slice.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
-
-#include "intel_gpu/runtime/itt.hpp"
+#include "low_precision/strided_slice.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "plugin/transformations/binary_conv_to_conv.hpp"
+#include "plugin/transformations/clamp_fp16_output.hpp"
+#include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gather_to_compressed.hpp"
+#include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/fc_convert_fusion.hpp"
+#include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "plugin/transformations/rms_fusion.hpp"
+#include "plugin/transformations/swiglu_fusion.hpp"
+#include "plugin/transformations/transpose_matmul_fusion.hpp"
+#include "plugin/transformations/indirect_kv_cache.hpp"
+#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_transition.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
+#include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/convert_pooling_to_reduce.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/convert_shapeof.hpp"
+#include "transformations/decompose_reduce_for_false_keepdims.hpp"
+#include "transformations/einsum_decomposition.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_broadcast3.hpp"
+#include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
+#include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_gather_0d.hpp"
+#include "transformations/op_conversions/convert_gather_downgrade.hpp"
+#include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
+#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
+#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/op_conversions/convert_mod.hpp"
+#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
+#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
+#include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
+#include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
+#include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
+#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "transformations/op_conversions/convert_shapeof3.hpp"
+#include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+#include "transformations/op_conversions/convert_space_to_batch.hpp"
+#include "transformations/op_conversions/convert_space_to_depth.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_ti_to_sequences.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/gru_cell_decomposition.hpp"
+#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
+#include "transformations/op_conversions/hswish_decomposition.hpp"
+#include "transformations/op_conversions/log_softmax_decomposition.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/mvn6_decomposition.hpp"
+#include "transformations/op_conversions/normalize_l2_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
+#include "transformations/op_conversions/rnn_cell_decomposition.hpp"
+#include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/softmax_decomposition.hpp"
+#include "transformations/op_conversions/softplus_decomposition.hpp"
+#include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
+#include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
+#include "transformations/resolve_names_collisions.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 
 namespace {
 template<typename T>
@@ -141,6 +142,35 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
         }
     }
     return false;
+}
+
+static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
+    auto get_single_consumer = [](const std::shared_ptr<const ov::Node> node) -> std::shared_ptr<ov::Node> {
+        const auto consumers = node->get_output_target_inputs(0);
+        if (consumers.size() != 1)
+            return nullptr;
+        return consumers.begin()->get_node()->shared_from_this();
+    };
+
+    auto consumer = get_single_consumer(node);
+    if (!consumer)
+        return true;
+
+    if (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer)) {
+        return false;
+    } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+        consumer = get_single_consumer(consumer);
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
+            return false;
+        }
+    }
+    if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
+        consumer = get_single_consumer(consumer);
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
+            return false;
+        }
+    }
+    return true;
 }
 }  // namespace
 
@@ -159,7 +189,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        // Temporary solution, global rt info cleanup is needed
+        for (auto& node : func->get_ops()) {
+            ov::enable_constant_folding(node);
+            ov::disable_keep_const_precision(node);
+        }
+
+        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
@@ -222,6 +259,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVNFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
+        // Run these broadcast optimizations earlier to ensure that those are executed before NopElimination/ConstantFolding
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastTransition>();
 
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
@@ -234,13 +274,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
 
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+        // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
+        if (!is_model_quantized)
+            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
+        const bool store_original_precision_as_rt_attribute = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision);
+                                                          convert_input_output_precision,
+                                                          store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
@@ -253,6 +298,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
+        manager.register_pass<ov::intel_gpu::ConvertBinaryConvolutionToConvolution>();
         manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
         manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
@@ -392,6 +438,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
+        pass_config->set_callback<ov::pass::LSTMCellFusion>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                return !isCellPrimitiveSupported(node);
+            });
+
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,
@@ -401,6 +452,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     });
         }
 
+        pass_config->set_callback<ov::pass::ConvertLoopToLSTMSequence,
+                                  ov::pass::FuseReverseLSTMSequence,
+                                  ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence>(
+                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                    return !isSequencePrimitiveSupported(node);
+                });
 
         pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
@@ -409,9 +466,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        ov::normalize_axes(mvn.get(), out_rank, mvn_axes);
-                        OPENVINO_SUPPRESS_DEPRECATED_END
+                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
@@ -492,7 +547,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
-        pass_config->disable<ov::pass::GroupNormalizationDecomposition>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -641,11 +695,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-        manager.register_pass<ov::intel_gpu::RMSFusion>();
+        manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
+        manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
+        manager.register_pass<ov::intel_gpu::KVCacheFusion>();
+        manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
+        manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
 
+        manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);

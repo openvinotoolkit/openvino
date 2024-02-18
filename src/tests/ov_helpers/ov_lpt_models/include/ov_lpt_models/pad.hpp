@@ -6,11 +6,10 @@
 
 #include <sstream>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -27,7 +26,7 @@ static std::shared_ptr<ov::Model> get(
     const element::Type precisionAfterOperation,
     const builder::subgraph::DequantizationOperations& dequantizationAfter);
 
-static std::shared_ptr<Function> get(
+static std::shared_ptr<ov::Model> get(
     const PartialShape& inputShape,
     const element::Type inputPrecision,
     const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
@@ -38,4 +37,4 @@ static std::shared_ptr<Function> get(
 };
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

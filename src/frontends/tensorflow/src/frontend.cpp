@@ -20,6 +20,8 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -29,6 +31,7 @@
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -39,6 +42,24 @@ using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
+void update_failures_unsupported_ops(const std::string& op_type,
+                                     const ov::op::util::FrameworkNodeAttrs& fw_node_attrs,
+                                     std::set<std::string>& unsupported_operations,
+                                     std::unordered_map<std::string, std::string>& failures) {
+    // if this operation is encountered among unsupported operations
+    // or conversion failures, skip it
+    if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
+        return;
+    }
+    if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+        // save only the first encountered failure that is more improtant for developer
+        // that means the translator is found but the conversion is failed
+        failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
+    } else {
+        // found new unsupported operation
+        unsupported_operations.insert(op_type);
+    }
+}
 
 void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
                                              std::set<std::string>& unsupported_operations,
@@ -53,22 +74,19 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                 continue;
             }
             unsupported_operations.insert(op_type);
+        } else if (const auto& variable = ov::as_type_ptr<Variable>(node)) {
+            auto op_type = variable->get_decoder()->get_op_type();
+            auto op_name = variable->get_name();
+            failures[op_type] = "Variable or resource `" + op_name + "` is not initialized, model is inconsistent";
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
-            // if this operation is encountered among unsupported operations
-            // or conversion failures, skip it
-            if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
-                continue;
-            }
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
-                // save only the first encountered failure that is more improtant for developer
-                // that means the translator is found but the conversion is failed
-                failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-            } else {
-                // found new unsupported operation
-                unsupported_operations.insert(op_type);
-            }
+            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
+            // handle auxiliary operations from common frontend like ComplexTypeMark
+            auto op_type = std::string(fw_node->get_type_name());
+            auto fw_node_attrs = fw_node->get_attrs();
+            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());
@@ -117,14 +135,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // avoid parsing of checkpoints here
     if (variants[0].is<std::string>()) {
         std::string model_path = variants[0].as<std::string>();
-        if (ov::util::ends_with(model_path, ".pb") && GraphIteratorProto::is_supported(model_path)) {
+        if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
-        } else if (ov::util::ends_with(model_path, ".meta") && GraphIteratorMeta::is_supported(model_path)) {
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
             return true;
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
@@ -149,15 +167,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (ov::util::ends_with(model_path, std::wstring(L".pb")) && GraphIteratorProto::is_supported(model_path)) {
+        if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format with a path in Unicode
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
-        } else if (ov::util::ends_with(model_path, std::wstring(L".meta")) &&
-                   GraphIteratorMeta::is_supported(model_path)) {
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
             return true;
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
@@ -383,11 +400,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::stringstream exception_message;
     for (const auto& failure : failures) {
+        auto exception_str = "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                             " operation with a message:\n" + failure.second + "\n";
+        exception_message << exception_str;
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            m_telemetry->send_event("error_info",
+                                    ov::util::filter_lines_by_prefix(exception_str, "[TensorFlow Frontend] "));
         }
-        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
-                                 " operation with a message:\n" + failure.second + "\n";
     }
 
     if (m_telemetry) {
@@ -440,9 +459,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -463,9 +485,12 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -488,6 +513,10 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();

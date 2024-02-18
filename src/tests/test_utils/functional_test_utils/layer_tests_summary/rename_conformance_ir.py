@@ -106,9 +106,16 @@ def generate_node_hash(node):
             str_to_hash += re.sub(r"[\s+\[\]\{\}\']", "", str(node.get_attributes()))
         except:
             logger.error(f"Impossible to get attributes for {node.name}")
-
         try:
             partial_shape = input.get_partial_shape()
+
+            if 'Convolution' in str(input_node.get_type_info().name):
+                offset = 2
+                if 'GroupConvolution' in str(input_node.get_type_info().name) or\
+                   'GroupConvolutionBackpropData' in str(input_node.get_type_info().name):
+                    offset = 3
+                shape_str += '[' + ','.join([str(val) for val in list(partial_shape)[offset:]]) + ']'
+
             shape_str += str(len(partial_shape))
             shape_str += str(partial_shape.is_dynamic)
         except:

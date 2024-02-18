@@ -3,10 +3,10 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -16,7 +16,7 @@ OutputVector translate_broadcast_to_op(const NodeContext& node) {
     default_op_checks(node, 2, {"BroadcastTo"});
     auto input = node.get_input(0);
     auto shape = node.get_input(1);
-    auto broadcast_to = make_shared<Broadcast>(input, shape);
+    auto broadcast_to = make_shared<v3::Broadcast>(input, shape);
     set_node_name(node.get_name(), broadcast_to);
     return {broadcast_to};
 }

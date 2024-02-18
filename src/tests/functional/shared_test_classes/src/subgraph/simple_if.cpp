@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/simple_if.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -70,7 +70,7 @@ void SimpleIfTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res2}, ov::ParameterVector{p3});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -108,7 +108,7 @@ void SimpleIf2OutTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
 
-    auto condOp = ngraph::builder::makeConstant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -175,10 +175,10 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
             auto* dataPtr = tensor.data<bool>();
             dataPtr[0] = condition;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                             targetInputStaticShapes[i],
-                                                             10,
-                                                             -5);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -5;
+            in_data.range = 10;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -249,7 +249,11 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
 
     // then body
     const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
-    auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
+    auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<int64_t>{0});
+    auto thenOp = std::make_shared<ov::op::v1::Pad>(p1, pads_begin, pads_end, arg_pad_value, ov::op::PadMode::CONSTANT);
+
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
@@ -299,10 +303,12 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     const size_t axis = 1;
     const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
-    auto thenOp = ngraph::builder::makeSplit(p1, inType, dim, axis);
+    auto thenOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto thenOp = std::make_shared<ov::op::v1::Split>(p1, thenOp_axis_op, dim);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
 
-    auto elseOp = ngraph::builder::makeSplit(p2, inType, dim, axis);
+    auto elseOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto elseOp = std::make_shared<ov::op::v1::Split>(p2, elseOp_axis_op, dim);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});

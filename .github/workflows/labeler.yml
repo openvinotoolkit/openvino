@@ -9,8 +9,10 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/labeler@v4
+    - uses: akladiev/labeler@v4.3.1
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: '.github/labeler.yml'
         sync-labels: 'true'
+        dot: 'true'
+        non-matching-label: 'no-match-files'

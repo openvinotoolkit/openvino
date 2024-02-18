@@ -3,7 +3,6 @@
 //
 
 #include <vector>
-#include <ngraph/op/util/attr_types.hpp>
 #include "single_op_tests/gru_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/test_enums.hpp"

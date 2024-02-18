@@ -2,35 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
-using namespace ngraph;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/range.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 typedef std::tuple<
         std::vector<InputShape>,            // input shapes
         std::vector<float>,                 // input values
-        ElementType,                        // Network precision
-        TargetDevice,                       // Device name
-        std::map<std::string, std::string>  // Additional network configuration
+        ov::element::Type,                  // Model type
+        std::string                        // Device name
 > RangeDynamicGPUTestParamsSet;
 
 class RangeDynamicGPUTest : public testing::WithParamInterface<RangeDynamicGPUTestParamsSet>,
-                            virtual public SubgraphBaseTest {
+                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RangeDynamicGPUTestParamsSet>& obj) {
         RangeDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
         std::vector<InputShape> inputShapes;
         std::vector<float> inputValues;
-        ElementType netType;
-        TargetDevice targetDevice;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(inputShapes, inputValues, netType, targetDevice, additionalConfig) = basicParamsSet;
+        ov::element::Type model_type;
+        std::string targetDevice;
+        std::tie(inputShapes, inputValues, model_type, targetDevice) = basicParamsSet;
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -43,7 +44,7 @@ public:
         for (const auto& v : inputValues) {
             result << v << "_";
         }
-        result << "NetType=" << netType << "_";
+        result << "model_type=" << model_type << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
@@ -75,47 +76,47 @@ protected:
     void add_scalar_to_tensor(T scalar, ov::Tensor& tensor) {
         #define CASE(X)                                                                   \
             case X: {                                                                     \
-                auto *dataPtr = tensor.data<element_type_traits<X>::value_type>();        \
-                dataPtr[0] = static_cast<element_type_traits<X>::value_type>(scalar);     \
+                auto *dataPtr = tensor.data<ov::element_type_traits<X>::value_type>();        \
+                dataPtr[0] = static_cast<ov::element_type_traits<X>::value_type>(scalar);     \
                 break;                                                                    \
             }
 
         switch (tensor.get_element_type()) {
-            CASE(ElementType::boolean)
-            CASE(ElementType::i8)
-            CASE(ElementType::i16)
-            CASE(ElementType::i32)
-            CASE(ElementType::i64)
-            CASE(ElementType::u8)
-            CASE(ElementType::u16)
-            CASE(ElementType::u32)
-            CASE(ElementType::u64)
-            CASE(ElementType::bf16)
-            CASE(ElementType::f16)
-            CASE(ElementType::f32)
-            CASE(ElementType::f64)
-            CASE(ElementType::u1)
-            CASE(ElementType::i4)
-            CASE(ElementType::u4)
+            CASE(ov::element::boolean)
+            CASE(ov::element::i8)
+            CASE(ov::element::i16)
+            CASE(ov::element::i32)
+            CASE(ov::element::i64)
+            CASE(ov::element::u8)
+            CASE(ov::element::u16)
+            CASE(ov::element::u32)
+            CASE(ov::element::u64)
+            CASE(ov::element::bf16)
+            CASE(ov::element::f16)
+            CASE(ov::element::f32)
+            CASE(ov::element::f64)
+            CASE(ov::element::u1)
+            CASE(ov::element::i4)
+            CASE(ov::element::u4)
             default: OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
         }
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        auto generate_input = [&](size_t index, ElementType element_type) {
+        auto generate_input = [&](size_t index, ov::element::Type element_type) {
             ov::Tensor tensor(element_type, targetInputStaticShapes[index]);
             add_scalar_to_tensor<float>(input_values[index], tensor);
             inputs.insert({funcInputs[index].get_node_shared_ptr(), tensor});
         };
 
         // net_type=undifined means mixed type test
-        if (net_type == ElementType::undefined) {
-            generate_input(0, ElementType::f32);
-            generate_input(1, ElementType::i32);
-            generate_input(2, ElementType::f32);
+        if (net_type == ov::element::undefined) {
+            generate_input(0, ov::element::f32);
+            generate_input(1, ov::element::i32);
+            generate_input(2, ov::element::f32);
         } else {
             for (size_t i = 0; i < funcInputs.size(); ++i) {
                 generate_input(i, funcInputs[i].get_element_type());
@@ -127,47 +128,43 @@ protected:
         RangeDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
         std::vector<InputShape> inputShapes;
         std::vector<float> inputValues;
-        ElementType netType;
-        std::map<std::string, std::string> additionalConfig;
+        ov::element::Type model_type;
         ov::ParameterVector params;
-        std::tie(inputShapes, inputValues, netType, targetDevice, additionalConfig) = basicParamsSet;
+        std::tie(inputShapes, inputValues, model_type, targetDevice) = basicParamsSet;
 
         input_values = inputValues;
-        net_type = netType;
+        net_type = model_type;
 
         init_input_shapes(inputShapes);
 
-        if (netType == ElementType::undefined) {
-            std::vector<element::Type> types = { ElementType::f32, ElementType::i32, ElementType::f32 };
+        if (model_type == ov::element::undefined) {
+            std::vector<ov::element::Type> types = { ov::element::f32, ov::element::i32, ov::element::f32 };
             for (size_t i = 0; i < types.size(); i++) {
                 auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
                 params.push_back(paramNode);
             }
-            netType = ElementType::f32;
+            model_type = ov::element::f32;
         } else {
             for (auto&& shape : inputDynamicShapes) {
-                params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
             }
         }
-        const auto range = std::make_shared<ngraph::opset8::Range>(params[0], params[1], params[2], netType);
+        const auto range = std::make_shared<ov::op::v4::Range>(params[0], params[1], params[2], model_type);
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(range)};
-        function = std::make_shared<ngraph::Function>(results, params, "shapeof_out");
+        ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(range)};
+        function = std::make_shared<ov::Model>(results, params, "shapeof_out");
     }
 
 private:
     std::vector<float> input_values;
-    ElementType net_type;
+    ov::element::Type net_type;
 };
 
 
-TEST_P(RangeDynamicGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(RangeDynamicGPUTest, Inference) {
     run();
 }
 
-namespace {
-std::map<std::string, std::string> emptyAdditionalConfig;
 const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
     {
         // Inputs for Range
@@ -187,17 +184,16 @@ const std::vector<std::vector<float>> inputValues = {
     }
 };
 
-const std::vector<ElementType> netPrecisions = {
-    ElementType::i8,
-    ElementType::i32,
-    ElementType::i64,
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::i8,
+    ov::element::i32,
+    ov::element::i64,
 };
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                  ::testing::ValuesIn(inputValues),
                                                  ::testing::ValuesIn(netPrecisions),
-                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                 ::testing::Values(emptyAdditionalConfig));
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
                          testParams_smoke, RangeDynamicGPUTest::getTestCaseName);
@@ -211,16 +207,15 @@ const std::vector<std::vector<float>> inputFloatValues = {
     }
 };
 
-const std::vector<ElementType> netFloatPrecisions = {
-    ElementType::f16,
-    ElementType::f32,
+const std::vector<ov::element::Type> netFloatPrecisions = {
+    ov::element::f16,
+    ov::element::f32,
 };
 
 const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputFloatValues),
                                                       ::testing::ValuesIn(netFloatPrecisions),
-                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                      ::testing::Values(emptyAdditionalConfig));
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
                          testFloatParams_smoke, RangeDynamicGPUTest::getTestCaseName);
@@ -233,19 +228,17 @@ const std::vector<std::vector<float>> inputMixedValues = {
     }
 };
 
-const std::vector<ElementType> netMixedPrecisions = {
+const std::vector<ov::element::Type> netMixedPrecisions = {
     // Mixed type test(start/step:fp32, end:i32)
-    ElementType::undefined
+    ov::element::undefined
 };
 
 
 const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputMixedValues),
                                                       ::testing::ValuesIn(netMixedPrecisions),
-                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                      ::testing::Values(emptyAdditionalConfig));
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,
                          testMixedParams_smoke, RangeDynamicGPUTest::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions

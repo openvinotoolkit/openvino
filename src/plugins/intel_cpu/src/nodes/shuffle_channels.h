@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 #include "common/permute_kernel.h"
 
 namespace ov {
@@ -17,10 +13,10 @@ namespace node {
 
 class ShuffleChannels : public Node {
 public:
-    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ShuffleChannels(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~ShuffleChannels() override = default;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;

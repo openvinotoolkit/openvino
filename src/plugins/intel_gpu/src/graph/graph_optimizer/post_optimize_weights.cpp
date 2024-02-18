@@ -7,11 +7,9 @@
 #include "implementation_map.hpp"
 
 #include "convolution_inst.h"
-#include "binary_convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
-#include "lstm_dynamic_input_inst.h"
 
 namespace cldnn {
 
@@ -20,11 +18,6 @@ post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
 
 template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
-}
-
-template <>
-post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset<lstm_dynamic_input_node>(const lstm_dynamic_input_node& node) {
-    return weights_bias_offset(node.get_primitive()->input.size() + 1, program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
 // function which prepares given primitive for weights optimization
@@ -124,16 +117,12 @@ void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
-        } else if (node->is_type<binary_convolution>()) {
-            optimize_weights(node->as<binary_convolution>(), p);
         } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
         } else if (node->is_type<deformable_conv>()) {
             optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->is_type<lstm_dynamic_input>()) {
-            optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
     }
 }

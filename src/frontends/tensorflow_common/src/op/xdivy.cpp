@@ -3,11 +3,13 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/select.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -23,9 +25,9 @@ OutputVector translate_x_div_y_op(const NodeContext& node) {
     auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
     auto const_one = create_same_type_const_scalar<int32_t>(x, 1);
 
-    auto x_is_zero = make_shared<Equal>(x, const_zero);
-    auto select = make_shared<Select>(x_is_zero, const_one, y);
-    auto xdivy = make_shared<Divide>(x, select);
+    auto x_is_zero = make_shared<v1::Equal>(x, const_zero);
+    auto select = make_shared<v1::Select>(x_is_zero, const_one, y);
+    auto xdivy = make_shared<v1::Divide>(x, select);
     set_node_name(node.get_name(), xdivy);
     return {xdivy};
 }

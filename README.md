@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/img/openvino-logo-purple-black.png" width="400px">
+<img src="docs/sphinx_setup/_static/images/img/openvino-logo-purple-black.png" width="400px">
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
@@ -33,7 +33,7 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, GNA, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
@@ -67,26 +67,20 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     <tbody>
         <tr>
             <td rowspan=2>CPU</td>
-            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">Intel CPU</a></tb>
+            <td> <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">Intel CPU</a></tb>
             <td><b><i><a href="./src/plugins/intel_cpu">openvino_intel_cpu_plugin</a></i></b></td>
             <td>Intel Xeon with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel Core Processors with Intel AVX2, Intel Atom Processors with Intel® Streaming SIMD Extensions (Intel® SSE), Intel® Advanced Matrix Extensions (Intel® AMX)</td>
         </tr>
         <tr>
-            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">ARM CPU</a></tb>
+            <td> <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">ARM CPU</a></tb>
             <td><b><i><a href="./src/plugins/intel_cpu">openvino_arm_cpu_plugin</a></i></b></td>
             <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon
         </tr>
         <tr>
             <td>GPU</td>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
+            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
             <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
             <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
-        </tr>
-        <tr>
-            <td>GNA</td>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GNA.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-n-a">Intel GNA</a></td>
-            <td><b><i><a href="./src/plugins/intel_gna">openvino_intel_gna_plugin</a></i></b></td>
-            <td>Intel Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel Pentium Silver J5005 Processor, Intel Pentium Silver N5000 Processor, Intel Celeron J4005 Processor, Intel Celeron J4105 Processor, Intel Celeron Processor N4100, Intel Celeron Processor N4000, Intel Core i3-8121U Processor, Intel Core i7-1065G7 Processor, Intel Core i7-1060G7 Processor, Intel Core i5-1035G4 Processor, Intel Core i5-1035G7 Processor, Intel Core i5-1035G1 Processor, Intel Core i5-1030G7 Processor, Intel Core i5-1030G4 Processor, Intel Core i3-1005G1 Processor, Intel Core i3-1000G1 Processor, Intel Core i3-1000G4 Processor</td>
         </tr>
     </tbody>
 </table>
@@ -102,22 +96,22 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
     </thead>
     <tbody>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html">Auto</a></td>
+            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html">Auto</a></td>
             <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Auto plugin enables selecting Intel device for inference automatically</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
+            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
             <td><b><i><a href="./src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
             <td>Auto batch plugin performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
+            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
             <td><b><i><a href="./src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
             <td>Heterogeneous execution enables automatic inference splitting between several devices</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Running_on_multiple_devices.html#doxid-openvino-docs-o-v-u-g-running-on-multiple-devices">Multi</a></td>
+            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Running_on_multiple_devices.html#doxid-openvino-docs-o-v-u-g-running-on-multiple-devices">Multi</a></td>
             <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Multi plugin enables simultaneous inference of the same model on several devices in parallel</td>
         </tr>
@@ -161,12 +155,14 @@ The list of OpenVINO tutorials:
 - [OpenVINO™ Integration with TensorFlow](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/build/ovtfoverview.html)
 - [TNN](https://github.com/Tencent/TNN/tree/master)
 
+You can also check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) to see all the community-made projects using OpenVINO!
+
 ## System requirements
 
 The system requirements vary depending on platform and are available on dedicated pages:
-- [Linux](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_installing_openvino_linux_header.html)
-- [Windows](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_installing_openvino_windows_header.html)
-- [macOS](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_installing_openvino_macos_header.html)
+- [Linux](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_linux_header.html)
+- [Windows](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_windows_header.html)
+- [macOS](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_macos_header.html)
 
 ## How to build
 
@@ -177,16 +173,20 @@ See [How to build OpenVINO](./docs/dev/build.md) to get more information about t
 See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502) for good first issues.
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
+
+Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) if you need help or wish to talk to OpenVINO developers. You can go to the channel dedicated to Good First Issue support if you are working on a task.
+
 ## Take the issue
 If you wish to be assigned to an issue please add a comment with `.take` command.  
 
-## Get a support
+## Get support
 
 Report questions, issues and suggestions, using:
 
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
+* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
 
 ## Additional Resources
 
@@ -206,6 +206,6 @@ Report questions, issues and suggestions, using:
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO™ Runtime]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
-[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc
+[OpenVINO™ Runtime]:https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
+[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples

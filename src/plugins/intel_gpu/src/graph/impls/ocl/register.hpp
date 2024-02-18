@@ -7,7 +7,6 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
-#include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
@@ -37,18 +36,14 @@
 #include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
-#include "intel_gpu/primitives/lstm.hpp"
-#include "intel_gpu/primitives/lstm_dynamic.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/multinomial.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/pooling.hpp"
-#include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/random_uniform.hpp"
 #include "intel_gpu/primitives/range.hpp"
@@ -73,10 +68,12 @@
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -93,7 +90,6 @@ REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(batch_to_space);
-REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
@@ -123,10 +119,11 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(group_normalization);
+REGISTER_OCL(kv_cache);
 REGISTER_OCL(lrn);
-REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
+REGISTER_OCL(multinomial);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);
@@ -136,7 +133,6 @@ REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
 REGISTER_OCL(prior_box);
-REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
 REGISTER_OCL(range);
@@ -162,9 +158,8 @@ REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
+REGISTER_OCL(swiglu);
 REGISTER_OCL(tile);
-REGISTER_OCL(lstm_dynamic_input);
-REGISTER_OCL(lstm_dynamic_timeloop);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);

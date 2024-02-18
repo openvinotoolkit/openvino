@@ -18,7 +18,7 @@ anugunj/omnivore-swinL-in21k,omnivore,skip,Load problem
 apple/mobilevitv2-1.0-imagenet1k-256,mobilevitv2,xfail,Unsupported op aten::col2im
 ArthurZ/jukebox_prior_0,jukebox_prior,skip,Load problem
 ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
-ArthurZ/persimmon-8b-base,persimmon,skip,Load problem
+ArthurZ/persimmon-8b-base,persimmon
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
 BAAI/AltCLIP,altclip
@@ -30,7 +30,7 @@ beomi/exKcBERT-kowiki,exbert,skip,Load problem
 bert-base-uncased,bert
 bigscience/bloom-560m,bloom
 Bono93/basic-cnn-example,simplecnn,skip,Load problem
-caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
+caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr
 camembert-base,camembert
 CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
 CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
@@ -65,17 +65,17 @@ EleutherAI/pythia-6.9b,gpt_neox
 facebook/bart-large-mnli,bart
 facebook/convnextv2-tiny-22k-384,convnextv2
 facebook/detr-resnet-50,detr
-facebook/dinov2-base,dinov2,skip,Load problem
+facebook/dinov2-base,dinov2
 facebook/dpr-question_encoder-single-nq-base,dpr
-facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
+facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
-facebook/mms-tts-eng,vits,skip,Load problem
-facebook/musicgen-small,musicgen,skip,Load problem
+facebook/mms-tts-eng,vits,xfail,Accuracy failed: results cannot be broadcasted
+facebook/musicgen-small,musicgen
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
@@ -104,7 +104,7 @@ google/mobilebert-uncased,mobilebert
 google/mobilenet_v1_0.75_192,mobilenet_v1
 google/mt5-base,mt5
 google/owlvit-base-patch32,owlvit
-google/pix2struct-docvqa-base,pix2struct,skip,Load problem
+google/pix2struct-docvqa-base,pix2struct
 google/realm-orqa-nq-openqa,realm,skip,Load problem
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas
@@ -140,7 +140,7 @@ hf-internal-testing/tiny-random-mbart,mbart,xfail,Compile error: CPU plug-in doe
 hf-internal-testing/tiny-random-MobileNetV2Model,mobilenet_v2
 hf-internal-testing/tiny-random-mobilevit,mobilevit
 hf-internal-testing/tiny-random-MPNetModel,mpnet
-hf-internal-testing/tiny-random-MptForCausalLM,mpt,skip,Load problem
+hf-internal-testing/tiny-random-MptForCausalLM,mpt
 hf-internal-testing/tiny-random-NllbMoeForConditionalGeneration,nllb_moe,skip,Load problem
 hf-internal-testing/tiny-random-NystromformerModel,nystromformer
 hf-internal-testing/tiny-random-PegasusModel,pegasus,skip,Load problem
@@ -168,7 +168,7 @@ HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
 huggingface/autoformer-tourism-monthly,autoformer,skip,Load problem
 huggingface/informer-tourism-monthly,informer,skip,Load problem
 huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip,Load problem
-HuggingFaceM4/tiny-random-idefics,idefics,skip,Load problem
+HuggingFaceM4/tiny-random-idefics,idefics,xfail,tracing error: Please check correctness of provided example_input (eval was correct but trace failed with incommatible tuples and tensors)
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
@@ -178,7 +178,7 @@ ibm/MoLM-350M-4B,moduleformer,skip,Load problem
 IDEA-CCNL/Randeng-Deltalm-362M-En-Zh,Deltalm,skip,Load problem
 Inderpreet01/seaformer-semantic-segmentation-large,seaformer,skip,Load problem
 Intel/dpt-hybrid-midas,dpt
-Intel/tvp-base,tvp,skip,Load problem
+# Intel/tvp-base,tvp,skip,Load problem # takes too long
 isemmanuelolowe/code-embedder,instruct-codebert,skip,Load problem
 isemmanuelolowe/instruct-codet5-5,instruct-codet5,skip,Load problem
 jaketae/fastspeech2-ljspeech,fastspeech2,skip,Load problem
@@ -186,6 +186,7 @@ jambran/depression-classification,DepressionDetection,skip,Load problem
 Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
 JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
 jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+facebook/mms-lid-126,wav2vec2
 Joqsan/test-my-fnet,my_fnet,skip,Load problem
 jozhang97/deta-swin-large,deta,skip,Load problem
 jploski/retnet-mini-shakespeare,retnet,skip,Load problem
@@ -208,7 +209,8 @@ krasserm/perceiver-io-mlm,perceiver-io-masked-language-model,skip,Load problem
 krasserm/perceiver-io-optical-flow,perceiver-io-optical-flow,skip,Load problem
 krasserm/perceiver-io-txt-clf-imdb,perceiver-io-text-classifier,skip,Load problem
 ksmcg/fan_small_12_p16_224,fan,skip,Load problem
-laion/clap-htsat-unfused,clap,skip,Load problem
+laion/clap-htsat-unfused:audio_model,clap
+laion/clap-htsat-unfused:audio_projection,clap
 Langboat/ReGPT-125M-200G,re_gpt,skip,Load problem
 lengyue233/content-vec-best,hubert
 Lewislou/cellseg_sribd,cell_sribd,skip,Load problem
@@ -240,25 +242,25 @@ microsoft/beit-base-patch16-224-pt22k-ft22k,beit
 microsoft/biogpt,biogpt
 microsoft/conditional-detr-resnet-50,conditional_detr
 microsoft/deberta-base,deberta
-microsoft/git-large-coco,git,skip,Load problem
+microsoft/git-large-coco,git,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlm-base-uncased,layoutlm
-microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
+microsoft/layoutlmv2-base-uncased,layoutlmv2,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
-microsoft/speecht5_tts,speecht5,skip,Load problem
+microsoft/speecht5_tts,speecht5,xfail,Tracing error: hangs with no error (probably because of infinite while inside generate)
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
-microsoft/xclip-base-patch32,xclip,skip,Load problem
+microsoft/xclip-base-patch32,xclip
 microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
-MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
+MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer
 Mizuiro-sakura/luke-japanese-large-sentiment-analysis-wrime,luke
 mlml-chip/thyme2_colon_e2e,cnlpt,skip,Load problem
-mnaylor/mega-base-wikitext,mega,skip,Load problem
+mnaylor/mega-base-wikitext,mega,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 mohitsha/tiny-random-testing-bert2gpt2,encoder-decoder
 MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,deberta-v2
 MoritzLaurer/ernie-m-large-mnli-xnli,ernie_m
@@ -266,7 +268,7 @@ mrm8488/prunebert-base-uncased-finepruned-topK-squadv2,masked_bert,skip,Load pro
 muditb/headline_classifier,BertModel,skip,Load problem
 nanashi161382/clip-text-deprojector,clip_text_deprojector_model,skip,Load problem
 nateraw/vit-age-classifier,vit
-naver-clova-ocr/bros-base-uncased,bros,skip,Load problem
+naver-clova-ocr/bros-base-uncased,bros
 navervision/CompoDiff-Aesthetic,CompoDiff,skip,Load problem
 navervision/KELIP,kelip,skip,Load problem
 NCAI/NCAI-BERT,lean_albert,skip,Load problem
@@ -291,8 +293,9 @@ openai/jukebox-1b-lyrics,jukebox,skip,Load problem
 openai/whisper-medium,whisper,skip,Load problem
 openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
-openmmlab/upernet-convnext-small,upernet,skip,Load problem
+openmmlab/upernet-convnext-small,upernet
 openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
+OpenVINO/opt-125m-gptq,opt
 PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
 patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,encoder_decoder,skip,Load problem
 paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
@@ -314,8 +317,10 @@ RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
-Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
-Salesforce/blip-image-captioning-large,blip,skip,Load problem
+Salesforce/blip2-flan-t5-xl:vision_model,blip-2
+Salesforce/blip2-flan-t5-xl:qformer,blip-2
+Salesforce/blip2-flan-t5-xl:language_projection,blip-2
+Salesforce/blip-image-captioning-large,blip
 Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
 SamLowe/roberta-base-go_emotions,roberta
 sanchit-gandhi/enhanced_direct_s2st_en_to_es,speech-to-speech,skip,Load problem
@@ -323,7 +328,7 @@ sciki/finetune_tinybert,finetune-tinybert,skip,Load problem
 sebastian-hofstaetter/colbert-distilbert-margin_mse-T2-msmarco,ColBERT,skip,Load problem
 sebastian-hofstaetter/distilbert-cat-margin_mse-T2-msmarco,BERT_Cat,skip,Load problem
 sebastian-hofstaetter/idcm-distilbert-msmarco_doc,IDCM,skip,Load problem
-SenseTime/deformable-detr,deformable_detr,skip,Load problem
+SenseTime/deformable-detr,deformable_detr,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 shahules786/Reward-model-gptneox-410M,rm_gptneox_config,skip,Load problem
 shauray/Llava-Llama-2-7B-hf,llavallama,skip,Load problem
 shauray/ViTPose,vitpose,skip,Load problem
@@ -333,7 +338,7 @@ shikhartuli/flexibert-mini,flexibert,skip,Load problem
 shikras/shikra-7b-delta-v1-0708,shikra,skip,Load problem
 shi-labs/dinat-mini-in1k-224,dinat,xfail,Accuracy validation failed
 shi-labs/nat-mini-in1k-224,nat,xfail,Accuracy validation failed
-shi-labs/oneformer_ade20k_swin_large,oneformer,skip,Load problem
+shi-labs/oneformer_ade20k_swin_large,oneformer,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
 shuqi/seed-encoder,seed_encoder,skip,Load problem
 sijunhe/nezha-cn-base,nezha
 sjiang1/codecse,roberta_for_cl,skip,Load problem
@@ -407,6 +412,6 @@ youzanai/clip-product-title-chinese,clip_chinese_model,skip,Load problem
 Yova/SmallCapOPT7M,smallcap,skip,Load problem
 yusufani/trclip-vitl14-e10,trclip,skip,Load problem
 yysung53/dpr,text_similarity,skip,Load problem
-Zetatech/pvt-tiny-224,pvt,skip,Load problem
-ZinengTang/tvlt-base,tvlt,skip,Load problem
+Zetatech/pvt-tiny-224,pvt
+ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem

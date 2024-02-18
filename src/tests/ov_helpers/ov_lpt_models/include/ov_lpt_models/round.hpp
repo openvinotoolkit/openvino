@@ -5,28 +5,26 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 class RoundWithToleranceFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization);
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
+        const ov::builder::subgraph::DequantizationOperations dequantization);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization);
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
+        const ov::builder::subgraph::DequantizationOperations dequantization);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

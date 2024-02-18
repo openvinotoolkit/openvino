@@ -3,16 +3,15 @@
 
 import sys
 
-from openvino.runtime import Type
-
 import openvino as ov
+from openvino.runtime import Type
 
 
 def is_type(val):
     if isinstance(val, (type, Type)):
         return True
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
             return True
     if 'torch' in sys.modules:
@@ -32,7 +31,7 @@ def to_ov_type(val):
     if isinstance(val, type):
         return Type(val)
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
+        import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
             return Type(val.as_numpy_dtype())
     if 'torch' in sys.modules:
@@ -78,4 +77,3 @@ def to_ov_type(val):
 
             return paddle_to_ov_type[val]
     raise Exception("Unexpected type object. Expected ov.Type, np.dtype, tf.dtypes.DType. Got {}".format(type(val)))
-

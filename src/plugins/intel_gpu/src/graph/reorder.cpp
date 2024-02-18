@@ -219,13 +219,12 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
         parent(network, node, !node.can_be_optimized()
                               && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound()))
         , _req_reinterpr(node.requires_reinterpret()) {
-    if (node.can_be_optimized())
-        reuse_input();
+    update_output_memory();
 
     if (is_dynamic())
         return;
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {
         CLDNN_ERROR_LESS_THAN(node.id(),
@@ -256,11 +255,6 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
 }
 
 void reorder_inst::on_execute() {
-    if (can_be_optimized())
-        reuse_input();
-}
-
-void reorder_inst::reuse_input() {
     update_output_memory();
 }
 
@@ -280,15 +274,5 @@ void reorder_inst::update_output_memory() {
         _outputs[0] = input_memory_ptr();
     }
     _mem_allocated = false;
-}
-
-void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << _req_reinterpr;
-}
-
-void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> _req_reinterpr;
 }
 }  // namespace cldnn

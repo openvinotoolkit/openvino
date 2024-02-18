@@ -64,13 +64,13 @@ const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
         ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
         ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT));
+        ::testing::Values(ov::op::PadType::EXPLICIT));
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID));
+        ::testing::Values(ov::op::PadType::VALID));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
@@ -103,7 +103,7 @@ const auto conv2DParams_WeightLayout = ::testing::Combine(::testing::Values(kern
                                                           ::testing::Values(padEnds),
                                                           ::testing::Values(dilations),
                                                           ::testing::Values(numOutChannels),
-                                                          ::testing::Values(ngraph::op::PadType::EXPLICIT));
+                                                          ::testing::Values(ov::op::PadType::EXPLICIT));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLayerTest,
                          ::testing::Combine(conv2DParams_WeightLayout,
@@ -124,13 +124,13 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3d), ::testing::ValuesIn(strides3d),
         ::testing::ValuesIn(paddings3d), ::testing::ValuesIn(paddings3d),
         ::testing::ValuesIn(dilations3d), ::testing::ValuesIn(numOutChannels3D),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT));
+        ::testing::Values(ov::op::PadType::EXPLICIT));
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels3d), ::testing::ValuesIn(strides3d),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3d), ::testing::ValuesIn(numOutChannels3D),
-        ::testing::Values(ngraph::op::PadType::VALID));
+        ::testing::Values(ov::op::PadType::VALID));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Convolution3D_ExplicitPadding, ConvolutionLayerTest,

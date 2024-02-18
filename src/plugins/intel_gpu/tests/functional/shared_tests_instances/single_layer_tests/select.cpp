@@ -1,23 +1,20 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <vector>
-
-#include "single_layer_tests/select.hpp"
+#include "single_op_tests/select.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::SelectLayerTest;
 
-const std::vector<InferenceEngine::Precision> inputPrecision = {
-    InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::I32
+const std::vector<ov::element::Type> inputPrecision = {
+    ov::element::u8,
+    ov::element::f16,
+    ov::element::f32,
+    ov::element::i16,
+    ov::element::i32
 };
 
-const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
+const std::vector<std::vector<ov::Shape>> noneShapes = {
     {{1}, {1}, {1}},
     {{8}, {8}, {8}},
     {{4, 5}, {4, 5}, {4, 5}},
@@ -25,7 +22,7 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
     {{2, 3, 4, 5}, {2, 3, 4, 5}, {2, 3, 4, 5}}
 };
 
-const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
+const std::vector<std::vector<ov::Shape>> numpyShapes = {
     {{1}, {16}, {1}},
     {{1}, {1}, {16}},
     {{1}, {8}, {8}},
@@ -52,16 +49,16 @@ const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none,
                          SelectLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(noneShapes),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(noneShapes)),
                                             ::testing::ValuesIn(inputPrecision),
-                                            ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
+                                            ::testing::Values(ov::op::AutoBroadcastType::NONE),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SelectLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
                          SelectLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(numpyShapes),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpyShapes)),
                                             ::testing::ValuesIn(inputPrecision),
-                                            ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
+                                            ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SelectLayerTest::getTestCaseName);

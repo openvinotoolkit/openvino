@@ -21,7 +21,7 @@ class BroadcastLoad : public MemoryAccess {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ov::snippets::op::MemoryAccess);
 
-    BroadcastLoad(const Output<Node>& x, ov::PartialShape output_shape, size_t offset = 0lu);
+    BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0lu);
     BroadcastLoad() = default;
 
     size_t get_offset() const { return get_input_offset(0); }
@@ -29,7 +29,8 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
-    ov::PartialShape get_output_shape() {return output_shape;}
+    const ov::Dimension& get_bcast_dimension() {return bcast_dimension;}
+    void set_bcast_dimension(ov::Dimension new_dim) {bcast_dimension = std::move(new_dim);}
 
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
     // but have identical shapeInfer semantics. In order to avoid code duplication,
@@ -39,7 +40,7 @@ public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n) : BroadcastShapeInfer<BroadcastLoad>(n) {}
     };
 private:
-    ov::PartialShape output_shape;
+    ov::Dimension bcast_dimension;
 };
 
 } // namespace op

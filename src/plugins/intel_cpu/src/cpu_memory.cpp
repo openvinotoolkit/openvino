@@ -2,27 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <oneapi/dnnl/dnnl.hpp>
-#include <vector>
-#include <numeric>
-#include <unordered_set>
-
-#include <dnnl_types.h>
-#include <common/memory_desc_wrapper.hpp>
 #include "cpu_memory.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-#include "onednn/dnnl.h"
-#include "cpu_shape.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
-#include "memory_desc/cpu_memory_desc.h"
-
-using namespace InferenceEngine;
-using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
+template <>
+DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
+}
+
+template <>
+BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
+}
+
 namespace {
     inline void setSubnormalsToZero(float *data, size_t size) {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
@@ -36,21 +31,27 @@ namespace {
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
         node::Reorder::reorderData(src, dst);
 
-        auto localPrim = dst.getPrimitive();
-        auto desc = localPrim.get_desc();
-        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
-
-        if (ftz
-            && src.getDataType() == memory::data_type::f32
-            && !wrapper.is_wino_desc()
-            // WA: to avoid zero filling auxiliary information
-            && !wrapper.is_rnn_packed_desc()
-            && dst.getDataType() != memory::data_type::bf16) {
-            // Internal blobs don't have strides yet.
-            auto *memData = static_cast<float *>(dst.getData());
-            memData += wrapper.offset0();
-            setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+        if (!ftz) {
+            return;
         }
+        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
+            return;
+        }
+        size_t offset = 0;
+        if (dst.getDesc().getType() & MemoryDescType::Dnnl) {
+            // here we can safely cast to DnnlMemoryDesc
+            auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
+            auto desc = dnnl_desc->getDnnlDesc();
+            dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+            offset = wrapper.offset0();
+            if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
+                return;
+            }
+        }
+        // actual FTZ
+        auto* memData = static_cast<float*>(dst.getData());
+        memData += offset;
+        setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
     }
 
 }   // namespace
@@ -60,6 +61,9 @@ Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bo
     m_pMemDesc(desc),
     m_mgrHandle(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), this),
     dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
+        }
         create(m_pMemDesc, data, pads_zeroing);
     }
 
@@ -68,6 +72,9 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
     m_eng(eng), m_pMemDesc(desc), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
+        }
         bool memAllocated = m_mgrHandle->getRawPtr();
 
         create(desc, nullptr, !memAllocated);
@@ -78,8 +85,8 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mn
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
-    if (size  == MemoryDesc::UNDEFINED_SIZE) {
-        IE_THROW() << "Can't get memory size for undefined shape";
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
+        OPENVINO_THROW("Can't get memory size for undefined shape");
     }
     return size;
 }
@@ -105,6 +112,9 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 }
 
 void Memory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
@@ -115,21 +125,14 @@ void Memory::nullify() {
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot accept a descriptor with a string type.");
+    }
     if (!desc->hasDefinedMaxSize()) {
-        IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
+        OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
     }
 
     this->create(desc, nullptr, false);
-}
-
-template<>
-DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
-}
-
-template<>
-BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
 }
 
 void Memory::update() {
@@ -156,14 +159,14 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
         if (!m_memObjPtr->getDesc().isDefined()) {
-            IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
+            OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
         }
 
         // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
         auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
-        m_prim = memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
+        m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
         auto data = m_memObjPtr->getDataNoThrow();
@@ -199,7 +202,7 @@ void* Memory::getData() const {
     if (data == nullptr &&
         m_pMemDesc->getShape().isStatic() &&
         m_pMemDesc->getShape().getElementsCount() != 0)
-        IE_THROW() << "Memory has not been allocated";
+        OPENVINO_THROW("Memory has not been allocated");
     return data;
 }
 
@@ -219,7 +222,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     if (size > m_memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
-            IE_THROW() << "Failed to allocate " << size << " bytes of memory";
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_memUpperBound = size;
         m_useExternalStorage = false;
@@ -238,6 +241,179 @@ void MemoryMngrWithReuse::release(void *ptr) {}
 void MemoryMngrWithReuse::destroy(void *ptr) {
     dnnl::impl::free(ptr);
 }
+
+void* MemoryMngrRealloc::getRawPtr() const noexcept {
+    return m_data.get();
+}
+
+void MemoryMngrRealloc::setExtBuff(void *ptr, size_t size) {
+    m_useExternalStorage = true;
+    m_memUpperBound = size;
+    m_data = decltype(m_data)(ptr, release);
+}
+
+bool MemoryMngrRealloc::resize(size_t size) {
+    constexpr int cacheLineSize = 64;
+    constexpr size_t growFactor = 2;
+    bool sizeChanged = false;
+    if (size > m_memUpperBound) {
+        size *= growFactor;
+        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        if (!ptr) {
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
+        }
+
+        if (auto src = m_data.get()) {
+            std::memcpy(ptr, src, m_memUpperBound);
+        }
+
+        m_memUpperBound = size;
+        m_useExternalStorage = false;
+        m_data = decltype(m_data)(ptr, destroy);
+        sizeChanged = true;
+    }
+    return sizeChanged;
+}
+
+bool MemoryMngrRealloc::hasExtBuffer() const noexcept {
+    return m_useExternalStorage;
+}
+
+void MemoryMngrRealloc::release(void *ptr) {}
+
+void MemoryMngrRealloc::destroy(void *ptr) {
+    dnnl::impl::free(ptr);
+}
+
+/////////////// StringMemory ///////////////
+
+StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data) : m_engine(engine), m_mem_desc(desc) {
+    if (m_mem_desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
+
+    m_manager = std::make_shared<StringMemoryMngr>();
+
+    if (!m_mem_desc->isDefined()) {
+        return;
+    }
+
+    const auto string_size = m_mem_desc->getShape().getElementsCount();
+
+    if (data != nullptr) {
+        auto not_const_data = const_cast<void *>(data);
+        m_manager->setExtBuff(reinterpret_cast<OvString *>(not_const_data), string_size);
+    } else {
+        m_manager->resize(string_size);
+    }
+}
+
+void StringMemory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
+    }
+
+    transferData(src, *this, false);
+}
+
+void* StringMemory::getData() const  {
+    return m_manager->getRawPtr();
+}
+
+void StringMemory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() != element::string) {
+        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
+    }
+    if (!desc->hasDefinedMaxSize()) {
+        OPENVINO_THROW("[CPU] StringMemory cannot reset descriptor. Memory upper bound is unknown.");
+    }
+
+    m_mem_desc = desc;
+    const auto string_size = m_mem_desc->getShape().getElementsCount();
+    m_manager->resize(string_size);
+}
+
+void StringMemory::nullify() {
+    auto data_ptr = m_manager->getStringPtr();
+    if (data_ptr != nullptr) {
+        std::fill(data_ptr, data_ptr + m_manager->getStrLen(), OvString());
+    }
+}
+
+bool StringMemory::isAllocated() const noexcept {
+    if (getData()) {
+        return true;
+    }
+    if (!m_mem_desc) {
+        return false;
+    }
+    if (!(m_mem_desc->isDefined())) {
+        return true;
+    }
+    if (m_mem_desc->getCurrentMemSize() == 0) {
+        return true;
+    }
+    return false;
+}
+
+size_t StringMemory::getSize() const { // In bytes
+    auto size = getDesc().getCurrentMemSize();
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
+        OPENVINO_THROW("Can't get memory size for undefined shape.");
+    }
+    return size;
+}
+
+MemoryMngrPtr StringMemory::getMemoryMngr() const {
+    OPENVINO_THROW("Unexpected call of StringMemory::getMemoryMngr()");
+}
+
+dnnl::memory StringMemory::getPrimitive() const {
+    OPENVINO_THROW("Unexpected call of StringMemory::getPrimitive()");
+}
+
+void StringMemory::StringMemoryMngr::setExtBuff(OvString* ptr, size_t size) {
+    m_use_external_storage = true;
+    m_str_upper_bound = size;
+    m_data = decltype(m_data)(ptr, release);
+}
+
+StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noexcept {
+    return m_data.get();
+}
+
+bool StringMemory::StringMemoryMngr::resize(size_t size) {
+    bool sizeChanged = false;
+    if (size > m_str_upper_bound) {
+        auto ptr = new OvString[size];
+        if (!ptr) {
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
+        }
+        m_str_upper_bound = size;
+        m_use_external_storage = false;
+        m_data = decltype(m_data)(ptr, destroy);
+        sizeChanged = true;
+    }
+    return sizeChanged;
+}
+
+bool StringMemory::StringMemoryMngr::hasExtBuffer() const noexcept {
+    return m_use_external_storage;
+}
+
+size_t StringMemory::StringMemoryMngr::getStrLen() const noexcept {
+    return m_str_upper_bound;
+}
+
+void StringMemory::StringMemoryMngr::destroy(OvString* ptr) {
+    delete[] ptr;
+}
+
+void* StringMemory::StringMemoryMngr::getRawPtr() const noexcept {
+    return reinterpret_cast<void *>(m_data.get());
+}
+
+/////////////// DnnlMemoryMngr ///////////////
 
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
@@ -282,13 +458,14 @@ void DnnlMemoryMngr::notifyUpdate() {
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
+    }
     if (!m_pMemDesc->isDefined()) {
-        IE_THROW() << "Can not create StaticMemory object. The memory desc is undefined";
+        OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
     }
 
     m_size = m_pMemDesc->getCurrentMemSize();
-
-    auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
 
     if (data) {
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size);
@@ -296,16 +473,22 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size);
     }
 
-    // ========================
-    // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-    // but with ability to skip pads zeroing.
-    m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
-    //
-    // ========================
-    if (pads_zeroing)
-        m_prim.set_data_handle(m_pMemMngr->getRawPtr());
-    else
-        m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+    try {
+        auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
+        // ========================
+        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+        // but with ability to skip pads zeroing.
+        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
+        //
+        // ========================
+        if (pads_zeroing)
+            m_prim.set_data_handle(m_pMemMngr->getRawPtr());
+        else
+            m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+    }
+    catch (const std::exception& exc) {
+        dnnlErrorCtx = exc.what();
+    }
 }
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing) :
@@ -340,10 +523,13 @@ const VectorDims& StaticMemory::getStaticDims() const {
 }
 
 void StaticMemory::redefineDesc(MemoryDescPtr desc) {
-    IE_THROW(Unexpected) << "Memory descriptor may not be modified in StaticMemory object";
+    OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
@@ -353,6 +539,9 @@ MemoryMngrPtr StaticMemory::getMemoryMngr() const {
 
 //oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
+    if (!m_prim) {
+        OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
+    }
     return m_prim;
 }
 
@@ -375,12 +564,12 @@ void* StaticMemory::StaticMemoryMngr::getRawPtr() const noexcept {
 }
 
 void StaticMemory::StaticMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    IE_THROW(Unexpected) << "StaticMemoryMngr may not be modified";
+    OPENVINO_THROW("Unexpected: StaticMemoryMngr may not be modified");
 }
 
 bool StaticMemory::StaticMemoryMngr::resize(size_t size) {
     if (size != m_size) {
-        IE_THROW(Unexpected) << "StaticMemoryMngr may not resize the memory";
+        OPENVINO_THROW("Unexpected: StaticMemoryMngr may not resize the memory");
     }
     return false;
 }

@@ -11,7 +11,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/opsets/opset2.hpp>
 #include <low_precision/batch_to_space.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -29,17 +28,17 @@ public:
     class Actual {
     public:
         ov::element::Type input_type;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_before;
+        ov::builder::subgraph::DequantizationOperations dequantization_before;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_after;
+        ov::builder::subgraph::DequantizationOperations dequantization_after;
     };
 
     class Expected {
     public:
         ov::element::Type input_type;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_before;
+        ov::builder::subgraph::DequantizationOperations dequantization_before;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_after;
+        ov::builder::subgraph::DequantizationOperations dequantization_after;
     };
 
     TestTransformationParams params;
@@ -51,17 +50,17 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     BatchToSpaceTransformationTestValues> BatchToSpaceTransformationParams;
 
 class BatchToSpaceTransformation : public LayerTransformation,
                                    public testing::WithParamInterface<BatchToSpaceTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape input_shape = std::get<0>(GetParam());
+        const ov::PartialShape input_shape = std::get<0>(GetParam());
         const BatchToSpaceTransformationTestValues test_values = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+        actualFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
             input_shape,
             test_values.actual.input_type,
             test_values.actual.dequantization_before,
@@ -74,7 +73,7 @@ public:
         transform.add<ov::pass::low_precision::BatchToSpaceTransformation>(test_values.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+        referenceFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
             input_shape,
             test_values.expected.input_type,
             test_values.expected.dequantization_before,
@@ -85,7 +84,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<BatchToSpaceTransformationParams> obj) {
-        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const ov::PartialShape shape = std::get<0>(obj.param);
         const BatchToSpaceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -109,7 +108,7 @@ TEST_P(BatchToSpaceTransformation, CompareFunctions) {
 }
 
 namespace testValues {
-const std::vector<ngraph::PartialShape> input_shapes = {
+const std::vector<ov::PartialShape> input_shapes = {
     {4, 3, 50, 86}
 };
 

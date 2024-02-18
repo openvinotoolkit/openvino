@@ -7,7 +7,6 @@
 #include "element_visitor.hpp"
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/eye.hpp"
 
 namespace ov {
@@ -58,9 +57,7 @@ void Eye::validate_and_infer_types() {
                               input_et);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
     set_output_type(0, get_out_type(), output_shape);
 }
 
@@ -125,10 +122,13 @@ bool Eye::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     outputs[0].set_shape(output_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64, i8, i32, i64, u8>::apply<eye::Evaluate>(outputs[0].get_element_type(),
-                                                                                 outputs[0],
-                                                                                 output_shape,
-                                                                                 diagonal_index);
+    return IF_TYPE_OF(v9_Eye_evaluate,
+                      OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i32, i64, u8),
+                      eye::Evaluate,
+                      outputs[0].get_element_type(),
+                      outputs[0],
+                      output_shape,
+                      diagonal_index);
 }
 }  // namespace v9
 }  // namespace op

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
@@ -40,20 +41,16 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         unique_axes.reset(new std::set<int64_t>());
     } else if (number_of_inputs == 2) {
         const auto& axes_shape = input_shapes[1];
-        OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,
-                              axes_shape.is_dynamic() || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
+                              axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
                               "Second input (axes) should not be of rank higher than 1. Got: ",
                               axes_shape.rank().get_length());
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<int64_t> axes;
         if (arg_rank.is_static() && axes_shape.is_static()) {
             if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
                 // The values of `axes` input are known
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                normalize_axes(op, arg_rank.get_length(), *axes);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(op, arg_rank.get_length(), *axes);
                 unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input is a single element tensor which is unique by definition, deducing output rank

@@ -181,15 +181,3 @@ function(ov_add_test_target)
             COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
 endfunction()
-
-# deprecated
-
-function(addIeTarget)
-    message(WARNING "'addIeTarget' is deprecated, please, use 'ov_add_target' instead")
-    ov_add_target(${ARGV})
-endfunction()
-
-function(addIeTargetTest)
-    message(WARNING "'addIeTargetTest' is deprecated, please, use 'ov_add_test_target' instead")
-    ov_add_test_target(${ARGV})
-endfunction()

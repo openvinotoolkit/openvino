@@ -90,6 +90,8 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
                                                             mode);
     }
 
+    broadcast_prim->output_pshape = op->get_output_partial_shape(0);
+
     p.add_primitive(*op, broadcast_prim);
 }
 

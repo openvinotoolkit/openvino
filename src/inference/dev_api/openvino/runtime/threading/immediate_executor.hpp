@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
 namespace threading {
@@ -23,6 +23,11 @@ namespace threading {
  */
 class ImmediateExecutor : public ITaskExecutor {
 public:
+    /**
+     * @brief A shared pointer to a ImmediateExecutor object
+     */
+    using Ptr = std::shared_ptr<ImmediateExecutor>;
+
     /**
      * @brief Destroys the object.
      */

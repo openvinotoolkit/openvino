@@ -10,9 +10,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-ov::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
+ov::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding(bool check_shape) {
     auto shape_of = pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>([=](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
+        if (!check_shape)
+            return true;
         return shape.is_dynamic() || shape_size(shape.get_shape()) != 1;
     });
 

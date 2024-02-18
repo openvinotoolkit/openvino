@@ -43,7 +43,7 @@ void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, 
             inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
             primArgs[inReorder.first] = memDst;
         } else {
-            IE_THROW() << "DnnlExecutor has reorder for input " << inReorder.first << ", but doesn't have source memory";
+            OPENVINO_THROW("DnnlExecutor has reorder for input ", inReorder.first, ", but doesn't have source memory");
         }
     }
     std::unordered_map<int, dnnl::memory> outputMem;
@@ -53,7 +53,7 @@ void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, 
             outputMem[outReorder.first] = primArgs[outReorder.first];
             primArgs[outReorder.first] = memSrc;
         } else {
-            IE_THROW() << "DnnlExecutor has reorder for output " << outReorder.first << ", but doesn't have destination memory";
+            OPENVINO_THROW("DnnlExecutor has reorder for output ", outReorder.first, ", but doesn't have destination memory");
         }
     }
     execPrim.execute(strm, primArgs);

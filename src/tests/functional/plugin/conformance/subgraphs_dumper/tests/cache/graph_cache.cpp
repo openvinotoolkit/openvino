@@ -79,7 +79,7 @@ class GraphCacheUnitTest : public GraphCacheFuncTest,
                            public virtual GraphCache {
 protected:
     std::shared_ptr<ov::op::v0::Convert> convert_node;
-    MetaInfo test_meta;
+    ov::conformance::MetaInfo test_meta;
 
     void SetUp() override {
         GraphCacheFuncTest::SetUp();
@@ -89,10 +89,10 @@ protected:
 TEST_F(GraphCacheUnitTest, update_cache_by_graph) {
     Model_2 test;
     auto model_to_cache = test.get();
-    std::map<std::string, InputInfo> in_info;
+    std::map<std::string, ov::conformance::InputInfo> in_info;
     for (const auto& op : model_to_cache->get_ordered_ops()) {
         if (ov::op::util::is_parameter(op)) {
-            in_info.insert({ op->get_friendly_name(), InputInfo()});
+            in_info.insert({ op->get_friendly_name(), ov::conformance::InputInfo()});
         }
     }
     this->update_cache(model_to_cache, test_model_path, in_info, "test_extractor", model_to_cache->get_ordered_ops().size());

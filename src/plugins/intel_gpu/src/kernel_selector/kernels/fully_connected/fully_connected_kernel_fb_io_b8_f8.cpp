@@ -43,7 +43,7 @@ size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_p
 }
 
 FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(const fully_connected_params& arg,
-                                                                                int) const {
+                                                                                int, int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     const auto& output = arg.outputs[0];

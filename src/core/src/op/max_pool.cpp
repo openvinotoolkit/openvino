@@ -39,9 +39,8 @@ bool MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -92,15 +91,18 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(output_shape.get_shape());
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
-                                                                            inputs[0],
-                                                                            outputs[0],
-                                                                            inputs[0].get_shape(),
-                                                                            outputs[0].get_shape(),
-                                                                            get_kernel(),
-                                                                            get_strides(),
-                                                                            get_pads_begin(),
-                                                                            get_pads_end());
+    return IF_TYPE_OF(v1_MaxPool_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
+                      maxpool::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      outputs[0].get_shape(),
+                      get_kernel(),
+                      get_strides(),
+                      get_pads_begin(),
+                      get_pads_end());
 }
 
 bool MaxPool::has_evaluate() const {
@@ -162,14 +164,11 @@ void MaxPool::validate_and_infer_types() {
 
     const auto input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_axis = normalize_axis(this, m_axis, input_shape.rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        m_axis = ov::util::normalize_axis(this, m_axis, input_shape.rank());
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
@@ -206,18 +205,21 @@ struct Evaluate : element::NoAction<bool> {
                              const Shape& pads_end,
                              const int64_t axis) {
         using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvalByIdxType>(out_indices.get_element_type(),
-                                                        in.data<const T>(),
-                                                        out_values.data<T>(),
-                                                        out_indices,
-                                                        in_shape,
-                                                        out_shape,
-                                                        kernel,
-                                                        strides,
-                                                        dilations,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        axis);
+        return IF_TYPE_OF(maxpool_eval_by_idx_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvalByIdxType,
+                          out_indices.get_element_type(),
+                          in.data<const T>(),
+                          out_values.data<T>(),
+                          out_indices,
+                          in_shape,
+                          out_shape,
+                          kernel,
+                          strides,
+                          dilations,
+                          pads_begin,
+                          pads_end,
+                          axis);
     }
 
 private:
@@ -263,18 +265,21 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(output_shape.get_shape());
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i8, i32, i64, u8, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
-                                                                                    inputs[0],
-                                                                                    outputs[0],
-                                                                                    outputs[1],
-                                                                                    inputs[0].get_shape(),
-                                                                                    outputs[0].get_shape(),
-                                                                                    get_kernel(),
-                                                                                    get_strides(),
-                                                                                    get_dilations(),
-                                                                                    get_pads_begin(),
-                                                                                    get_pads_end(),
-                                                                                    get_axis());
+    return IF_TYPE_OF(v8_MaxPool_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i8, i32, i64, u8, u32, u64),
+                      maxpool::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      outputs[1],
+                      inputs[0].get_shape(),
+                      outputs[0].get_shape(),
+                      get_kernel(),
+                      get_strides(),
+                      get_dilations(),
+                      get_pads_begin(),
+                      get_pads_end(),
+                      get_axis());
 }
 
 bool MaxPool::has_evaluate() const {
