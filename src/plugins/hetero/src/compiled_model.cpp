@@ -260,7 +260,9 @@ std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() 
     auto& runtime_graph = rt_models[0];
     OPENVINO_ASSERT(runtime_graph->inputs().size() == inputs().size());
     auto merged_shared_object = std::make_shared<std::vector<std::shared_ptr<void>>>(std::move(shared_objects));
-    set_model_shared_object(*runtime_graph, std::reinterpret_pointer_cast<void>(merged_shared_object));
+    set_model_shared_object(
+        *runtime_graph,
+        std::shared_ptr<void>(std::move(merged_shared_object), reinterpret_cast<void*>(merged_shared_object.get())));
     return runtime_graph;
 }
 

@@ -49,7 +49,8 @@ std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
                   model_so(model_so) {}
         };
         auto shared_object = std::make_shared<SharedObject>(_so, model->m_shared_object);
-        copy->m_shared_object = std::reinterpret_pointer_cast<void>(shared_object);
+        copy->m_shared_object =
+            std::shared_ptr<void>(std::move(shared_object), reinterpret_cast<void*>(shared_object.get()));
         copy->get_rt_info() = model->get_rt_info();
         return copy;
     });
