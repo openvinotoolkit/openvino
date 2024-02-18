@@ -2486,6 +2486,84 @@ StreamsCalculationTestCase _2sockets_mock_latency_34 = {
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };
+StreamsCalculationTestCase _1sockets_mock_latency_1 = {
+    1,
+    false,
+    0,
+    0,
+    14,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0},
+     {0, MAIN_CORE_PROC, 6, 0, 0},
+     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_2 = {
+    1,
+    false,
+    0,
+    0,
+    6,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::AUTO,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 6, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_3 = {
+    1,
+    false,
+    0,
+    0,
+    14,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0},
+     {0, MAIN_CORE_PROC, 6, 0, 0},
+     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_4 = {
+    1,
+    false,
+    0,
+    0,
+    6,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 6, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_5 = {
+    1,
+    false,
+    0,
+    0,
+    14,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0},
+     {0, MAIN_CORE_PROC, 6, 0, 0},
+     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_6 = {
+    1,
+    false,
+    0,
+    0,
+    6,
+    0,
+    "LATENCY",
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 6, 0, 0}},
+};
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2660,6 +2738,12 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_31,
                                          _2sockets_mock_latency_32,
                                          _2sockets_mock_latency_33,
-                                         _2sockets_mock_latency_34));
+                                         _2sockets_mock_latency_34,
+                                         _1sockets_mock_latency_1,
+                                         _1sockets_mock_latency_2,
+                                         _1sockets_mock_latency_3,
+                                         _1sockets_mock_latency_4,
+                                         _1sockets_mock_latency_5,
+                                         _1sockets_mock_latency_6));
 
 }  // namespace
