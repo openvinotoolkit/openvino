@@ -66,7 +66,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                         continue;
 
                     // todo xxx-101766: if we don't skip Results there is an error on GPU
-                    if (std::dynamic_pointer_cast<ov::op::v0::Result>(out_node))
+                    if (std::dynamic_pointer_cast<ov::op::v0::Result>(out_node) && !m_is_subgraph)
                         continue;
 
                     // element_type of this convert will be changed automatically to f16 after

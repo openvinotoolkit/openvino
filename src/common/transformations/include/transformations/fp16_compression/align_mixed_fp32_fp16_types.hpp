@@ -23,5 +23,9 @@ class TRANSFORMATIONS_API AlignMixedFP32FP16Types;
 class ov::pass::AlignMixedFP32FP16Types : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignMixedFP32FP16Types", "0");
+    AlignMixedFP32FP16Types(bool is_subgraph = false) : m_is_subgraph(is_subgraph) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    bool m_is_subgraph;
 };
