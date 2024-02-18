@@ -36,6 +36,21 @@ std::unordered_set<std::string> get_removed_nodes(const std::shared_ptr<const ov
     return result;
 }
 
+std::unordered_set<std::string> get_broadcast_fused_nodes(const std::shared_ptr<const ov::Model>& transformed_model) {
+    std::unordered_set<std::string> result = {};
+
+    for (auto&& node : transformed_model->get_ops()) {
+        if (ov::is_type<ov::op::v3::Broadcast>(node) || ov::is_type<ov::op::v1::Broadcast>(node)) {
+            for (auto&& fused_layer_name : ov::getFusedNamesVector(node)) {
+                result.emplace(fused_layer_name);
+                result.erase(node->get_friendly_name());
+            }
+        }
+    }
+
+    return result;
+}
+
 }  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()), m_is_new_api(true) {}
@@ -54,10 +69,6 @@ void ov::IPlugin::set_device_name(const std::string& name) {
 
 const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
-}
-
-void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
@@ -255,16 +266,28 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     }
     // Get removed nodes
     NameSet removed_nodes = get_removed_nodes(model, transformed_model);
-    // Filter ShapeOfs & Broadcast
+    NameSet broadcast_fused_nodes = get_broadcast_fused_nodes(transformed_model);
+    // Filter ShapeOfs & Broadcast, Broadcast can't be split with the output ops
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
         if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::v3::Broadcast>(op) ||
-             ov::is_type<ov::op::v1::Broadcast>(op)) &&
+            ov::is_type<ov::op::v1::Broadcast>(op)) &&
             (supported.count(name) || removed_nodes.count(name))) {
             // Don't allow cut on ShapeOf
             if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
                 remove_op_from_supported(op);
                 removed_nodes.erase(name);
+            }
+        }
+    }
+
+    // Some ops in other layers will be fused with Broadcast op in LLM, so need filter the fused ops in other layers
+    for (auto& op : model->get_ordered_ops()) {
+        const auto& name = op->get_friendly_name();
+        if (broadcast_fused_nodes.count(name)) {
+            if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
+                remove_op_from_supported(op);
+                broadcast_fused_nodes.erase(name);
             }
         }
     }
