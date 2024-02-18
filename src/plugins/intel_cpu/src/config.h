@@ -39,9 +39,9 @@ struct Config {
     };
 
     enum class LatencyThreadingMode {
-        PER_NUMA_NODE,
-        PER_SOCKET,
+        AUTO,
         PER_PLATFORM,
+        PER_SOCKET,
     };
 
     enum class ModelType {
@@ -78,7 +78,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
+    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::AUTO;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
