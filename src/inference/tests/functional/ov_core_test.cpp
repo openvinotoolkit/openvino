@@ -82,8 +82,7 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     std::string xml_file_name = "test_plugin.xml";
     std::string cwd_file_path =
         ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator + xml_file_name;
-    std::string ov_file_path =
-        ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
+    std::string ov_file_path = ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator + xml_file_name;
     create_plugin_xml(cwd_file_path);
     create_plugin_xml(ov_file_path, "2");
     ov::Core core(xml_file_name);
