@@ -113,38 +113,6 @@ std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
 }
 }  // namespace
 
-namespace set_18 {
-    ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-}
-} // namespace set_18
-
-
-namespace set_13 {
-ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
-}
-
-ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
-    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
-        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
-        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
-    }
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-}
-}  // namespace set_13
-
-
-namespace set_11 {
-ov::OutputVector reduce_l2(const Node& node) {
-    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
-        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
-        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
-    }
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-    }
-} // namespace set_11
-
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0));
@@ -192,6 +160,28 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 
 }  // namespace set_1
+
+namespace set_11 {
+ov::OutputVector reduce_l2(const Node& node) {
+    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
+        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
+        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+    }
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+    }
+} // namespace set_11
+
+namespace set_13 {
+ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
+}
+}  // namespace set_13
+
+namespace set_18 {
+    ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+}
+} // namespace set_18
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
