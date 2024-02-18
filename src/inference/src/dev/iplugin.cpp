@@ -5,7 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 
 #include <openvino/core/graph_util.hpp>
-
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -94,6 +94,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
     uint64_t memory_size_in_bytes) {
     // Collect original operation names
+    bool memory_control = memory_size_in_bytes > 0;
     std::unordered_set<std::string> original_ops;
     for (auto&& node : model->get_ops()) {
         original_ops.emplace(node->get_friendly_name());
@@ -201,17 +202,36 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     };
 
     // Walk over transformed model for special handing of Parameters/Constants/Results
-    bool memory_control = memory_size_in_bytes > 0;
-    unsigned long total_size = 0;
     bool start_split = false;
+    unsigned long total_size = 0;
+    unsigned long total_ops_size = 0;
+    std::map<std::string, int> pair_checker;
+    for (auto&& op : ops) {
+        if (ov::op::util::is_constant(op)) {
+            const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
+            total_ops_size += const_byte_size;
+        }
+    }
     if (memory_control) {
         for (auto&& op : ops) {
+            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                if (pair_checker.count(assign->get_variable_id()) == 0) {
+                    pair_checker[assign->get_variable_id()] = 1;
+                } else {
+                    pair_checker[assign->get_variable_id()]++;
+                }
+            }
             if (ov::op::util::is_constant(op) && !start_split) {
                 const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
                 total_size += const_byte_size;
                 if (total_size * 1.2 >= memory_size_in_bytes) {
                     if (!start_split) {
-                        start_split = true;
+                        bool only_pairs = std::all_of(pair_checker.begin(),
+                                                      pair_checker.end(),
+                                                      [](const std::pair<std::string, int>& val) {
+                                                          return val.second == 2;
+                                                      });
+                        start_split = only_pairs;
                     }
                 }
             }
@@ -233,14 +253,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             }
         }
     }
-
     // Get removed nodes
     NameSet removed_nodes = get_removed_nodes(model, transformed_model);
-
-    // Filter ShapeOfs
+    // Filter ShapeOfs & Broadcast
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
-        if (ov::is_type<ov::op::util::ShapeOfBase>(op) && (supported.count(name) || removed_nodes.count(name))) {
+        if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::v3::Broadcast>(op) ||
+             ov::is_type<ov::op::v1::Broadcast>(op)) &&
+            (supported.count(name) || removed_nodes.count(name))) {
             // Don't allow cut on ShapeOf
             if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
                 remove_op_from_supported(op);
@@ -265,14 +285,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         while (changed) {
             changed = false;
             for (auto& op : model->get_ordered_ops()) {
-                if (!supported.count(op->get_friendly_name()) && has_users_supported(supported, op)) {
+                if (!supported.count(op->get_friendly_name()) && has_users_supported(supported, op) &&
+                    !unsupported.count(op->get_friendly_name())) {
                     supported.insert(op->get_friendly_name());
                     changed = true;
                 }
             }
         }
     }
-
     // Finally get intersection of all supported operation names
     // and operation names from original model
     NameSet res;
