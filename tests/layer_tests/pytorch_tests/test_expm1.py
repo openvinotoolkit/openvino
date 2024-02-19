@@ -18,6 +18,8 @@ class TestExpm1(PytorchLayerTest):
         dtype_map = {
             "float32": torch.float32,
             "float64": torch.float64,
+            "int32": torch.int32,
+            "int64": torch.int64,
         }
 
         dtype = dtype_map.get(dtype)
@@ -46,8 +48,8 @@ class TestExpm1(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("mode,dtype", [
-        ("", "float32"), ("", "float64"),
-        ("out", "float32"), ("out", "float64")])
+        ("", "float32"), ("", "float64"), ("", "int32"), ("", "int64"),
+        ("out", "float32"), ("out", "float64"), ("out", "int32"), ("out", "int64")])
     @pytest.mark.parametrize("inputs", [[0, 1, 2, 3, 4, 5], [-2, -1, 0, 1, 2, 3], [1, 2, 3, 4, 5, 6]])
     def test_expm1(self, mode, dtype, inputs, ie_device, precision, ir_version):
         self._test(
