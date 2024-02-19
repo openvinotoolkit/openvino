@@ -17,14 +17,14 @@ This tutorial shows how to convert a TensorFlow `Faster R-CNN with
 Resnet-50
 V1 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__
 object detection model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+Representation <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 (OpenVINO IR) format, using Model Converter. After creating the OpenVINO
 IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+Runtime <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Imports <#imports>`__
@@ -74,7 +74,7 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import urllib.request
-    
+
     urllib.request.urlretrieve(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py",
         filename="notebook_utils.py",
@@ -89,14 +89,14 @@ Imports
 
     # Standard python modules
     from pathlib import Path
-    
+
     # External modules and dependencies
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     # OpenVINO import
     import openvino as ov
-    
+
     # Notebook utils module
     from notebook_utils import download_file
 
@@ -112,21 +112,21 @@ Define model related variables and create corresponding directories:
     # Create directories for models files
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for TensorFlow model
     tf_model_dir = model_dir / "tf"
     tf_model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for OpenVINO IR model
     ir_model_dir = model_dir / "ir"
     ir_model_dir.mkdir(exist_ok=True)
-    
+
     model_name = "faster_rcnn_resnet50_v1_640x640"
-    
+
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
-    
+
     tf_model_url = "https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-640x640/versions/1?tf-hub-format=compressed"
-    
+
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
@@ -157,7 +157,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -166,7 +166,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
 .. code:: ipython3
 
     import tarfile
-    
+
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
@@ -175,8 +175,8 @@ Convert Model to OpenVINO IR
 
 
 
-OpenVINO Model Converter Python API can be used to convert the
-TensorFlow model to OpenVINO IR.
+OpenVINO Model Conversion API can be used to convert the TensorFlow
+model to OpenVINO IR.
 
 ``ov.convert_model`` function accept path to TensorFlow model and
 returns OpenVINO Model class instance which represents this model. Also
@@ -188,15 +188,15 @@ The converted model is ready to load on a device using ``compile_model``
 or saved on disk using the ``save_model`` function to reduce loading
 time when the model is run in the future.
 
-See the `Model Converter Developer
-Guide <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
-for more information about Model Converter and TensorFlow `models
-support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+See the `Model Preparation
+Guide <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+for more information about model conversion and TensorFlow `models
+support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 .. code:: ipython3
 
     ov_model = ov.convert_model(tf_model_dir)
-    
+
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
@@ -215,7 +215,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -223,7 +223,7 @@ select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -290,10 +290,10 @@ for more information about model inputs, outputs and their formats.
     model_inputs = compiled_model.inputs
     model_input = compiled_model.input(0)
     model_outputs = compiled_model.outputs
-    
+
     print("Model inputs count:", len(model_inputs))
     print("Model input:", model_input)
-    
+
     print("Model outputs count:", len(model_outputs))
     print("Model outputs:")
     for output in model_outputs:
@@ -326,7 +326,7 @@ Load and save an image:
 .. code:: ipython3
 
     image_path = Path("./data/coco_bike.jpg")
-    
+
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=image_path.name,
@@ -343,7 +343,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -353,16 +353,16 @@ Read the image, resize and convert it to the input shape of the network:
 
     # Read the image
     image = cv2.imread(filename=str(image_path))
-    
+
     # The network expects images in RGB format
     image = cv2.cvtColor(image, code=cv2.COLOR_BGR2RGB)
-    
+
     # Resize the image to the network input shape
     resized_image = cv2.resize(src=image, dsize=(255, 255))
-    
+
     # Transpose the image to the network input shape
     network_input_image = np.expand_dims(resized_image, 0)
-    
+
     # Show the image
     plt.imshow(image)
 
@@ -371,7 +371,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f74d41406d0>
+    <matplotlib.image.AxesImage at 0x7f62f45088e0>
 
 
 
@@ -396,19 +396,19 @@ outputs will be used.
 .. code:: ipython3
 
     _, detection_boxes, detection_classes, _, detection_scores, num_detections, _, _ = model_outputs
-    
+
     image_detection_boxes = inference_result[detection_boxes]
     print("image_detection_boxes:", image_detection_boxes)
-    
+
     image_detection_classes = inference_result[detection_classes]
     print("image_detection_classes:", image_detection_classes)
-    
+
     image_detection_scores = inference_result[detection_scores]
     print("image_detection_scores:", image_detection_scores)
-    
+
     image_num_detections = inference_result[num_detections]
     print("image_detections_num:", image_num_detections)
-    
+
     # Alternatively, inference result data can be extracted by model output name with `.get()` method
     assert (inference_result[detection_boxes] == inference_result.get("detection_boxes")).all(), "extracted inference result data should be equal"
 
@@ -503,12 +503,12 @@ Define utility functions to visualize the inference results
 
     import random
     from typing import Optional
-    
-    
+
+
     def add_detection_box(box: np.ndarray, image: np.ndarray, label: Optional[str] = None) -> np.ndarray:
         """
         Helper function for adding single bounding box to the image
-    
+
         Parameters
         ----------
         box : np.ndarray
@@ -517,20 +517,20 @@ Define utility functions to visualize the inference results
             The image to which detection box is added
         label : str, optional
             Detection box label string, if not provided will not be added to result image (default is None)
-    
+
         Returns
         -------
         np.ndarray
             NumPy array including both image and detection box
-    
+
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
         box_color = [random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
-    
+
         cv2.rectangle(img=image, pt1=point1, pt2=point2, color=box_color, thickness=line_thickness, lineType=cv2.LINE_AA)
-    
+
         if label:
             font_thickness = max(line_thickness - 1, 1)
             font_face = 0
@@ -551,14 +551,14 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Dict
-    
+
     from openvino.runtime.utils.data_helpers import OVDict
-    
-    
+
+
     def visualize_inference_result(inference_result: OVDict, image: np.ndarray, labels_map: Dict, detections_limit: Optional[int] = None):
         """
         Helper function for visualizing inference result on the image
-    
+
         Parameters
         ----------
         inference_result : OVDict
@@ -574,13 +574,13 @@ Define utility functions to visualize the inference results
         detection_classes: np.ndarray = inference_result.get("detection_classes")
         detection_scores: np.ndarray = inference_result.get("detection_scores")
         num_detections: np.ndarray = inference_result.get("num_detections")
-    
+
         detections_limit = int(
             min(detections_limit, num_detections[0])
             if detections_limit is not None
             else num_detections[0]
         )
-    
+
         # Normalize detection boxes coordinates to original image size
         original_image_height, original_image_width, _ = image.shape
         normalized_detection_boxex = detection_boxes[::] * [
@@ -589,9 +589,9 @@ Define utility functions to visualize the inference results
             original_image_height,
             original_image_width,
         ]
-    
+
         image_with_detection_boxex = np.copy(image)
-    
+
         for i in range(detections_limit):
             detected_class_name = labels_map[int(detection_classes[0, i])]
             score = detection_scores[0, i]
@@ -601,7 +601,7 @@ Define utility functions to visualize the inference results
                 image=image_with_detection_boxex,
                 label=label,
             )
-    
+
         plt.imshow(image_with_detection_boxex)
 
 TensorFlow Object Detection model
@@ -617,7 +617,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 .. code:: ipython3
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
-    
+
     download_file(
         url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
         filename=coco_labels_file_path.name,
@@ -635,7 +635,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 
@@ -648,7 +648,7 @@ file:
     with open(coco_labels_file_path, "r") as file:
         coco_labels = file.read().strip().split("\n")
         coco_labels_map = dict(enumerate(coco_labels, 1))
-    
+
     print(coco_labels_map)
 
 
@@ -709,4 +709,4 @@ utilization.
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
 and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__.

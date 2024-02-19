@@ -11,6 +11,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -19,9 +20,7 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_id = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto input_id = ov::op::util::get_ie_output_name(op->get_input_source_output(0));
     if (input_id.empty()) {
         input_id = prev->get_friendly_name();
         if (prev->get_output_size() > 1) {

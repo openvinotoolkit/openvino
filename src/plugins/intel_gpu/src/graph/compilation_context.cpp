@@ -28,8 +28,8 @@ public:
         futures.emplace_back(promise->get_future());
 
         if (_task_keys.find(key) == _task_keys.end()) {
-            _task_keys.insert(key);
             if (_task_executor != nullptr) {
+                _task_keys.insert(key);
                 _task_executor->run([task, promise] {
                     task();
                     promise->set_value();
@@ -62,6 +62,14 @@ public:
             return;
 
         _stop_compilation = true;
+
+        // Flush all remaining tasks.
+        for (auto&& future : futures) {
+            if (future.valid()) {
+                future.wait();
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(_mutex);
             if (_task_executor != nullptr)

@@ -8,8 +8,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_layouts.h"
 #include "general_utils.h"
 #include "precision_support.h"
 

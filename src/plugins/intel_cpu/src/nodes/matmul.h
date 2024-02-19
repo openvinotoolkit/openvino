@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <node.h>
-#include <ie_common.h>
-#include <string>
-#include <vector>
-#include <array>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/dnnl_executor.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
+
+#include <array>
 
 namespace ov {
 namespace intel_cpu {
@@ -53,7 +51,8 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
-    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
+    std::pair<Shape, Shape>
+    makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
 
     bool withBiases;
 

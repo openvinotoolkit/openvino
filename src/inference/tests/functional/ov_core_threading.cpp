@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <fstream>
 #include <mutex>
 #include <thread>
@@ -14,9 +15,10 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "ie_extension.h"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
 #    if __GLIBC_MINOR__ < 34
@@ -61,12 +63,10 @@ public:
 
     void safeAddExtension(ov::Core& core) {
         try {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto extension = std::make_shared<InferenceEngine::Extension>(
+            auto extension = ov::detail::load_extensions(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
+                                                   std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
             core.add_extension(extension);
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
@@ -169,17 +169,63 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-// tested function: read_model and add_legacy_extension
+
+namespace ov {
+namespace test {
+namespace util {
+class Barrier {
+private:
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    size_t m_count;
+    const size_t m_expected;
+    size_t m_wait_id;
+
+public:
+    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_wait_id{} {}
+
+    void arrive_and_wait() {
+        std::unique_lock<std::mutex> lock(m_mutex);
+
+        if (--m_count == 0) {
+            ++m_wait_id;
+            m_count = m_expected;
+            m_cv.notify_all();
+        } else {
+            const auto wait_id = m_wait_id;
+            m_cv.wait(lock, [this, wait_id] {
+                return wait_id != m_wait_id;
+            });
+        }
+    }
+};
+}  // namespace util
+}  // namespace test
+}  // namespace ov
+
+// tested function: read_model and add_extension
 TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
 
+    constexpr size_t threads_num = 12;
+    ov::test::util::Barrier sync_point(threads_num);
+
     runParallel(
         [&]() {
             safeAddExtension(core);
-            (void)core.read_model(modelName, weightsName);
+            // Add the extension and read model are thread-safe when use separately.
+            // The barrier is required here to wait until all threads add extensions to core before read model.
+            // The read_model loads Frontend which check extension vector and assume it want change. If extension vector
+            // is expanded then all iterators are invalidated and can result in segfault when frontend check extensions
+            // to be added in frontend.
+            sync_point.arrive_and_wait();
+            std::ignore = core.read_model(modelName, weightsName);
+
+            // sync before next iteration (modification of extensions vector)
+            sync_point.arrive_and_wait();
         },
         100,
-        12);
+        threads_num);
 }
 #endif  // defined(ENABLE_OV_IR_FRONTEND)

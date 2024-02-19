@@ -11,7 +11,7 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Base class for cleanup low precision transformation.
  */
 class LP_TRANSFORMATIONS_API CleanupTransformation : public LayerTransformation {

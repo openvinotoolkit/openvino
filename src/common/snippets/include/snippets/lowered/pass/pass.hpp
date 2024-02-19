@@ -5,7 +5,8 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
-
+#include "snippets/lowered/pass/pass_config.hpp"
+#include "snippets/pass/positioned_pass.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
@@ -49,8 +50,12 @@ public:
 
 class PassPipeline {
 public:
-    PassPipeline() = default;
+    using PositionedPassLowered = snippets::pass::PositionedPass<lowered::pass::Pass>;
 
+    PassPipeline();
+    PassPipeline(const std::shared_ptr<PassConfig>& pass_config);
+
+    void register_pass(const snippets::pass::PassPosition& position, const std::shared_ptr<Pass>& pass);
     void register_pass(const std::shared_ptr<Pass>& pass);
 
     template<typename T, class... Args>
@@ -59,10 +64,19 @@ public:
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         register_pass(pass);
     }
+    template<typename T, class Pos, class... Args, std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
+    void register_pass(const snippets::pass::PassPosition& position, Args&&... args) {
+        static_assert(std::is_base_of<Pass, T>::value, "Pass not derived from lowered::Pass");
+        auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        register_pass(position, pass);
+    }
+
+    void register_positioned_passes(const std::vector<PositionedPassLowered>& pos_passes);
 
     void run(lowered::LinearIR& linear_ir) const;
 
 private:
+    std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<Pass>> m_passes;
 };
 

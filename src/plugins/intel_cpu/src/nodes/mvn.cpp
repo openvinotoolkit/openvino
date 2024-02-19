@@ -11,24 +11,24 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 
 #include <openvino/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
@@ -1829,10 +1829,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!mayiuse(avx512_core)) {
-        if (outputPrecision == ov::element::bf16)
-            outputPrecision = ov::element::f32;
-    }
+    if (!hasHardwareSupport(outputPrecision))
+        outputPrecision = ov::element::f32;
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
@@ -2017,8 +2015,8 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 }
 
 void MVN::prepareParams() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory didn't allocate.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2054,10 +2052,10 @@ void MVN::prepareParams() {
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs, srcMemoryDescs, dstMemoryDescs, {});
@@ -2148,12 +2146,12 @@ void MVN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MVN::execute(dnnl::stream strm) {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(0);
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
-        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
+        uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
+        uint8_t *src_data = srcMemPtr->getDataAs<uint8_t>();
         execPtr->exec(src_data, dst_data, postOpsDataPtrs.data(), shape5D);
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());

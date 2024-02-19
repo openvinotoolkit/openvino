@@ -197,9 +197,9 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     return dispatchData;
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params) const {
     assert(params.GetType() == KernelType::REORDER);
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
@@ -209,7 +209,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -233,8 +233,8 @@ void ReorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params) const {
+    if (!Validate(params)) {
         return {};
     }
     assert(params.GetType() == KernelType::REORDER);
@@ -244,7 +244,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

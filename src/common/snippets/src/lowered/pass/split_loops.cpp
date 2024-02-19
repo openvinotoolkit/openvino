@@ -48,7 +48,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
         for (const auto& entry_point : loop->get_entry_points()) {
             const auto& parent_port = entry_point.expr_port->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
-            const auto parent_loop_ids = parent_expr->get_loop_ids();
+            const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())
                 continue;
 
@@ -67,15 +67,11 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
 
-                LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-                LoopManager::get_loop_bounds(linear_ir,
-                                             loop_to_split->get_entry_points(),
-                                             loop_to_split->get_exit_points(),
-                                             loop_begin_pos,
-                                             loop_end_pos,
-                                             loop_to_split_id);
-                const auto split_loop_id = loop_manager->mark_loop(loop_begin_pos,
-                                                                   loop_end_pos,
+                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
+                                                                      loop_to_split->get_entry_points(),
+                                                                      loop_to_split->get_exit_points());
+                const auto split_loop_id = loop_manager->mark_loop(loop_bounds.first,
+                                                                   loop_bounds.second,
                                                                    loop_to_fuse->get_work_amount(),
                                                                    loop_to_fuse->get_increment(),
                                                                    loop_to_split->get_dim_idx(),

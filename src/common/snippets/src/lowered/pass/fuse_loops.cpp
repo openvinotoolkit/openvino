@@ -68,10 +68,9 @@ void FuseLoops::move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_m
     std::map<size_t, std::pair<LinearIR::constExprIt, LinearIR::constExprIt>> outer_loops;  // The map: LoopID -> [ LoopBegin, LoopEnd ]
     const auto outer_loop_ids = LinearIR::LoopManager::get_outer_expr_loops(*loop_begin_pos, loop_id);
     for (const auto& loop_id : outer_loop_ids) {
-        LinearIR::constExprIt begin, end;
-        loop_manager->get_loop_bounds(linear_ir, loop_id, begin, end);
+        const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
         // save previos iterator since the current iterator can be moved
-        outer_loops[loop_id] = {std::prev(begin), end};
+        outer_loops[loop_id] = {std::prev(loop_bounds.first), loop_bounds.second};
     }
      // Secondly, move expressions
     for (auto it = loop_begin_pos; it != loop_end_pos;) {
@@ -122,7 +121,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
         return false;
 
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, target_loop_id, target_loop_begin_pos, target_loop_end_pos);
+    std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, target_loop_id, current_loop_id, false);
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->set_work_amount(std::max(loop_current->get_work_amount(), loop_target->get_work_amount()));
@@ -167,7 +166,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
         return false;
 
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, target_loop_id, target_loop_begin_pos, target_loop_end_pos);
+    std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, current_loop_id, target_loop_id);
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->set_work_amount(std::max(loop_current->get_work_amount(), loop_target->get_work_amount()));
@@ -202,7 +201,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
             continue;
 
         // Outer Loop ----> Inner Loop
-        const auto current_expr_loops = expr->get_loop_ids();
+        const auto& current_expr_loops = expr->get_loop_ids();
         const auto current_loop_depth = current_expr_loops.size();
         for (size_t i = 0; i < current_loop_depth; ++i) {
             const auto current_loop_id = current_expr_loops[i];
@@ -212,7 +211,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
 
             const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
             LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
-            loop_manager->get_loop_bounds(linear_ir, current_loop_id, current_loop_begin_pos, current_loop_end_pos);
+            std::tie(current_loop_begin_pos, current_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, current_loop_id);
 
             // We fuse upper Loops into the current till we can do it.
             // After that we fuse lower Loops into the current till we can do it.
@@ -235,7 +234,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                         continue;
                     }
 
-                    const auto upper_loop_ids = parent_expr->get_loop_ids();
+                    const auto& upper_loop_ids = parent_expr->get_loop_ids();
                     if (upper_loop_ids.empty())
                         continue;
 
@@ -279,7 +278,7 @@ bool FuseLoops::run(LinearIR& linear_ir) {
                             continue;
                         }
 
-                        const auto lower_loop_ids = consumer_expr->get_loop_ids();
+                        const auto& lower_loop_ids = consumer_expr->get_loop_ids();
                         if (lower_loop_ids.empty())
                             continue;
 

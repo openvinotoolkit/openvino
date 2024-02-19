@@ -15,7 +15,7 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
     using parent = typed_primitive_impl_ocl<detection_output>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::detection_output_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::detection_output_params, kernel_selector::detection_output_optional_params>;
+    using kernel_params_t = kernel_selector::detection_output_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::detection_output_impl)
 
@@ -27,7 +27,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<detection_output>();
         auto params = get_default_params<kernel_selector::detection_output_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::detection_output_optional_params>(impl_param.get_program());
 
         const auto confidence_idx = 1;
         const auto prior_box_idx = 2;
@@ -59,7 +58,7 @@ public:
         detectOutParams.conf_padding_x = confidence_layout.data_padding.lower_size().spatial[0];
         detectOutParams.conf_padding_y = confidence_layout.data_padding.lower_size().spatial[1];
 
-        return {params, optional_params};
+        return params;
     }
 };
 

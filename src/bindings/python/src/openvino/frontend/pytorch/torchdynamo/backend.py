@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -10,18 +10,21 @@ from functools import partial
 from hashlib import sha256
 
 import torch
-from torch._dynamo.backends.common import fake_tensor_unsupported
+from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
+from torch._decomp import decomposition_table, get_decompositions
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.torchdynamo import decompositions
+from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
 from openvino.runtime import Core, Type, PartialShape
 
@@ -42,10 +45,15 @@ log = logging.getLogger(__name__)
     2) model = torch.compile(model, backend="openvino")
 """
 
+openvino_options = {}
 
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
+    if (_get_aot_autograd(options)):
+        global openvino_options
+        openvino_options = options
+        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino)(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
 @register_backend
@@ -111,13 +119,14 @@ def ts_openvino(subgraph, example_inputs):
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
-
-def fx_openvino(subgraph, example_inputs, options):
+def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        if len(openvino_options) != 0:
+            options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
-        if openvino_model_caching is not None:
+        if openvino_model_caching is not None and openvino_model_caching:
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
@@ -127,18 +136,25 @@ def fx_openvino(subgraph, example_inputs, options):
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
-                compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, *example_inputs)
+                compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
                 def _call(*args):
                     res = execute_cached(compiled_model, *args)
                     return res
                 return _call
         if inputs_reversed:
             example_inputs.reverse()
-        model = make_fx(subgraph)(*example_inputs)
+
+        from torch._subclasses.fake_tensor import FakeTensorMode
+        decompositions = _get_decompositions(options)
+        if (_get_aot_autograd(options)):
+            decompositions = decompositions + get_aot_decomposition_list()
+        with FakeTensorMode(allow_non_fake_inputs=True):
+            model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
+
         with torch.no_grad():
             model.eval()
-        partitioner = Partitioner()
-        compiled_model = partitioner.make_partitions(model)
+        partitioner = Partitioner(options)
+        compiled_model = partitioner.make_partitions(model, options)
 
         if executor_parameters is not None and 'model_hash_str' in executor_parameters:
             # Check if the model is fully supported.

@@ -11,8 +11,8 @@ ov::intel_cpu::RoPENode::RoPENode(const OutputVector& args, const Config& cfg) :
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
-    const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(RoPENode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::RoPENode>(new_args, m_config);
@@ -59,7 +59,7 @@ void ov::intel_cpu::RoPENode::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), input_pshape);
 }
 
-bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool ov::intel_cpu::RoPENode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(RoPENode_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("slice_start", m_config.slice_start);

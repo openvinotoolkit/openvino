@@ -82,33 +82,19 @@ macro(ov_parse_ci_build_number repo_root)
             return()
         endif()
 
-        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/src/inference/include/ie/ie_version.hpp")
-        if(NOT EXISTS ${ie_version_hpp})
-            message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
-        endif()
-
         set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/src/core/include/openvino/core/version.hpp")
         if(NOT EXISTS ${ov_version_hpp})
             message(FATAL_ERROR "File openvino/core/version.hpp with OPENVINO_VERSION definitions is not found")
         endif()
 
-        file(STRINGS "${ie_version_hpp}" IE_VERSION_PARTS REGEX "#define IE_VERSION_[A-Z]+[ ]+" )
         file(STRINGS "${ov_version_hpp}" OV_VERSION_PARTS REGEX "#define OPENVINO_VERSION_[A-Z]+[ ]+" )
 
         foreach(suffix MAJOR MINOR PATCH)
-            set(ie_version_name "IE_VERSION_${suffix}")
             set(ov_version_name "OpenVINO_VERSION_${suffix}")
             set(ov_version_name_hpp "OPENVINO_VERSION_${suffix}")
 
-            string(REGEX REPLACE ".+${ie_version_name}[ ]+([0-9]+).*" "\\1"
-                    ${ie_version_name}_HPP "${IE_VERSION_PARTS}")
             string(REGEX REPLACE ".+${ov_version_name_hpp}[ ]+([0-9]+).*" "\\1"
                     ${ov_version_name}_HPP "${OV_VERSION_PARTS}")
-
-            if(NOT ${ie_version_name}_HPP EQUAL ${ov_version_name}_HPP)
-                message(FATAL_ERROR "${ov_version_name} (${${ov_version_name}_HPP})"
-                                    " and ${ie_version_name} (${${ie_version_name}_HPP}) are not equal")
-            endif()
         endforeach()
 
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
@@ -122,7 +108,7 @@ macro(ov_parse_ci_build_number repo_root)
         endforeach()
     endfunction()
 
-    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
+    # detect OpenVINO version via openvino/core/version.hpp
     ov_compare_version_with_headers()
 
     # detect commit number
@@ -174,13 +160,18 @@ macro (ov_add_version_defines FILE TARGET)
     if(NOT EXISTS ${__version_file})
         message(FATAL_ERROR "${FILE} does not exists in current source directory")
     endif()
+    if (NOT TARGET ${TARGET})
+        message(FATAL_ERROR "Invalid target ${TARGET}")
+    endif()
     _remove_source_from_target(${TARGET} ${FILE})
     _remove_source_from_target(${TARGET} ${__version_file})
-    if (BUILD_SHARED_LIBS)
-        add_library(${TARGET}_version OBJECT ${__version_file})
+    get_target_property(__target_type ${TARGET} TYPE)
+    if (__target_type STREQUAL "STATIC_LIBRARY")
+        set(__lib_type STATIC)
     else()
-        add_library(${TARGET}_version STATIC ${__version_file})
+        set(__lib_type OBJECT)
     endif()
+    add_library(${TARGET}_version ${__lib_type} ${__version_file})
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(${__version_file}
             PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)

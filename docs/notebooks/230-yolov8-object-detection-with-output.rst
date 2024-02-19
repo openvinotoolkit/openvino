@@ -18,8 +18,8 @@ the FP32 and quantized models. - Compare accuracy of the FP32 and
 quantized models. - Other optimization possibilities with OpenVINO api -
 Live demo
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get PyTorch model <#get-pytorch-model>`__
 
@@ -114,14 +114,14 @@ Import required utility functions. The lower cell will download the
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Fetch the notebook utils script from the openvino_notebooks repo
     import urllib.request
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
-    
+
     from notebook_utils import download_file, VideoPlayer
 
 Define utility functions for drawing results
@@ -132,8 +132,8 @@ Define utility functions for drawing results
     import cv2
     import numpy as np
     from ultralytics.yolo.utils.plotting import colors
-    
-    
+
+
     def plot_one_box(box:np.ndarray, img:np.ndarray,
                      color:Tuple[int, int, int] = None,
                      label:str = None, line_thickness:int = 5):
@@ -157,10 +157,10 @@ Define utility functions for drawing results
             c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
             cv2.rectangle(img, c1, c2, color, -1, cv2.LINE_AA)  # filled
             cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
-    
+
         return img
-    
-    
+
+
     def draw_results(results:Dict, source_image:np.ndarray, label_map:Dict):
         """
         Helper function for drawing bounding boxes on image
@@ -185,7 +185,7 @@ Define utility functions for drawing results
         url='https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg',
         filename=IMAGE_PATH.name,
         directory=IMAGE_PATH.parent
-    ) 
+    )
 
 
 .. parsed-literal::
@@ -229,12 +229,12 @@ Let us consider the examples:
 
     from PIL import Image
     from ultralytics import YOLO
-    
+
     DET_MODEL_NAME = "yolov8n"
-    
+
     det_model = YOLO(models_dir / f'{DET_MODEL_NAME}.pt')
     label_map = det_model.model.names
-    
+
     res = det_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -247,7 +247,7 @@ Let us consider the examples:
     2023-10-05 19:15:51.909328: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Ultralytics YOLOv8.0.43 🚀 Python-3.8.10 torch-2.0.1+cpu CPU
     YOLOv8n summary (fused): 168 layers, 3151904 parameters, 0 gradients, 8.7 GFLOPs
-    
+
     image 1/1 /home/ea/work/openvino_notebooks/notebooks/230-yolov8-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 1 dog, 48.7ms
     Speed: 2.6ms preprocess, 48.7ms inference, 1.3ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -309,13 +309,13 @@ To keep a specific shape, preprocessing automatically enables padding.
     from ultralytics.yolo.utils import ops
     import torch
     import numpy as np
-    
-    
+
+
     def letterbox(img: np.ndarray, new_shape:Tuple[int, int] = (640, 640), color:Tuple[int, int, int] = (114, 114, 114), auto:bool = False, scale_fill:bool = False, scaleup:bool = False, stride:int = 32):
         """
-        Resize image and padding for detection. Takes image as input, 
+        Resize image and padding for detection. Takes image as input,
         resizes image to fit into new shape with saving original aspect ratio and pads it to meet stride-multiple constraints
-        
+
         Parameters:
           img (np.ndarray): image for preprocessing
           new_shape (Tuple(int, int)): image size after preprocessing in format [height, width]
@@ -328,19 +328,19 @@ To keep a specific shape, preprocessing automatically enables padding.
           img (np.ndarray): image after preprocessing
           ratio (Tuple(float, float)): hight and width scaling ratio
           padding_size (Tuple(int, int)): height and width padding size
-        
-        
+
+
         """
         # Resize and pad image while meeting stride-multiple constraints
         shape = img.shape[:2]  # current shape [height, width]
         if isinstance(new_shape, int):
             new_shape = (new_shape, new_shape)
-    
+
         # Scale ratio (new / old)
         r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
         if not scaleup:  # only scale down, do not scale up (for better test mAP)
             r = min(r, 1.0)
-    
+
         # Compute padding
         ratio = r, r  # width, height ratios
         new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
@@ -351,23 +351,23 @@ To keep a specific shape, preprocessing automatically enables padding.
             dw, dh = 0.0, 0.0
             new_unpad = (new_shape[1], new_shape[0])
             ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
-    
+
         dw /= 2  # divide padding into 2 sides
         dh /= 2
-    
+
         if shape[::-1] != new_unpad:  # resize
             img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
         top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
         left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
         img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
         return img, ratio, (dw, dh)
-    
-    
+
+
     def preprocess_image(img0: np.ndarray):
         """
-        Preprocess image according to YOLOv8 input requirements. 
+        Preprocess image according to YOLOv8 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize and changes data layout from HWC to CHW.
-        
+
         Parameters:
           img0 (np.ndarray): image for preprocessing
         Returns:
@@ -375,26 +375,26 @@ To keep a specific shape, preprocessing automatically enables padding.
         """
         # resize
         img = letterbox(img0)[0]
-        
+
         # Convert HWC to CHW
         img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         return img
-    
-    
+
+
     def image_to_tensor(image:np.ndarray):
         """
-        Preprocess image according to YOLOv8 input requirements. 
+        Preprocess image according to YOLOv8 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize and changes data layout from HWC to CHW.
-        
+
         Parameters:
           img (np.ndarray): image for preprocessing
         Returns:
-          input_tensor (np.ndarray): input tensor in NCHW format with float32 values in [0, 1] range 
+          input_tensor (np.ndarray): input tensor in NCHW format with float32 values in [0, 1] range
         """
         input_tensor = image.astype(np.float32)  # uint8 to fp32
         input_tensor /= 255.0  # 0 - 255 to 0.0 - 1.0
-        
+
         # add batch dimension
         if input_tensor.ndim == 3:
             input_tensor = np.expand_dims(input_tensor, 0)
@@ -426,12 +426,12 @@ Finally, detection box has the [``x``, ``y``, ``h``, ``w``,
 .. code:: ipython3
 
     def postprocess(
-        pred_boxes:np.ndarray, 
-        input_hw:Tuple[int, int], 
-        orig_img:np.ndarray, 
-        min_conf_threshold:float = 0.25, 
-        nms_iou_threshold:float = 0.7, 
-        agnosting_nms:bool = False, 
+        pred_boxes:np.ndarray,
+        input_hw:Tuple[int, int],
+        orig_img:np.ndarray,
+        min_conf_threshold:float = 0.25,
+        nms_iou_threshold:float = 0.7,
+        agnosting_nms:bool = False,
         max_detections:int = 300,
     ):
         """
@@ -455,7 +455,7 @@ Finally, detection box has the [``x``, ``y``, ``h``, ``w``,
             nc=80,
             **nms_kwargs
         )
-    
+
         results = []
         for i, pred in enumerate(preds):
             shape = orig_img[i].shape if isinstance(orig_img, list) else orig_img.shape
@@ -464,7 +464,7 @@ Finally, detection box has the [``x``, ``y``, ``h``, ``w``,
                 continue
             pred[:, :4] = ops.scale_boxes(input_hw, pred[:, :4], shape).round()
             results.append({"det": pred})
-    
+
         return results
 
 Select inference device
@@ -478,16 +478,16 @@ Select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -510,13 +510,13 @@ ready to check model prediction for object detection.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     det_ov_model = core.read_model(det_model_path)
     if device.value != "CPU":
         det_ov_model.reshape({0: [1, 3, 640, 640]})
     det_compiled_model = core.compile_model(det_ov_model, device.value)
-    
-    
+
+
     def detect(image:np.ndarray, model:ov.Model):
         """
         OpenVINO YOLOv8 model inference function. Preprocess image, runs model inference and postprocess results using NMS.
@@ -533,11 +533,11 @@ ready to check model prediction for object detection.
         input_hw = input_tensor.shape[2:]
         detections = postprocess(pred_boxes=boxes, input_hw=input_hw, orig_img=image)
         return detections
-    
+
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect(input_image, det_compiled_model)[0]
     image_with_boxes = draw_results(detections, input_image, label_map)
-    
+
     Image.fromarray(image_with_boxes)
 
 
@@ -567,28 +567,28 @@ in the YOLOv8 repo, we also need to download annotations in the format
 used by the author of the model, for use with the original model
 evaluation function.
 
-   **Note**: The initial dataset download may take a few minutes to
+   **NOTE**: The initial dataset download may take a few minutes to
    complete. The download speed will vary depending on the quality of
    your internet connection.
 
 .. code:: ipython3
 
     from zipfile import ZipFile
-    
+
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/8ebe94d1e928687feaa1fee6d5668987df5e43be/ultralytics/datasets/coco.yaml"
-    
+
     OUT_DIR = Path('./datasets')
-    
+
     DATA_PATH = OUT_DIR / "val2017.zip"
     LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
     CFG_PATH = OUT_DIR / "coco.yaml"
-    
+
     download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
     download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
     download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
     if not (OUT_DIR / "coco/labels").exists():
         with ZipFile(LABELS_PATH , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -617,8 +617,8 @@ Define validation function
 
     from tqdm.notebook import tqdm
     from ultralytics.yolo.utils.metrics import ConfusionMatrix
-    
-    
+
+
     def test(model:ov.Model, core:ov.Core, data_loader:torch.utils.data.DataLoader, validator, num_samples:int = None):
         """
         OpenVINO YOLOv8 model accuracy validation function. Runs model validation on dataset and returns metrics
@@ -647,8 +647,8 @@ Define validation function
             validator.update_metrics(preds, batch)
         stats = validator.get_stats()
         return stats
-    
-    
+
+
     def print_stats(stats:np.ndarray, total_images:int, total_objects:int):
         """
         Helper function for printing accuracy statistic
@@ -694,7 +694,7 @@ validator class instance.
     from ultralytics.yolo.utils import DEFAULT_CFG
     from ultralytics.yolo.cfg import get_cfg
     from ultralytics.yolo.data.utils import check_det_dataset
-    
+
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = str(CFG_PATH)
 
@@ -722,13 +722,15 @@ validator class instance.
     det_validator.nc = det_model.model.model[-1].nc
 
 After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference. *To validate the models on the full dataset set
-``NUM_TEST_SAMPLES = None``.*
+getting accuracy metrics.
+
+   **NOTE**: Model evaluation is time consuming
+   process and can take several minutes, depending on the hardware. For
+   reducing calculation time, we define ``num_samples`` parameter with
+   evaluation subset size, but in this case, accuracy can be noncomparable
+   with originally reported by the authors of the model, due to validation
+   subset difference. *To validate the models on the full dataset set
+   ``NUM_TEST_SAMPLES = None``.*
 
 .. code:: ipython3
 
@@ -797,8 +799,8 @@ transformation function for getting only input tensors.
 
     import nncf  # noqa: F811
     from typing import Dict
-    
-    
+
+
     def transform_fn(data_item:Dict):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -809,8 +811,8 @@ transformation function for getting only input tensors.
         """
         input_tensor = det_validator.preprocess(data_item)['img'].numpy()
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(det_data_loader, transform_fn)
 
 
@@ -831,7 +833,7 @@ asymmetric quantization of activations. For more accurate results, we
 should keep the operation in the postprocessing subgraph in floating
 point precision, using the ``ignored_scope`` parameter.
 
-   **Note**: Model post-training quantization is time-consuming process.
+   **NOTE**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
@@ -844,7 +846,7 @@ point precision, using the ``ignored_scope`` parameter.
             "/model.22/Add_1",
             "/model.22/Add_2",
             "/model.22/Add_3",
-            "/model.22/Add_4",   
+            "/model.22/Add_4",
             "/model.22/Add_5",
             "/model.22/Add_6",
             "/model.22/Add_7",
@@ -853,8 +855,8 @@ point precision, using the ``ignored_scope`` parameter.
             "/model.22/Add_10"
         ]
     )
-    
-    
+
+
     # Detection model
     quantized_det_model = nncf.quantize(
         det_ov_model,
@@ -928,7 +930,7 @@ on the image.
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect(input_image, quantized_det_compiled_model)[0]
     image_with_boxes = draw_results(detections, input_image, label_map)
-    
+
     Image.fromarray(image_with_boxes)
 
 
@@ -949,11 +951,11 @@ Compare performance object detection models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
-   **Note**: For more accurate performance, it is recommended to run
+   **NOTE**: For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run
    ``benchmark_app -m <model_path> -d CPU -shape "<input_shape>"`` to
@@ -989,12 +991,12 @@ models.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1044,7 +1046,7 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 34.66 ms
@@ -1073,12 +1075,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1128,7 +1130,7 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 58.19 ms
@@ -1169,7 +1171,7 @@ accuracy on a dataset.
 
     print("FP32 model accuracy")
     print_stats(fp_det_stats, det_validator.seen, det_validator.nt_per_class.sum())
-    
+
     print("INT8 model accuracy")
     print_stats(int8_det_stats, det_validator.seen, det_validator.nt_per_class.sum())
 
@@ -1221,7 +1223,7 @@ CPU as part of an application. This will improve selected device
 utilization.
 
 For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__.
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
@@ -1241,7 +1243,7 @@ preprocessing and postprocessing steps for a model.
 .. code:: ipython3
 
     from openvino.preprocess import PrePostProcessor
-    
+
     ppp = PrePostProcessor(quantized_det_model)
 
 Define input data format
@@ -1281,7 +1283,7 @@ preprocessing steps:
 .. code:: ipython3
 
     ppp.input(0).preprocess().convert_element_type(ov.Type.f32).convert_layout(ov.Layout('NCHW')).scale([255., 255., 255.])
-    
+
     print(ppp)
 
 
@@ -1294,7 +1296,7 @@ preprocessing steps:
           convert type (f32): ([1,640,640,3], [N,H,W,C], u8) -> ([1,640,640,3], [N,H,W,C], f32)
           convert layout [N,C,H,W]: ([1,640,640,3], [N,H,W,C], f32) -> ([1,3,640,640], [N,C,H,W], f32)
           scale (255,255,255): ([1,3,640,640], [N,C,H,W], f32) -> ([1,3,640,640], [N,C,H,W], f32)
-    
+
 
 
 Integrating Steps into a Model
@@ -1332,13 +1334,13 @@ device. Now, we can skip these preprocessing steps in detect function:
         result = model(input_tensor)[output_layer]
         detections = postprocess(result, input_hw, image)
         return detections
-    
-    
+
+
     compiled_model = core.compile_model(quantized_model_with_preprocess, device.value)
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect_without_preprocess(input_image, compiled_model)[0]
     image_with_boxes = draw_results(detections, input_image, label_map)
-    
+
     Image.fromarray(image_with_boxes)
 
 
@@ -1360,8 +1362,8 @@ The following code runs model inference on a video:
     import collections
     import time
     from IPython import display
-    
-    
+
+
     # Main processing function to run object detection.
     def run_object_detection(source=0, flip=False, use_popup=False, skip_first_frames=0, model=det_model, device=device.value):
         player = None
@@ -1380,7 +1382,7 @@ The following code runs model inference on a video:
                 cv2.namedWindow(
                     winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE
                 )
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -1400,20 +1402,20 @@ The following code runs model inference on a video:
                     )
                 # Get the results.
                 input_image = np.array(frame)
-               
+
                 start_time = time.time()
                 # model expects RGB image, while video capturing in BGR
                 detections = detect(input_image[:, :, ::-1], compiled_model)[0]
                 stop_time = time.time()
-                
+
                 image_with_boxes = draw_results(detections, input_image, label_map)
                 frame = image_with_boxes
-               
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -1482,7 +1484,7 @@ Run the object detection:
 .. code:: ipython3
 
     WEBCAM_INFERENCE = False
-    
+
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:

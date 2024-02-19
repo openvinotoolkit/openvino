@@ -9,8 +9,8 @@
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/convert_transpose.hpp"
@@ -667,12 +667,16 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
 
         {
             // Keep same output, but use larger input
-            // In that case user tensor is not enough to store the result and the plugin throws exception
+            // In that case user tensor is not enough to store the result and set shape will be called on the user
+            // tensor
             ov::Shape input_shape{1, 4, 32, 32};
+            ov::Shape output_shape_actual{1, 4, 32, 32};
             auto input_tensor = gpu_context.create_tensor(input->get_element_type(), input_shape);
 
             infer_request.set_tensor(input, input_tensor);
-            OV_EXPECT_THROW(infer_request.infer(), ov::Exception, HasSubstr("Output tensor set by user has smaller size"));
+            ASSERT_NO_THROW(infer_request.infer());
+
+            ASSERT_EQ(infer_request.get_output_tensor().get_shape(), output_shape_actual);
         }
 
         {
@@ -1888,9 +1892,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2019,9 +2023,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2142,9 +2146,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+        ov::test::utils::compare_raw_data(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+                                                output_tensor_regular.get_size(), thr);
     }
 }
 
@@ -2301,9 +2305,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
         ASSERT_EQ(output_tensor_regular.get_size() * num_batch, out_tensor_new.get_size());
         float thr = 0.1f;
 
-        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(out_tensor_new.data()) + i * output_tensor_regular.get_size(),
-                                                static_cast<float*>(output_tensor_regular.data()),
-                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+        ov::test::utils::compare_raw_data(static_cast<float*>(out_tensor_new.data()) + i * output_tensor_regular.get_size(),
+                                          static_cast<float*>(output_tensor_regular.data()),
+                                          output_tensor_regular.get_size(), thr);
     }
 }
 

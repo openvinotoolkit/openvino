@@ -2,204 +2,166 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extension.h"
+#include "openvino/core/extension.hpp"
+
+#include "openvino/core/op_extension.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/cpu_opset/common/op/ngram.hpp"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 
-#include <ov_ops/augru_cell.hpp>
-#include <ov_ops/augru_sequence.hpp>
-#include <ov_ops/type_relaxed.hpp>
-#include <ov_ops/nms_ie_internal.hpp>
-#include <ov_ops/nms_static_shape_ie.hpp>
-#include <ov_ops/multiclass_nms_ie_internal.hpp>
+namespace {
 
-#include <snippets/op/subgraph.hpp>
+template <typename Op>
+class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
+public:
+    TypeRelaxedExtension()
+        : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
+    ~TypeRelaxedExtension() override = default;
 
-#include <mutex>
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return m_ext_type;
+    }
 
-namespace ov {
-namespace intel_cpu {
+    ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
+        return ov::OpExtension<ov::op::TypeRelaxed<Op>>::create(inputs, visitor);
+    }
 
-void Extension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
-    static const InferenceEngine::Version version = {
-        {1, 0},             // extension API version
-        "1.0",
-        "Extension"   // extension description message
-    };
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
 
-    versionInfo = &version;
-}
+private:
+    ov::DiscreteTypeInfo m_ext_type;
+};
 
-void Extension::Unload() noexcept {}
+}  // namespace
 
-std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
-    auto cpu_plugin_opset = []() {
-        ngraph::OpSet opset;
+#define OP_EXTENSION(NAME) std::make_shared<ov::OpExtension<NAME>>(),
+
+#define TYPE_RELAXED_OP_EXTENSION(NAME) std::make_shared<TypeRelaxedExtension<NAME>>(),
 
 #if defined(OPENVINO_ARCH_X86_64)
-#define NGRAPH_OP_X64(NAME, NAMESPACE) NGRAPH_OP(NAME, NAMESPACE)
+#    define OP_EXTENSION_X64(NAME) OP_EXTENSION(NAME)
 #else
-#define NGRAPH_OP_X64(NAME, NAMESPACE)
+#    define OP_EXTENSION_X64(NAME)
 #endif
 
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(FullyConnectedNode, ov::intel_cpu)
-        NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
-        NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
-        NGRAPH_OP(SwishNode, ov::intel_cpu)
-        NGRAPH_OP(NgramNode, ov::intel_cpu)
-        NGRAPH_OP_X64(MHANode, ov::intel_cpu)
-        NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
-        NGRAPH_OP_X64(ScaledDotProductAttentionWithKVCache, ov::intel_cpu)
-#undef NGRAPH_OP
+#define CPU_EXTENSIONS                                                      \
+    OP_EXTENSION(ov::intel_cpu::FullyConnectedNode)                         \
+    OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
+    OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
+    OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
+    OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
+    OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
+    OP_EXTENSION(ov::op::internal::MulticlassNmsIEInternal)                 \
+    OP_EXTENSION(ov::op::internal::AUGRUCell)                               \
+    OP_EXTENSION(ov::op::internal::AUGRUSequence)                           \
+    OP_EXTENSION(ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>) \
+    OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
+    OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
+    OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
+    OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
+    OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
+    OP_EXTENSION_X64(ov::intel_cpu::StoreConvertSaturation)                 \
+    OP_EXTENSION_X64(ov::intel_cpu::StoreConvertTruncation)                 \
+    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCPU)                              \
+    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCopyB)
 
-        return opset;
-    };
+#define TYPE_RELAXED_EXTENSIONS                                         \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Add)                          \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::AvgPool)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Clamp)                        \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Concat)                       \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Convolution)                  \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ConvolutionBackpropData)      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::DepthToSpace)                 \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Equal)                        \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::FakeQuantize)                 \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Greater)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GreaterEqual)                 \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GroupConvolution)             \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GroupConvolutionBackpropData) \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Interpolate)                  \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v4::Interpolate)                  \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Less)                         \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LessEqual)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalAnd)                   \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalNot)                   \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalOr)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalXor)                   \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::MatMul)                       \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::MaxPool)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Multiply)                     \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::NormalizeL2)                  \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::NotEqual)                     \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::PRelu)                        \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Relu)                         \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMax)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceLogicalAnd)             \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceLogicalOr)              \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMean)                   \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMin)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceSum)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Reshape)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Select)                       \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::ShapeOf)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::ShuffleChannels)              \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Squeeze)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Subtract)                     \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Unsqueeze)                    \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::MVN)                          \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v6::MVN)
 
-    auto type_relaxed_opset = []() {
-        ngraph::OpSet opset;
-
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
-        NGRAPH_OP(Add, ov::op::v1)
-        NGRAPH_OP(AvgPool, ov::op::v1)
-        NGRAPH_OP(Clamp, ov::op::v0)
-        NGRAPH_OP(Concat, ov::op::v0)
-        NGRAPH_OP(Convolution, ov::op::v1)
-        NGRAPH_OP(ConvolutionBackpropData, ov::op::v1)
-        NGRAPH_OP(DepthToSpace, ov::op::v0)
-        NGRAPH_OP(Equal, ov::op::v1)
-        NGRAPH_OP(FakeQuantize, ov::op::v0)
-        NGRAPH_OP(Greater, ov::op::v1)
-        NGRAPH_OP(GreaterEqual, ov::op::v1)
-        NGRAPH_OP(GroupConvolution, ov::op::v1)
-        NGRAPH_OP(GroupConvolutionBackpropData, ov::op::v1)
-        NGRAPH_OP(Interpolate, ov::op::v0)
-        NGRAPH_OP(Interpolate, ov::op::v4)
-        NGRAPH_OP(Less, ov::op::v1)
-        NGRAPH_OP(LessEqual, ov::op::v1)
-        NGRAPH_OP(LogicalAnd, ov::op::v1)
-        NGRAPH_OP(LogicalNot, ov::op::v1)
-        NGRAPH_OP(LogicalOr, ov::op::v1)
-        NGRAPH_OP(LogicalXor, ov::op::v1)
-        NGRAPH_OP(MatMul, ov::op::v0)
-        NGRAPH_OP(MaxPool, ov::op::v1)
-        NGRAPH_OP(Multiply, ov::op::v1)
-        NGRAPH_OP(NormalizeL2, ov::op::v0)
-        NGRAPH_OP(NotEqual, ov::op::v1)
-        NGRAPH_OP(PRelu, ov::op::v0)
-        NGRAPH_OP(Relu, ov::op::v0)
-        NGRAPH_OP(ReduceMax, ov::op::v1)
-        NGRAPH_OP(ReduceLogicalAnd, ov::op::v1)
-        NGRAPH_OP(ReduceLogicalOr, ov::op::v1)
-        NGRAPH_OP(ReduceMean, ov::op::v1)
-        NGRAPH_OP(ReduceMin, ov::op::v1)
-        NGRAPH_OP(ReduceSum, ov::op::v1)
-        NGRAPH_OP(Reshape, ov::op::v1)
-        NGRAPH_OP(Select, ov::op::v1)
-        NGRAPH_OP(ShapeOf, ov::op::v0)
-        NGRAPH_OP(ShuffleChannels, ov::op::v0)
-        NGRAPH_OP(Squeeze, ov::op::v0)
-        NGRAPH_OP(Subtract, ov::op::v1)
-        NGRAPH_OP(Unsqueeze, ov::op::v0)
-        NGRAPH_OP(MVN, ov::op::v0)
-        NGRAPH_OP(MVN, ov::op::v6)
-        NGRAPH_OP(Select, ov::op::v1)
-        NGRAPH_OP(ConvolutionBackpropData, ov::op::v1)
-#undef NGRAPH_OP
-
-        return opset;
-    };
-
-    auto ie_internal_opset = []() {
-        ngraph::OpSet opset;
-
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(NonMaxSuppressionIEInternal, ov::op::internal)
-        NGRAPH_OP(MulticlassNmsIEInternal, ov::op::internal)
-        NGRAPH_OP(AUGRUCell, ov::op::internal)
-        NGRAPH_OP(AUGRUSequence, ov::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ov::op::internal)
-#undef NGRAPH_OP
-
-        return opset;
-    };
-
-    auto snippets_opset = []() {
-        ngraph::OpSet opset;
-
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(Brgemm, ov::snippets::op)
-        NGRAPH_OP(BroadcastLoad, ov::snippets::op)
-        NGRAPH_OP(BroadcastMove, ov::snippets::op)
-        NGRAPH_OP(ConvertSaturation, ov::snippets::op)
-        NGRAPH_OP(ConvertTruncation, ov::snippets::op)
-        NGRAPH_OP(Fill, ov::snippets::op)
-        NGRAPH_OP(HorizonMax, ov::snippets::op)
-        NGRAPH_OP(HorizonSum, ov::snippets::op)
-        NGRAPH_OP(Kernel, ov::snippets::op)
-        NGRAPH_OP(IntermediateMemoryBuffer, ov::snippets::op)
-        NGRAPH_OP(Load, ov::snippets::op)
-        NGRAPH_OP(LoadReshape, ov::snippets::op)
-        NGRAPH_OP(LoopBegin, ov::snippets::op)
-        NGRAPH_OP(LoopEnd, ov::snippets::op)
-        NGRAPH_OP(NewMemoryBuffer, ov::snippets::op)
-        NGRAPH_OP(Nop, ov::snippets::op)
-        NGRAPH_OP(PowerStatic, ov::snippets::op)
-        NGRAPH_OP(Scalar, ov::snippets::op)
-        NGRAPH_OP(Store, ov::snippets::op)
-        NGRAPH_OP(Subgraph, ov::snippets::op)
-        NGRAPH_OP(VectorBuffer, ov::snippets::op)
-        NGRAPH_OP(RankNormalization, ov::snippets::op)
 #ifdef SNIPPETS_DEBUG_CAPS
-        NGRAPH_OP(PerfCountBegin, ov::snippets::op)
-        NGRAPH_OP(PerfCountEnd, ov::snippets::op)
+#    define SNIPPETS_DEBUG_CAPS_EXTENSIONS                   \
+        OP_EXTENSION(ov::snippets::op::PerfCountBegin)       \
+        OP_EXTENSION(ov::snippets::op::PerfCountEnd)         \
+        OP_EXTENSION_X64(ov::intel_cpu::PerfCountRdtscBegin) \
+        OP_EXTENSION_X64(ov::intel_cpu::PerfCountRdtscEnd)
+#else
+#    define SNIPPETS_DEBUG_CAPS_EXTENSIONS
 #endif
-        NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
-        NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
-        NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)
-        NGRAPH_OP_X64(StoreConvertTruncation, ov::intel_cpu)
-        NGRAPH_OP_X64(BrgemmCPU, ov::intel_cpu)
-        NGRAPH_OP_X64(BrgemmCopyB, ov::intel_cpu)
-#ifdef SNIPPETS_DEBUG_CAPS
-        NGRAPH_OP_X64(PerfCountRdtscBegin, ov::intel_cpu)
-        NGRAPH_OP_X64(PerfCountRdtscEnd, ov::intel_cpu)
-#endif
-#undef NGRAPH_OP
 
-        return opset;
-    };
+#define SNIPPETS_EXTENSIONS                                  \
+    OP_EXTENSION(ov::snippets::op::Brgemm)                   \
+    OP_EXTENSION(ov::snippets::op::BroadcastLoad)            \
+    OP_EXTENSION(ov::snippets::op::BroadcastMove)            \
+    OP_EXTENSION(ov::snippets::op::ConvertSaturation)        \
+    OP_EXTENSION(ov::snippets::op::ConvertTruncation)        \
+    OP_EXTENSION(ov::snippets::op::Fill)                     \
+    OP_EXTENSION(ov::snippets::op::HorizonMax)               \
+    OP_EXTENSION(ov::snippets::op::HorizonSum)               \
+    OP_EXTENSION(ov::snippets::op::Kernel)                   \
+    OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
+    OP_EXTENSION(ov::snippets::op::Load)                     \
+    OP_EXTENSION(ov::snippets::op::LoadReshape)              \
+    OP_EXTENSION(ov::snippets::op::LoopBegin)                \
+    OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
+    OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
+    OP_EXTENSION(ov::snippets::op::Nop)                      \
+    OP_EXTENSION(ov::snippets::op::PowerStatic)              \
+    OP_EXTENSION(ov::snippets::op::Scalar)                   \
+    OP_EXTENSION(ov::snippets::op::Store)                    \
+    OP_EXTENSION(ov::snippets::op::Subgraph)                 \
+    OP_EXTENSION(ov::snippets::op::VectorBuffer)             \
+    OP_EXTENSION(ov::snippets::op::RankNormalization)
 
-    static std::map<std::string, ngraph::OpSet> opsets = {
-        { "cpu_plugin_opset", cpu_plugin_opset() },
-        { "type_relaxed_opset", type_relaxed_opset() },
-        { "ie_internal_opset", ie_internal_opset() },
-        { "SnippetsOpset", snippets_opset() },
-    };
-
-    return opsets;
-}
-
-std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ov::Node>&) {
-    return {};
-}
-
-InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ov::Node>& node, const std::string& implType) {
-    return nullptr;
-}
-
-}   // namespace intel_cpu
-}   // namespace ov
-
-// Generate exported function
-IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::Extension)
+OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
+    {CPU_EXTENSIONS TYPE_RELAXED_EXTENSIONS SNIPPETS_EXTENSIONS SNIPPETS_DEBUG_CAPS_EXTENSIONS}));

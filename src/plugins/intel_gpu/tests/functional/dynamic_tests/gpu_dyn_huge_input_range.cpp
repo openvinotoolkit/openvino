@@ -4,9 +4,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ov_models/builders.hpp"
-#include "shared_test_classes/single_layer/strided_slice.hpp"
-#include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
@@ -121,6 +118,7 @@ protected:
     std::vector<int64_t> stride;
     std::vector<ov::test::utils::InputLayerType> restInputType;
     size_t inferRequestNum = 0;
+    bool exception;
 
     void SetUp() override {
         InputShape shapes;
@@ -183,13 +181,17 @@ protected:
         }
 
         function = std::make_shared<ov::Model>(results, params, "result");
+
+        set_callback_exception([this](const std::exception& exp) {
+            exception = true;
+        });
     }
 };
 
 TEST_P(DynamicShapeHugeRangeGPUTest, Inference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
+    if (!exception)
+        FAIL() << "This test case is checking the exception that the object allocation is larger than the max_alloc_mem_size.";
 }
 
 std::map<std::string, std::string> emptyAdditionalConfig;

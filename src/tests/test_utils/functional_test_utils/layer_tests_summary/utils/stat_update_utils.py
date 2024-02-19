@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 import xml.etree.ElementTree as ET
 
 from . import conformance_utils
@@ -43,9 +44,9 @@ def update_passrates(results: ET.SubElement, rel_weights={}):
             rel_all_tests = rel_all_tests_actual if rel_all_tests_expected is None else rel_all_tests_expected
             k = 1 if rel_all_tests_expected is None else round(rel_all_tests_actual / rel_all_tests_expected)
             rel_passrate = float(rel_passed_tests * 100 / (k * rel_all_tests)) if rel_all_tests != None and rel_all_tests != 0 else 0
-            op.set("passrate", "%.2f"%passrate)
+            op.set("passrate", f"{math.floor(passrate * 100) / 100}")
             if rel_all_tests != None and rel_passed_tests != None:
-                op.set("relative_passrate", "%.2f"%rel_passrate)
+                op.set("relative_passrate", f"{math.floor(rel_passrate * 100) / 100}")
 
 
 

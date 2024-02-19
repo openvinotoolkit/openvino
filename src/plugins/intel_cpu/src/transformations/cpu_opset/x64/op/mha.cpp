@@ -4,7 +4,7 @@
 
 #include "mha.hpp"
 #include "transformations/itt.hpp"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 #include <matmul_shape_inference.hpp>
 
 ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node> &in0,

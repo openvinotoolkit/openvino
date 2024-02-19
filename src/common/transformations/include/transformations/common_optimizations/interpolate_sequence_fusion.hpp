@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API InterpolateSequenceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief InterpolateSequenceFusion transformation replaces a sequence of
  *        operations to Interpolate op.
  */

@@ -8,14 +8,15 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
@@ -26,13 +27,10 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
         pattern::consumers_count(1));
     const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
 
-    const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
-    const auto random_uniform_or_convert_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
-
-    const auto mul_add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
-        {random_uniform_or_convert_pattern, const_pattern});
+    const auto mul_add_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({optional_convert, const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -69,11 +67,8 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto new_ru = ru->clone_with_new_inputs(
             {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});
 
-        if (pattern_map.count(convert_pattern)) {
-            const auto& convert = pattern_map.at(convert_pattern);
-            const auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(convert.get_node_shared_ptr());
-            if (!cvt)
-                return false;
+        if (pattern_map.count(optional_convert)) {
+            auto cvt = pattern_map.at(optional_convert).get_node_shared_ptr();
             if (!cvt->get_element_type().is_real())
                 return false;
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});

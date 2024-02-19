@@ -14,12 +14,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkupBias transformation marks biases after target layers.
  *
  * For more details about the transformation, refer to
  * [MarkupBias](@ref openvino_docs_OV_UG_lpt_MarkupBias) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API MarkupBias : public ov::pass::MatcherPass {
 public:

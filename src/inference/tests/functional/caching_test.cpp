@@ -15,7 +15,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -1883,7 +1882,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
         });
         // Ensure that only 1 blob (for Hetero) is created
@@ -1900,7 +1899,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         }
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock"}});
             m_testFunction(core);
             comp_models.clear();
         });
@@ -2020,7 +2019,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
         });
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             m_testFunction(core);
         });
     }
@@ -2034,7 +2033,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(*net, export_model(_)).Times(0);
         }
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.1"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.1"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         });
@@ -2048,7 +2047,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(net, export_model(_)).Times(1);
         });
         testLoad([&](ov::Core& core) {
-            core.set_property(ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", "mock.51"}});
+            core.set_property(ov::test::utils::DEVICE_HETERO, {{ov::device::priorities.name(), "mock.51"}});
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
             comp_models.clear();
@@ -2360,9 +2359,7 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::hint::performance_mode.name(), _))
         .Times(AnyNumber())
-        .WillRepeatedly(Return([] {
-            return ov::hint::PerformanceMode::THROUGHPUT;
-        }));
+        .WillRepeatedly(Return(ov::hint::PerformanceMode::THROUGHPUT));
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
     }

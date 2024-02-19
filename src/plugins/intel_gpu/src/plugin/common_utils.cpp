@@ -94,6 +94,27 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
 namespace ov {
 namespace intel_gpu {
 
+void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream) {
+    const bool blocking = true;
+    auto src_et = src->get_element_type();
+    auto dst_et = dst->get_layout().data_type;
+
+    if (dst_et == src_et) {
+        if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
+            auto mem = remote->get_original_memory();
+            dst->copy_from(stream, *mem, blocking);
+        } else {
+            dst->copy_from(stream, src->data(), blocking);
+            return;
+        }
+    }
+
+    size_t size = ov::shape_size(src->get_shape());
+    ov::Tensor tmp_tensor(dst_et, src->get_shape());
+    ::convert_and_copy(src->data(), src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    dst->copy_from(stream, tmp_tensor.data(), blocking);
+}
+
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
     auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_element_type();
@@ -115,6 +136,20 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, cons
     }
 
     return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, src->get_layout());
+}
+
+void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream) {
+    const bool blocking = true;
+    auto src_et = src->get_layout().data_type;
+    auto dst_et = dst->get_layout().data_type;
+
+    cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> src_lock(src, stream);
+    const void* src_ptr = src_lock.data();
+
+    size_t size = ov::shape_size(src->get_layout().get_shape());
+    ov::Tensor tmp_tensor(dst_et, src->get_layout().get_shape());
+    ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, src->get_layout());
+    dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
 void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
@@ -146,6 +181,25 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
     }
 
     return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+}
+
+std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
+    std::vector<cldnn::optional_data_type> output_data_types;
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        auto type = op->get_output_element_type(i);
+        if (precision_map.find(type) != precision_map.end())
+            type = precision_map.at(type);
+        output_data_types.push_back(cldnn::element_type_to_data_type(type));
+    }
+    return output_data_types;
+}
+
+std::vector<cldnn::padding> get_output_paddings(const ov::Node* op) {
+    std::vector<cldnn::padding> output_paddings;
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        output_paddings.push_back(cldnn::padding());
+    }
+    return output_paddings;
 }
 
 }  // namespace intel_gpu

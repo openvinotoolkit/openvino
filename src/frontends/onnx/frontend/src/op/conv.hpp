@@ -4,32 +4,30 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace detail {
-OutputVector conv(const Node& node, Output<ngraph::Node> data, Output<ngraph::Node> filters, Output<ngraph::Node> bias);
+ov::OutputVector conv(const ov::frontend::onnx::Node& node,
+                      ov::Output<ov::Node> data,
+                      ov::Output<ov::Node> filters,
+                      ov::Output<ov::Node> bias);
 }
 /// \brief Performs ONNX Conv operation.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX convolution
+/// \return The vector containing OV nodes producing output of ONNX convolution
 ///         operation.
-OutputVector conv(const Node& node);
+ov::OutputVector conv(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

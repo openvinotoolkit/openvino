@@ -4,13 +4,12 @@
 
 #include "priorbox.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 /**
  * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
  * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
@@ -19,7 +18,7 @@ using namespace InferenceEngine;
 Result PriorBoxShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->getData());
+    const int* in_data = data_dependency.at(0)->getDataAs<const int>();
     const int H = in_data[0];
     const int W = in_data[1];
     const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);

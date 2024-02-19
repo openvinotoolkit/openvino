@@ -73,7 +73,7 @@ endfunction()
 #
 # ov_cpack_add_component(NAME ...)
 #
-# Wraps original `cpack_add_component` and adds component to internal IE list
+# Wraps original `cpack_add_component` and adds component to internal OV list
 #
 function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)
@@ -149,7 +149,6 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_NPM "ov_node_addon")
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")

@@ -14,8 +14,8 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Preparation <#preparation>`__
 
@@ -36,16 +36,18 @@ Additionally, you can also upload a video file.
 -  `Run <#run>`__
 
    -  `Run Live Object Detection <#run-live-object-detection>`__
-   -  `Run Object Detection on a Video
-      File <#run-object-detection-on-a-video-file>`__
 
 -  `References <#references>`__
 
-Preparation 
------------------------------------------------------
+Preparation
+-----------
 
-Install requirements 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -63,16 +65,31 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    fastapi 0.104.1 requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
-    pydantic 2.4.2 requires typing-extensions>=4.6.1, but you have typing-extensions 4.5.0 which is incompatible.
-    pydantic-core 2.10.1 requires typing-extensions!=4.7.0,>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -80,12 +97,14 @@ Install requirements
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f00847d95b0>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7fcca8595400>)
 
 
 
-Imports 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Imports
+~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -103,11 +122,15 @@ Imports
     
     import notebook_utils as utils
 
-The Model 
----------------------------------------------------
+The Model
+---------
 
-Download the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Download the Model
+~~~~~~~~~~~~~~~~~~
+
+
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -149,12 +172,14 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-Convert the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert the Model
+~~~~~~~~~~~~~~~~~
+
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format, using `model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+convert it to OpenVINO IR format, using `Model Conversion
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 
@@ -183,8 +208,10 @@ converted, this step is skipped.
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
-Load the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load the Model
+~~~~~~~~~~~~~~
+
+
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -251,11 +278,15 @@ output.
 
 
 
-Processing 
-----------------------------------------------------
+Processing
+----------
 
-Process Results 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Process Results
+~~~~~~~~~~~~~~~
+
+
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -344,8 +375,10 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-Main Processing Function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -455,11 +488,15 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run 
----------------------------------------------
+Run
+---
 
-Run Live Object Detection 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Run Live Object Detection
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -474,41 +511,27 @@ Firefox, may cause flickering. If you experience flickering, set
    may not work if you run this notebook on a remote computer (for
    example, Binder).
 
-Run the object detection:
-
-.. code:: ipython3
-
-    run_object_detection(source=0, flip=True, use_popup=False)
-
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@44.947] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@44.947] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
-
-
-Run Object Detection on a Video File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
 OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
+Run the object detection:
+
 .. code:: ipython3
 
-    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    USE_WEBCAM = False
     
-    run_object_detection(source=video_file, flip=False, use_popup=False)
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    cam_id = 0
+    
+    source = cam_id if USE_WEBCAM else video_file
+    
+    run_object_detection(source=source, flip=isinstance(source, int), use_popup=False)
 
 
 
-.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_21_0.png
+.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_19_0.png
 
 
 .. parsed-literal::
@@ -516,8 +539,10 @@ will work.
     Source ended
 
 
-References 
-----------------------------------------------------
+References
+----------
+
+
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

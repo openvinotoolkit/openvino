@@ -17,7 +17,7 @@ post <https://stability.ai/news/stability-ai-sdxl-turbo>`__.
 
 Previously, we already discussed how to launch Stable Diffusion XL model
 using OpenVINO in the following
-`notebook <../248-stable-diffusion-xl>`__, in this tutorial we will
+`notebook <248-stable-diffusion-xl-with-output.html>`__, in this tutorial we will
 focus on the
 `SDXL-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ version.
 Additionally, to improve image decoding speed, we will use `Tiny
@@ -30,17 +30,44 @@ simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Prerequisites <#prerequisites>`__
+-  `Convert model to OpenVINO
+   format <#convert-model-to-openvino-format>`__
+-  `Text-to-image generation <#text-to-image-generation>`__
+
+   -  `Select inference device for text-to-image
+      generation <#select-inference-device-for-text-to-image-generation>`__
+
+-  `Image-to-Image generation <#image-to-image-generation>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
+
+      -  `Compare UNet file size <#compare-unet-file-size>`__
+
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+
+-  `Interactive Demo <#interactive-demo>`__
+
 Prerequisites
 -------------
 
+
+
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio openvino-nightly
+    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio "openvino>=2023.3.0"
 
 Convert model to OpenVINO format
 --------------------------------
+
+
 
 `sdxl-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ is
 available for downloading via the `HuggingFace
@@ -130,6 +157,8 @@ back to image format.
 Text-to-image generation
 ------------------------
 
+
+
 Text-to-image generation lets you create images using text description.
 To start generating images, we need to load models first. To load an
 OpenVINO model and run an inference with Optimum and OpenVINO Runtime,
@@ -140,6 +169,8 @@ should be passed. Additionally, you can specify an inference device.
 
 Select inference device for text-to-image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -173,21 +204,18 @@ Select inference device for text-to-image generation
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
 .. parsed-literal::
 
-    2023-12-01 11:21:33.190808: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-01 11:21:33.194252: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-01 11:21:33.260150: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-01 11:21:33.261916: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-01 11:21:33.994990: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/genai_env/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+      return torch._C._cuda_getDeviceCount() > 0
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
     Compiling the text_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
     Compiling the vae_encoder to AUTO ...
 
 
@@ -208,29 +236,15 @@ disabled using ``guidance_scale = 0``
     image
 
 
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:565: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
-
-
 
 .. parsed-literal::
 
       0%|          | 0/1 [00:00<?, ?it/s]
 
 
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:599: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:615: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
 
 
-
-
-.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_11_3.png
+.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_11_1.png
 
 
 
@@ -241,6 +255,8 @@ disabled using ``guidance_scale = 0``
 
 Image-to-Image generation
 -------------------------
+
+
 
 Image-to-image generation lets you transform images to match the
 characteristics provided in the text description. We can reuse the
@@ -259,9 +275,9 @@ For that, we should replace ``OVStableDiffusionXLPipeline`` with
 
     Compiling the vae_decoder to AUTO ...
     Compiling the unet to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
     Compiling the vae_encoder to AUTO ...
     Compiling the text_encoder to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
 
 
 .. code:: ipython3
@@ -291,12 +307,6 @@ finally, we get 0.5 \* 2.0 = 1 step in our pipeline.
     photo_image
 
 
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:636: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
-
-
 
 .. parsed-literal::
 
@@ -305,7 +315,7 @@ finally, we get 0.5 \* 2.0 = 1 step in our pipeline.
 
 
 
-.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_17_2.png
+.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_17_1.png
 
 
 
@@ -316,6 +326,8 @@ finally, we get 0.5 \* 2.0 = 1 step in our pipeline.
 
 Quantization
 ------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -375,8 +387,10 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 We use a portion of
-`laion/laion2B-en <https://huggingface.co/datasets/laion/laion2B-en>`__
+`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -415,14 +429,14 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = pipe.unet.request
         pipe.unet.request = CompiledModelDecorator(original_unet)
     
-        dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).shuffle(seed=42)
+        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
         disable_progress_bar(pipe)
     
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:
-            prompt = batch["TEXT"]
+            prompt = batch["caption"]
             if len(prompt) > pipe.tokenizer.model_max_length:
                 continue
             _ = pipe(
@@ -453,39 +467,10 @@ model inputs for calibration we should customize ``CompiledModel``.
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
         unet_calibration_data = collect_calibration_data(text2image_pipe, subset_size=200)
 
-
-.. parsed-literal::
-
-    Compiling the vae_decoder to AUTO ...
-    Compiling the unet to AUTO ...
-    Compiling the text_encoder_2 to AUTO ...
-    Compiling the vae_encoder to AUTO ...
-    Compiling the text_encoder to AUTO ...
-
-
-
-.. parsed-literal::
-
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/200 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:565: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
-    <string>:17: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:615: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
-
-
 Run quantization
 ~~~~~~~~~~~~~~~~
+
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 Quantization of the first and last ``Convolution`` layers impacts the
@@ -519,106 +504,6 @@ sensitive ``Convolution`` layers in FP16 precision.
         )
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:420 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 5 __module.model.conv_in/aten::_convolution/Convolution
-    13 __module.model.conv_in/aten::_convolution/Add_87
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 460 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Convolution
-    899 __module.model.up_blocks.2.resnets.2.conv_shortcut/aten::_convolution/Add_16859
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 3911 __module.model.conv_out/aten::_convolution/Convolution
-    4032 __module.model.conv_out/aten::_convolution/Add_16873
-    
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
 Let us check predictions with the quantized UNet using the same input
 data.
 
@@ -640,8 +525,6 @@ data.
 .. parsed-literal::
 
     Compiling the text_encoder to AUTO ...
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:565: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
     Compiling the text_encoder_2 to AUTO ...
 
 
@@ -654,11 +537,7 @@ data.
 .. parsed-literal::
 
     Compiling the unet to AUTO ...
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:599: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
     Compiling the vae_decoder to AUTO ...
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/optimum/intel/openvino/modeling_diffusion.py:615: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      outputs = self.request(inputs, shared_memory=True)
 
 
 
@@ -678,18 +557,33 @@ data.
     display(photo_image)
 
 
+.. parsed-literal::
+
+    Compiling the text_encoder to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
+    Compiling the vae_encoder to AUTO ...
+
+
 
 .. parsed-literal::
 
       0%|          | 0/1 [00:00<?, ?it/s]
 
 
+.. parsed-literal::
 
-.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_30_1.png
+    Compiling the unet to AUTO ...
+    Compiling the vae_decoder to AUTO ...
+
+
+
+.. image:: 271-sdxl-turbo-with-output_files/271-sdxl-turbo-with-output_30_3.png
 
 
 Compare UNet file size
 ^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -706,12 +600,14 @@ Compare UNet file size
 .. parsed-literal::
 
     FP16 model size: 5014578.27 KB
-    INT8 model size: 2513501.39 KB
+    INT8 model size: 2513541.44 KB
     Model compression rate: 1.995
 
 
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -727,17 +623,17 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 7
-    calibration_dataset = datasets.load_dataset("laion/laion2B-en", split="train", streaming=True).take(validation_size)
+    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
     validation_data = []
     for batch in calibration_dataset:
-        prompt = batch["TEXT"]
+        prompt = batch["caption"]
         validation_data.append(prompt)
     
     def calculate_inference_time(pipe, dataset):
         inference_time = []
         disable_progress_bar(pipe)
     
-        for prompt in dataset:
+        for idx, prompt in enumerate(dataset):
             start = time.perf_counter()
             image = pipe(
                 prompt,
@@ -748,15 +644,10 @@ pipelines, we use median inference time on calibration subset.
             end = time.perf_counter()
             delta = end - start
             inference_time.append(delta)
+            if idx >= validation_size:
+                break
         disable_progress_bar(pipe, disable=False)
         return np.median(inference_time)
-
-
-
-.. parsed-literal::
-
-    Resolving data files:   0%|          | 0/128 [00:00<?, ?it/s]
-
 
 .. code:: ipython3
 
@@ -772,13 +663,24 @@ pipelines, we use median inference time on calibration subset.
 
 .. parsed-literal::
 
-    FP16 pipeline latency: 1.115
-    INT8 pipeline latency: 0.575
-    Text-to-Image generation speed up: 1.938
+    Compiling the vae_decoder to AUTO ...
+    Compiling the unet to AUTO ...
+    Compiling the text_encoder_2 to AUTO ...
+    Compiling the text_encoder to AUTO ...
+    Compiling the vae_encoder to AUTO ...
+
+
+.. parsed-literal::
+
+    FP16 pipeline latency: 1.391
+    INT8 pipeline latency: 0.781
+    Text-to-Image generation speed up: 1.780
 
 
 Interactive Demo
 ----------------
+
+
 
 Now, you can check model work using own text descriptions. Provide text
 prompt in the text box and launch generation using Run button.

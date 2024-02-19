@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <map>
 #include "kernels/x64/rdft_kernel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {

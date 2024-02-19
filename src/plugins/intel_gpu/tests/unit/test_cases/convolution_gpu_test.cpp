@@ -8874,8 +8874,6 @@ public:
     }
 
     static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params() {
-        // TODO: check split
-
         // TODO: check convolution without bias
 
         const primitive_id& weights = "input1";

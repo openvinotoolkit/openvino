@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
-
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -31,6 +29,7 @@ class MemoryDesc;
 
 using MemoryDescPtr = std::shared_ptr<MemoryDesc>;
 using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
+using VecMemoryDescs = std::vector<MemoryDescPtr>;
 
 enum MemoryDescType {
     Undef = 0,

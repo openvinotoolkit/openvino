@@ -19,8 +19,8 @@ music.
 In this tutorial we will try out the pipeline, convert the models
 backing it one by one and will run an interactive app with Gradio!
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -28,12 +28,11 @@ backing it one by one and will run an interactive app with Gradio!
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `Second text encoder
-      conversion <#second-text-encoder-conversion>`__
-   -  `Vocoder conversion <#vocoder-conversion>`__
-   -  `GPT-2 conversion <#gpt--conversion>`__
+   -  `CLAP Text Encoder Conversion <#clap-text-encoder-conversion>`__
+   -  `T5 Text Encoder Conversion <#t5-text-encoder-conversion>`__
    -  `Projection model conversion <#projection-model-conversion>`__
+   -  `GPT-2 conversion <#gpt-2-conversion>`__
+   -  `Vocoder conversion <#vocoder-conversion>`__
    -  `UNet conversion <#unet-conversion>`__
    -  `VAE Decoder conversion <#vae-decoder-conversion>`__
 
@@ -52,8 +51,9 @@ Prerequisites
 
 .. code:: ipython3
 
+    %pip uninstall -q -y "openvino-dev" "openvino" "openvino-nightly" 
     %pip install -q accelerate "diffusers>=0.21.0" transformers torch gradio --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.2.0"
+    %pip install -q "openvino-nightly"
 
 
 .. parsed-literal::
@@ -136,7 +136,7 @@ Convert models to OpenVINO Intermediate representation (IR) format
 
 
 `Model conversion
-API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 enables direct conversion of PyTorch models backing the pipeline. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object

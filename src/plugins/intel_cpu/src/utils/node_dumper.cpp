@@ -4,19 +4,14 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "node_dumper.h"
-
-#include "utils/debug_caps_config.h"
-#include <node.h>
-#include "ie_common.h"
 #include "utils/blob_dump.h"
+#include "utils/debug_caps_config.h"
+#include "node.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "ie_ngraph_utils.hpp"
 
 #include <regex>
 #include <sstream>
 #include <string>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {

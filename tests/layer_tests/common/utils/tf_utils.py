@@ -130,16 +130,16 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     return result
 
 
-def permute_nhwc_to_nchw(shape, use_new_frontend=False):
-    if use_new_frontend:
+def permute_nhwc_to_nchw(shape, use_legacy_frontend=True):
+    if not use_legacy_frontend:
         return shape
     perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(shape)).perm
     new_shape = np.array(shape)[perm]
     return new_shape
 
 
-def permute_nchw_to_nhwc(shape, use_new_frontend=False):
-    if use_new_frontend:
+def permute_nchw_to_nhwc(shape, use_legacy_frontend=True):
+    if not use_legacy_frontend:
         return shape
     perm = PermuteAttrs.get_nchw_to_nhwc_permutation(len(shape)).perm
     new_shape = np.array(shape)[perm]
@@ -148,30 +148,6 @@ def permute_nchw_to_nhwc(shape, use_new_frontend=False):
 
 def permute_axis(axis, permutation_inv):
     return permutation_inv[axis]
-
-
-def transpose_nchw_to_nhwc(data, use_new_frontend, use_old_api):
-    if use_new_frontend or not use_old_api:
-        return data
-
-    if len(data.shape) == 4:  # reshaping for 4D tensors
-        return data.transpose(0, 2, 3, 1)
-    elif len(data.shape) == 5:  # reshaping for 5D tensors
-        return data.transpose(0, 2, 3, 4, 1)
-    else:
-        return data
-
-
-def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
-    if use_new_frontend or not use_old_api:
-        return data
-
-    if len(data.shape) == 4:  # reshaping for 4D tensors
-        return data.transpose(0, 3, 1, 2)  # 2, 0, 1
-    elif len(data.shape) == 5:  # reshaping for 5D tensors
-        return data.transpose(0, 4, 1, 2, 3)  # 3, 0, 1, 2
-    else:
-        return data
 
 
 def save_to_pb(tf_model, path_to_saved_tf_model, model_name = 'model.pb'):

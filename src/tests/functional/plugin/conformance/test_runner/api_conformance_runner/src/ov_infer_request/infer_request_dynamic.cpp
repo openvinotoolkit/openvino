@@ -4,9 +4,10 @@
 
 #include <vector>
 
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "ov_api_conformance_helpers.hpp"
-
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace {
 using namespace ov::test::behavior;
@@ -20,8 +21,8 @@ std::shared_ptr<ov::Model> ovGetFunction1() {
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
-    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(params[0], in2add, ov::test::utils::EltwiseTypes::ADD);
+    auto in2add = ov::test::utils::deprecated::make_constant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
+    auto add = ov::test::utils::make_eltwise(params[0], in2add, ov::test::utils::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(add->output(0));
     relu1->get_output_tensor(0).set_names({"relu1"});
     auto relu2 = std::make_shared<ov::op::v0::Relu>(add->output(0));
@@ -41,12 +42,12 @@ std::shared_ptr<ov::Model> ovGetFunction2() {
     auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], splitAxisOp, 2);
 
-    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ov::test::utils::EltwiseTypes::ADD);
+    auto in2add = ov::test::utils::deprecated::make_constant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto add = ov::test::utils::make_eltwise(split->output(0), in2add, ov::test::utils::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(add);
 
-    auto in2mult = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto mult = ngraph::builder::makeEltwise(split->output(1), in2mult, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto in2mult = ov::test::utils::deprecated::make_constant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto mult = ov::test::utils::make_eltwise(split->output(1), in2mult, ov::test::utils::EltwiseTypes::MULTIPLY);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(mult);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{relu1->output(0), relu2->output(0)}, 3);

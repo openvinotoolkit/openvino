@@ -131,6 +131,26 @@ public:
         return m_hidden_size;
     }
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 9,
+                                      "[TensorFlow Frontend] internal error: BlockLSTM expects 9 inputs");
+        auto block_lstm_node = std::make_shared<BlockLSTM>(inputs[0],
+                                                           inputs[1],
+                                                           inputs[2],
+                                                           inputs[3],
+                                                           inputs[4],
+                                                           inputs[5],
+                                                           inputs[6],
+                                                           inputs[7],
+                                                           inputs[8],
+                                                           m_forget_bias,
+                                                           m_cell_clip,
+                                                           m_use_peephole,
+                                                           m_decoder);
+        block_lstm_node->set_attrs(get_attrs());
+        return block_lstm_node;
+    }
+
 private:
     ov::Dimension m_hidden_size;
     float m_forget_bias;

@@ -40,13 +40,21 @@ std::string BufferAllocationTest::getTestCaseName(testing::TestParamInfo<ov::tes
 }
 
 void BufferAllocationTest::SetUp() {
-    bool is_optimized, with_split_loops;
-    std::tie(is_optimized, with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
+    std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
 
     const auto body = GetModel();
     m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::IShapeInferSnippetsFactory>());
     m_linear_ir.set_loop_depth(m_loop_depth);
-    ApplyTransformations(is_optimized, with_split_loops);
+    // When Subgraph::control_flow_transformations become public method,
+    // please use this method instead of ApplyTransformations
+    ApplyTransformations(GetPassConfig());
+}
+
+std::shared_ptr<ov::snippets::lowered::pass::PassConfig> BufferAllocationTest::GetPassConfig() {
+    auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+    if (!m_with_split_loops)
+        config->disable<ov::snippets::lowered::pass::SplitLoops>();
+    return config;
 }
 
 void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) {
@@ -58,18 +66,17 @@ void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node, const s
             output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
 }
 
-void BufferAllocationTest::ApplyTransformations(bool is_optimized, bool with_split) {
-    ov::snippets::lowered::pass::PassPipeline pipeline;
+void BufferAllocationTest::ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config) {
+    ov::snippets::lowered::pass::PassPipeline pipeline(pass_config);
     pipeline.register_pass<ov::snippets::lowered::pass::MarkLoops>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::SoftmaxDecomposition>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
-    if (with_split)
-        pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
+    pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>(2);
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
-    pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, is_optimized);
+    pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
     pipeline.run(m_linear_ir);
 }
 

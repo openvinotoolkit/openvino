@@ -33,11 +33,16 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-azure-key-prefix }}
       ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/install/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -80,7 +85,10 @@ jobs:
           popd
 
       - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+        run: |
+          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+          # since we are on Ubuntu 22.04, but compiled OpenVINO on Ubuntu 20.04, we need to install `libtbb2`
+          apt-get install --assume-yes --no-install-recommends libtbb2
 
       - name: Clone ONNX Runtime
         run: |
@@ -95,9 +103,9 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Build Lin ONNX Runtime
         run: |
@@ -110,6 +118,7 @@ jobs:
             --parallel \
             --skip_tests \
             --compile_no_warning_as_error \
+            --allow_running_as_root \
             --build_dir ${ONNX_RUNTIME_BUILD_DIR}
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
@@ -136,12 +145,6 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_global_thread_pools_test
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
-
-      - name: Run onnxruntime_api_tests_without_env
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ./onnxruntime_api_tests_without_env
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
