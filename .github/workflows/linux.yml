@@ -419,6 +419,32 @@ jobs:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
+        
+      - name: Mandatory API Conformance Tests (Template)
+        if: ${{ matrix.TEST_TYPE == 'API' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
+            -d=TEMPLATE \
+            -t=${{ matrix.TEST_TYPE }} \
+            -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            -sm=mandatory
+
+      - name: Pack Conformance Artifacts
+        if: ${{ matrix.TEST_TYPE == 'API' }}
+        run: |
+          pushd ${CONFORMANCE_ARTIFACTS_DIR}
+          tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+          popd
+
+      - name: Upload Conformance Artifacts
+        if: ${{ matrix.TEST_TYPE == 'API' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
+          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
+          if-no-files-found: 'error' 
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -454,7 +480,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'

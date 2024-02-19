@@ -17,11 +17,6 @@ struct experimental_detectron_generate_proposals_single_image_params : public ba
     size_t post_nms_count{0};
 };
 
-struct experimental_detectron_generate_proposals_single_image_optional_params : public optional_params {
-    experimental_detectron_generate_proposals_single_image_optional_params()
-    : optional_params(KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {}
-};
-
 class ExperimentalDetectronGenerateProposalsSingleImageRef : public KernelBaseOpenCL {
 public:
     ExperimentalDetectronGenerateProposalsSingleImageRef()
@@ -31,11 +26,11 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void SetKernelArguments(const experimental_detectron_generate_proposals_single_image_params& params,
                             size_t idx, cldnn::arguments_desc& kernel) const;
 };
