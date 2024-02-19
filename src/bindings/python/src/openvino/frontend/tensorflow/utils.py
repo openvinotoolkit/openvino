@@ -151,13 +151,28 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
     return concrete_func
 
 
+def get_signature_from_input(keras_model):
+    if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
+        return None
+    return getattr(keras_model, 'input')
+
+
+def get_signature_from_input_signature(keras_model):
+    if not hasattr(keras_model, 'input_signature') or getattr(keras_model, 'input_signature') is None:
+        return None
+    return getattr(keras_model, 'input_signature')
+
+
 def create_generic_function_from_keras_model(keras_model):
     import tensorflow as tf
     assert isinstance(keras_model, tf.keras.Model), \
         "[TensorFlow Frontend] internal error: the input model must be of Keras model type"
-    if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
+
+    keras_input_signature = get_signature_from_input(keras_model)
+    if keras_input_signature is None:
+        keras_input_signature = get_signature_from_input_signature(keras_model)
+    if keras_input_signature is None:
         return None
-    keras_input_signature = getattr(keras_model, 'input')
     tf_input_signature = None
     wrapper_function = None
     if isinstance(keras_input_signature, dict):

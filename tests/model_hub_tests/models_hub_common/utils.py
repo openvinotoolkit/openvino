@@ -20,8 +20,11 @@ def get_models_list(file_name: str):
                 continue
             mark = None
             reason = None
-            assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
+            model_link = None
+            assert len(model_info.split(',')) == 1 or len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
                 "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
+            if len(model_info.split(',')) == 1:
+                model_name = model_info
             if len(model_info.split(',')) == 2:
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
