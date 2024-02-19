@@ -45,16 +45,6 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     return {};
 }
 
-std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tensor) {
-    auto logical_dims = tensor.LogicalDims();
-    // LogicalDims method returns dims in reversed order
-    std::vector<int32_t> reverse_logical_dims;
-    for (auto it = logical_dims.rbegin(); it != logical_dims.rend(); ++it) {
-        reverse_logical_dims.push_back(static_cast<int32_t>(*it));
-    }
-    return reverse_logical_dims;
-}
-
 } // namespace
 
 struct slice_impl : typed_primitive_impl_ocl<slice> {
@@ -115,27 +105,30 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();
+        const auto input_rank = params.inputs[0].Dimentions();
 
-        const auto data_shape = extractShape(params.inputs[0]);
-
-        std::vector<std::int32_t> axes(data_shape.size());
-        if (inputs.size() == InputIndices::kInputsNum)
-            axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
-        else
-            std::iota(axes.begin(), axes.end(), 0);
-
+        std::vector<std::int32_t> compile_time_axes(input_rank);
+        if (inputs.size() == InputIndices::kInputsNum) {
+            compile_time_axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
+            for (size_t axis = 0; axis < compile_time_axes.size(); axis++) {
+                const auto transformed_axe =
+                    compile_time_axes[axis] < 0 ? input_rank + compile_time_axes[axis] : compile_time_axes[axis];
+                compile_time_axes[axis] = transformed_axe;
+            }
+        } else {
+            std::iota(compile_time_axes.begin(), compile_time_axes.end(), 0);
+        }
 
         params.start_data_type = inputs[InputIndices::kStart].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStart].first->is_constant()) {
             params.start_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
-            std::vector<std::int32_t> selected_start(data_shape.size(), 0);
-            for (size_t axis = 0; axis < axes.size(); axis++) {
-                auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
-                selected_start[transformed_axe] = elts[axis];
+            std::vector<std::int32_t> compile_time_start(input_rank, 0);
+            for (size_t axis = 0; axis < compile_time_axes.size(); axis++) {
+                compile_time_start[compile_time_axes[axis]] = elts[axis];
             }
 
-            params.start = std::move(selected_start);
+            params.start = std::move(compile_time_start);
 
         } else {
             params.start_arg_type = kernel_selector::base_params::ArgType::Input;
@@ -143,18 +136,16 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
             params.inputs.push_back(convert_data_tensor(layout));
         }
 
-
         params.step_data_type = inputs[InputIndices::kStep].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStep].first->is_constant()) {
             params.step_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
-            std::vector<std::int32_t> selected_step(data_shape.size(), 1);
-            for (size_t axis = 0; axis < axes.size(); axis++) {
-                auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
-                selected_step[transformed_axe] = step_elts[axis];
+            std::vector<std::int32_t> compile_time_step(input_rank, 1);
+            for (size_t axis = 0; axis < compile_time_axes.size(); axis++) {
+                compile_time_step[compile_time_axes[axis]] = step_elts[axis];
             }
 
-            params.step = std::move(selected_step);
+            params.step = std::move(compile_time_step);
 
         } else {
             params.step_arg_type = kernel_selector::base_params::ArgType::Input;
@@ -162,10 +153,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
             params.inputs.push_back(convert_data_tensor(stop_layout));
         }
 
-        // if (!inputs[InputIndices::kEnd].first->is_constant()) {
-        //     auto stop_layout = impl_param.get_input_layout(InputIndices::kEnd);
-        //     params.inputs.push_back(convert_data_tensor(stop_layout));
-        // }
+        // NOTE: Stop input is not used by the slice kernel, as this information
+        // is implicitely passed with output shape.
 
         params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::slice_kernel_selector::Instance();
