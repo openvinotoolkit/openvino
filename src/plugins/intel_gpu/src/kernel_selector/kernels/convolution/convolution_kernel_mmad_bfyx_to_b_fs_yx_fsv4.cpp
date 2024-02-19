@@ -39,7 +39,7 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_blocked_read_write();
     k.requires_blocked_read_write_short();
@@ -47,8 +47,8 @@ DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_devi
     return k;
 }
 
-bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p, const optional_params &o) const {
-    if (!Parent::Validate(p, o)) {
+bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -103,7 +103,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4:
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
@@ -138,21 +138,20 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     return jit;
 }
 
-KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params &params, const optional_params &options) const {
-    KernelsData kd = GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params &params) const {
+    KernelsData kd = GetTunedKernelsDataByIndex(params);
     return kd;
 }
 
-KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params &params,
-                                                                                   const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelsData res = {};
 
     for (int i = -1; i < static_cast<int>(autoTuneOptions.size()); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

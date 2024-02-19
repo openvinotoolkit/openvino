@@ -11,9 +11,9 @@ class ReorderKernelFastBatch1 : public ReorderKernelBase {
 public:
     ReorderKernelFastBatch1() : ReorderKernelBase("reorder_data_fast_b1") {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
     DispatchData SetDefault(const reorder_params& arg) const override;
