@@ -18,12 +18,10 @@ using namespace ov::op;
 
 OutputVector translate_to(const NodeContext& context) {
     int dtype_idx;
-    int memory_format_idx;
     if (context.get_input_size() == 5) {
         // aten::to.dtype(Tensor(a) self, int dtype, bool non_blocking=False, bool copy=False, int? memory_format=None)
         // -> (Tensor(a))
         dtype_idx = 1;
-        memory_format_idx = 4;
         auto node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
         auto fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(node);
         if (fw_node && fw_node->get_op_type() == "prim::device") {
@@ -43,7 +41,6 @@ OutputVector translate_to(const NodeContext& context) {
         // memory_format=None) -> (Tensor(a)).
         // Input with index 1 is device we skip that input.
         dtype_idx = 2;
-        memory_format_idx = 5;
         if (context.input_is_none(dtype_idx)) {
             // Cast only to device without changing dtype. Return input node unchanged.
             return {context.get_input(0)};
@@ -52,25 +49,22 @@ OutputVector translate_to(const NodeContext& context) {
         // aten::to(Tensor(a) self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
         // pin_memory=None, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
         dtype_idx = 1;
-        memory_format_idx = 7;
         if (context.input_is_none(dtype_idx)) {
             // Cast only to device without changing dtype. Return input node unchanged.
             return {context.get_input(0)};
         }
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
 
     // We ignore both non_blocking and copy inputs since non_blocking argument is used
     // in Pytorch during training to overlap data transfer from CPU to GPU which does
     // not have a use case in OV. To copy or not to copy inputs should not be set
-    // on the frontend level since it can produce unexpected beviour in the later
+    // on the frontend level since it can produce unexpected behaviour in the later
     // stages. (e.g. transformations passes)
 
     // memory_format sets the desired memory format of returned Tensor.
-    // memory format should not be set on the frontend level
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(memory_format_idx),
-                                  "aten::to translation do not support memory_format attribute");
+    // memory format is ignored since it changes strides of a tensor. In openvino tensors are always contigious
     auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
     auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
     Output<Node> cast;
@@ -85,6 +79,16 @@ OutputVector translate_to(const NodeContext& context) {
         cast = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(0), context.get_input(1)));
     }
     return {cast};
+}
+
+OutputVector translate_to_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto data = context.get_input(0);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        data = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));
+    }
+    return {data};
 }
 
 }  // namespace op

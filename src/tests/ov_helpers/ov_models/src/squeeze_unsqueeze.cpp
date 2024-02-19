@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
-                                               const element::Type& type,
+std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<ov::Node>& in,
+                                               const ov::element::Type& type,
                                                const std::vector<int>& squeeze_indices,
                                                ov::test::utils::SqueezeOpType opType) {
     auto constant = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{squeeze_indices.size()}, squeeze_indices);

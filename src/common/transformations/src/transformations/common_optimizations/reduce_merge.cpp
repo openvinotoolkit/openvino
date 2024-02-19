@@ -8,7 +8,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
@@ -18,9 +20,9 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -61,6 +63,26 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
                 });
             })) {
             return false;
+        }
+    }
+
+    // Align reduce axes constants by shape and type
+    const bool dtype_match =
+        top_reduce->input_value(1).get_element_type() == bottom_reduce->input_value(1).get_element_type();
+    for (auto& reduce : {top_reduce, bottom_reduce}) {
+        const auto reduce_axes_output = reduce->input_value(1);
+        const auto reduce_axes_node = reduce_axes_output.get_node_shared_ptr();
+        const auto reduce_axes_rank = reduce_axes_output.get_partial_shape().rank();
+        if (reduce_axes_rank == Dimension(0)) {
+            const auto unsqueeze_const = ov::op::v0::Constant::create(reduce_axes_node->get_element_type(), {}, {0});
+            const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reduce_axes_output, unsqueeze_const);
+            reduce->inputs()[1].replace_source_output(unsqueeze);
+            copy_runtime_info(reduce_axes_node, {unsqueeze_const, unsqueeze});
+        }
+        if (!dtype_match) {
+            const auto cast = std::make_shared<ov::op::v0::Convert>(reduce->input_value(1), ov::element::i64);
+            reduce->inputs()[1].replace_source_output(cast);
+            copy_runtime_info(reduce_axes_node, cast);
         }
     }
 

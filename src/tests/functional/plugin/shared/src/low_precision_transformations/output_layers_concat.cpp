@@ -11,13 +11,10 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
-#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -46,8 +43,6 @@ std::string OutputLayersConcat::getTestCaseName(const testing::TestParamInfo<Lay
 */
 
 void OutputLayersConcat::SetUp() {
-    abs_threshold = 4.1;
-
     ov::Shape inputShape1;
     ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

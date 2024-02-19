@@ -9,7 +9,6 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
@@ -208,7 +207,7 @@ public:
                     } else if ((status == std::cv_status::timeout) && sz) {
                         std::pair<AsyncInferRequest*, ov::threading::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            OPENVINO_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             t.first->m_sync_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->m_request_without_batch->start_async();

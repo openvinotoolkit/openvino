@@ -43,6 +43,8 @@ namespace utils {
 
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);
 
+    void raise_not_implemented();
+
     bool py_object_is_any_map(const py::object& py_obj);
 
     ov::AnyMap py_object_to_any_map(const py::object& py_obj);

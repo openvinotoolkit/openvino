@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,61 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     return ov::topological_sort(nodes);
 }
 
+namespace {
+using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
+
+std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                                                   NodeMap& node_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    for (const auto& node : sorted_nodes) {
+        if (node_map.count(node.get()) == 0) {
+            // get (already) cloned arguments and clone the node
+            OutputVector cloned_args;
+            for (auto input : node->inputs()) {
+                ov::Output<Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<Node>> cloned_dependencies;
+            for (auto& dependency : node->get_control_dependencies()) {
+                std::shared_ptr<Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
+
+            for (auto output : node->outputs()) {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
+            for (auto input : node->inputs()) {
+                const auto& output_rt_info = input.get_rt_info();
+                auto new_input = cloned_node->input(input.get_index());
+                new_input.get_rt_info() = output_rt_info;
+            }
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+
+    // create and return vector of cloned nodes
+    // order matches input vector (not necessarily topological)
+    std::vector<std::shared_ptr<ov::Node>> cloned_nodes;
+    for (const auto& node : nodes) {
+        cloned_nodes.push_back(node_map.at(node.get()));
+    }
+    return cloned_nodes;
+}
+}  // namespace
+
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
                                               ExressionMap& expression_map) {
@@ -115,10 +170,8 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     }
 
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
-    ngraph::NodeMap node_map;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::clone_nodes(original_nodes,  node_map);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    NodeMap node_map;
+    clone_nodes(original_nodes, node_map);
 
     for (auto it = begin; it != end; it++) {
         const auto& expr = *it;
@@ -133,10 +186,10 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
     auto print_rinfo = [](const RegInfo& rinfo) {
         std::cerr << " : {";
         for (auto i : rinfo.first)
-            std::cerr << i << " ";
+            std::cerr << regTypeToStr(i.type) << "[" << i.idx << "] ";
         std::cerr << " => ";
         for (auto i : rinfo.second)
-            std::cerr << i << " ";
+            std::cerr << regTypeToStr(i.type) << "[" << i.idx << "] ";
         std::cerr << "}";
     };
     std::map<PortConnectorPtr, int> td2int;

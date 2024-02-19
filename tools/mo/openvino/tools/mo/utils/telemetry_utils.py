@@ -22,13 +22,41 @@ except ImportError:
 
 
 def init_mo_telemetry(app_name='Model Optimizer'):
-    return tm.Telemetry(tid=get_tid(),
-                        app_name=app_name,
-                        app_version=get_rt_version(),
-                        backend='ga4',
-                        enable_opt_in_dialog=False,
-                        disable_in_ci=True
-                        )
+    return init_telemetry_class(tid=get_tid(),
+                                app_name=app_name,
+                                app_version=get_rt_version(),
+                                backend='ga4',
+                                enable_opt_in_dialog=False,
+                                disable_in_ci=True
+                                )
+
+
+def init_telemetry_class(tid,
+                         app_name,
+                         app_version,
+                         backend,
+                         enable_opt_in_dialog,
+                         disable_in_ci):
+    # Init telemetry class
+    telemetry = tm.Telemetry(tid=tid,
+                             app_name=app_name,
+                             app_version=app_version,
+                             backend=backend,
+                             enable_opt_in_dialog=enable_opt_in_dialog,
+                             disable_in_ci=disable_in_ci)
+
+    # Telemetry is a singleton class and if it was already initialized in another tool
+    # some parameters will be incorrect, including app_name.
+    # In this case we need to force reinitialisation of telemetry.
+    if hasattr(telemetry, "backend") and telemetry.backend.app_name != app_name:
+        telemetry.init(tid=tid,
+                       app_name=app_name,
+                       app_version=app_version,
+                       backend=backend,
+                       enable_opt_in_dialog=enable_opt_in_dialog,
+                       disable_in_ci=disable_in_ci)
+    return telemetry
+
 
 def send_framework_info(framework: str):
     """

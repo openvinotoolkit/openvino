@@ -101,21 +101,28 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
-    ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
+    int streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    auto core_type = ov::threading::IStreamsExecutor::Config::ANY;
     switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: core_type = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: core_type = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: core_type = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
-    task_executor_config.update_executor_config(task_executor_config._streams,
-                                                1,
-                                                task_executor_config._threadPreferredCoreType,
-                                                enable_cpu_pinning);
+    ov::threading::IStreamsExecutor::Config task_executor_config(
+        tags,
+        streams,
+        1,
+        ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+        1,
+        0,
+        0,
+        core_type,
+        {},
+        enable_cpu_pinning);
 
     return task_executor_config;
 }
@@ -334,7 +341,7 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -361,7 +368,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -588,6 +595,11 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // Check fusing primitives based on preferred format or layout optimization
+    if (optimize_data) {
+        apply_opt_pass<fuse_primitives_with_layout>();
+    }
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
@@ -1466,8 +1478,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
-             || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
-                 prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
+             || (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
+                 prim.as<mvn>().get_input_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels()) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&

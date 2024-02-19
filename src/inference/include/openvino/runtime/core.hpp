@@ -25,10 +25,6 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace InferenceEngine {
-class IExtension;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 /**
@@ -50,8 +46,9 @@ public:
      * 1. (default) Use XML configuration file in case of dynamic libraries build;
      * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
-     * specified, default OpenVINO Runtime plugins are loaded from:
+     * @param xml_config_file Path to the .xml file with plugins to load from. If path contains only file name
+     * with extension, file will be searched in a folder with OpenVINO runtime shared library.
+     * If the XML configuration file is not specified, default OpenVINO Runtime plugins are loaded from:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
@@ -358,16 +355,6 @@ public:
         Properties&&... properties) {
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    /**
-     * @deprecated This method is deprecated. Please use other Core::add_extension methods.
-     * @brief Registers OpenVINO 1.0 extension to a Core object.
-     * @param extension Pointer to the already loaded extension.
-     */
-    OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Registers an extension to a Core object.

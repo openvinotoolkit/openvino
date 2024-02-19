@@ -32,8 +32,6 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
 }
 
 void FakeQuantizeTransformation::SetUp() {
-    abs_threshold = 1.0e-3;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -45,7 +43,7 @@ void FakeQuantizeTransformation::SetUp() {
 
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
-    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
         params,
         netPrecision,
         inputShape,

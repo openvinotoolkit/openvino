@@ -4,33 +4,35 @@
 
 #include "op/conv.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 namespace detail {
 
-std::shared_ptr<ov::Node> add_bias(const Output<ov::Node>& ng_conv, const Output<ov::Node>& bias) {
+std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov::Output<ov::Node>& bias) {
     const auto conv_shape = std::make_shared<v3::ShapeOf>(ng_conv);
     const auto conv_rank = std::make_shared<v3::ShapeOf>(conv_shape);
 
     return {std::make_shared<v1::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-OutputVector conv(const Node& node, Output<ov::Node> data, Output<ov::Node> filters, Output<ov::Node> bias) {
+ov::OutputVector conv(const ov::frontend::onnx::Node& node,
+                      ov::Output<ov::Node> data,
+                      ov::Output<ov::Node> filters,
+                      ov::Output<ov::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
@@ -70,15 +72,12 @@ OutputVector conv(const Node& node, Output<ov::Node> data, Output<ov::Node> filt
 }
 }  // namespace detail
 
-OutputVector conv(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

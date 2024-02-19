@@ -4,6 +4,7 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
@@ -17,13 +18,6 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
     set_names(names);
 }
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
-    : m_element_type(element_type),
-      m_partial_shape(pshape),
-      m_shape_changed(true) {
-    m_name_it = m_names.cend();
-}
-
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                ov::Node* node,
@@ -33,18 +27,6 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
       m_shape_changed(true) {
     m_name_it = m_names.cend();
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
-    set_element_type(element_type);
-    m_partial_shape = pshape;
-    m_shape_changed = true;
-}
-
-void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
-    m_element_type = element_type;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ov::descriptor::Tensor::invalidate_values() {
     if (ov::skip_invalidation(*this))
@@ -151,6 +133,18 @@ std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tens
 
 void ov::descriptor::set_ov_tensor_legacy_name(ov::descriptor::Tensor& tensor, const std::string& tensor_name) {
     tensor.m_legacy_name = tensor_name;
+}
+
+void ov::descriptor::set_tensor_type(ov::descriptor::Tensor& tensor,
+                                     const element::Type& element_type,
+                                     const PartialShape& pshape) {
+    tensor.m_element_type = element_type;
+    tensor.m_partial_shape = pshape;
+    tensor.m_shape_changed = true;
+}
+
+void ov::descriptor::set_element_type(ov::descriptor::Tensor& tensor, const element::Type& element_type) {
+    tensor.m_element_type = element_type;
 }
 
 std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor::Tensor& tensor) {

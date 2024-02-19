@@ -4,23 +4,19 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector prior_box(const Node& node);
+ov::OutputVector prior_box(const ov::frontend::onnx::Node& node);
 
-OutputVector prior_box_clustered(const Node& node);
+ov::OutputVector prior_box_clustered(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

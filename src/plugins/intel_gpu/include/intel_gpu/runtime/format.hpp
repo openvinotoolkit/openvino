@@ -156,6 +156,8 @@ struct format {
         is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
+        os_is_yx_isa8_osv16_isv2,                     ///< format used for weights for blocked 2D onednn convolution
+        os_is_zyx_isa8_osv16_isv2,                    ///< format used for weights for blocked 3D onednn convolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -239,7 +241,11 @@ struct format {
         os_zy_is_x_osv8_isv2,
         os_zy_is_x_osv8_isv4,
         os_is_yx_osv4_isv16,
+        os_is_yx_osv4_isv2,
+        os_is_yx_osv8_isv16,
+        os_is_yx_osv2_isv4,
         os_is_yx_osv2_isv16,
+        os_is_yx_osv2_isv32,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
