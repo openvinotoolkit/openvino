@@ -279,7 +279,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
             ov::copy_runtime_info(sequence, aggregated_Y_c);
 
             // set initial value and back edge for aggregated C
-            // tensor_iterator->set_merged_input(body_params.at(2), aggregated_Y_c, body_results.at(2));
+            tensor_iterator->set_merged_input(body_params.at(2), aggregated_Y_c, body_results.at(2));
             C_out = tensor_iterator->get_function()->get_results()[2];
         }
     }
