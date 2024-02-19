@@ -154,14 +154,15 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 bool reusable_across_network,
                                 const std::set<std::string>& memory_dependencies,
                                 bool reset = true,
-                                memory* curr_memory = nullptr) {
+                                memory* curr_memory = nullptr,
+                                bool* from_pool = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
                     "[GPU] Can't allocate output for dynamic layout without upper bound");
     // Use layout with max tensor for dynamic shape with upper bound
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
             pool.release_memory(curr_memory, _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+        return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset, from_pool);
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -512,6 +513,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         // so there is no need for output memory reallocation
         if (can_be_optimized()) {
             _max_output_layout_count = variable.get_actual_mem_size() / (dt_size / 8);
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
             return ev;
         }
     }
@@ -540,6 +542,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() || _node->is_type<strided_slice>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
@@ -569,6 +572,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
         allocation_done_by_other = false;
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return ev;
     }
 
@@ -589,7 +593,6 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (updated_params.output_layouts[0].get_buffer_size().count() < updated_layout.get_buffer_size().count())
         updated_params.output_layouts[0] = updated_layout;
-
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
                                << actual_layout.count() << "/" << _max_output_layout_count
@@ -601,11 +604,18 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
             ev = _outputs[0]->fill(_network.get_stream());
         }
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << _max_output_layout_count
                                <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
-        _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
+        bool from_pool = false;
+        _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true, &from_pool);
+        if (from_pool) {
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("from_pool");
+        } else {
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("new_alloc");
+        }
         // TODO : need to handle multiple outputs
         _max_output_layout_count = updated_params.output_layouts[0].get_buffer_size().count();
     }
@@ -672,22 +682,29 @@ event::ptr primitive_inst::realloc_if_needed() {
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return ev;
-
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
                 // can reuse
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+                std::string mem_info = "_ibuf" + std::to_string(i) + ":new_alloc";
+                GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(mem_info);
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
                 bool need_reset = false;
+                bool from_pool = false;
                 if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(i, need_reset);
+                    _intermediates_memory[i] = allocate_internal_buffer(i, need_reset, &from_pool);
                     max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
+                    _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset, &from_pool));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
+                }
+                if (from_pool) {
+                    std::string mem_info = "_ibuf" + std::to_string(i) + ":from_pool";
+                } else {
+                    std::string mem_info = "_ibuf" + std::to_string(i) + ":from_pool";
                 }
             }
         }
@@ -1532,7 +1549,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         _max_output_layout_count = _outputs[0]->get_layout().get_tensor().count();
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
+memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset, bool* from_pool) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
@@ -1603,7 +1620,8 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
                              reuse_internal_buf,
                              _runtime_memory_dependencies,
                              reset,
-                             _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
+                             _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr,
+                             from_pool);
     GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
                   << " " << ret_mem->buffer_ptr() << std::endl;
     return ret_mem;
@@ -1764,7 +1782,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             bool reset,
                                             bool is_output_buffer,
                                             memory* curr_memory,
-                                            bool runtime_alloc) {
+                                            bool runtime_alloc,
+                                            bool* from_pool) {
     auto layout = impl_params.get_output_layout(idx);
     OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
@@ -1841,11 +1860,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                     reusable_across_network,
                                     memory_dependencies,
                                     reset,
-                                    curr_memory);
+                                    curr_memory,
+                                    from_pool);
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc, bool* from_pool) {
     std::vector<memory::ptr> outputs;
     auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     auto& out_layouts = impl_params.output_layouts;
@@ -1867,7 +1887,8 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
                                             reset_mem,
                                             is_output,
                                             current_memory_ptr,
-                                            runtime_alloc));
+                                            runtime_alloc,
+                                            from_pool));
         }
     }
     return outputs;
@@ -2056,7 +2077,7 @@ bool primitive_inst::is_valid_fusion() const {
     return true;
 }
 
-void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode) {
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
     instrumentation::perf_counter_key key {
             _network.get_input_layouts(),
             _impl_params->input_layouts,
@@ -2068,7 +2089,8 @@ void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, b
 #else
             0,
 #endif
-            cache_hit
+            cache_hit,
+            memalloc_info
     };
 
     auto hash = instrumentation::perf_counter_hash()(key);
