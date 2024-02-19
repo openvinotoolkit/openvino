@@ -148,8 +148,7 @@ also available for CLI interface as the ``--int8`` option.
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ also provides 4-bit weight compression with ``load_in_4bit`` 
-option and ``OVWeightQuantizationConfig``class to control weight quantization parameters. 
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ also provides 4-bit weight compression with ``OVWeightQuantizationConfig``class to control weight quantization parameters. 
 
 .. code-block:: python
 
@@ -159,8 +158,7 @@ option and ``OVWeightQuantizationConfig``class to control weight quantization pa
     model = OVModelForCausalLM.from_pretrained(
         model_id,
         export=True,
-        load_in_4bit=True,
-        quantization_config=OVWeightQuantizationConfig(mode=nncf.CompressWeightsMode.INT4_ASYM, ratio=0.8, dataset="ptb"),
+        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
     ) 
 
 
