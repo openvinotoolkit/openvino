@@ -13,7 +13,7 @@ namespace kernel_selector {
 class ctc_loss_kernel_selector : public kernel_selector_base {
 public:
     ctc_loss_kernel_selector();
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
     static ctc_loss_kernel_selector& Instance();
 };
 

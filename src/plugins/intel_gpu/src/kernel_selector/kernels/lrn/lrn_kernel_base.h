@@ -32,13 +32,6 @@ struct lrn_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// lrn_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct lrn_optional_params : optional_params {
-    lrn_optional_params() : optional_params(KernelType::LRN) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // lrn_kernel_base
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class LRNKernelBase : public KernelBaseOpenCL {
@@ -49,9 +42,9 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     virtual JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const lrn_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

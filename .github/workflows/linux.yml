@@ -454,7 +454,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'

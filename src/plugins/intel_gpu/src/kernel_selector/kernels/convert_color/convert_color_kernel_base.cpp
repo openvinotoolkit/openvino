@@ -8,9 +8,8 @@
 
 namespace kernel_selector {
 
-bool ConvertColorKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::CONVERT_COLOR ||
-        o.GetType() != KernelType::CONVERT_COLOR) {
+bool ConvertColorKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::CONVERT_COLOR) {
         return false;
     }
 
@@ -22,7 +21,7 @@ bool ConvertColorKernelBase::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params& params, const optional_params&) const {
+CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params& params) const {
     CommonDispatchData dispatchData;
     const auto& out = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
@@ -74,16 +73,16 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
     return jit;
 }
 
-KernelsData ConvertColorKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ConvertColorKernelBase::GetCommonKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<convert_color_params>(params);
     const auto& prim_params = static_cast<const convert_color_params&>(params);
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
-    auto dispatchData = SetDefault(prim_params, options);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto dispatchData = SetDefault(prim_params);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto cldnn_jit = GetJitConstants(prim_params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

@@ -87,8 +87,8 @@ void MakeJitConstForParam(JitConstants& jit, const std::string& name, size_t ran
 
 }  // namespace
 
-KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData DFTKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -152,7 +152,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
             std::tie(kernel_params, kernel_arguments) = kernels_params[i];
 
             const auto dispatch_data = SetDefault(kernel_params);
-            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options, i);
+            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, i);
             const auto jit_constants = GetJitConstants(kernel_params);
             const auto jit = CreateJit(kernelName, jit_constants, entry_point);
             auto& clKernelData = kd.kernels[i];
@@ -161,7 +161,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
         }
     } else {
         const auto dispatch_data = SetDefault(derived_params);
-        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params, options);
+        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params);
         const auto jit_constants = GetJitConstants(derived_params);
         const auto jit = CreateJit(kernelName, jit_constants, entry_point);
         auto& clKernelData = kd.kernels[0];
@@ -185,8 +185,8 @@ ParamsKey DFTKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool DFTKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::DFT || o.GetType() != KernelType::DFT) {
+bool DFTKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::DFT) {
         return false;
     }
 

@@ -25,9 +25,8 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetSupportedKey() con
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::get_required_device_features_key(const Params& params,
-                                                                                                    const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 namespace {
@@ -76,7 +75,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_multipl
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -101,8 +100,8 @@ JitConstants ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetJitConstants(co
     return cldnn_jit;
 }
 
-bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o)) {
+bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p)) {
         return false;
     }
 
@@ -128,8 +127,7 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, 
     return true;
 }
 
-KernelsData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsData(const Params& params,
-                                                                            const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector
