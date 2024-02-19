@@ -104,7 +104,7 @@ void BrgemmTppEmitter::validate_arguments(const std::vector<size_t> &in, const s
 }
 
 const uintptr_t BrgemmTppEmitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t> (libxsmm_dispatch_gemm_v2(m_shape, m_compile_flags, m_prefetching_flags));
+    return reinterpret_cast<const uintptr_t> (libxsmm_dispatch_gemm(m_shape, m_compile_flags, m_prefetching_flags));
 }
 
 void BrgemmTppEmitter::execute_brgemm_kernel(libxsmm_gemmfunction brg_kernel, void *in0, void *in1, void *out0) {

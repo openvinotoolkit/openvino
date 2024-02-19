@@ -66,7 +66,7 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
 const uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
     // Note: libxsmm hides memory management from the user, so we don't have to store pointer to compiled kernel to keep it alive.
     // libxsmm will keep the pointer alive until the end of program execution (it doesn't matter whether we save the pointer in the emitter or not)
-    return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_binary_v2(m_op_type, m_shape, m_compile_flags));
+    return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_binary(m_op_type, m_shape, m_compile_flags));
 }
 
 std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
