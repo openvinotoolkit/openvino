@@ -46,7 +46,7 @@ CPU_Functional_Tests:
 ```
 
 Then it appears in the [repository's cache](https://github.com/openvinotoolkit/openvino/actions/caches):
-![gha_cache_example](../../../sphinx_setup/_static/images/ci/gha_cache_example.png)
+![gha_cache_example](../../assets/gha_cache_example.png)
 
 The next runs can download the artifact from the repository's cache with `actions/cache/restore`
 and use it:

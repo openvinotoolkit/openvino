@@ -62,12 +62,13 @@ The available configurations are:
 
 * `*` - Not specified in the group name
 
-## How to choose a Runner
+## How to Choose a Runner
 
-The configuration of a runner required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is,
-the more robust configuration is required.
+The configuration of a runner required for a job (building, testing, other tasks) depends on the
+nature of the job. Jobs that are more memory and/or CPU-intensive require a more robust configuration.
 
-The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
+The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses
+the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
   ...
@@ -75,7 +76,8 @@ Build:
   ...
 ```
 
-This group has machines with 16 core CPU and 32 GB of RAM, which could be utilized in parallel by the build tools used in the `Build` job.
+The `aks-linux-16-cores-32gb` group has machines with 16-core CPU and 32 GB of RAM.
+These resources are suitable for using in parallel by the build tools in the `Build` job.
 
 The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
@@ -87,11 +89,12 @@ CXX_Unit_Tests:
     ...
 ```
 
-As the C++ tests could not utilize the large number of cores for parallel execution as the build tools in the `Build` job could,
-it would be pointless to use the `aks-linux-16-cores-32gb` group for them.
+As the C++ tests can not use a large number of cores for parallel execution like
+the build tools in the `Build` job, it is not beneficial to use the `aks-linux-16-cores-32gb` group for them.
 
-The advice is to use runners with more cores/RAM size for the tasks that **could load them**.
+Instead, it is advisable to use runners with more cores/RAM for tasks that can load them.
 
-It is possible to experiment with different configurations before deciding, i.e.,
-run a job on runners from different groups and observe the gains; if they are significant, e.g., 60 minutes on a 4-core runner vs. 15 minutes on a 16-core runner,
-it is better to use those with more cores.
+It is possible to experiment with different configurations before making a decision. You can
+run a job on runners from different groups and compare the gains. If they are significant,
+for example, 60 minutes on a 4-core runner compared to 15 minutes on a 16-core runner,
+it is better to use the configuration with more cores.

@@ -41,7 +41,7 @@ The step includes:
 * a `run` section with commands to be executed.
 
 To add a new step with new tests, navigate to the job and use the above template (or any existing
-step in the job) for the new step. Refer to the [Overview of the Reusable Workflows](./reusable_workflows.md) to learn
+step in the job) for the new step. Refer to the [Reusable Workflows page](./reusable_workflows.md) to learn
 more about workflows and job organization.
 
 ### Creating a New Job
@@ -88,11 +88,11 @@ Refer to the [official GitHub Actions documentation](https://docs.github.com/en/
 A job:
 * requires a name, provided by the `name` key
 * requires a runner to execute `steps` on, provided by the `runs-on` key
-  * Refer to the [Overview of Runners](./runners.md) to learn more about available runners and how to choose one
+  * Learn more about [available runners](./runners.md)
 * might use Docker to execute `steps` in, configured by the `container` key
-  * Refer to the [Overview of Docker Images](./docker_images.md) to learn more about the available Docker images and how to choose one
+  * Learn more about [available Docker images](./docker_images.md)
 * might use caches to speed up build and/or tests
-  * Different types of caches are available. Refer to the [Overview of Caches](./caches.md) to learn more about available caches and how to use them
+  * Different types of caches are available. Learn more about about [available caches](./caches.md)
 * might use the Smart CI system for conditional execution with the `if` key
   * Refer to the [Smart CI Overview](./smart_ci.md) for more information
 * requires a series of commands to execute, provided by the `steps` key
@@ -101,7 +101,7 @@ A job:
   * The artifacts can be downloaded using the `actions/download-artifact`, read more about the workflows' structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#structure-of-the-workflows)
 
 If the job can be used in several workflows, it can be transformed into a reusable workflow.
-Learn more in the [Overview of Reusable Workflows](./reusable_workflows.md).
+Learn more in the [Reusable Workflows page](./reusable_workflows.md).
 
 ## Creating a Workflow
 

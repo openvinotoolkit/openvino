@@ -12,7 +12,7 @@ for more information.
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
 
-## Set up Python
+## Python Setup
 
 This custom action installs the required Python version and environment variables on the runner.
 Under the hood it uses the GitHub-provided `actions/setup-python`, and community-provided
