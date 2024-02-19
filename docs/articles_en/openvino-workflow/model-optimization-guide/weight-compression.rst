@@ -159,7 +159,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
 
    * - Model
      - Optimization
-     - Perplexity\*
+     - Word perplexity\*
      - Model Size (Gb)
    * - meta-llama/llama-7b-chat-hf
      - FP32

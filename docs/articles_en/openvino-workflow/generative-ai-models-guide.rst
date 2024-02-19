@@ -217,13 +217,13 @@ and **KV-cache quantization**.
 
     model = OVModelForCausalLM.from_pretrained(
         model_path,
-        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": 32}
+        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32"}
     )
 
 
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps to reduce memory consumption during the inference and improve latency and throughput. KV-cache can be quantized into the following precisions:
-  ``Type.u8``, ``Type.bf16``, ``Type.f16``.  If ``Type.u8`` is used KV-cache quantization is also applied in a group-wise fashion. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if it is defined. 
+  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used KV-cache quantization is also applied in a group-wise fashion. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if it is defined. 
   Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
 
 
@@ -231,7 +231,7 @@ and **KV-cache quantization**.
 
     model = OVModelForCausalLM.from_pretrained(
         model_path,
-        ov_config={"KV_CACHE_PRECISION": openvino.Type.u8}
+        ov_config={"KV_CACHE_PRECISION": "u8"}
     )
 
 
