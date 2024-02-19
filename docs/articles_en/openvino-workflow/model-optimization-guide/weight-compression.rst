@@ -167,7 +167,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - 12.61
    * - meta-llama/llama-7b-chat-hf
      - INT4_SYM,group_size=128,ratio=1.0,awq=True
-     - 5.07
+     - 12.34
      - 2.6
    * - stabilityai_stablelm-3b-4e1t
      - FP32
@@ -175,15 +175,15 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - 10.41
    * - stabilityai_stablelm-3b-4e1t
      - INT4_SYM,group_size=64,ratio=1.0,awq=True
-     - 5.07
+     - 10.89
      - 2.6
    * - HuggingFaceH4/zephyr-7b-beta
      - FP32
      - 9.82
      - 13.99
    * - HuggingFaceH4/zephyr-7b-beta
-     - INT4_SYM,group_size=128,ratio=0.8
-     - 5.07
+     - INT4_SYM,group_size=128,ratio=1.0
+     - 10.32
      - 2.6
 
 
