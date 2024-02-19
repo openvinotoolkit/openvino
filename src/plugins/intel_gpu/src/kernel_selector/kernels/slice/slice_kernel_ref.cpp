@@ -31,21 +31,20 @@ std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 #undef CASE
 }
 
-void addJitConstantsForAttribute(kernel_selector::JitConstants& jit,
+void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                                  const std::string& name,
-                                 const std::vector<std::int32_t>& attribute,
-                                 kernel_selector::base_params::ArgType arg_type,
+                                 const std::vector<std::int32_t>& compile_time_param,
                                  ov::element::Type_t type) {
     using namespace kernel_selector;
 
-    if (arg_type == base_params::ArgType::Constant) {
+    if (!compile_time_param.empty()) {
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-        jit.AddConstant(MakeJitConstant(name + "_DIM0", attribute[0]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM1", attribute[1]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM2", attribute[2]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM3", attribute[3]));
-        if (attribute.size() == 5) {
-            jit.AddConstant(MakeJitConstant(name + "_DIM4", attribute[4]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM0", compile_time_param[0]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM1", compile_time_param[1]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM2", compile_time_param[2]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM3", compile_time_param[3]));
+        if (compile_time_param.size() == 5) {
+            jit.AddConstant(MakeJitConstant(name + "_DIM4", compile_time_param[4]));
         }
     } else {
         const std::string type_str = ovElementTypeToOCLStr(type);
@@ -132,8 +131,8 @@ bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
 
 JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    addJitConstantsForAttribute(jit, "SLICE_BEGIN", params.compile_time_start, params.start_arg_type, params.start_data_type);
-    addJitConstantsForAttribute(jit, "SLICE_STEP", params.compile_time_step, params.step_arg_type, params.step_data_type);
+    addJitConstantsForParam(jit, "SLICE_BEGIN", params.compile_time_start, params.start_data_type);
+    addJitConstantsForParam(jit, "SLICE_STEP", params.compile_time_step, params.step_data_type);
     return jit;
 }
 

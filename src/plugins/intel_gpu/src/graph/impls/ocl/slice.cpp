@@ -85,12 +85,11 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
         args.inputs.push_back(instance.input_memory_ptr(0));
 
-        if (compile_params->start_arg_type == kernel_selector::base_params::ArgType::Input)
+        if (compile_params->compile_time_start.empty())
             args.inputs.push_back(instance.input_memory_ptr(1));
 
-        if (compile_params->step_arg_type == kernel_selector::base_params::ArgType::Input)
+        if (compile_params->compile_time_step.empty())
             args.inputs.push_back(instance.input_memory_ptr(3));
-
 
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
@@ -121,7 +120,6 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
         params.start_data_type = inputs[InputIndices::kStart].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStart].first->is_constant()) {
-            params.start_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
             std::vector<std::int32_t> compile_time_start(input_rank, 0);
             for (size_t axis = 0; axis < compile_time_axes.size(); axis++) {
@@ -131,14 +129,13 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
             params.compile_time_start = std::move(compile_time_start);
 
         } else {
-            params.start_arg_type = kernel_selector::base_params::ArgType::Input;
+            params.compile_time_start.clear();
             auto layout = impl_param.get_input_layout(InputIndices::kStart);
             params.inputs.push_back(convert_data_tensor(layout));
         }
 
         params.step_data_type = inputs[InputIndices::kStep].first->get_output_layout(0).data_type;
         if (inputs[InputIndices::kStep].first->is_constant()) {
-            params.step_arg_type = kernel_selector::base_params::ArgType::Constant;
             auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
             std::vector<std::int32_t> compile_time_step(input_rank, 1);
             for (size_t axis = 0; axis < compile_time_axes.size(); axis++) {
@@ -148,7 +145,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
             params.compile_time_step = std::move(compile_time_step);
 
         } else {
-            params.step_arg_type = kernel_selector::base_params::ArgType::Input;
+            params.compile_time_step.clear();
             auto stop_layout = impl_param.get_input_layout(InputIndices::kStep);
             params.inputs.push_back(convert_data_tensor(stop_layout));
         }

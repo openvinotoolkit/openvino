@@ -16,8 +16,6 @@ struct slice_params: public base_params {
     std::vector<std::int32_t> compile_time_step;
     ov::element::Type_t start_data_type;
     ov::element::Type_t step_data_type;
-    base_params::ArgType start_arg_type = base_params::ArgType::Constant;
-    base_params::ArgType step_arg_type = base_params::ArgType::Constant;
 };
 
 struct slice_optional_params : optional_params {
