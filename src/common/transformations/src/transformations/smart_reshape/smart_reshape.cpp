@@ -3,12 +3,12 @@
 //
 
 #include "transformations/smart_reshape/smart_reshape.hpp"
-#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include <memory>
 
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/smart_reshape/broadcast_const_range_replacement.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"

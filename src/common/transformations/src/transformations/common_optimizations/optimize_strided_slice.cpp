@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
-#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,6 +17,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 using namespace ov;
@@ -90,7 +90,6 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
 }
 
 }  // namespace
-
 
 bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
