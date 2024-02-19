@@ -26,7 +26,7 @@ copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2024'
 
 # -- General configuration ---------------------------------------------------
 
