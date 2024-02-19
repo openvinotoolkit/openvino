@@ -14,6 +14,7 @@ struct slice_params: public base_params {
 
     std::vector<std::int32_t> compile_time_start;
     std::vector<std::int32_t> compile_time_step;
+    std::vector<std::int32_t> compile_time_axes;
     ov::element::Type_t start_data_type;
     ov::element::Type_t step_data_type;
 };

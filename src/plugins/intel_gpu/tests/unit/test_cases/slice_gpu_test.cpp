@@ -268,6 +268,33 @@ TYPED_TEST(SliceTest, non_default_static_axes) {
     this->RunAllTestCasesForParams(params);
 }
 
+TYPED_TEST(SliceTest, non_default_static_axes_step_dynamic) {
+    SliceTestParams params;
+        const ov::PartialShape input_shape{ 1, 2, 12, 100 };
+    params.input = this->template AllocateTensor<TypeParam>(
+        input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
+    params.start = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 0, 1, 0 });
+    params.stop = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 120, 5, 2, 1 });
+    params.step = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 10, 1, 1, 1 });
+    params.axes = this->template AllocateTensor<int64_t>(
+        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 3, 2, 1, 0 });
+    params.wanted_output = this->template AllocateTensor<TypeParam>(
+        ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
+            1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
+            1301, 1311, 1321, 1331, 1341, 1351, 1361, 1371, 1381, 1391,
+            1401, 1411, 1421, 1431, 1441, 1451, 1461, 1471, 1481, 1491,
+            1501, 1511, 1521, 1531, 1541, 1551, 1561, 1571, 1581, 1591,
+            1601, 1611, 1621, 1631, 1641, 1651, 1661, 1671, 1681, 1691,
+        });
+
+    params.is_step_dynamic = true;
+
+    this->RunAllTestCasesForParams(params);
+}
+
 TYPED_TEST(SliceTest, bfyx_negative_step) {
     SliceTestParams params;
     const ov::PartialShape input_shape{ 1, 2, 12, 100 };

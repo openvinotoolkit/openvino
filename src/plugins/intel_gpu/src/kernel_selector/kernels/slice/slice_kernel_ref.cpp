@@ -32,32 +32,41 @@ std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 }
 
 void addJitConstantsForParam(kernel_selector::JitConstants& jit,
-                                 const std::string& name,
-                                 const std::vector<std::int32_t>& compile_time_param,
-                                 ov::element::Type_t type) {
+                             const std::string& name,
+                             const std::vector<std::int32_t>& compile_time_param,
+                             const std::vector<std::int32_t>& compile_time_axes,
+                             ov::element::Type_t type) {
     using namespace kernel_selector;
 
     if (!compile_time_param.empty()) {
+        OPENVINO_ASSERT(compile_time_param.size() == compile_time_axes.size());
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-        jit.AddConstant(MakeJitConstant(name + "_DIM0", compile_time_param[0]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM1", compile_time_param[1]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM2", compile_time_param[2]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM3", compile_time_param[3]));
-        if (compile_time_param.size() == 5) {
-            jit.AddConstant(MakeJitConstant(name + "_DIM4", compile_time_param[4]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM0", compile_time_param[compile_time_axes[0]]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM1", compile_time_param[compile_time_axes[1]]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM2", compile_time_param[compile_time_axes[2]]));
+        jit.AddConstant(MakeJitConstant(name + "_DIM3", compile_time_param[compile_time_axes[3]]));
+        if (compile_time_axes.size() == 5) {
+            jit.AddConstant(MakeJitConstant(name + "_DIM4", compile_time_param[compile_time_axes[4]]));
         }
     } else {
         const std::string type_str = ovElementTypeToOCLStr(type);
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
-        jit.AddConstant(MakeJitConstant(name + "_DIM0", name + "_buffer_ptr[0]"));
-        jit.AddConstant(MakeJitConstant(name + "_DIM1", name + "_buffer_ptr[1]"));
-        jit.AddConstant(MakeJitConstant(name + "_DIM2", name + "_buffer_ptr[2]"));
-        jit.AddConstant(MakeJitConstant(name + "_DIM3", name + "_buffer_ptr[3]"));
-        jit.AddConstant(MakeJitConstant(name + "_DIM4", name + "_buffer_ptr[4]"));
+        jit.AddConstant(
+            MakeJitConstant(name + "_DIM0", name + "_buffer_ptr[" + std::to_string(compile_time_axes[0]) + "]"));
+        jit.AddConstant(
+            MakeJitConstant(name + "_DIM1", name + "_buffer_ptr[" + std::to_string(compile_time_axes[1]) + "]"));
+        jit.AddConstant(
+            MakeJitConstant(name + "_DIM2", name + "_buffer_ptr[" + std::to_string(compile_time_axes[2]) + "]"));
+        jit.AddConstant(
+            MakeJitConstant(name + "_DIM3", name + "_buffer_ptr[" + std::to_string(compile_time_axes[3]) + "]"));
+        if (compile_time_axes.size() == 5) {
+            jit.AddConstant(
+                MakeJitConstant(name + "_DIM4", name + "_buffer_ptr[" + std::to_string(compile_time_axes[4]) + "]"));
+        }
     }
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace kernel_selector {
 
@@ -129,10 +138,18 @@ bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
     return true;
 }
 
-JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
+JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    addJitConstantsForParam(jit, "SLICE_BEGIN", params.compile_time_start, params.start_data_type);
-    addJitConstantsForParam(jit, "SLICE_STEP", params.compile_time_step, params.step_data_type);
+    addJitConstantsForParam(jit,
+                            "SLICE_BEGIN",
+                            params.compile_time_start,
+                            params.compile_time_axes,
+                            params.start_data_type);
+    addJitConstantsForParam(jit,
+                            "SLICE_STEP",
+                            params.compile_time_step,
+                            params.compile_time_axes,
+                            params.step_data_type);
     return jit;
 }
 
