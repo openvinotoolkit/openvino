@@ -28,6 +28,8 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::_convolution
       aten::_convolution_mode
       aten::_native_multi_head_attention
+      aten::_pack_padded_sequence
+      aten::_pad_packed_sequence
       aten::_set_item
       aten::_shape_as_tensor
       aten::_upsample_bicubic2d_aa
@@ -154,6 +156,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::full
       aten::full_like
       aten::gather
+      aten::gcd
       aten::ge
       aten::gelu
       aten::glu
@@ -169,6 +172,8 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::im2col
       aten::imag                                   Supported in limited set of patterns
       aten::index                                  Supported in limited set of patterns
+      aten::index_add
+      aten::index_add_
       aten::index_put_
       aten::index_select
       aten::instance_norm
@@ -186,6 +191,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::lift_fresh
       aten::lift_fresh_copy
       aten::linalg_cross
+      aten::linalg_inv
       aten::linalg_matrix_norm
       aten::linalg_norm
       aten::linalg_vector_norm
@@ -268,6 +274,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::reflection_pad2d                       Supported in limited set of patterns
       aten::relu
       aten::relu6
+      aten::relu6_
       aten::relu_
       aten::remainder
       aten::repeat
@@ -366,6 +373,8 @@ This page lists operations supported by OpenVINO Framework Frontend.
       prim::ListConstruct
       prim::ListUnpack
       prim::Loop
+      prim::max                                    Supported in limited set of patterns
+      prim::min                                    Supported in limited set of patterns
       prim::NumToTensor
       prim::PythonOp
       prim::requires_grad
