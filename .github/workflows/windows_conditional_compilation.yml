@@ -58,6 +58,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
       SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -277,6 +278,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
