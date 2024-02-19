@@ -32,8 +32,8 @@ ParamsKey GemmKernelMMADint8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey GemmKernelMMADint8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey GemmKernelMMADint8::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -133,8 +133,8 @@ GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gem
     return tuning_data;
 }
 
-KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -144,7 +144,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
     KernelData k_data = KernelData::Default<gemm_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -163,7 +163,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
     return {k_data};
 }
 
-KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params) const {
     const auto& prim_params = static_cast<const gemm_params&>(params);
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);
@@ -171,8 +171,8 @@ KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params, con
     return mmad_operations_number < 4096 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_3;
 }
 
-bool GemmKernelMMADint8::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool GemmKernelMMADint8::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);

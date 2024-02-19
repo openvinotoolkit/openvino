@@ -237,7 +237,7 @@ std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
 }
 
-DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const {
+DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;

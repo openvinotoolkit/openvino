@@ -49,9 +49,9 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
     return jit;
 }
 
-KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::REORG_YOLO);
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -61,7 +61,7 @@ KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optio
     KernelData kd = KernelData::Default<reorg_yolo_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -70,11 +70,11 @@ KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optio
     return {kd};
 }
 
-KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
-bool ReorgYoloKernelRef::Validate(const Params& p, const optional_params& o) const {
+bool ReorgYoloKernelRef::Validate(const Params& p) const {
     const reorg_yolo_params& params = static_cast<const reorg_yolo_params&>(p);
     const auto& input = params.inputs[0];
 

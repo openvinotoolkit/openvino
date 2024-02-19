@@ -17,13 +17,6 @@ struct rms_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// rms_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct rms_optional_params : optional_params {
-    rms_optional_params() : optional_params(KernelType::RMS) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMSKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class RMSKernelBase : public KernelBaseOpenCL {
@@ -42,10 +35,10 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const rms_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const rms_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
