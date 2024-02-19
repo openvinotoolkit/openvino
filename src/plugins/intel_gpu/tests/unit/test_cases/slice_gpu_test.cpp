@@ -129,6 +129,9 @@ private:
                                        input_info("start"),
                                        input_info("stop"),
                                        input_info("step")};
+        if (params.axes) {
+            inputs.push_back(input_info("axes"));
+        }
         topology.add(slice("slice", inputs));
 
         ExecutionConfig config = get_test_default_config(engine_);
