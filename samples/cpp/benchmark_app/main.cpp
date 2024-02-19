@@ -422,7 +422,7 @@ int main(int argc, char* argv[]) {
                 if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
                     if (supported(ov::num_streams.name())) {
-                        // Use API 2.0 key for streams
+                        // Use OpenVINO API key for streams
                         device_config[key] = it_device_nstreams->second;
                     } else if (is_virtual_device(device)) {
                         update_device_config_for_virtual_device(it_device_nstreams->second,
@@ -445,7 +445,7 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
 
                     if (supported(ov::num_streams.name())) {
-                        // Use API 2.0 key for streams
+                        // Use OpenVINO API key for streams
                         device_config[key] = ov::streams::AUTO;
                     } else if (is_virtual_device(device)) {
                         // Set nstreams to default value auto if no nstreams specified from cmd line.
