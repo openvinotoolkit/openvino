@@ -3,6 +3,7 @@
 //
 
 #include "transformations/smart_reshape/set_batch_size.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include <memory>
 
@@ -20,7 +21,7 @@ bool ov::pass::SetBatchSize::run_on_model(const std::shared_ptr<ov::Model>& f) {
     ov::pass::Manager manager;
     // This pass must be called first in pipeline
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::pass::SharedSqueeze>();
+    manager.register_pass<ov::pass::SharedOpOptimization>();
     manager.register_pass<ov::pass::SqueezeStridedSlice>();
     manager.register_pass<ov::pass::StridedSliceSqueeze>();
     manager.register_pass<ov::pass::MimicSetBatchSize>();

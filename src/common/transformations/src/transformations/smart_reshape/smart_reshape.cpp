@@ -3,6 +3,7 @@
 //
 
 #include "transformations/smart_reshape/smart_reshape.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include <memory>
 
@@ -26,7 +27,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
     static_manager.register_pass<ov::pass::Proposal1Scales>();
     static_manager.register_pass<ov::pass::Proposal4Scales>();
-    static_manager.register_pass<ov::pass::SharedSqueeze>();
+    static_manager.register_pass<ov::pass::SharedOpOptimization>();
     static_manager.register_pass<ov::pass::SqueezeStridedSlice>();
     static_manager.register_pass<ov::pass::StridedSliceSqueeze>();
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
