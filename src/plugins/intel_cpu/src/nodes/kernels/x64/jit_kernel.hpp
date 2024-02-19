@@ -700,6 +700,9 @@ private:
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 };
 
+template <>
+const Xbyak::Reg64& jit_kernel::reserve<Xbyak::Reg64>();
+
 template<typename T>
 void jit_kernel::copy(const Xbyak::Reg64& dst,
                       const Xbyak::Reg64& src,

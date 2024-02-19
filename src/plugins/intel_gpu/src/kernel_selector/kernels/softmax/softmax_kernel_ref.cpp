@@ -40,7 +40,7 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -58,8 +58,8 @@ void SoftmaxKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    KernelsData kds = GetCommonKernelsData(params, options);
+KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params) const {
+    KernelsData kds = GetCommonKernelsData(params);
     if (!kds.empty()) {
         const softmax_params& orgParams = static_cast<const softmax_params&>(params);
         bool is_dynamic = orgParams.outputs[0].is_dynamic();

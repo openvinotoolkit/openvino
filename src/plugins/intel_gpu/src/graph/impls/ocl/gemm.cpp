@@ -22,7 +22,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
     using parent = multi_stage_primitive<gemm>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gemm_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gemm_params, kernel_selector::gemm_optional_params>;
+    using kernel_params_t = kernel_selector::gemm_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gemm_impl)
 
@@ -156,7 +156,6 @@ public:
         const auto& primitive = impl_param.typed_desc<gemm>();
 
         auto params = get_default_params<kernel_selector::gemm_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
         for (size_t i = 1; i < primitive->input_size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
@@ -207,7 +206,7 @@ public:
                 }
             }
         }
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -237,24 +236,24 @@ public:
         auto params = static_canonicalize_shapes(impl_param);
 
         auto default_kernel_params = get_kernel_params(params, params.is_dynamic(), false);
-        default_kernel_params.first.is_shape_agnostic = params.is_dynamic();
-        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params.first, default_kernel_params.second));
+        default_kernel_params.is_shape_agnostic = params.is_dynamic();
+        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params));
         const auto desc = params.typed_desc<gemm>();
         if (desc->indirect_a || desc->indirect_b) {
             auto indirect_kernel_params = get_kernel_params(params, params.is_dynamic(), true);
-            indirect_kernel_params.first.is_shape_agnostic = params.is_dynamic();
-            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params.first, indirect_kernel_params.second));
+            indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
+            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
         return cldnn::make_unique<gemm_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true, false);
-        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[default_gemm]);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
 
         if (_kernels_data.size() == 2) {
             auto kernel_params = get_kernel_params(impl_param, true, true);
-            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[indirect_gemm]);
+            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
         }
     }
 };

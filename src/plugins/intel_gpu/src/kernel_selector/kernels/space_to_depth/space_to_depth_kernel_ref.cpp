@@ -27,9 +27,8 @@ ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool SpaceToDepthKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SPACE_TO_DEPTH ||
-        o.GetType() != KernelType::SPACE_TO_DEPTH) {
+bool SpaceToDepthKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SPACE_TO_DEPTH) {
         return false;
     }
 
@@ -45,8 +44,7 @@ bool SpaceToDepthKernelRef::Validate(const Params& p, const optional_params& o) 
     return true;
 }
 
-CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params& params,
-                                                     const optional_params&) const {
+CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -87,16 +85,16 @@ JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params&
     return jit;
 }
 
-KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<space_to_depth_params>(params);
     space_to_depth_params& newParams = *static_cast<space_to_depth_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
-    auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -108,7 +106,7 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const op
     return {kd};
 }
 
-KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

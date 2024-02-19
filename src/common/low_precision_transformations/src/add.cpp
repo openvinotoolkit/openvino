@@ -10,13 +10,14 @@
 #include <utility>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -237,6 +238,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
         NetworkHelper::foldDequantization(node, fullPathIndex, defaultPrecisions);
     }
 
+    OPENVINO_DEBUG << "LPT: done: " << newAddOrSubtract;
     return true;
 }
 

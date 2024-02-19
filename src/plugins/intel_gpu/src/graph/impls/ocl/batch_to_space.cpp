@@ -13,7 +13,7 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     using parent = typed_primitive_impl_ocl<batch_to_space>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::batch_to_space_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::batch_to_space_params, kernel_selector::batch_to_space_optional_params>;
+    using kernel_params_t = kernel_selector::batch_to_space_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::batch_to_space_impl)
 
@@ -24,7 +24,6 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<batch_to_space>();
         auto params = get_default_params<kernel_selector::batch_to_space_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::batch_to_space_optional_params>(impl_param.get_program());
 
         if (primitive->shape_constant) {
             params.block_type = kernel_selector::base_params::ArgType::Constant;
@@ -55,7 +54,7 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
             params.end_dims = end_layout.count();
         }
 
-        return {params, optional_params};
+        return params;
     }
 };
 

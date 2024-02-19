@@ -61,7 +61,7 @@ JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, c
     return jit;
 }
 
-bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const {
+bool QuantizeKernelRef::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 5)
         return false;
@@ -69,7 +69,7 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
     return true;
 }
 
-KernelsPriority QuantizeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority QuantizeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

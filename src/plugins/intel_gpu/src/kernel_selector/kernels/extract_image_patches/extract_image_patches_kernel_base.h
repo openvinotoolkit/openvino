@@ -22,13 +22,6 @@ struct extract_image_patches_params : public base_params {
     std::string auto_pad;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// extract_image_patches_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct extract_image_patches_optional_params : optional_params {
-    extract_image_patches_optional_params() : optional_params(KernelType::EXTRACT_IMAGE_PATCHES) {}
-};
-
 class ExtractImagePatchesKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
@@ -38,9 +31,9 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const extract_image_patches_params& params) const;
     DispatchData SetDefault(const extract_image_patches_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& p, const optional_params&) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

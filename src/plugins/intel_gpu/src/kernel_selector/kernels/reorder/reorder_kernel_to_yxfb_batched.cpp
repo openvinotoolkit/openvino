@@ -21,7 +21,7 @@ ParamsKey ReorderKernel_to_yxfb_batched::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReorderKernel_to_yxfb_batched::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ReorderKernel_to_yxfb_batched::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -29,8 +29,8 @@ DeviceFeaturesKey ReorderKernel_to_yxfb_batched::get_required_device_features_ke
     return k;
 }
 
-bool ReorderKernel_to_yxfb_batched::Validate(const Params& params, const optional_params& o) const {
-    if (!ReorderKernelBase::Validate(params, o)) {
+bool ReorderKernel_to_yxfb_batched::Validate(const Params& params) const {
+    if (!ReorderKernelBase::Validate(params)) {
         return false;
     }
 
@@ -84,15 +84,15 @@ ReorderKernelBase::DispatchData ReorderKernel_to_yxfb_batched::SetDefault(const 
     return dispatchData;
 }
 
-KernelsData ReorderKernel_to_yxfb_batched::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernel_to_yxfb_batched::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::REORDER);
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderKernel_to_yxfb_batched::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernel_to_yxfb_batched::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const reorder_params&>(params);
 
     return p.inputs[0].Batch().v == 1 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_1;

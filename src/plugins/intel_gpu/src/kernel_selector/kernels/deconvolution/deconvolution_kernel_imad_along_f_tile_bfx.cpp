@@ -57,15 +57,15 @@ ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey DeconvolutionKernel_imad_along_f_tile_bfx::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey DeconvolutionKernel_imad_along_f_tile_bfx::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool DeconvolutionKernel_imad_along_f_tile_bfx::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o))
+bool DeconvolutionKernel_imad_along_f_tile_bfx::Validate(const Params& p) const {
+    if (!Parent::Validate(p))
         return false;
 
     auto& params = static_cast<const deconvolution_params&>(p);
@@ -122,7 +122,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const deconvolution_params&>(params);
 
     // Currently most optimized for fsv16 formats

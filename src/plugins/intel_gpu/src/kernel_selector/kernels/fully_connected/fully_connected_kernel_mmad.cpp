@@ -37,7 +37,7 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -47,8 +47,8 @@ DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(con
     return k;
 }
 
-bool FullyConnectedKernelMMAD::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool FullyConnectedKernelMMAD::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     auto fc_params = static_cast<const fully_connected_params&>(params);
@@ -253,7 +253,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     return jit;
 }
 
-KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params) const {
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
 
@@ -264,7 +264,6 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    options,
                                                     input.GetLayout(),
                                                     w_layout,
                                                     static_cast<int>(i));
@@ -275,7 +274,7 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
     return res;
 }
 
-KernelsPriority FullyConnectedKernelMMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnectedKernelMMAD::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

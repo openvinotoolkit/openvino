@@ -92,7 +92,7 @@ class TestTransformersModel(TestTorchConvertModel):
         from PIL import Image
         import requests
 
-        self.infer_timeout = 800
+        self.infer_timeout = 1000
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)

@@ -15,7 +15,7 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     using parent = typed_primitive_impl_ocl<random_uniform>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::random_uniform_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::random_uniform_params, kernel_selector::random_uniform_optional_params>;
+    using kernel_params_t = kernel_selector::random_uniform_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::random_uniform_impl)
 
@@ -31,7 +31,7 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
 
-        return {params, {}};
+        return params;
     }
 };
 

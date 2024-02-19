@@ -22,7 +22,7 @@ size_t GetGwsSize(const random_uniform_params &params) {
     return CeilDiv(shapeSize, step);
 }
 
-CommonDispatchData SetDefault(const random_uniform_params &params, const optional_params &) {
+CommonDispatchData SetDefault(const random_uniform_params &params) {
     CommonDispatchData dispatchData;
     dispatchData.gws = {GetGwsSize(params), 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -46,16 +46,16 @@ JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params
 }
 
 
-KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kernel_data = KernelData::Default<random_uniform_params>(params);
     const random_uniform_params &new_params = dynamic_cast<const random_uniform_params &>(*kernel_data.params.get());
 
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto dispatch_data = SetDefault(new_params);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
 
     auto random_uniform_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, random_uniform_specific_jit, entry_point);
@@ -68,8 +68,7 @@ KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params, const o
     return kernelsData;
 }
 
-KernelsPriority RandomUniformKernelRef::GetKernelsPriority(const Params & /*params*/,
-                                                           const optional_params & /*options*/) const {
+KernelsPriority RandomUniformKernelRef::GetKernelsPriority(const Params & /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -91,8 +90,8 @@ ParamsKey RandomUniformKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool RandomUniformKernelRef::Validate(const Params &params, const optional_params &optionalParams) const {
-    if (params.GetType() != KernelType::RANDOM_UNIFORM || optionalParams.GetType() != KernelType::RANDOM_UNIFORM) {
+bool RandomUniformKernelRef::Validate(const Params &params) const {
+    if (params.GetType() != KernelType::RANDOM_UNIFORM) {
         return false;
     }
 

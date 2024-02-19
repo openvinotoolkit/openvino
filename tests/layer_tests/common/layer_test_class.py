@@ -39,22 +39,42 @@ class CommonLayerTest:
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
         compress_to_fp16 = False if precision == 'FP32' else True
-        mo_params = {self.input_model_key: model_path,
-                     "output_dir": temp_dir,
-                     "compress_to_fp16": compress_to_fp16,
-                     "model_name": 'model'}
-
-        if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
-            input_shapes_str = []
-            for ishape in kwargs['input_shapes']:
-                input_shapes_str.append('[' + ','.join([str(i) for i in ishape]) + ']')
-            mo_params.update(dict(input_shape=','.join(input_shapes_str)))
-
-        if 'input_names' in kwargs and len(kwargs['input_names']):
-            mo_params.update(dict(input=','.join(kwargs['input_names'])))
 
         if use_legacy_frontend:
+            mo_params = {self.input_model_key: model_path,
+                         "output_dir": temp_dir,
+                         "compress_to_fp16": compress_to_fp16,
+                         "model_name": 'model'}
+
+            if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
+                input_shapes_str = []
+                for ishape in kwargs['input_shapes']:
+                    input_shapes_str.append('[' + ','.join([str(i) for i in ishape]) + ']')
+                mo_params.update(dict(input_shape=','.join(input_shapes_str)))
+
+            if 'input_names' in kwargs and len(kwargs['input_names']):
+                mo_params.update(dict(input=','.join(kwargs['input_names'])))
             mo_params["use_legacy_frontend"] = True
+        else:
+            # pack input parameters for convert_model of OVC
+            # that are different from MO
+            mo_params = {"input_model": model_path,
+                         "output_dir": temp_dir,
+                         "compress_to_fp16": compress_to_fp16
+                         }
+
+            if 'input_shapes' in kwargs and 'input_names' in kwargs:
+                input_shapes = kwargs['input_shapes']
+                input_names = kwargs['input_names']
+                assert len(input_shapes) == len(input_names)
+                input_dict = {}
+                for input_name, input_shape in zip(input_names, input_shapes):
+                    input_dict[input_name] = input_shape
+                mo_params.update(dict(input=input_dict))
+            elif 'input_names' in kwargs:
+                mo_params.update(dict(input=kwargs['input_names']))
+            elif 'input_shapes' in kwargs:
+                mo_params.update(dict(input=kwargs['input_shapes']))
 
         exit_code, stderr = generate_ir_python_api(**mo_params)
 

@@ -16,7 +16,7 @@ gemm_kernel_selector::gemm_kernel_selector() {
     Attach<GemmKernelMMADslmInt8>();
 }
 
-KernelsData gemm_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GEMM);
+KernelsData gemm_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GEMM);
 }
 }  // namespace kernel_selector

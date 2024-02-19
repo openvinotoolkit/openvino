@@ -19,8 +19,8 @@ ParamsKey FullyConnected_fb_oi_b8_ref::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_fb_oi_b8_ref::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_fb_oi_b8_ref::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -39,8 +39,8 @@ FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefaul
     return dispatchData;
 }
 
-bool FullyConnected_fb_oi_b8_ref::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_fb_oi_b8_ref::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -53,11 +53,10 @@ bool FullyConnected_fb_oi_b8_ref::Validate(const Params& p, const optional_param
     return true;
 }
 
-KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::fb,
                                                     WeightsLayout::oi,
                                                     static_cast<int>(i));
@@ -68,7 +67,7 @@ KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params, co
     return res;
 }
 
-KernelsPriority FullyConnected_fb_oi_b8_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_fb_oi_b8_ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

@@ -56,9 +56,8 @@ ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDe
     return dispatchData;
 }
 
-KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& params,
-                                                                const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -68,7 +67,7 @@ KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& pa
     KernelData kd = KernelData::Default<extract_image_patches_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -77,7 +76,7 @@ KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& pa
     return {kd};
 }
 
-bool ExtractImagePatchesKernelBase::Validate(const Params& p, const optional_params&) const {
+bool ExtractImagePatchesKernelBase::Validate(const Params& p) const {
     const extract_image_patches_params& params = static_cast<const extract_image_patches_params&>(p);
 
     if (params.GetType() != KernelType::EXTRACT_IMAGE_PATCHES) {

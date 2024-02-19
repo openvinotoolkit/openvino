@@ -15,10 +15,10 @@ public:
     ConvolutionKernel_Winograd_2x3_s1_fused() : ConvolutionKernelBase("convolution_gpu_winograd_2x3_s1_fused") {}
     virtual ~ConvolutionKernel_Winograd_2x3_s1_fused() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
@@ -26,7 +26,7 @@ protected:
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

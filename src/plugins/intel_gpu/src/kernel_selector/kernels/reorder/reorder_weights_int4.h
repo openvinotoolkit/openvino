@@ -12,12 +12,12 @@ public:
     ReorderWeightsKernelInt4() : ReorderKernelBase("reorder_weights_int4") {}
     virtual ~ReorderWeightsKernelInt4() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
 };
 }  // namespace kernel_selector

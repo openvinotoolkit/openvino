@@ -43,10 +43,9 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
     return dispatchData;
 }
 
-KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options) const {
+KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::NORMALIZE);
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
@@ -56,7 +55,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<normalize_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -77,7 +76,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
     return {kd};
 }
 
-bool NormalizeKernelBase::Validate(const Params& params, const optional_params&) const {
+bool NormalizeKernelBase::Validate(const Params& params) const {
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
     for (auto& fused_op : orgParams.fused_ops) {

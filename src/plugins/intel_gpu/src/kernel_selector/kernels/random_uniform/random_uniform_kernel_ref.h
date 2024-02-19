@@ -25,15 +25,6 @@ struct random_uniform_params: public base_params {
 };
 
 /**
- * Specific optional params is not defined for RandomUniform operation.
- */
-struct random_uniform_optional_params: optional_params {
-    random_uniform_optional_params() :
-        optional_params{KernelType::RANDOM_UNIFORM} {
-    }
-};
-
-/**
  * Reference GPU kernel for the RandomUniform-8 operation.
  */
 class RandomUniformKernelRef: public KernelBaseOpenCL {
@@ -42,13 +33,13 @@ public:
         KernelBaseOpenCL{"random_uniform_ref"} {
     }
 private:
-    KernelsData GetKernelsData(const Params &params, const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
+    KernelsPriority GetKernelsPriority(const Params &params) const override;
 
     ParamsKey GetSupportedKey() const override;
 
-    bool Validate(const Params &params, const optional_params &optionalParams) const override;
+    bool Validate(const Params &params) const override;
 
     JitConstants GetJitConstants(const random_uniform_params &params) const;
 };

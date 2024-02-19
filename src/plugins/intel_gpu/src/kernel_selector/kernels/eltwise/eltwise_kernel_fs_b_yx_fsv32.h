@@ -17,12 +17,12 @@ public:
     EltwiseKernel_fs_b_yx_fsv32() : EltwiseKernelBase("eltwise_fs_b_yx_fsv32") {}
     virtual ~EltwiseKernel_fs_b_yx_fsv32() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
 };
 }  // namespace kernel_selector

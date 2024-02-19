@@ -11,8 +11,8 @@ class OneHotKernelRef : public OneHotKernelBase {
 public:
     OneHotKernelRef() : OneHotKernelBase("one_hot_ref") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 };
 }  // namespace kernel_selector

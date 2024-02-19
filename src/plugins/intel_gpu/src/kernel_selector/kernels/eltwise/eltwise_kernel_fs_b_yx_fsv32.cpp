@@ -23,8 +23,8 @@ JitConstants EltwiseKernel_fs_b_yx_fsv32::GetJitConstants(const eltwise_params& 
     return GetJitConstantsCommon(params, true);
 }
 
-bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
+    if (!EltwiseKernelBase::Validate(params)) {
         return false;
     }
 
@@ -68,8 +68,8 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_
     return true;
 }
 
-KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -78,7 +78,7 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);
@@ -107,7 +107,7 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

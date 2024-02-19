@@ -201,6 +201,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
             return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},

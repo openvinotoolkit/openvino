@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/util/log.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ov;
@@ -20,7 +21,9 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ov
     }
 
     op = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

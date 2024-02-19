@@ -17,11 +17,11 @@ public:
     ConvolutionKernel_bfyx_os_iyx_osv16();
     virtual ~ConvolutionKernel_bfyx_os_iyx_osv16() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override;
@@ -32,7 +32,7 @@ protected:
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     size_t GetSubGroupSize(const convolution_params& params) const {

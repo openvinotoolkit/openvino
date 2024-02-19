@@ -62,8 +62,8 @@ JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params&
     return jit;
 }
 
-bool PoolingKernelGPUBfyxBlockOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!PoolingKernelBase::Validate(p, o)) {
+bool PoolingKernelGPUBfyxBlockOpt::Validate(const Params& p) const {
+    if (!PoolingKernelBase::Validate(p)) {
         return false;
     }
 
@@ -76,11 +76,11 @@ bool PoolingKernelGPUBfyxBlockOpt::Validate(const Params& p, const optional_para
     return true;
 }
 
-KernelsData PoolingKernelGPUBfyxBlockOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPUBfyxBlockOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPUBfyxBlockOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPUBfyxBlockOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

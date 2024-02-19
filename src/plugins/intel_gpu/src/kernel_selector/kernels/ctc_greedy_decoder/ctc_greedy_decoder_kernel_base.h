@@ -21,13 +21,6 @@ struct ctc_greedy_decoder_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ctc_greedy_decoder_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct ctc_greedy_decoder_optional_params : optional_params {
-    ctc_greedy_decoder_optional_params() : optional_params(KernelType::CTC_GREEDY_DECODER) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CTCGreedyDecoderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class CTCGreedyDecoderKernelBase : public KernelBaseOpenCL {
@@ -39,6 +32,6 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const ctc_greedy_decoder_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

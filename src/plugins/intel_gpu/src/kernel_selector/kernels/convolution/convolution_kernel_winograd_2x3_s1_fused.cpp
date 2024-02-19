@@ -26,7 +26,7 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1_fused::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1_fused::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1_fused::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -112,12 +112,12 @@ ConvolutionKernel_Winograd_2x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
-bool ConvolutionKernel_Winograd_2x3_s1_fused::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool ConvolutionKernel_Winograd_2x3_s1_fused::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -136,8 +136,7 @@ bool ConvolutionKernel_Winograd_2x3_s1_fused::Validate(const Params& p, const op
     return true;
 }
 
-KernelsData ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsData(const Params& params,
-                                                                    const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

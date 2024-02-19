@@ -25,13 +25,6 @@ struct activation_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// activation_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct activation_optional_params : optional_params {
-    activation_optional_params() : optional_params(KernelType::ACTIVATION) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // activation_fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct activation_fuse_params : fuse_params {
@@ -53,10 +46,10 @@ public:
     virtual ~ActivationKernelBase() {}
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     virtual JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const activation_params& arg) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

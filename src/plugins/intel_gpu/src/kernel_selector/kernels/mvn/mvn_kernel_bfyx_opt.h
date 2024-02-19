@@ -14,8 +14,8 @@ public:
     MVNKernelBfyxOpt() : MVNKernelBase("mvn_gpu_bfyx_opt") {}
     virtual ~MVNKernelBfyxOpt() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     using Parent = MVNKernelBase;
 

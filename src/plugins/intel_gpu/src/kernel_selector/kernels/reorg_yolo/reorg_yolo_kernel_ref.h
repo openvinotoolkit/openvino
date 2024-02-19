@@ -23,13 +23,6 @@ struct reorg_yolo_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reorg_yolo_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reorg_yolo_optional_params : optional_params {
-    reorg_yolo_optional_params() : optional_params(KernelType::REORG_YOLO) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReorgYoloKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ReorgYoloKernelRef : public KernelBaseOpenCL {
@@ -38,10 +31,10 @@ public:
     virtual ~ReorgYoloKernelRef() {}
 
     using DispatchData = CommonDispatchData;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
 
 protected:
     virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include <functional_test_utils/ov_plugin_cache.hpp>
+#include "common_test_utils/ov_plugin_cache.hpp"
 
 #include "set_device_name.hpp"
 

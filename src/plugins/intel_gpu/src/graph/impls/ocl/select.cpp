@@ -15,7 +15,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     using parent = typed_primitive_impl_ocl<select>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::select_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::select_params, kernel_selector::select_optional_params>;
+    using kernel_params_t = kernel_selector::select_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::select_impl)
 
@@ -34,14 +34,13 @@ struct select_impl : typed_primitive_impl_ocl<select> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::select_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::select_optional_params>(impl_param.get_program());
 
         std::vector<layout> input_layouts = impl_param.input_layouts;
 
         for (size_t i = 1; i < input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(input_layouts[i]));
         }
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -63,7 +62,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

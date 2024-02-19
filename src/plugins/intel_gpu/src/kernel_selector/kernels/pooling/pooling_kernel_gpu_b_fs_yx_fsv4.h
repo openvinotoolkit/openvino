@@ -13,8 +13,8 @@ public:
     PoolingKerneGPU_b_fs_yx_fsv4() : PoolingKernelBase("pooling_gpu_b_fs_yx_fsv4") {}
     virtual ~PoolingKerneGPU_b_fs_yx_fsv4() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const pooling_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

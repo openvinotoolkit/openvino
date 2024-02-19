@@ -31,13 +31,13 @@ ParamsKey ReshapeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReshapeKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::RESHAPE);
 
     KernelData kd = KernelData::Default<reshape_params>(params);
     reshape_params& newParams = *static_cast<reshape_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -64,12 +64,12 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
     return {kd};
 }
 
-KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ReshapeKernelRef::Validate(const Params& p, const optional_params& op) const {
-    if (!KernelBaseOpenCL::Validate(p, op))
+bool ReshapeKernelRef::Validate(const Params& p) const {
+    if (!KernelBaseOpenCL::Validate(p))
         return false;
 
     const auto& rp = static_cast<const reshape_params&>(p);

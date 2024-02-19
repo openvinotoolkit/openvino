@@ -10,7 +10,7 @@
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 

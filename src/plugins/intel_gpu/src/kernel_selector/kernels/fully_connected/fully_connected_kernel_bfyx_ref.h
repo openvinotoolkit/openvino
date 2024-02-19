@@ -16,8 +16,8 @@ public:
 
     FullyConnected_bfyx_Ref() : Parent("fully_connected_gpu_bfyx_ref") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -27,7 +27,7 @@ protected:
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

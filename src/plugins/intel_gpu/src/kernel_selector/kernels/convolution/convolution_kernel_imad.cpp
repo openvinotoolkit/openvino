@@ -90,7 +90,7 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_imad::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_blocked_read_write();
     k.requires_reqd_subgroup_size();
@@ -100,8 +100,8 @@ DeviceFeaturesKey ConvolutionKernel_imad::get_required_device_features_key(const
     return k;
 }
 
-KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
 JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
@@ -176,15 +176,15 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& /*params*/) const {
     // This kernel is quite slow for 1x1 and KHx1 kernels
     // TODO: check if we need any optimized kernels in this layout
     // If yes, we need to implement some customization for these cases.
     return FORCE_PRIORITY_3;
 }
 
-bool ConvolutionKernel_imad::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options)) {
+bool ConvolutionKernel_imad::Validate(const Params& params) const {
+    if (!Parent::Validate(params)) {
         return false;
     }
 

@@ -15,7 +15,7 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     using parent = typed_primitive_impl_ocl<reshape>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::reshape_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::reshape_params, kernel_selector::reshape_optional_params>;
+    using kernel_params_t = kernel_selector::reshape_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reshape_impl)
 
@@ -24,10 +24,7 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::reshape_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::reshape_optional_params>(impl_param.get_program());
-
-        return {params, optional_params};
+        return get_default_params<kernel_selector::reshape_params>(impl_param);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override { }

@@ -84,10 +84,6 @@ void InferAPI2::set_input_params(const std::string &model) {
     inputs = network->inputs();
 }
 
-std::shared_ptr<InferApiBase> create_infer_api_wrapper(const int &api_version) {
-    if (api_version == 2) {
-        return std::make_shared<InferAPI2>(InferAPI2());
-    } else {
-        throw std::logic_error("Unsupported API version");
-    }
+std::shared_ptr<InferApiBase> create_infer_api_wrapper() {
+    return std::make_shared<InferAPI2>(InferAPI2());
 }

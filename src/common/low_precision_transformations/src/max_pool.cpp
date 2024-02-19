@@ -6,12 +6,12 @@
 
 #include <memory>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/opsets/opset1.hpp"
-
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -57,7 +57,9 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::
     }
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

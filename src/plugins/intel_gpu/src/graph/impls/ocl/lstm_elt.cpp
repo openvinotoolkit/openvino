@@ -15,7 +15,7 @@ struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     using parent = typed_primitive_impl_ocl<lstm_elt>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::lstm_elt_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::lstm_elt_params, kernel_selector::lstm_elt_optional_params>;
+    using kernel_params_t = kernel_selector::lstm_elt_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lstm_elt_impl)
 
@@ -37,7 +37,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lstm_elt>();
         auto params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::lstm_elt_optional_params>(impl_param.get_program());
 
         if (!primitive->cell.empty()) {
             const auto& cell_idx = 1;
@@ -69,7 +68,7 @@ public:
         params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
 
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {

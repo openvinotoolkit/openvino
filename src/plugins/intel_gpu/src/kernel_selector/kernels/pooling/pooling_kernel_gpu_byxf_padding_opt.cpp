@@ -50,8 +50,8 @@ JitConstants PoolingKernelGPUByxfPaddingOpt::GetJitConstants(const pooling_param
     return jit;
 }
 
-bool PoolingKernelGPUByxfPaddingOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!PoolingKernelBase::Validate(p, o)) {
+bool PoolingKernelGPUByxfPaddingOpt::Validate(const Params& p) const {
+    if (!PoolingKernelBase::Validate(p)) {
         return false;
     }
 
@@ -62,11 +62,11 @@ bool PoolingKernelGPUByxfPaddingOpt::Validate(const Params& p, const optional_pa
     return true;
 }
 
-KernelsData PoolingKernelGPUByxfPaddingOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPUByxfPaddingOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPUByxfPaddingOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPUByxfPaddingOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

@@ -27,9 +27,8 @@ ParamsKey ShuffleChannelsKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool ShuffleChannelsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SHUFFLE_CHANNELS ||
-        o.GetType() != KernelType::SHUFFLE_CHANNELS) {
+bool ShuffleChannelsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SHUFFLE_CHANNELS) {
         return false;
     }
 
@@ -41,8 +40,7 @@ bool ShuffleChannelsKernelRef::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_params& params,
-                                                        const optional_params&) const {
+CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -83,8 +81,8 @@ JitConstants ShuffleChannelsKernelRef::GetJitConstants(const shuffle_channels_pa
     return jit;
 }
 
-KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -93,8 +91,8 @@ KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const
 
     assert(params.GetType() == KernelType::SHUFFLE_CHANNELS);
 
-    auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -105,7 +103,7 @@ KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const
     return {kd};
 }
 
-KernelsPriority ShuffleChannelsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ShuffleChannelsKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

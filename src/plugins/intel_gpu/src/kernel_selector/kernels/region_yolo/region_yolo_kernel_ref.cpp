@@ -62,8 +62,8 @@ JitConstants RegionYoloKernelRef::GetJitConstants(const region_yolo_params& ry) 
     return jit;
 }
 
-bool RegionYoloKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: REGION_YOLO || o.GetType() != KernelType::REGION_YOLO) {
+bool RegionYoloKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::REGION_YOLO) {
         return false;
     }
 
@@ -78,8 +78,8 @@ bool RegionYoloKernelRef::Validate(const Params& p, const optional_params& o) co
     return true;
 }
 
-KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -89,7 +89,7 @@ KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const opti
     KernelData kd = KernelData::Default<region_yolo_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -98,7 +98,7 @@ KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const opti
     return {kd};
 }
 
-KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

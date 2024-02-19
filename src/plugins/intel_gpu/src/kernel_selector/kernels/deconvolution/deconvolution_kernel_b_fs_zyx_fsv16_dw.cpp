@@ -123,8 +123,8 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16_dw::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16_dw::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::SetDefault(const deconvolution_params& params) const {
@@ -149,12 +149,12 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::Set
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
-bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p, const optional_params& o) const {
-    if (!DeconvolutionKernelBase::Validate(p, o)) {
+bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p) const {
+    if (!DeconvolutionKernelBase::Validate(p)) {
         return false;
     }
 

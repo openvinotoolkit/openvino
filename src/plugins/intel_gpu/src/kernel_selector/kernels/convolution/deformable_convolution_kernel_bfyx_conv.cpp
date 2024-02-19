@@ -30,8 +30,8 @@ ParamsKey DeformableConvolutionKernel_bfyx_conv::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey DeformableConvolutionKernel_bfyx_conv::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey DeformableConvolutionKernel_bfyx_conv::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -59,7 +59,7 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
     return dispatchData;
 }
 
-KernelsPriority DeformableConvolutionKernel_bfyx_conv::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeformableConvolutionKernel_bfyx_conv::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
@@ -71,8 +71,7 @@ JitConstants DeformableConvolutionKernel_bfyx_conv::GetJitConstants(const convol
     return jit;
 }
 
-KernelsData DeformableConvolutionKernel_bfyx_conv::GetKernelsData(const Params& params,
-                                                                 const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData DeformableConvolutionKernel_bfyx_conv::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

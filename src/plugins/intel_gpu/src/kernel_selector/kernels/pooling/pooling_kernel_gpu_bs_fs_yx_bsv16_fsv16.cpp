@@ -39,7 +39,7 @@ ParamsKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -61,7 +61,7 @@ PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDef
     return dispatchData;
 }
 
-KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -77,12 +77,12 @@ JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const poo
     return jit;
 }
 
-KernelsData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params, const optional_params& options) const {
-    if (!PoolingKernelBase::Validate(params, options)) {
+bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params) const {
+    if (!PoolingKernelBase::Validate(params)) {
         return false;
     }
     auto p = dynamic_cast<const pooling_params&>(params);

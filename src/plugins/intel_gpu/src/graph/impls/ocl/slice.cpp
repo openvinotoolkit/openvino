@@ -61,7 +61,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::slice_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::slice_params, kernel_selector::slice_optional_params>;
+    using kernel_params_t = kernel_selector::slice_params;
 
     enum InputIndices {
         kData,
@@ -80,7 +80,6 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
     static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::slice_params>(impl_param);
-        auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();
         auto start_elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
@@ -110,7 +109,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.set_dynamic_shape_offsets();
         auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params);
 
         return make_unique<slice_impl>(best_kernel);
     }

@@ -46,7 +46,7 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using parent = typed_primitive_impl_ocl<pooling>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::pooling_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::pooling_params, kernel_selector::pooling_optional_params>;
+    using kernel_params_t = kernel_selector::pooling_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::pooling_impl)
 
@@ -64,7 +64,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<pooling>();
         auto params = get_default_params<kernel_selector::pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::pooling_optional_params>(impl_param.get_program());
 
         params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (params.maxPoolOpset8Features) {
@@ -149,7 +148,7 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
-        return {params, optional_params};
+        return params;
     }
 };
 

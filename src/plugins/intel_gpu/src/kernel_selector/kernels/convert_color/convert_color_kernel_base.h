@@ -19,13 +19,6 @@ struct convert_color_params : public base_params {
     memory_type mem_type = memory_type::buffer;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// convert_color_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct convert_color_optional_params : optional_params {
-    convert_color_optional_params() : optional_params(KernelType::CONVERT_COLOR) {}
-};
-
 struct convert_color_fuse_params : fuse_params {
     convert_color_fuse_params() : fuse_params(KernelType::CONVERT_COLOR) {}
 };
@@ -41,9 +34,9 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const convert_color_params& params) const;
-    virtual CommonDispatchData SetDefault(const convert_color_params& params, const optional_params&) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const convert_color_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

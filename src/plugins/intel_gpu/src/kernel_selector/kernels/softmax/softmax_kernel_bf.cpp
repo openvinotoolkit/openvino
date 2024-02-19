@@ -27,7 +27,7 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -86,7 +86,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
@@ -101,8 +101,8 @@ void SoftmaxKernel_bf::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
-    KernelsData kds = GetCommonKernelsData(params, optionalParams);
+KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params) const {
+    KernelsData kds = GetCommonKernelsData(params);
     if (!kds.empty()) {
         GetUpdateDispatchDataFunc(kds[0]);
     }

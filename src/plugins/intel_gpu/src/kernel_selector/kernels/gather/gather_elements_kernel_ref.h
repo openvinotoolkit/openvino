@@ -16,21 +16,14 @@ struct gather_elements_params : public base_params {
     GatherAxis axis;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gather_elements_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gather_elements_optional_params : optional_params {
-    gather_elements_optional_params() : optional_params(KernelType::GATHER_ELEMENTS) {}
-};
-
 class GatherElementsKernelRef : public KernelBaseOpenCL {
 public:
     GatherElementsKernelRef() : KernelBaseOpenCL("gather_elements_ref") {}
     virtual ~GatherElementsKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_elements_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_elements_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
@@ -39,7 +32,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

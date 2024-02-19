@@ -30,7 +30,7 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -58,7 +58,7 @@ CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const con
     return dispatchData;
 }
 
-KernelsPriority DeformableConvolutionKernel_bfyx_interp::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeformableConvolutionKernel_bfyx_interp::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
@@ -79,9 +79,8 @@ JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const conv
     return jit;
 }
 
-KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params& params,
-                                                                    const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -89,7 +88,7 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
     CommonDispatchData dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

@@ -43,8 +43,7 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnected_bf_tiled>();
 }
 
-KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params,
-                                                            const optional_params& options) const {
-    return GetAutoTuneBestKernel(params, options, KernelType::FULLY_CONNECTED);
+KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetAutoTuneBestKernel(params, KernelType::FULLY_CONNECTED);
 }
 }  // namespace kernel_selector

@@ -28,8 +28,8 @@ ParamsKey FullyConnected_fs_byx_fsv32::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_fs_byx_fsv32::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -71,8 +71,8 @@ JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_
     return jit;
 }
 
-bool FullyConnected_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_fs_byx_fsv32::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -87,11 +87,10 @@ bool FullyConnected_fs_byx_fsv32::Validate(const Params& p, const optional_param
     return true;
 }
 
-KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    options,
                                                     DataLayout::fs_b_yx_fsv32,
                                                     WeightsLayout::os_iyx_osv32__ai32,
                                                     static_cast<int>(i));
@@ -103,7 +102,7 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
     return res;
 }
 
-KernelsPriority FullyConnected_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

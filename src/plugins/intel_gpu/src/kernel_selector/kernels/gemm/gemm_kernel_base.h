@@ -38,13 +38,6 @@ struct gemm_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gemm_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gemm_optional_params : optional_params {
-    gemm_optional_params() : optional_params(KernelType::GEMM) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // GemmKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class GemmKernelBase : public KernelBaseOpenCL {
@@ -57,7 +50,7 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;
     virtual DispatchData SetDefault(const gemm_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
     std::string GetDimsOrder(const std::vector<int64_t>& order_idx) const;
     size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor &output, char target_dim) const;
@@ -68,7 +61,7 @@ protected:
     virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
-    bool Validate(const Params& p, const optional_params&) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

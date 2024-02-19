@@ -61,13 +61,6 @@ struct lstm_elt_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// lstm_elt_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct lstm_elt_optional_params : optional_params {
-    lstm_elt_optional_params() : optional_params(KernelType::LSTM_ELT) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // LSTMEltKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class LSTMEltKernelBase : public KernelBaseOpenCL {
@@ -79,9 +72,9 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const lstm_elt_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
-    bool Validate(const Params& p, const optional_params&) const override {
+    bool Validate(const Params& p) const override {
         if (p.GetType() != KernelType::LSTM_ELT) {
             return false;
         }

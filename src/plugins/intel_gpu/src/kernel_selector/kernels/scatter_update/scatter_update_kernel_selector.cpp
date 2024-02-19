@@ -9,7 +9,7 @@ namespace kernel_selector {
 
 scatter_update_kernel_selector::scatter_update_kernel_selector() { Attach<ScatterUpdateKernelRef>(); }
 
-KernelsData scatter_update_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::SCATTER_UPDATE);
+KernelsData scatter_update_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::SCATTER_UPDATE);
 }
 }  // namespace kernel_selector

@@ -2359,9 +2359,7 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::hint::performance_mode.name(), _))
         .Times(AnyNumber())
-        .WillRepeatedly(Return([] {
-            return ov::hint::PerformanceMode::THROUGHPUT;
-        }));
+        .WillRepeatedly(Return(ov::hint::PerformanceMode::THROUGHPUT));
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
     }

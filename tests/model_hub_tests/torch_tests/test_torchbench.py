@@ -24,11 +24,13 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         os.environ['HUGGING_FACE_HUB_TOKEN'] = 'x'
         torch.set_grad_enabled(False)
 
+        self.infer_timeout = 800
+
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
             f"git clone https://github.com/pytorch/benchmark.git {self.repo_dir.name}")
         subprocess.check_call(
-            ["git", "checkout", "850364ac2678b2363f086b7549254b6cb7df2e4d"], cwd=self.repo_dir.name)
+            ["git", "checkout", "dbc109791dbb0dfb58775a5dc284fc2c3996cb30"], cwd=self.repo_dir.name)
 
     def load_model_impl(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)

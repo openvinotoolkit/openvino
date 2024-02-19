@@ -50,11 +50,10 @@ CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
     return dispatchData;
 }
 
-KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& params,
-                                                             const optional_params& options) const {
+KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::CTC_GREEDY_DECODER);
 
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     const ctc_greedy_decoder_params& orgParams = static_cast<const ctc_greedy_decoder_params&>(params);
@@ -64,7 +63,7 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
     KernelData kd = KernelData::Default<ctc_greedy_decoder_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
