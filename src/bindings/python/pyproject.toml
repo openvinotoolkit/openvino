@@ -32,7 +32,7 @@ build = [
     "wheel >= 0.38.1",
 ]
 
-[tool.pdm]  # will either need --dev or --prod usage
+[tool.pdm]
 plugins = [
     "-e file:///${PROJECT_ROOT}/pdm-custom-plugins/"
 ]
