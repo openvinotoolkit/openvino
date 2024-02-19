@@ -35,6 +35,8 @@ CPU:
     - ONNX_FE
   build:
     - AUTO
+    - AUTO_BATCH
+    - HETERO
     - TEMPLATE
     - IR_FE
 
@@ -42,6 +44,7 @@ GPU:
   build:
     - AUTO_BATCH
     - AUTO
+    - HETERO
     - TEMPLATE
     - IR_FE
     - PROXY
