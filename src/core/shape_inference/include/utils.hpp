@@ -365,7 +365,7 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
         out.emplace();
         out->reserve(lowers.size());
         std::transform(lowers.cbegin(), lowers.cend(), lowers.cbegin(), std::back_inserter(*out), make_bound(et));
-    } else {
+    } else if (port < op->get_input_size()) {
         auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(port));
 
         if (bounds.first && bounds.second) {
