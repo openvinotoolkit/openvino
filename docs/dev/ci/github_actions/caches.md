@@ -36,7 +36,7 @@ Refer to the [GitHub Actions official documentation](https://docs.github.com/en/
 for a complete reference.
 
 The `CPU functional tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml)
-workflow uses this cache for sharing tests execution time to speed up the subsequent runs.
+workflow uses this cache for sharing test execution time to speed up the subsequent runs.
 First, the artifacts are saved with `actions/cache/save` with a particular
 key `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`:
 ```yaml
@@ -124,7 +124,7 @@ The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and d
 * Installation. Refer to the [sccache installation](#sccache-installation) section.
 * [Credential environment variables: `SCCACHE_AZURE_BLOB_CONTAINER`, `SCCACHE_AZURE_CONNECTION_STRING`](#passing-credential-environment-variables)
   * The variables are already set up on the self-hosted runners.
-  * The variables can be passed to a Docker containers via the `options` key under the `container` key.
+  * The variables can be passed to a Docker container via the `options` key under the `container` key.
 * [`SCCACHE_AZURE_KEY_PREFIX` environment variable](#providing-sccache-prefix) to specify the folder where the cache for the current OS/architecture will be saved.
 * [`CMAKE_CXX_COMPILER_LAUNCHER` and `CMAKE_C_COMPILER_LAUNCHER` environment variables](#enabling-sccache-for-cc-files) to enable `sccache` for caching C++/C build files
 

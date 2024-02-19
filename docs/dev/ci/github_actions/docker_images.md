@@ -76,7 +76,7 @@ If the tests do not require any specific OS or distribution, it is recommended t
 the available images, for example, `openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04`.
 
 If testing requires a specific OS or distribution (for example, `fedora`),
-the Docker image for this flavour should be first uploaded to the OpenVINO ACR and
+the Docker image for this flavor should be first uploaded to the OpenVINO ACR and
 then used in a workflow.
 
 Contact a member of the CI team for assistance with the image uploading.

@@ -8,7 +8,7 @@ for more information.
 
 ## Available Custom Actions
 
-* [Setup Python](#setup-python)
+* [Python Setup](#python-setup)
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
 
@@ -43,9 +43,9 @@ where:
 This custom action prints the system information in the standard output:
 * Operating system
 * Machine architecture
-* CPU, RAM and memory information
+* CPU, RAM, and memory information
 
-Works on Linux, macOS and Windows.
+Works on Linux, macOS, and Windows.
 
 ### Usage
 ```yaml

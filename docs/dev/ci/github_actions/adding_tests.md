@@ -135,12 +135,10 @@ The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example 
 
 ## Test Time and Usage
 
-Be mindful about the time and runners usage when adding new steps, jobs and workflows.
-
 ### Adding a Step
 
 When adding a step in a job, check its execution time compared to other jobs. Try to
-keep it in line with these jobs to avoid extenfing the overall job duration too much.
+keep it in line with these jobs to avoid extending the overall job duration too much.
 
 If the step takes too long, consider [extracting it to a separate job](#adding-a-job)
 so that it can run in parallel with other jobs. Additionally, for jobs with long steps,
@@ -148,7 +146,7 @@ there is an option to [pick a more powerful runner](./runners.md) to shorten the
 
 ### Adding a Job
 
-When adding a job, check the execution time of existing jobs in the workflow. The new job's
+When adding a job, check the execution time of existing jobs in the workflow. The new job
 execution time should not exceed the time of the longest job in the workflow.
 
 If the job is time-consuming, consider running it on a post-commit/nightly/weekly basis,
@@ -158,7 +156,7 @@ Additionally, [using a more powerful runner](./runners.md) can help shorten the 
 
 ### Adding a Workflow
 
-When adding a new workflow, check the execution times of existing workflows. The new workflow's
+When adding a new workflow, check the execution times of existing workflows. The new workflow
 execution time should not exceed the time of the longest workflow.
 
 If the workflow is time-consuming, consider running it on a post-commit/nightly/weekly basis,

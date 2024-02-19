@@ -53,10 +53,10 @@ a list of product components affected by the PR, along with the validation scope
 The validation scope can be either "build" only or both "build" and "test", assuming that a component
 must be built before testing.
 
-Example of such output for a PR that changes only TensorFlow Frontend component including
+Example of such output for a PR that changes only the TensorFlow Frontend component including
 files inside src/frontends/tensorflow:
 ```
-changed_component_names: {'TF_FE'}  # TF_FE is an alias we chose for Tensorflow Frontend component
+changed_component_names: {'TF_FE'}  # TF_FE is an alias we chose for TensorFlow Frontend component
 affected_components={
     "TF_FE": {"test": true, "build": true},
     "MO": {"test": true, "build": true},
@@ -134,7 +134,7 @@ and the full validation scope is executed.
 * If **more than one** component is impacted by a PR, all jobs required to validate all these components are executed.
 
 * If a PR changes files that **are not related to any known component**, the full validation scope is executed.
-This is to avoid potential regressions by unlabeled changes. For that, a [patched](https://github.com/akladiev/labeler/releases/tag/v4.3.1) version of [actions/labeler v4.3.0](https://github.com/marketplace/actions/labeler?version=v4.3.0) with the same functionality but with an additional feature is used. This enabels developers to detect cases
+This is to avoid potential regressions by unlabeled changes. For that, a [patched](https://github.com/akladiev/labeler/releases/tag/v4.3.1) version of [actions/labeler v4.3.0](https://github.com/marketplace/actions/labeler?version=v4.3.0) with the same functionality but with an additional feature is used. This enables developers to detect cases
 where a PR modifies files that do not match any of the patterns in the labeler.yml configuration.
 
 ## How to Contribute
@@ -214,7 +214,7 @@ Once you have a job that validates your component:
     needs: Smart_CI  # if other job is already specified here, add Smart_CI to the list like that: [Other_Job_ID, Smart_CI]
     ...
   ```
-* Add ["if" condition](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution) to
+* Add an ["if" condition](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution) to
   refer to the Smart CI output. To run the entire job conditionally, add it on the same level as the "needs" key:
   ```yaml
   # The job below will start if YOUR_COMPONENT is affected and "test" scope is required
@@ -275,7 +275,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
 ```
-If needed, more parameters can be passed to the "Get affected components" step, full list is available in
+If needed, more parameters can be passed to the "Get affected components" step, the full list is available in
 [.github/actions/smart-ci/action.yml](../../../../.github/actions/smart-ci/action.yml).
 
 After that, you can refer to the outputs from Smart_CI in validation jobs, as described in
@@ -327,11 +327,11 @@ Build:
 >**NOTE**: If a workflow has more than one parent job, the condition must be added to each of them.
 
 This approach works because skipped checks are processed as successful by GitHub. They do not block
-the merge, unlike required workflows skipped by paths filtering.
+the merge, unlike required workflows skipped by path filtering.
 
 ### Adding Smart CI for Components Outside the OpenVINO Repository
 
-Some components, like NVIDIA plugin or ONNX Runtime, are stored in their own repositories.
+Some components, like the NVIDIA plugin or ONNX Runtime, are stored in their own repositories.
 Therefore they cannot be defined via pattern matching on source code in the OpenVINO repository.
 However, they still need to be validated together with the core OpenVINO.
 To add Smart CI rules for such components, skip the first step with modifying the labeler configuration
@@ -346,9 +346,9 @@ with empty values for the `revalidate` and `build` keys:
 2. Review other components in components.yml, find those that need to be validated together with
 the new component. Add the name of the new component under the `revalidate` or `build` sections of these components.
 
-3. Add or find a job that preforms integration validation of the new external component
+3. Add or find a job that performs integration validation of the new external component
 with OpenVINO. Provide it with an "if" condition: `if: fromJSON(needs.smart_ci.outputs.affected_components).NEW_EXTERNAL_COMPONENT`,
-as described in the step 3 of [Adding a New component](#adding-a-new-component) instruction.
+as described in step 3 of [Adding a New component](#adding-a-new-component) instruction.
 
 This ensures that integration validation for this external component starts only on changes
 made to the selected components in the OpenVINO repository.
