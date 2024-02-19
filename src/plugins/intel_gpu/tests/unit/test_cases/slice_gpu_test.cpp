@@ -46,11 +46,13 @@ struct SliceTestParams {
     memory::ptr start;
     memory::ptr stop;
     memory::ptr step;
+    memory::ptr axes;
     memory::ptr wanted_output;
     bool is_input_dynamic = false;
     bool is_start_dynamic = false;
     bool is_stop_dynamic = false;
     bool is_step_dynamic = false;
+    bool is_axes_dynamic = false;
 };
 
 template<typename T>
@@ -84,6 +86,8 @@ public:
             ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 2, 5, 100 });
         params.step = this->template AllocateTensor<int64_t>(
             ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 1, 1, 10 });
+        params.axes = this->template AllocateTensor<int64_t>(
+            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 0, 1, 2, 3 });
         params.wanted_output = this->template AllocateTensor<TypeParam>(
             ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
                 1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
@@ -117,6 +121,10 @@ private:
         SetParameterInput("stop", topology, params.stop, params.is_stop_dynamic);
         SetParameterInput("step", topology, params.step, params.is_step_dynamic);
 
+        if(params.axes) {
+            SetParameterInput("axes", topology, params.axes, params.is_axes_dynamic);
+        }
+
         std::vector<input_info> inputs{input_info("input"),
                                        input_info("start"),
                                        input_info("stop"),
@@ -137,6 +145,9 @@ private:
             network->set_input_data("stop", params.stop);
         if (params.is_step_dynamic)
             network->set_input_data("step", params.step);
+        if(params.axes && params.is_axes_dynamic) {
+             network->set_input_data("axes", params.axes);
+        }
 
         auto outputs = network->execute();
 
@@ -209,6 +220,23 @@ TYPED_TEST(SliceTest, start_dynamic) {
     SliceTestParams params;
     this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
     params.is_start_dynamic = true;
+    this->RunAllTestCasesForParams(params);
+}
+
+TYPED_TEST(SliceTest, input_start_stop_step_dynamic) {
+    SliceTestParams params;
+    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    params.is_input_dynamic = true;
+    params.is_start_dynamic = true;
+    params.is_step_dynamic = true;
+    params.is_stop_dynamic = true;
+    this->RunAllTestCasesForParams(params);
+}
+
+TYPED_TEST(SliceTest, DISABLED_axes_dynamic) {
+    SliceTestParams params;
+    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    params.is_axes_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
