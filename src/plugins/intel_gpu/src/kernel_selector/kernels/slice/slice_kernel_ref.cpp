@@ -65,15 +65,11 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                                             name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
         }
     } else if (!param_available_now && !axes_available_now) {
-        // // Generate macros for case where only compile_time_axes is available now.
-        // const std::string type_str = ovElementTypeToOCLStr(type);
-        // jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name +
-        // "_buffer_ptr,"));
-
-        // for (size_t i = 0; i < compile_time_axes.size(); ++i) {
-        //     jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
-        //                                     name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
-        // }
+        // Generate macros for case where only compile_time_axes is available now.
+        for (size_t i = 0; i < 5; ++i) {
+            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
+                                            name + "_buffer_ptr[axes_ptr[" + std::to_string(i) + "]]"));
+        }
     } else {
         OPENVINO_ASSERT(
             false,
@@ -164,7 +160,12 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
                             params.compile_time_axes,
                             params.step_data_type);
 
-    jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
+    if (params.compile_time_axes.empty()) {
+        const std::string type_str = ovElementTypeToOCLStr(params.axes_data_type);
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* axes_ptr,"));
+    } else {
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
+    }
     return jit;
 }
 

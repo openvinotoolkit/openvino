@@ -236,7 +236,7 @@ TYPED_TEST(SliceTest, input_start_stop_step_dynamic) {
     this->RunAllTestCasesForParams(params);
 }
 
-TYPED_TEST(SliceTest, DISABLED_axes_dynamic) {
+TYPED_TEST(SliceTest, axes_dynamic) {
     SliceTestParams params;
     this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
     params.is_axes_dynamic = true;

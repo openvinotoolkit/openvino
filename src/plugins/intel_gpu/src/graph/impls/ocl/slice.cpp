@@ -91,6 +91,9 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         if (compile_params->compile_time_step.empty())
             args.inputs.push_back(instance.input_memory_ptr(3));
 
+        if (compile_params->compile_time_axes.empty())
+            args.inputs.push_back(instance.input_memory_ptr(4));
+
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
@@ -106,25 +109,33 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         const stream& stream = arg.get_program().get_stream();
         const auto input_rank = params.inputs[0].Dimentions();
 
-        {
+        if (inputs.size() == InputIndices::kInputsNum) {
+            params.axes_data_type = inputs[InputIndices::kAxes].first->get_output_layout(0).data_type;
+
             // Prepare constant time axis if avaiable.
-            std::vector<std::int32_t> compile_time_axes_temp(input_rank);
-            if (inputs.size() == InputIndices::kInputsNum) {
-                compile_time_axes_temp = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
-                for (size_t axis = 0; axis < compile_time_axes_temp.size(); axis++) {
-                    const auto transformed_axe = compile_time_axes_temp[axis] < 0
-                                                     ? input_rank + compile_time_axes_temp[axis]
-                                                     : compile_time_axes_temp[axis];
-                    compile_time_axes_temp[axis] = transformed_axe;
+            if (inputs[InputIndices::kAxes].first->is_constant()) {
+                params.compile_time_axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
+                for (size_t axis = 0; axis < params.compile_time_axes.size(); axis++) {
+                    const auto transformed_axe = params.compile_time_axes[axis] < 0
+                                                     ? input_rank + params.compile_time_axes[axis]
+                                                     : params.compile_time_axes[axis];
+                    params.compile_time_axes[axis] = transformed_axe;
                 }
             } else {
-                std::iota(compile_time_axes_temp.begin(), compile_time_axes_temp.end(), 0);
+                params.compile_time_axes.clear();
+                auto layout = impl_param.get_input_layout(InputIndices::kAxes);
+                params.inputs.push_back(convert_data_tensor(layout));
             }
-            params.compile_time_axes = std::move(compile_time_axes_temp);
+        } else {
+            params.axes_data_type = ov::element::i32;
+            params.compile_time_axes.resize(input_rank);
+            std::iota(params.compile_time_axes.begin(), params.compile_time_axes.end(), 0);
         }
 
+        const bool axes_in_compile_time = !params.compile_time_axes.empty();
+
         params.start_data_type = inputs[InputIndices::kStart].first->get_output_layout(0).data_type;
-        if (inputs[InputIndices::kStart].first->is_constant()) {
+        if (inputs[InputIndices::kStart].first->is_constant() && axes_in_compile_time) {
             params.compile_time_start = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
         } else {
             params.compile_time_start.clear();
@@ -133,7 +144,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         }
 
         params.step_data_type = inputs[InputIndices::kStep].first->get_output_layout(0).data_type;
-        if (inputs[InputIndices::kStep].first->is_constant()) {
+        if (inputs[InputIndices::kStep].first->is_constant() && axes_in_compile_time) {
             params.compile_time_step = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
         } else {
             params.compile_time_step.clear();
