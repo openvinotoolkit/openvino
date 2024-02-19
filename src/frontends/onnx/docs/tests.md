@@ -115,7 +115,7 @@ git clone --branch rel-1.8.1 --single-branch --recursive https://github.com/micr
 ```
 - (Optional) To build ONNX Runtime with a non-release OpenVINO version, an additional step is required for the `rel-1.8.1` version:
 ```
-cd <OV_INSTALL_DIR>/deployment_tools/inference_engine && touch version.txt && echo "2021.4" > version.txt
+cd <OV_INSTALL_DIR>/deployment_tools/openvino && touch version.txt && echo "2021.4" > version.txt
 ```
 2. Set up the OpenVINO environment:
 ```

@@ -20,21 +20,15 @@ struct slice_params: public base_params {
     ov::element::Type_t axes_data_type;
 };
 
-struct slice_optional_params : optional_params {
-    slice_optional_params() : optional_params(KernelType::SLICE) {}
-};
-
 class SliceKernelRef: public KernelBaseOpenCL {
 public:
     SliceKernelRef() :
             KernelBaseOpenCL { "slice_ref" } {
     }
-    KernelsData GetKernelsData(const Params &params,
-            const optional_params &options) const override;
-    KernelsPriority GetKernelsPriority(const Params &params,
-            const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
+    KernelsPriority GetKernelsPriority(const Params &paramss) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params &p, const optional_params &o) const override;
+    bool Validate(const Params &p) const override;
 
 private:
     JitConstants GetJitConstants(const slice_params &params) const;

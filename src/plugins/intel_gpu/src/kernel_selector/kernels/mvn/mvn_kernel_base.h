@@ -33,13 +33,6 @@ struct mvn_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// mvn_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct mvn_optional_params : optional_params {
-    mvn_optional_params() : optional_params(KernelType::MVN) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MVNKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class MVNKernelBase : public KernelBaseOpenCL {
@@ -58,11 +51,11 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetActivationType(const mvn_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

@@ -13,14 +13,14 @@ public:
     SoftmaxKernel_bf() : Parent("softmax_gpu_bf") {}
     virtual ~SoftmaxKernel_bf() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE };
     }
