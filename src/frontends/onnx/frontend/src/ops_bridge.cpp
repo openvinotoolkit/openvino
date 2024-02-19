@@ -40,7 +40,6 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
-#include "op/com.microsoft/gather_nd.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
