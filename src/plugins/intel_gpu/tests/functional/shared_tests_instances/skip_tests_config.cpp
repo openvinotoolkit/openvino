@@ -70,9 +70,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
-            // Issue: 131699 SUPPORTED_PROPERTIES in BATCH issue. DEVICE_ID in BATCH, HETERO issue.
-            R"(.*OVClassCompiledModelGetPropertyTest/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_SUPPORTED_CONFIG_KEYS/2)",
-            R"(.*nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",

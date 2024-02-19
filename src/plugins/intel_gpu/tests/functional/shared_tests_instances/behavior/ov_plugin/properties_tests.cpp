@@ -68,12 +68,6 @@ INSTANTIATE_TEST_SUITE_P(
                         { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         ::testing::Combine(::testing::Values("HETERO", "BATCH"),
-                                            ::testing::Values(ov::AnyMap({}))),
-                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          ::testing::Combine(::testing::Values("GPU"),
