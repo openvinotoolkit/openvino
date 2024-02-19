@@ -4,16 +4,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 
-<<<<<<< HEAD
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "template/properties.hpp"
-=======
-#include "openvino/op/tensor_iterator.hpp"
->>>>>>> 02ab26af3e (Remove legacy ngraph builders)
 
 namespace ov {
 namespace pass {
