@@ -39,7 +39,7 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
@@ -66,8 +66,8 @@ JitConstants FullyConnected_bf_io_GEMM::GetJitConstants(const fully_connected_pa
     return jit;
 }
 
-bool FullyConnected_bf_io_GEMM::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_bf_io_GEMM::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -82,11 +82,10 @@ bool FullyConnected_bf_io_GEMM::Validate(const Params& p, const optional_params&
     return true;
 }
 
-KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    options,
                                                     DataLayout::bf,
                                                     WeightsLayout::oiyx,
                                                     static_cast<int>(i));

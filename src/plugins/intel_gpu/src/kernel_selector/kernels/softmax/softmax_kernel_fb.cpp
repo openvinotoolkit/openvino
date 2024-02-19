@@ -55,12 +55,12 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernel_fb::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernel_fb::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
-bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params, const optional_params& o) const {
-    if (!SoftmaxKernelBase::Validate(params, o)) {
+bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
+    if (!SoftmaxKernelBase::Validate(params)) {
         return false;
     }
 
@@ -88,11 +88,11 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params, const opt
     }
 }
 
-KernelsData SoftmaxKernel_fb::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    if (!Validate(params, optParams)) {
+KernelsData SoftmaxKernel_fb::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
-    return GetCommonKernelsData(params, optParams);
+    return GetCommonKernelsData(params);
 }
 
 JitConstants SoftmaxKernel_fb::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {

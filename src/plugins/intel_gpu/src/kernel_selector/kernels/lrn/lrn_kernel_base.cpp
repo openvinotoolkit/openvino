@@ -6,8 +6,8 @@
 #include <algorithm>
 
 namespace kernel_selector {
-bool LRNKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (!KernelBaseOpenCL::Validate(p, o) || p.GetType() != KernelType::LRN || o.GetType() != KernelType::LRN) {
+bool LRNKernelBase::Validate(const Params& p) const {
+    if (!KernelBaseOpenCL::Validate(p) || p.GetType() != KernelType::LRN) {
         return false;
     }
 
@@ -75,9 +75,8 @@ LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) 
     return dispatchData;
 }
 
-KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -87,7 +86,7 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<lrn_params>(params);
 
     auto cldnnJit = GetJitConstants(orgParams, dispatchData);
-    auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
     auto fused_deps_total = GetFusedPrimitiveInputsCount(params);
 

@@ -74,15 +74,15 @@ ParamsKey ConcatenationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConcatenationKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConcatenationKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle_relative();
 
     return k;
 }
 
-bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConcatenationKernelBase::Validate(p, o)) {
+bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
+    if (!ConcatenationKernelBase::Validate(p)) {
         return false;
     }
 
@@ -120,7 +120,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_b_fs_yx_fsv16::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConcatenationKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -134,8 +134,8 @@ JitConstants ConcatenationKernel_b_fs_yx_fsv16::GetJitConstants(const concatenat
     return jit;
 }
 
-KernelsData ConcatenationKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData ConcatenationKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
 size_t ConcatenationKernel_b_fs_yx_fsv16::GetAlignment(const concatenation_params& /*params*/) const {

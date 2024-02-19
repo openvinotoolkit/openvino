@@ -190,8 +190,8 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
     return dispatchData;
 }
 
-bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -238,8 +238,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/,
-                                                           const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 

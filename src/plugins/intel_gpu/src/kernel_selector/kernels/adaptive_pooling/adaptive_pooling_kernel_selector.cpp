@@ -15,7 +15,7 @@ adaptive_pooling_kernel_selector& adaptive_pooling_kernel_selector::Instance() {
     return instance_;
 }
 
-KernelsData adaptive_pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ADAPTIVE_POOLING);
+KernelsData adaptive_pooling_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ADAPTIVE_POOLING);
 }
 }  // namespace kernel_selector

@@ -8,7 +8,7 @@
 namespace kernel_selector {
 swiglu_kernel_selector::swiglu_kernel_selector() { Attach<SwiGLUKernelRef>(); }
 
-KernelsData swiglu_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::SWIGLU);
+KernelsData swiglu_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::SWIGLU);
 }
 }  // namespace kernel_selector

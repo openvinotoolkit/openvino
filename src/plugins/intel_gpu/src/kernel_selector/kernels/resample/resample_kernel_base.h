@@ -35,13 +35,6 @@ struct resample_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// resample_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct resample_optional_params : optional_params {
-    resample_optional_params() : optional_params(KernelType::RESAMPLE) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ResampleKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ResampleKernelBase : public KernelBaseOpenCL {
@@ -52,10 +45,10 @@ public:
     virtual ~ResampleKernelBase() {}
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     virtual DispatchData SetDefault(const resample_params& arg) const;
     virtual JitConstants GetJitConstants(const resample_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     size_t GetFeatureBlockSize(const resample_params& params) const;
     virtual Datatype GetAccumulatorType(const resample_params& params) const;
 };

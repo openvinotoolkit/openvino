@@ -14,8 +14,8 @@ public:
     LRNKernelAcrossChannelRef() : Parent("lrn_gpu_across_channel_ref") {}
     virtual ~LRNKernelAcrossChannelRef() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

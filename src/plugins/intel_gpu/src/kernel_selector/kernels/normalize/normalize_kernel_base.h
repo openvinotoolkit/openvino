@@ -28,13 +28,6 @@ struct normalize_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// normalize_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct normalize_optional_params : optional_params {
-    normalize_optional_params() : optional_params(KernelType::NORMALIZE) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NormalizeKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class NormalizeKernelBase : public KernelBaseOpenCL {
@@ -47,12 +40,12 @@ public:
 protected:
     JitConstants GetJitConstants(const normalize_params& params) const;
     DispatchData SetDefault(const normalize_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION };
     }
-    bool Validate(const Params& params, const optional_params&) const override;
+    bool Validate(const Params& params) const override;
     Datatype GetActivationType(const normalize_params& params) const;
 };
 }  // namespace kernel_selector

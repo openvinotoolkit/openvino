@@ -29,11 +29,10 @@ GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) 
     return dispatchData;
 }
 
-KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options) const {
+KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::GRN);
 
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     const grn_params& orgParams = static_cast<const grn_params&>(params);
@@ -43,7 +42,7 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<grn_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

@@ -20,13 +20,6 @@ struct reduce_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reduce_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reduce_optional_params : optional_params {
-    reduce_optional_params() : optional_params(KernelType::REDUCE) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReduceKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ReduceKernelBase : public KernelBaseOpenCL {
@@ -37,13 +30,13 @@ public:
     virtual ~ReduceKernelBase() {}
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const reduce_params& params) const;
     virtual CommonDispatchData SetDefault(const reduce_params& params) const = 0;
     Datatype GetAccumulatorType(const reduce_params& p) const;
     Datatype GetFinalAccumulatorType(const reduce_params& p) const;
     Datatype GetActivationType(const reduce_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

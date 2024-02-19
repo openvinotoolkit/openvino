@@ -41,19 +41,19 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool SelectKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!SelectKernelBase::Validate(p, o)) {
+bool SelectKernelRef::Validate(const Params& p) const {
+    if (!SelectKernelBase::Validate(p)) {
         return false;
     }
 
     return true;
 }
 
-KernelsData SelectKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData SelectKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority SelectKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SelectKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

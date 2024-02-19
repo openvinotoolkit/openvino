@@ -10,9 +10,8 @@ multinomial_kernel_selector::multinomial_kernel_selector() {
     Attach<MultinomialKernelRef>();
 }
 
-KernelsData multinomial_kernel_selector::GetBestKernels(const Params &params,
-                                                                const optional_params &options) const {
-    return GetNaiveBestKernel(params, options, KernelType::MULTINOMIAL);
+KernelsData multinomial_kernel_selector::GetBestKernels(const Params &params) const {
+    return GetNaiveBestKernel(params, KernelType::MULTINOMIAL);
 }
 
 }  // namespace kernel_selector

@@ -10,9 +10,8 @@ slice_kernel_selector::slice_kernel_selector() {
     Attach<SliceKernelRef>();
 }
 
-KernelsData slice_kernel_selector::GetBestKernels(const Params &params,
-        const optional_params &options) const {
-    return GetNaiveBestKernel(params, options, KernelType::SLICE);
+KernelsData slice_kernel_selector::GetBestKernels(const Params &params) const {
+    return GetNaiveBestKernel(params, KernelType::SLICE);
 }
 
 } // namespace kernel_selector

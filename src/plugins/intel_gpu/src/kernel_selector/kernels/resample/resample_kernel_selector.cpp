@@ -16,7 +16,7 @@ resample_kernel_selector::resample_kernel_selector() {
     Attach<ResampleKernelPilRef>();
 }
 
-KernelsData resample_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::RESAMPLE);
+KernelsData resample_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::RESAMPLE);
 }
 }  // namespace kernel_selector

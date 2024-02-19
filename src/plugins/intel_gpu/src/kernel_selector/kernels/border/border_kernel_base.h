@@ -35,13 +35,6 @@ struct border_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// border_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct border_optional_params : optional_params {
-    border_optional_params() : optional_params(KernelType::BORDER) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class BorderKernelBase : public KernelBaseOpenCL {
@@ -53,7 +46,7 @@ public:
 protected:
     JitConstants GetJitConstants(const border_params& params) const;
     DispatchData SetDefault(const border_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     bool SkipKernelExecution(const border_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

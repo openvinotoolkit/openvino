@@ -18,14 +18,13 @@ public:
     virtual ~KernelBaseOpenCL() {}
 
 protected:
-    virtual bool Validate(const Params&, const optional_params&) const { return true; }
+    virtual bool Validate(const Params&) const { return true; }
     std::pair<std::string, std::string> CreateJit(const std::string& template_name,
                           const JitConstants& constants,
                           const std::string& kernel_name) const;
     std::string GetEntryPoint(const std::string& templateName,
                               const std::string& layerID,
                               const Params& params,
-                              const optional_params& options,
                               const size_t partID = 0) const;
     Arguments GetArgsDesc(uint32_t num_of_input,
                           bool use_weights,

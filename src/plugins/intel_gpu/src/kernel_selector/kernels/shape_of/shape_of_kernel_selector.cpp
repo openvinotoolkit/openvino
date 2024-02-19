@@ -11,7 +11,7 @@ shape_of_kernel_selector::shape_of_kernel_selector() {
     Attach<ShapeOfKernelRef>();
 }
 
-KernelsData shape_of_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::SHAPE_OF);
+KernelsData shape_of_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::SHAPE_OF);
 }
 }  // namespace kernel_selector

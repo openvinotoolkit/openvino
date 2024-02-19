@@ -15,7 +15,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
     using parent = typed_primitive_impl_ocl<prior_box>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::prior_box_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::prior_box_params, kernel_selector::prior_box_optional_params>;
+    using kernel_params_t = kernel_selector::prior_box_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::prior_box_impl)
 
@@ -82,7 +82,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.is_clustered = primitive->is_clustered();
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        return {params, {}};
+        return params;
     }
 };
 

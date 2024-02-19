@@ -14,17 +14,11 @@ struct range_params: public base_params {
     }
 };
 
-struct range_optional_params: optional_params {
-    range_optional_params() :
-        optional_params { KernelType::RANGE } {
-    }
-};
-
 class RangeKernelRef: public KernelBaseOpenCL {
-    KernelsData GetKernelsData(const Params &params, const optional_params &options) const override;
-    KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
+    KernelsPriority GetKernelsPriority(const Params &params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params &p, const optional_params &o) const override;
+    bool Validate(const Params &p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 public:
     RangeKernelRef() :

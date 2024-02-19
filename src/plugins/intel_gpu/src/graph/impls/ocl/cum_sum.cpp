@@ -48,7 +48,7 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     using parent = typed_primitive_impl_ocl<cum_sum>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::cum_sum_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::cum_sum_params, kernel_selector::cum_sum_optional_params>;
+    using kernel_params_t = kernel_selector::cum_sum_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::cum_sum_impl)
 
@@ -69,18 +69,17 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<cum_sum>();
         auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::cum_sum_optional_params>(impl_param.get_program());
 
         size_t rank = impl_param.get_output_layout().get_rank();
         params.axis = convert_axis(primitive->axis, rank);
         params.exclusive = primitive->exclusive;
         params.reverse = primitive->reverse;
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

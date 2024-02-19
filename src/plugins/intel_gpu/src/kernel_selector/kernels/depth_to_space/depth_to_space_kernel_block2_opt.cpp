@@ -17,8 +17,8 @@ ParamsKey DepthToSpaceKernelBlock2Opt::GetSupportedKey() const {
     return k;
 }
 
-bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p, const optional_params& o) const {
-    if (!DepthToSpaceKernelBase::Validate(p, o))
+bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p) const {
+    if (!DepthToSpaceKernelBase::Validate(p))
         return false;
 
     const auto& params = static_cast<const depth_to_space_params&>(p);
@@ -51,11 +51,11 @@ JitConstants DepthToSpaceKernelBlock2Opt::GetJitConstants(const depth_to_space_p
     return jit;
 }
 
-KernelsData DepthToSpaceKernelBlock2Opt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData DepthToSpaceKernelBlock2Opt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority DepthToSpaceKernelBlock2Opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DepthToSpaceKernelBlock2Opt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

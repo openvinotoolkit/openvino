@@ -17,14 +17,13 @@ public:
     explicit ConvolutionKernel_bfyx_to_bfyx_f16(std::string kernel_name = "convolution_gpu_bfyx_to_bfyx_f16");
     virtual ~ConvolutionKernel_bfyx_to_bfyx_f16() {}
 
-    KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                           const optional_params& options,
                                            int autoTuneIndex = -1) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
@@ -37,7 +36,7 @@ protected:
     }
 
     bool NeedPaddedInput() const override { return false; }
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     struct AutoTuneOption {

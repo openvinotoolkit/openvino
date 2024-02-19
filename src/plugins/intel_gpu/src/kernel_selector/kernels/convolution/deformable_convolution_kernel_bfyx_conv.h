@@ -14,10 +14,10 @@ public:
     DeformableConvolutionKernel_bfyx_conv() : ConvolutionKernelBase("deformable_convolution_gpu_bfyx_conv") {}
     virtual ~DeformableConvolutionKernel_bfyx_conv() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;

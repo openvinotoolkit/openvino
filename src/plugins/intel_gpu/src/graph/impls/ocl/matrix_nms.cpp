@@ -39,7 +39,7 @@ struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
     using parent = typed_primitive_impl_ocl<matrix_nms>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::matrix_nms_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::matrix_nms_params, kernel_selector::matrix_nms_optional_params>;
+    using kernel_params_t = kernel_selector::matrix_nms_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::matrix_nms_impl)
 
@@ -63,7 +63,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<matrix_nms>();
         auto params = get_default_params<kernel_selector::matrix_nms_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::matrix_nms_optional_params>(impl_param.get_program());
 
         const auto& scores_layout = impl_param.get_input_layout(1);
         const auto& second_output_layout = impl_param.get_input_layout(2);
@@ -84,7 +83,7 @@ public:
         params.post_threshold = primitive->attribs.post_threshold;
         params.normalized = primitive->attribs.normalized;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

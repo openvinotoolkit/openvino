@@ -13,7 +13,7 @@ public:
     virtual ~CumSumKernelPartialSum() = default;
 
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 protected:
     struct MultiDispatchData {
         DispatchData stage_1;
@@ -21,9 +21,9 @@ protected:
     };
 
     JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const override;
-    KernelsData GetMultiStageKernelsData(const Params& params, const optional_params&) const;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetMultiStageKernelsData(const Params& params) const;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     MultiDispatchData SetDefaultForMulti(const cum_sum_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 };
 }  // namespace kernel_selector

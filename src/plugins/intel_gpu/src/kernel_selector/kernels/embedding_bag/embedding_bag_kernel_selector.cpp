@@ -11,7 +11,7 @@ embedding_bag_kernel_selector::embedding_bag_kernel_selector() {
     Attach<EmbeddingBagKernelRef>();
 }
 
-KernelsData embedding_bag_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EMBEDDING_BAG);
+KernelsData embedding_bag_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::EMBEDDING_BAG);
 }
 }  // namespace kernel_selector

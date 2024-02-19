@@ -16,21 +16,17 @@ struct eye_params : public base_params {
     std::int32_t diagonal_index = 0;
 };
 
-struct eye_optional_params : optional_params {
-    eye_optional_params() : optional_params(KernelType::EYE) {}
-};
-
 class EyeKernelRef : public KernelBaseOpenCL {
 public:
     EyeKernelRef() : KernelBaseOpenCL{"eye_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 
 private:
     JitConstants GetJitConstants(const eye_params& params) const;
-    CommonDispatchData SetDefault(const eye_params& params, const optional_params&) const;
+    CommonDispatchData SetDefault(const eye_params& params) const;
 };
 
 }  // namespace kernel_selector

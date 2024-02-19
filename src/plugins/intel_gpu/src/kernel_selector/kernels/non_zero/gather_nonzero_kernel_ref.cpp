@@ -78,14 +78,14 @@ void GatherNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::GATHER_NONZERO);
 
     KernelData kd = KernelData::Default<gather_nonzero_params>(params);
     gather_nonzero_params& newParams = *static_cast<gather_nonzero_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -110,12 +110,12 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
     return {kd};
 }
 
-KernelsPriority GatherNonzeroKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GatherNonzeroKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool GatherNonzeroKernelRef::Validate(const Params& p, const optional_params& op) const {
-    if (!KernelBaseOpenCL::Validate(p, op))
+bool GatherNonzeroKernelRef::Validate(const Params& p) const {
+    if (!KernelBaseOpenCL::Validate(p))
         return false;
 
     const auto& rp = static_cast<const gather_nonzero_params&>(p);

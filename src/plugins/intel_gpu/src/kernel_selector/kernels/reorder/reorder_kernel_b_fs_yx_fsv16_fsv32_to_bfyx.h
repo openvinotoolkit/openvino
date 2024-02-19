@@ -11,11 +11,11 @@ class ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx : public ReorderKernelBase {
 public:
     ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx() : ReorderKernelBase("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx") {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 protected:
     JitConstants GetJitConstants(const reorder_params& params) const override;
     CommonDispatchData SetDefault(const reorder_params& params) const override;

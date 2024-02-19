@@ -53,18 +53,18 @@ JitConstants LRNKernelWithinChannel::GetJitConstants(const lrn_params& params,
     return jit;
 }
 
-bool LRNKernelWithinChannel::Validate(const Params& p, const optional_params& o) const {
-    if (!LRNKernelBase::Validate(p, o)) {
+bool LRNKernelWithinChannel::Validate(const Params& p) const {
+    if (!LRNKernelBase::Validate(p)) {
         return false;
     }
     return true;
 }
 
-KernelsData LRNKernelWithinChannel::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LRNKernelWithinChannel::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LRNKernelWithinChannel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelWithinChannel::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

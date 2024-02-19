@@ -15,7 +15,7 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::quantize_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
+    using kernel_params_t = kernel_selector::quantize_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::quantize_impl)
 
@@ -56,8 +56,6 @@ protected:
 public:
     static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
-        auto quantize_optional_params =
-            get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
 
         quantize_params.levels = arg.get_levels();
         quantize_params.scale_shift_opt = arg.get_scale_shift_opt();
@@ -91,7 +89,7 @@ public:
         quantize_params.is_shape_agnostic = impl_param.is_dynamic();
         quantize_params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(quantize_params);
 
         return make_unique<quantize_impl>(best_kernel);
     }

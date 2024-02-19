@@ -109,8 +109,8 @@ ParamsKey ReduceKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReduceKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ReduceKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_reduce();
     k.requires_subgroup_shuffle();
     k.requires_subgroup_shuffle_relative();
@@ -239,8 +239,8 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
     return jit;
 }
 
-KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    KernelsData kds = GetCommonKernelsData(params, options);
+KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const {
+    KernelsData kds = GetCommonKernelsData(params);
     const reduce_params& orgParams = static_cast<const reduce_params&>(params);
 
     // To get perf gain of reduction of un-aligned f axis,
@@ -252,7 +252,7 @@ KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, con
     return kds;
 }
 
-KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

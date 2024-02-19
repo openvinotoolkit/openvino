@@ -57,8 +57,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     return k;
 }
 
-bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_params& o) const {
-    if (!ConcatenationKernelBase::Validate(p, o)) {
+bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
+    if (!ConcatenationKernelBase::Validate(p)) {
         return false;
     }
 
@@ -119,12 +119,12 @@ JitConstants ConcatenationKernel_simple_Ref::GetJitConstants(const concatenation
     return jit;
 }
 
-KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    KernelsData kd = GetCommonKernelsData(params, optParams);
+KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params) const {
+    KernelsData kd = GetCommonKernelsData(params);
     return kd;
 }
 
-KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -43,8 +43,7 @@ OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params
     return dispatchData;
 }
 
-KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
-                                                   const optional_params& options) const {
+KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::ONE_HOT);
 
     const auto& prim_params =
@@ -54,7 +53,7 @@ KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<one_hot_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];

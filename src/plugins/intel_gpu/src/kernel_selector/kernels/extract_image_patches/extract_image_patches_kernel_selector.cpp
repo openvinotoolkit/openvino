@@ -10,7 +10,7 @@ extract_image_patches_kernel_selector::extract_image_patches_kernel_selector() {
     Attach<ExtractImagePatchesKernelRef>();
 }
 
-KernelsData extract_image_patches_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EXTRACT_IMAGE_PATCHES);
+KernelsData extract_image_patches_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::EXTRACT_IMAGE_PATCHES);
 }
 }  // namespace kernel_selector

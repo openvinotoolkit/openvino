@@ -291,8 +291,8 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv::SetDefault(const permute_para
 }
 
 // Validate is the same as permute_kernel_tile_8x8_4x4
-bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
@@ -334,7 +334,7 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_pa
     return true;
 }
 
-KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params& params) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 

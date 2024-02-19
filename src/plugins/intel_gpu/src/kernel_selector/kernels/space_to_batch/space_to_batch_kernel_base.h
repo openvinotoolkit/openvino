@@ -31,13 +31,6 @@ struct space_to_batch_params : public base_params {
     size_t end_input_index = 0;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// space_to_batch_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct space_to_batch_optional_params : optional_params {
-    space_to_batch_optional_params() : optional_params(KernelType::SPACE_TO_BATCH) {}
-};
-
 struct space_to_batch_fuse_params : fuse_params {
     space_to_batch_fuse_params() : fuse_params(KernelType::SPACE_TO_BATCH) {}
 };
@@ -53,9 +46,9 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const space_to_batch_params& params) const;
-    virtual CommonDispatchData SetDefault(const space_to_batch_params& params, const optional_params&) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const space_to_batch_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

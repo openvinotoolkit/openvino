@@ -59,15 +59,15 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool FullyConnected_bf_tiled::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
@@ -362,7 +362,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t output_b = fc_params.outputs[0].Batch().v;
@@ -531,7 +531,6 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
-                                                                const optional_params &options,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
@@ -548,7 +547,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
 
     auto kernels_data = GetCommonKernelsData(params,
-                                             options,
                                              fc_params.inputs[0].GetLayout(),
                                              weights_layout,
                                              tparams.exec_options,
@@ -563,7 +561,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
             return kernels_data;
 
         auto slm_kernel = GetCommonKernelsData(params,
-                                               options,
                                                fc_params.inputs[0].GetLayout(),
                                                weights_layout,
                                                tparams.exec_options,
@@ -582,10 +579,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     return kernels_data;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params) const {
     KernelsData res = {};
     for (size_t idx = 0; idx < auto_tune_params.size(); ++idx) {
-        KernelsData kds = GetTunedKernelsDataByIndex(params, options, static_cast<int>(idx));
+        KernelsData kds = GetTunedKernelsDataByIndex(params, static_cast<int>(idx));
 
         if (!kds.empty()) {
             res.emplace_back(kds[0]);
@@ -595,12 +592,12 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
     return res;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetAutoTuneParams(fc_params);
 
-    KernelsData kds = GetTunedKernelsDataByIndex(params, optParams, -1);
+    KernelsData kds = GetTunedKernelsDataByIndex(params, -1);
     if (!kds.empty()) {
         res.emplace_back(kds[0]);
     }

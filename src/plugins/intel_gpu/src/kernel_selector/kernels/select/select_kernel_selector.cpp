@@ -8,7 +8,7 @@
 namespace kernel_selector {
 select_kernel_selector::select_kernel_selector() { Attach<SelectKernelRef>(); }
 
-KernelsData select_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::SELECT);
+KernelsData select_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::SELECT);
 }
 }  // namespace kernel_selector

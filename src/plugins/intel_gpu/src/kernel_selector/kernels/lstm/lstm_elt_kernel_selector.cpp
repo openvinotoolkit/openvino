@@ -8,7 +8,7 @@
 namespace kernel_selector {
 lstm_elt_kernel_selector::lstm_elt_kernel_selector() { Attach<LSTMEltKernelRef>(); }
 
-KernelsData lstm_elt_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::LSTM_ELT);
+KernelsData lstm_elt_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::LSTM_ELT);
 }
 }  // namespace kernel_selector

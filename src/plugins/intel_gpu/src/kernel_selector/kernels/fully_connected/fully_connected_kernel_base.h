@@ -48,7 +48,6 @@ public:
     std::vector<std::string> autoTuneOptions = {EXE_MODE_DEFAULT, EXE_MODE_NO_PRERA_SCH, EXE_MODE_AGE_BASED};
     using WeightBiasKernelBase::GetTunedKernelsDataByIndex;
     virtual KernelsData GetTunedKernelsDataByIndex(const Params &params,
-                                                   const optional_params &options,
                                                    DataLayout dl,
                                                    WeightsLayout wl,
                                                    const int autoTuneIndex = -1) const;
@@ -58,7 +57,6 @@ protected:
     virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const;
     KernelsData GetCommonKernelsData(const Params &params,
-                                     const optional_params &options,
                                      DataLayout dl,
                                      WeightsLayout wl,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
@@ -71,7 +69,7 @@ protected:
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 
-    bool Validate(const Params& p, const optional_params&) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

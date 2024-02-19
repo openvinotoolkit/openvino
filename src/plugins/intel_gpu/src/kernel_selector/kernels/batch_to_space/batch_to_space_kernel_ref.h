@@ -13,8 +13,8 @@ public:
     BatchToSpaceKernelRef() : BatchToSpaceKernelBase("batch_to_space_ref") {}
     virtual ~BatchToSpaceKernelRef() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

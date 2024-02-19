@@ -34,7 +34,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -55,7 +55,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5)
@@ -64,8 +64,8 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Pa
         return FORCE_PRIORITY_9;
 }
 
-bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -110,8 +110,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolut
     return jit;
 }
 
-KernelsData ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
 }  // namespace kernel_selector

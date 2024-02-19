@@ -59,11 +59,11 @@ std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {
         return kernelName + "_within_channels";
 }
 
-KernelsData MVNKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData MVNKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

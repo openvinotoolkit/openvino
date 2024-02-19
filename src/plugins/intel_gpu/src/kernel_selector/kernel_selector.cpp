@@ -65,14 +65,14 @@ kernel_selector_base::kernel_selector_base() {
 #endif
 }
 
-KernelData kernel_selector_base::get_best_kernel(const Params& params, const optional_params& options) const {
-    auto kernels = GetBestKernels(params, options);
+KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
+    auto kernels = GetBestKernels(params);
     OPENVINO_ASSERT(!kernels.empty(), "[GPU] Couldn't find a suitable kernel for ", params.layerID, " params raw string: ", params.to_cache_string_v2());
     return kernels[0];
 }
 
 
-KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params, const optional_params& options) const {
+KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) const {
     KernelsData kernelsData;
     std::string kernelName;
 
@@ -81,7 +81,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
         // sure that the method is called here only, not in all the
         // GetKernelsData implementations.
         try {
-            KernelsData kds = implementation->GetKernelsData(params, options);
+            KernelsData kds = implementation->GetKernelsData(params);
 
             if (kds.size() && kds[0].kernels.size()) {
                 kernelsData = kds;
@@ -103,15 +103,15 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
 
     return kernelsData;
 }
-KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, const optional_params& options, KernelType kType) const {
-    return GetNaiveBestKernel(GetAllImplementations(params, options, kType), params, options);
+KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, KernelType kType) const {
+    return GetNaiveBestKernel(GetAllImplementations(params, kType), params);
 }
 
-KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, const optional_params& options, KernelType kType) const {
+KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, KernelType kType) const {
     KernelsData kernelsData;
     std::string kernelName;
 
-    auto allImplementations = GetAllImplementations(params, options, kType);
+    auto allImplementations = GetAllImplementations(params, kType);
     auto kernel_params = static_cast<const base_params&>(params);
     bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
@@ -127,7 +127,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, co
         for (const auto& implementation : allImplementations) {
             // TODO: make sure kernel names are unique.
             if (implementation->GetName().compare(cachedkernelName) == 0) {
-                KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, options, autoTuneIndex);
+                KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, autoTuneIndex);
                 if (kds.size() && kds[0].kernels.size()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
@@ -142,7 +142,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, co
         }
     }
 
-    return GetNaiveBestKernel(allImplementations, params, options);
+    return GetNaiveBestKernel(allImplementations, params);
 }
 
 std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
@@ -153,7 +153,7 @@ std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string&
     return nullptr;
 }
 
-KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
+KernelList kernel_selector_base::GetAllImplementations(const Params& params, KernelType kType) const {
     using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
     auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
         return firstImpl.first < secondImpl.first;
@@ -164,21 +164,21 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
 
     auto device_features_key = params.engineInfo.get_supported_device_features_key();
 
-    if (params.GetType() == kType && options.GetType() == kType) {
-        ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
+    if (params.GetType() == kType) {
+        ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
         for (auto& impl : implementations) {
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;
 
-            auto required_device_features_key = impl->get_required_device_features_key(params, options);
+            auto required_device_features_key = impl->get_required_device_features_key(params);
             if (!device_features_key.supports(required_device_features_key))
                 continue;
 
             if (forceImplementation && params.forceImplementation != impl->GetName())
                 continue;
-            sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);
+            sortedImpls.emplace(impl->GetKernelsPriority(params), impl);
         }
 
         std::transform(

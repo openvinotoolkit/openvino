@@ -10,9 +10,8 @@ roi_align_kernel_selector::roi_align_kernel_selector() {
     Attach<ROIAlignKernelRef>();
 }
 
-KernelsData roi_align_kernel_selector::GetBestKernels(const Params &params,
-                                                      const optional_params &options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ROI_ALIGN);
+KernelsData roi_align_kernel_selector::GetBestKernels(const Params &params) const {
+    return GetNaiveBestKernel(params, KernelType::ROI_ALIGN);
 }
 
 } // namespace kernel_selector

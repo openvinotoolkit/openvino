@@ -28,17 +28,16 @@ std::string deconvolution_params::to_string() const {
     return s.str();
 }
 
-bool DeconvolutionKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::DECONVOLUTION || o.GetType() != KernelType::DECONVOLUTION) {
+bool DeconvolutionKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::DECONVOLUTION) {
         return false;
     }
 
     const deconvolution_params& params = static_cast<const deconvolution_params&>(p);
-    const deconvolution_optional_params& optParams = static_cast<const deconvolution_optional_params&>(o);
 
     bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
 
-    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
+    const bool bWeightsOK = bSupportedWeightsLayout || params.allowStaticInputReordering;
 
     if (!bWeightsOK) {
         return false;
@@ -97,10 +96,10 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
     return dispatchData;
 }
 
-KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DECONVOLUTION);
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return{};
     }
 
@@ -110,7 +109,6 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     deconvolution_params& newParams = *static_cast<deconvolution_params*>(kd.params.get());
 
     bool succeed = UpdateWeightsParams(newParams,
-                                       options,
                                        GetPreferredWeightsLayout(newParams),
                                        kd.weightsReorderParams,
                                        GetSupportedKey(),
@@ -121,7 +119,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     }
 
     auto cldnn_jit = GetJitConstants(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

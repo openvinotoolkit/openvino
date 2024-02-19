@@ -17,8 +17,8 @@ public:
     ActivationKernelRef() : ActivationKernelBase("activation_ref") {}
     virtual ~ActivationKernelRef() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -26,6 +26,6 @@ public:
                 FusedOpType::ACTIVATION};
     }
 
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

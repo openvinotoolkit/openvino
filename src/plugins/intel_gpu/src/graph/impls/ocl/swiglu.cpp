@@ -15,7 +15,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
     using parent = typed_primitive_impl_ocl<swiglu>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::swiglu_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::swiglu_params, kernel_selector::swiglu_optional_params>;
+    using kernel_params_t = kernel_selector::swiglu_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::swiglu_impl);
 
@@ -35,18 +35,17 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<swiglu>();
         auto params = get_default_params<kernel_selector::swiglu_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::swiglu_optional_params>(impl_param.get_program());
 
         auto rank = impl_param.get_input_layout(0).get_partial_shape().rank();
         params.axis = ov::util::normalize(primitive->axis, rank.get_length());
         params.split_length = primitive->split_lengths;
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

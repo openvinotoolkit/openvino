@@ -22,11 +22,11 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ArgMaxMinKernelGPURef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ArgMaxMinKernelGPURef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority ArgMaxMinKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ArgMaxMinKernelGPURef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

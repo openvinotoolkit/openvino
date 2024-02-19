@@ -52,11 +52,11 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     return k;
 }
 
-KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
@@ -82,8 +82,8 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
     return jit;
 }
 
-bool PoolingKernelGPUInt8Ref::Validate(const Params& params, const optional_params& options) const {
-    if (!PoolingKernelBase::Validate(params, options)) {
+bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
+    if (!PoolingKernelBase::Validate(params)) {
         return false;
     }
     auto p = dynamic_cast<const pooling_params&>(params);

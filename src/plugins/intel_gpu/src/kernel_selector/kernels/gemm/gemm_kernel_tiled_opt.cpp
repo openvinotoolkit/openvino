@@ -34,8 +34,8 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey GemmKernelTiledOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey GemmKernelTiledOpt::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -297,18 +297,18 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     return jit;
 }
 
-KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params) const {
     const auto& gmm_params = static_cast<const gemm_params&>(params);
 
     return gmm_params.transpose_input0 || gmm_params.transpose_input1 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_3;
 }
 
-bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool GemmKernelTiledOpt::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);

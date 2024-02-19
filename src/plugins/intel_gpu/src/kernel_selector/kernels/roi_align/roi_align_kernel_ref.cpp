@@ -41,14 +41,14 @@ ROIAlignKernelRef::DispatchData SetDefault(const roi_align_params& params) {
 
 } // anonymous namespace
 
-KernelsData ROIAlignKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData ROIAlignKernelRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<roi_align_params>(params);
     roi_align_params &new_params = dynamic_cast<roi_align_params&>(*kernel_data.params.get());
     auto dispatch_data = SetDefault(new_params);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto roi_align_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, roi_align_specific_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo,
@@ -59,12 +59,12 @@ KernelsData ROIAlignKernelRef::GetKernelsData(const Params &params, const option
     return {kernel_data};
 }
 
-float ROIAlignKernelRef::GetKernelsPriority(const Params &params, const optional_params &options) const {
+float ROIAlignKernelRef::GetKernelsPriority(const Params &params) const {
     return FORCE_PRIORITY_1;
 }
 
-bool ROIAlignKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ROI_ALIGN || o.GetType() != KernelType::ROI_ALIGN) {
+bool ROIAlignKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ROI_ALIGN) {
         return false;
     }
 

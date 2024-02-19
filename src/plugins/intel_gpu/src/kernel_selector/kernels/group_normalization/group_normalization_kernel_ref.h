@@ -20,13 +20,6 @@ struct group_normalization_params : public base_params {
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// group_normalization_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct group_normalization_optional_params : optional_params {
-    group_normalization_optional_params() : optional_params(KernelType::GROUP_NORMALIZATION) {}
-};
-
 class GroupNormalizationKernelRef : public KernelBaseOpenCL {
 public:
     using DispatchData = CommonDispatchData;
@@ -38,7 +31,7 @@ public:
     };
 
     GroupNormalizationKernelRef() : KernelBaseOpenCL{"group_normalization_gpu_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {

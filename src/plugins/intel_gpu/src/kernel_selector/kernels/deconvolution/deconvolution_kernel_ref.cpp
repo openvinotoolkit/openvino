@@ -82,7 +82,7 @@ CommonDispatchData DeconvolutionKernelRef::SetDefault(const deconvolution_params
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

@@ -16,13 +16,13 @@ public:
     virtual ~DeconvolutionKernel_imad_along_f_tile_bfx() = default;
 
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const override;
     CommonDispatchData SetDefault(const deconvolution_params& params) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

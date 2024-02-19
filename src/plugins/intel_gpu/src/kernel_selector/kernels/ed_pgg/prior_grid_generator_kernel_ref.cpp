@@ -21,15 +21,15 @@ CommonDispatchData SetDefault(const experimental_detectron_prior_grid_generator_
 
 }  // namespace
 
-KernelsData ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
+KernelsData ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsData(const Params &params) const {
     KernelsData kernels_data;
-    if (!Validate(params, options))
+    if (!Validate(params))
         return kernels_data;
     kernels_data.push_back(KernelData::Default<experimental_detectron_prior_grid_generator_params>(params));
     KernelData &kernel_data = kernels_data.front();
     auto &derived_params = dynamic_cast<experimental_detectron_prior_grid_generator_params&>(*kernel_data.params.get());
     auto dispatch_data = SetDefault(derived_params);
-    auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params);
     auto jit_constants = GetJitConstants(derived_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto &clKernelData = kernel_data.kernels[0];
@@ -37,7 +37,7 @@ KernelsData ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsData(con
     return kernels_data;
 }
 
-KernelsPriority ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -53,8 +53,8 @@ ParamsKey ExperimentalDetectronPriorGridGeneratorKernelRef::GetSupportedKey() co
     return k;
 }
 
-bool ExperimentalDetectronPriorGridGeneratorKernelRef::Validate(const Params &p, const optional_params &o) const {
-    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR || o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR)
+bool ExperimentalDetectronPriorGridGeneratorKernelRef::Validate(const Params &p) const {
+    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR)
         return false;
 
     auto &params = dynamic_cast<const experimental_detectron_prior_grid_generator_params&>(p);

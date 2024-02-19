@@ -22,7 +22,7 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_fb_io_b8_f8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey FullyConnected_fb_io_b8_f8::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -58,8 +58,8 @@ FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(
     return dispatchData;
 }
 
-bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedBlockKernelBase::Validate(p, o)) {
+bool FullyConnected_fb_io_b8_f8::Validate(const Params& p) const {
+    if (!FullyConnectedBlockKernelBase::Validate(p)) {
         return false;
     }
 
@@ -94,13 +94,13 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
     return true;
 }
 
-KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params,  DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
@@ -109,7 +109,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, con
     return res;
 }
 
-KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3

@@ -39,7 +39,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using parent = typed_primitive_impl_ocl<roi_align>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::roi_align_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::roi_align_params, kernel_selector::roi_align_optional_params>;
+    using kernel_params_t = kernel_selector::roi_align_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roi_align_impl)
 
@@ -63,7 +63,6 @@ public:
         const auto& batches_layout = impl_param.get_input_layout(2);
 
         auto params = get_default_params<kernel_selector::roi_align_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::roi_align_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(rois_layout));
         params.inputs.push_back(convert_data_tensor(batches_layout));
@@ -72,7 +71,7 @@ public:
         params.sampling_ratio = primitive->sampling_ratio;
         params.spatial_scale = primitive->spatial_scale;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

@@ -35,8 +35,8 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ResampleKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ResampleKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
 static size_t packing_factor(const resample_params& params) {
@@ -132,7 +132,7 @@ ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_pa
     return dispatchData;
 }
 
-KernelsPriority ResampleKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ResampleKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

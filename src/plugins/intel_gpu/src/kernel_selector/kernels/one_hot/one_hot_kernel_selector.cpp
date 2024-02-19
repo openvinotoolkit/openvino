@@ -8,7 +8,7 @@
 namespace kernel_selector {
 one_hot_kernel_selector::one_hot_kernel_selector() { Attach<OneHotKernelRef>(); }
 
-KernelsData one_hot_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ONE_HOT);
+KernelsData one_hot_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ONE_HOT);
 }
 }  // namespace kernel_selector

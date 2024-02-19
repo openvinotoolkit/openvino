@@ -12,8 +12,8 @@ public:
     EltwiseKernel_vload8() : EltwiseKernelBase("eltwise_simple_vload8") {}
     virtual ~EltwiseKernel_vload8() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
@@ -22,7 +22,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
 };
 }  // namespace kernel_selector

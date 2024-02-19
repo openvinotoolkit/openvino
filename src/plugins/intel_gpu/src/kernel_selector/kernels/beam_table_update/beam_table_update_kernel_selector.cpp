@@ -12,8 +12,8 @@ beam_table_update_kernel_selector::beam_table_update_kernel_selector() {
     Attach<BeamTableUpdateKernelRef>();
 }
 
-KernelsData beam_table_update_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::BEAM_TABLE_UPDATE);
+KernelsData beam_table_update_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::BEAM_TABLE_UPDATE);
 }
 
 beam_table_update_kernel_selector& beam_table_update_kernel_selector::Instance() {

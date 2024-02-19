@@ -34,17 +34,16 @@ ParamsKey DeformableConvolutionKernel_bfyx_Ref::GetSupportedKey() const {
     return k;
 }
 
-KernelsData DeformableConvolutionKernel_bfyx_Ref::GetKernelsData(const Params& params,
-                                                                 const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData DeformableConvolutionKernel_bfyx_Ref::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
-KernelsPriority DeformableConvolutionKernel_bfyx_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeformableConvolutionKernel_bfyx_Ref::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params, const optional_params& options) const {
-    if (!ConvolutionKernelBase::Validate(params, options))
+bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params) const {
+    if (!ConvolutionKernelBase::Validate(params))
         return false;
 
     const auto& conv_params = static_cast<const convolution_params&>(params);

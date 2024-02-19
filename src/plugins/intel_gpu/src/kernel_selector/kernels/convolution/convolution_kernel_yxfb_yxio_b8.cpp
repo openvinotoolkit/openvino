@@ -23,8 +23,8 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b8::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -58,12 +58,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(c
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
-bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o)) {
+bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p)) {
         return false;
     }
 
@@ -101,7 +101,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b8::GetJitConstants(const convolution_p
     return jits;
 }
 
-KernelsData ConvolutionKernel_yxfb_yxio_b8::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_yxfb_yxio_b8::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

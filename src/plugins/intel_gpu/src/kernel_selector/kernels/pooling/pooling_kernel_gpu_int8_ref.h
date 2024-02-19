@@ -14,9 +14,9 @@ public:
     PoolingKernelGPUInt8Ref() : PoolingKernelBase("pooling_gpu_int8_ref") {}
     virtual ~PoolingKernelGPUInt8Ref() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
-    bool Validate(const Params&, const optional_params&) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
+    bool Validate(const Params&) const override;
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

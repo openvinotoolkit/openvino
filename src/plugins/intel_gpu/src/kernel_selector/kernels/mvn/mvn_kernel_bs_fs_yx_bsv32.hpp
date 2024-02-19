@@ -15,10 +15,10 @@ public:
     MVNKernel_bs_fs_yx_bsv32() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16_imad") {}
     virtual ~MVNKernel_bs_fs_yx_bsv32() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     struct MultiDispatchData {
@@ -29,7 +29,7 @@ protected:
         size_t item_groups;
     };
 
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
@@ -39,7 +39,7 @@ protected:
         };
     }
 
-    KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&, bool) const;
+    KernelsData GetMultiStageKernelsData(const mvn_params& params, bool) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params, bool) const;
 
 private:

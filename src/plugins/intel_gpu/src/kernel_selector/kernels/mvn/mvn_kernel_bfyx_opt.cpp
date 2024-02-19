@@ -146,11 +146,11 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
     return jit;
 }
 
-KernelsData MVNKernelBfyxOpt::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData MVNKernelBfyxOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority MVNKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority MVNKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

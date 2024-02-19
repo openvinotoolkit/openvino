@@ -68,8 +68,8 @@ std::tuple<int, int> GetMaxBoxes(const matrix_nms_params& params) {
 }
 }  // anonymous namespace
 
-KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -95,7 +95,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
     kernel_data.internalBufferDataType = Datatype::F32;
 
     for (size_t i{}; i < kernels_num; ++i) {
-        auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto jit_constants = GetJitConstants(new_params);
         jit_constants.AddConstant(MakeJitConstant("MATRIX_NMS_STAGE_" + std::to_string(i), "true"));
 
@@ -116,12 +116,12 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
     return {kernel_data};
 }
 
-float MatrixNmsKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+float MatrixNmsKernelRef::GetKernelsPriority(const Params& params) const {
     return FORCE_PRIORITY_9;
 }
 
-bool MatrixNmsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::MATRIX_NMS || o.GetType() != KernelType::MATRIX_NMS) {
+bool MatrixNmsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::MATRIX_NMS) {
         return false;
     }
 

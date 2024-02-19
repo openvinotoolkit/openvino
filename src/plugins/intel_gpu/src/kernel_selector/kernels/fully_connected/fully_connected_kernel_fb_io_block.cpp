@@ -19,8 +19,8 @@ ParamsKey FullyConnected_fb_io_block::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_fb_io_block::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_fb_io_block::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -80,8 +80,8 @@ JitConstants FullyConnected_fb_io_block::GetJitConstants(const fully_connected_p
     return cldnn_jit;
 }
 
-bool FullyConnected_fb_io_block::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_fb_io_block::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -116,20 +116,19 @@ bool FullyConnected_fb_io_block::Validate(const Params& p, const optional_params
     return true;
 }
 
-KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
 
     // TODO: it should be fb_io. but the original code use this kernel with yxfb and yxio
     //       (fb == fyxb flatten fyx, not yxfb flatten yxf).
     //       the order of the add operation cause some numeric changes. in order to avoid them right now we use
     //       yxfb/oiyx instead.
-    // return GetCommonKernelsData(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time);
-    // return GetCommonKernelsData(params, optParams, DataLayout::yxfb, { WeightsLayout::yxio }, estimated_time);
+    // return GetCommonKernelsData(params,  DataLayout::fb, WeightsLayout::io, estimated_time);
+    // return GetCommonKernelsData(params,  DataLayout::yxfb, { WeightsLayout::yxio }, estimated_time);
 
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::yxfb,
                                                     WeightsLayout::yxio,
                                                     static_cast<int>(i));
@@ -141,7 +140,7 @@ KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, con
     return res;
 }
 
-KernelsPriority FullyConnected_fb_io_block::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_fb_io_block::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3

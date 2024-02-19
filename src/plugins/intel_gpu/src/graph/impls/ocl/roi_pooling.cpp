@@ -35,7 +35,7 @@ struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
     using parent = typed_primitive_impl_ocl<roi_pooling>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::roi_pooling_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::roi_pooling_params, kernel_selector::roi_pooling_optional_params>;
+    using kernel_params_t = kernel_selector::roi_pooling_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roi_pooling_impl)
 
@@ -66,7 +66,6 @@ public:
         const auto& rois_layout = impl_param.get_input_layout(1);
 
         auto params = get_default_params<kernel_selector::roi_pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::roi_pooling_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(rois_layout));
         if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans)
@@ -83,7 +82,7 @@ public:
         params.part_size = primitive->part_size;
         params.group_size = primitive->group_size;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

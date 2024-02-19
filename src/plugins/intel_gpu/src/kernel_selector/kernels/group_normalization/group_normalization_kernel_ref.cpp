@@ -140,13 +140,13 @@ void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_p
     }
 }
 
-KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
+KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params) const {
     const group_normalization_params& parameters = static_cast<const group_normalization_params&>(params);
     KernelData kd = KernelData::Default<group_normalization_params>(params, eKernelsNum);
     kd.internalBufferDataType = Datatype::F32;
     for (KernelId id = eCalcMeanKernel; id < eKernelsNum; ++id) {
         auto& kernel = kd.kernels[id];
-        const auto entryPoint = GetEntryPoint(kernelName, parameters.layerID, params, options, id);
+        const auto entryPoint = GetEntryPoint(kernelName, parameters.layerID, params, id);
         auto jitConstants = GetJitConstants(id, parameters);
         const auto jit = CreateJit(kernelName, jitConstants, entryPoint);
         const auto dispatchData = SetDefault(id, parameters);

@@ -15,13 +15,13 @@ public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_imad_b_fs_yx_fsv4_dw();
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return false; }
@@ -52,9 +52,7 @@ protected:
     bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const;
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                           const optional_params& options,
                                            int autoTuneIndex = -1) const override;
-    KernelsData GetKernelsDataForAutoTune(const Params& params,
-                                          const optional_params& options) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
 };
 }  // namespace kernel_selector

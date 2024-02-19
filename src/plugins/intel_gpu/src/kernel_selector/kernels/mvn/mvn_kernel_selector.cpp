@@ -16,7 +16,7 @@ mvn_kernel_selector::mvn_kernel_selector() {
     Attach<MVNKernel_bs_fs_yx_bsv32>();
 }
 
-KernelsData mvn_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::MVN);
+KernelsData mvn_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::MVN);
 }
 }  // namespace kernel_selector

@@ -15,7 +15,7 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
     using parent = typed_primitive_impl_ocl<rms>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::rms_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::rms_params, kernel_selector::rms_optional_params>;
+    using kernel_params_t = kernel_selector::rms_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::rms_impl);
 
@@ -35,17 +35,16 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<rms>();
         auto params = get_default_params<kernel_selector::rms_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::rms_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.epsilon = primitive->epsilon;
         params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {

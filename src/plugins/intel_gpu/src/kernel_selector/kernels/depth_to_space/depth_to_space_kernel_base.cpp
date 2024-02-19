@@ -9,9 +9,8 @@
 
 namespace kernel_selector {
 
-bool DepthToSpaceKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::DEPTH_TO_SPACE ||
-        o.GetType() != KernelType::DEPTH_TO_SPACE) {
+bool DepthToSpaceKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::DEPTH_TO_SPACE) {
         return false;
     }
 
@@ -40,16 +39,16 @@ JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params
     return jit;
 }
 
-KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<depth_to_space_params>(params);
     depth_to_space_params& newParams = *static_cast<depth_to_space_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

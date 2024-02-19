@@ -419,6 +419,10 @@ public:
     std::string uniqueID;
     bool is_shape_agnostic;
     size_t stage_id;
+
+    bool allowStaticInputReordering = true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
+    bool allowInputReordering = false;  // allow kernel to ask graph compiler to reorder the input data before executing its
+
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
 };
@@ -708,32 +712,6 @@ struct base_params : public Params {
 
 protected:
     explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct optional_params {
-    virtual ~optional_params() {}
-
-    KernelType GetType() const { return kType; }
-
-    std::vector<DataLayout> inputLayouts;
-    std::vector<DataLayout> outputLayouts;
-
-    bool meaningfulKernelsNames = false;  // use layer name instead of internal kernel name
-    bool allowStaticInputReordering =
-        true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
-    bool allowInputReordering =
-        false;  // allow kernel to ask graph compiler to reorder the input data before executing its
-    bool allowOutputReordering =
-        false;  // allow kernel to ask graph compiler to reorder the output data before executing the next kernel
-
-    virtual ParamsKey GetSupportedKey() const;
-
-protected:
-    explicit optional_params(KernelType kt) : kType(kt) {}
-    KernelType kType;
 };
 
 }  // namespace kernel_selector

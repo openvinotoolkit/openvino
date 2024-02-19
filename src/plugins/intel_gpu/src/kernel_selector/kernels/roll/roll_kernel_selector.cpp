@@ -12,8 +12,8 @@ roll_kernel_selector::roll_kernel_selector() {
     Attach<RollKernelRef>();
 }
 
-KernelsData roll_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ROLL);
+KernelsData roll_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ROLL);
 }
 
 roll_kernel_selector& roll_kernel_selector::Instance() {

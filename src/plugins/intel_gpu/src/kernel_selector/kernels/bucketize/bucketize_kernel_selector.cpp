@@ -12,8 +12,8 @@ bucketize_kernel_selector::bucketize_kernel_selector() {
     Attach<BucketizeKernelRef>();
 }
 
-KernelsData bucketize_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::BUCKETIZE);
+KernelsData bucketize_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::BUCKETIZE);
 }
 
 bucketize_kernel_selector& bucketize_kernel_selector::Instance() {

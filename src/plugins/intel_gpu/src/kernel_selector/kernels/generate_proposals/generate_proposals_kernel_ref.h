@@ -20,11 +20,6 @@ struct generate_proposals_params : public base_params {
     Datatype roi_num_type = Datatype::INT64;
 };
 
-struct generate_proposals_optional_params : public optional_params {
-    generate_proposals_optional_params()
-            : optional_params(KernelType::GENERATE_PROPOSALS) {}
-};
-
 class GenerateProposalsRef : public KernelBaseOpenCL {
 public:
     GenerateProposalsRef()
@@ -34,11 +29,11 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void SetKernelArguments(const generate_proposals_params& params,
                             size_t idx, cldnn::arguments_desc& kernel) const;
 };

@@ -44,23 +44,20 @@ public:
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
     std::vector<std::string> autoTuneOptions = {EXE_MODE_DEFAULT, EXE_MODE_NO_PRERA_SCH, EXE_MODE_AGE_BASED};
-    KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
-    KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                                   const optional_params& options,
-                                                   int autoTuneIndex = -1) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
 
 protected:
     virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
     virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
     KernelsData GetCommonKernelsData(const Params& params,
-                                     const optional_params& options,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
                                      int autoTuneIndex = -1) const;
 
@@ -72,7 +69,7 @@ protected:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
-bool ConvolutionCheckInput(const Params& p, const optional_params& o);
+bool ConvolutionCheckInput(const Params& p);
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc);
 bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params);
 bool ConvolutionUpdateInputParams(convolution_params& params);

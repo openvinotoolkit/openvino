@@ -15,13 +15,13 @@ public:
         : ConvolutionKernelBase("convolution_gpu_bfyx_depthwise_weights_lwg") {}
     virtual ~ConvolutionKernel_bfyx_depthwise_weights_lwg() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
         return WeightsLayout::goiyx;
     }

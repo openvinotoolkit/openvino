@@ -13,7 +13,7 @@ quantize_kernel_selector::quantize_kernel_selector() {
     Attach<QuantizeKernelScaleShift>();
 }
 
-KernelsData quantize_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::QUANTIZE);
+KernelsData quantize_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::QUANTIZE);
 }
 }  // namespace kernel_selector

@@ -16,13 +16,6 @@ struct scatter_nd_update_params : public base_params {
     size_t indices_rank;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// scatter_nd_update_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct scatter_nd_update_optional_params : optional_params {
-    scatter_nd_update_optional_params() : optional_params(KernelType::SCATTER_ND_UPDATE) {}
-};
-
 class ScatterNDUpdateKernelRef : public KernelBaseOpenCL {
 public:
     struct DispatchData : public CommonDispatchData {
@@ -33,7 +26,7 @@ public:
     virtual ~ScatterNDUpdateKernelRef() {}
     virtual JitConstants GetJitConstants(const scatter_nd_update_params& params) const;
     virtual DispatchData SetDefault(const scatter_nd_update_params& params, bool is_second) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
@@ -42,7 +35,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

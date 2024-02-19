@@ -29,7 +29,7 @@ ParamsKey LRNKernelAcrossChannelMultipleFeatures::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeatures::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeatures::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -79,8 +79,8 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
     return dispatchData;
 }
 
-bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p, const optional_params& o) const {
-    if (!LRNKernelBase::Validate(p, o)) {
+bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p) const {
+    if (!LRNKernelBase::Validate(p)) {
         return false;
     }
 
@@ -114,12 +114,11 @@ JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_p
     return jit;
 }
 
-KernelsData LRNKernelAcrossChannelMultipleFeatures::GetKernelsData(const Params& params,
-                                                                   const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LRNKernelAcrossChannelMultipleFeatures::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

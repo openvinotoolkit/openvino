@@ -16,21 +16,14 @@ struct scatter_update_params : public base_params {
     ScatterUpdateAxis axis;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// scatter_update_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct scatter_update_optional_params : optional_params {
-    scatter_update_optional_params() : optional_params(KernelType::SCATTER_UPDATE) {}
-};
-
 class ScatterUpdateKernelRef : public KernelBaseOpenCL {
 public:
     ScatterUpdateKernelRef() : KernelBaseOpenCL("scatter_update_ref") {}
     virtual ~ScatterUpdateKernelRef() {}
     virtual JitConstants GetJitConstants(const scatter_update_params& params) const;
     virtual CommonDispatchData SetDefault(const scatter_update_params& params, bool is_second) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
@@ -39,7 +32,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

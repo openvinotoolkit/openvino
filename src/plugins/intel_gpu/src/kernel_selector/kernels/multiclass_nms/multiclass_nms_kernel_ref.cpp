@@ -30,12 +30,12 @@ ParamsKey MulticlassNmsKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority MulticlassNmsKernelRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority MulticlassNmsKernelRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool MulticlassNmsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::MULTICLASS_NMS || o.GetType() != KernelType::MULTICLASS_NMS) {
+bool MulticlassNmsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::MULTICLASS_NMS) {
         return false;
     }
 
@@ -123,8 +123,8 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
     return jit;
 }
 
-KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -147,7 +147,7 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatch_data = SetDefault(op_params, i);
-        const auto entry_point = GetEntryPoint(kernelName, op_params.layerID, params, options, i);
+        const auto entry_point = GetEntryPoint(kernelName, op_params.layerID, params, i);
         auto cldnn_jit = common_jit_constants;
         cldnn_jit.AddConstant(MakeJitConstant("MULTICLASSNMS_STAGE_" + std::to_string(i), "true"));
 

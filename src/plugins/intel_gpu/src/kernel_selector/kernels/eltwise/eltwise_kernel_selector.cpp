@@ -19,7 +19,7 @@ eltwise_kernel_selector::eltwise_kernel_selector() {
     Attach<EltwiseKernel_vload8>();
 }
 
-KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ELTWISE);
+KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ELTWISE);
 }
 }  // namespace kernel_selector

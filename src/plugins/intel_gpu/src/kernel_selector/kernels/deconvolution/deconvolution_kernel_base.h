@@ -40,13 +40,6 @@ struct deconvolution_params : public weight_bias_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// deconvolution_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct deconvolution_optional_params : weight_bias_optional_params {
-    deconvolution_optional_params() : weight_bias_optional_params(KernelType::DECONVOLUTION) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DeconvolutionKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class DeconvolutionKernelBase : public WeightBiasKernelBase {
@@ -57,7 +50,7 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
@@ -67,7 +60,7 @@ protected:
         else
             return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 
     virtual Datatype GetAccumulatorType(const deconvolution_params& params) const;
     virtual Datatype GetActivationType(const deconvolution_params& params) const;

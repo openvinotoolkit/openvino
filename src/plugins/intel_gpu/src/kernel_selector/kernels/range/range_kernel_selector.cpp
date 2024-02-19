@@ -11,7 +11,7 @@ range_kernel_selector::range_kernel_selector() {
     Attach<RangeKernelRef>();
 }
 
-KernelsData range_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::RANGE);
+KernelsData range_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::RANGE);
 }
 }  // namespace kernel_selector

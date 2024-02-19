@@ -30,11 +30,11 @@ ParamsKey CTCGreedyDecoderKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData CTCGreedyDecoderKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData CTCGreedyDecoderKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority CTCGreedyDecoderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority CTCGreedyDecoderKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

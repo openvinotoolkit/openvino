@@ -28,16 +28,16 @@ ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 JitConstants EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetJitConstants(const eltwise_params& params) const {
     return GetJitConstantsCommon(params, false);
 }
 
-bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params) const {
+    if (!EltwiseKernelBase::Validate(params)) {
         return false;
     }
 
@@ -63,9 +63,8 @@ bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params, 
     return true;
 }
 
-KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Params& params,
-                                                                       const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -74,7 +73,7 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);
@@ -143,7 +142,7 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const eltwise_params&>(params);
 
     if ((p.outputs[0].GetLayout() == p.inputs[0].GetLayout()) &&

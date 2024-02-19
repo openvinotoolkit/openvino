@@ -41,8 +41,8 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_depthwise::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution_params& arg, size_t blockWidth) const {
@@ -120,12 +120,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_depthwise::Se
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 
-bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o))
+bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p))
         return false;
 
     auto cp = static_cast<const convolution_params&>(p);
@@ -171,26 +171,24 @@ JitConstants ConvolutionKernel_fs_byx_fsv32_depthwise::GetJitConstants(const con
 }
 
 KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetTunedKernelsDataByIndex(const Params& params,
-                                                                                 const optional_params& options,
                                                                                  const int autoTuneIndex) const {
     auto tuneOptions = GetAutoTuneOptions(params, autoTuneIndex);
-    return GetCommonKernelsData(params, options, tuneOptions.exeMode, autoTuneIndex);
+    return GetCommonKernelsData(params, tuneOptions.exeMode, autoTuneIndex);
 }
 
-KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
-KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsDataForAutoTune(const Params& params,
-                                                                                const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsDataForAutoTune(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

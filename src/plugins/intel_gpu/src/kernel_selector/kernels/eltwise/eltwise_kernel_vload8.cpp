@@ -26,8 +26,8 @@ JitConstants EltwiseKernel_vload8::GetJitConstants(const eltwise_params& params)
     return GetJitConstantsCommon(params, true);
 }
 
-bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_vload8::Validate(const Params& params) const {
+    if (!EltwiseKernelBase::Validate(params)) {
         return false;
     }
 
@@ -103,8 +103,8 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     return true;
 }
 
-KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -113,7 +113,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
 
     try {
         // move a fused activation from fused_ops to activations
@@ -141,7 +141,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

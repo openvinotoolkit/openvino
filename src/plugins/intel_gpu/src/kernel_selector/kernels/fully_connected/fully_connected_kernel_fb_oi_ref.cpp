@@ -35,8 +35,8 @@ JitConstants FullyConnected_fb_oi_ref::GetJitConstants(const fully_connected_par
     return jit;
 }
 
-bool FullyConnected_fb_oi_ref::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_fb_oi_ref::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -51,11 +51,10 @@ bool FullyConnected_fb_oi_ref::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::fb,
                                                     WeightsLayout::oi,
                                                     static_cast<int>(i));
@@ -66,7 +65,7 @@ KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const
     return res;
 }
 
-KernelsPriority FullyConnected_fb_oi_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_fb_oi_ref::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

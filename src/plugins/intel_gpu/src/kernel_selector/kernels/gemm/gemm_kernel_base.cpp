@@ -251,9 +251,8 @@ void GemmKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
-                                                 const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -263,7 +262,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<gemm_params>(params);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -288,7 +287,7 @@ JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, 
     return {};
 }
 
-bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
+bool GemmKernelBase::Validate(const Params& p) const {
     const gemm_params& params = static_cast<const gemm_params&>(p);
 
     if (params.GetType() != KernelType::GEMM) {

@@ -45,7 +45,7 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     using parent = typed_primitive_impl_ocl<strided_slice>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::strided_slice_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::strided_slice_params, kernel_selector::strided_slice_optional_params>;
+    using kernel_params_t = kernel_selector::strided_slice_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::strided_slice_impl)
 
@@ -66,7 +66,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& prim = impl_param.typed_desc<strided_slice>();
         auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param, is_shape_agnostic);
-        auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
         std::vector<int32_t> begin(prim->begin.begin(), prim->begin.end());
@@ -199,12 +198,12 @@ public:
                 params.striding_params[1][dim] = end;
             }
         }
-        return {params, op_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

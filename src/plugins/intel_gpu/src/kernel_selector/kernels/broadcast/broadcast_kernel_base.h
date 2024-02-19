@@ -18,13 +18,6 @@ struct broadcast_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// broadcast_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct broadcast_optional_params : optional_params {
-    broadcast_optional_params() : optional_params(KernelType::BROADCAST) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BroadcastKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class BroadcastKernelBase : public KernelBaseOpenCL {
@@ -36,7 +29,7 @@ public:
 protected:
     JitConstants GetJitConstants(const broadcast_params& params) const;
     static DispatchData SetDefault(const broadcast_params& params);
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

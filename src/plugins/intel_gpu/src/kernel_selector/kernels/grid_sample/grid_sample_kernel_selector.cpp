@@ -12,8 +12,8 @@ grid_sample_kernel_selector::grid_sample_kernel_selector() {
     Attach<GridSampleKernelRef>();
 }
 
-KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GRID_SAMPLE);
+KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GRID_SAMPLE);
 }
 
 grid_sample_kernel_selector& grid_sample_kernel_selector::Instance() {

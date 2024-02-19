@@ -14,8 +14,8 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~QuantizeKernelBase() {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 
 protected:
     virtual JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const;

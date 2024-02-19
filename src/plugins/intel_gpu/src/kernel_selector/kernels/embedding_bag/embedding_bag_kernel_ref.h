@@ -19,13 +19,6 @@ struct embedding_bag_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// embedding_bag_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct embedding_bag_optional_params : optional_params {
-    embedding_bag_optional_params() : optional_params(KernelType::EMBEDDING_BAG) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EmbeddingBagKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class EmbeddingBagKernelRef : public KernelBaseOpenCL {
@@ -34,12 +27,12 @@ public:
     virtual ~EmbeddingBagKernelRef() = default;
 
 protected:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
     virtual JitConstants GetJitConstants(const embedding_bag_params& params) const;
     virtual CommonDispatchData SetDefault(const embedding_bag_params& params) const;
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
 };
 }  // namespace kernel_selector

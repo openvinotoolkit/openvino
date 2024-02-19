@@ -14,7 +14,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     using parent = typed_primitive_impl_ocl<embedding_bag>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::embedding_bag_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::embedding_bag_params, kernel_selector::embedding_bag_optional_params>;
+    using kernel_params_t = kernel_selector::embedding_bag_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::embedding_bag_impl)
 
@@ -25,7 +25,6 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<embedding_bag>();
         auto params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::embedding_bag_optional_params>(impl_param.get_program());
 
         auto inputs_count = impl_param.input_layouts.size();
 
@@ -47,7 +46,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         }
 
         params.default_index = primitive->default_index;
-        return {params, optional_params};
+        return params;
     }
 };
 

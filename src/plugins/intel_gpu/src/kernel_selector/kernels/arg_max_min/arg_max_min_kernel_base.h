@@ -33,13 +33,6 @@ struct arg_max_min_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// arg_max_min_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct arg_max_min_optional_params : optional_params {
-    arg_max_min_optional_params() : optional_params(KernelType::ARG_MAX_MIN) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ArgMaxMinKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class ArgMaxMinKernelBase : public KernelBaseOpenCL {
@@ -51,10 +44,10 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const arg_max_min_params& params) const;
     virtual DispatchData SetDefault(const arg_max_min_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

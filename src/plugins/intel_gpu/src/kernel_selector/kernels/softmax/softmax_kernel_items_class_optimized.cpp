@@ -67,7 +67,7 @@ ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -100,7 +100,7 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const softmax_params&>(params);
 
     return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
@@ -123,8 +123,7 @@ JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_para
 
     return jit;
 }
-KernelsData SoftmaxKerneItemsClassOptimized::GetKernelsData(const Params& params,
-                                                            const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData SoftmaxKerneItemsClassOptimized::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector
