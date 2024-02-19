@@ -31,6 +31,9 @@ std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 #undef CASE
 }
 
+// Generates macros:
+// - name_BUFFER
+// - name_DIM0, name_DIM1 ...
 void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              const std::string& name,
                              const std::vector<std::int32_t>& compile_time_param,
@@ -39,29 +42,22 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
     using namespace kernel_selector;
 
     if (!compile_time_param.empty()) {
+        // Generate macros for compile_time_param available now and compile_time_axes available now.
         OPENVINO_ASSERT(compile_time_param.size() == compile_time_axes.size());
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-        jit.AddConstant(MakeJitConstant(name + "_DIM0", compile_time_param[compile_time_axes[0]]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM1", compile_time_param[compile_time_axes[1]]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM2", compile_time_param[compile_time_axes[2]]));
-        jit.AddConstant(MakeJitConstant(name + "_DIM3", compile_time_param[compile_time_axes[3]]));
-        if (compile_time_axes.size() == 5) {
-            jit.AddConstant(MakeJitConstant(name + "_DIM4", compile_time_param[compile_time_axes[4]]));
+
+        for (size_t i = 0; i < compile_time_axes.size(); ++i) {
+            jit.AddConstant(
+                MakeJitConstant(name + "_DIM" + std::to_string(i), compile_time_param[compile_time_axes[i]]));
         }
     } else {
+        // Generate macros for case where only compile_time_axes is available now.
         const std::string type_str = ovElementTypeToOCLStr(type);
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
-        jit.AddConstant(
-            MakeJitConstant(name + "_DIM0", name + "_buffer_ptr[" + std::to_string(compile_time_axes[0]) + "]"));
-        jit.AddConstant(
-            MakeJitConstant(name + "_DIM1", name + "_buffer_ptr[" + std::to_string(compile_time_axes[1]) + "]"));
-        jit.AddConstant(
-            MakeJitConstant(name + "_DIM2", name + "_buffer_ptr[" + std::to_string(compile_time_axes[2]) + "]"));
-        jit.AddConstant(
-            MakeJitConstant(name + "_DIM3", name + "_buffer_ptr[" + std::to_string(compile_time_axes[3]) + "]"));
-        if (compile_time_axes.size() == 5) {
-            jit.AddConstant(
-                MakeJitConstant(name + "_DIM4", name + "_buffer_ptr[" + std::to_string(compile_time_axes[4]) + "]"));
+
+        for (size_t i = 0; i < compile_time_axes.size(); ++i) {
+            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
+                                            name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
         }
     }
 }
@@ -88,8 +84,6 @@ KernelsData SliceKernelRef::GetKernelsData(const Params &params,
     FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(new_params.inputs.size()),
                      0, 1, new_params.has_dynamic_tensors());
-
-    kernel_data.kernels[0].params.arguments;
 
     return {kernel_data};
 }
