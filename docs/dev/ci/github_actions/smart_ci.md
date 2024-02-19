@@ -20,8 +20,8 @@ workflows and provides instructions on how to add or modify its rules.
 
 * [Implementation](#implementation)
 * [Configuration of Smart CI Rules](#configuration-of-smart-ci-rules)
-  * [Product Components Definition: .github/labeler.yml](#product-components-definition:=.github/labeler.yml)
-  * [Definition of Dependencies between Components: .github/components.yml](#definition-of-dependencies-between-components:-.github/components.yml)
+  * [Product Components Definition: .github/labeler.yml](#product-components-definition)
+  * [Definition of Dependencies between Components: .github/components.yml](#definition-of-dependencies-between-components)
   * [Specifics of Pipeline Behavior](#specifics-of-pipeline-behavior)
 * [How to Contribute](#how-to-contribute)
   * [Adding a New Component](#adding-a-new-component)
@@ -85,7 +85,10 @@ TensorFlow_Hub_Models_Tests:
 Smart CI operates based on the rules described in two configuration files stored in
 the OpenVINO repository.
 
-### Product Components Definition: [.github/labeler.yml](../../../../.github/labeler.yml)
+### Product Components Definition
+
+[.github/labeler.yml](../../../../.github/labeler.yml)
+
 This file contains a mapping of source code paths to corresponding component names. It serves
 as a configuration for [actions/labeler](https://github.com/marketplace/actions/labeler?version=v4.3.0)
 GitHub Action used to automatically assign labels to PRs based on the PR changeset. It is reused
@@ -101,7 +104,10 @@ If a PR changes at least one file matching any of the [minimatch glob patterns](
 above, the label "category: CPU" is assigned to this PR. GitHub Actions workflows that use
 Smart CI feature consider the component named "CPU" as changed (the "category:" prefix is omitted the in component name).
 
-### Definition of Dependencies between Components: [.github/components.yml](../../../../.github/components.yml)
+### Definition of Dependencies between Components
+
+[.github/components.yml](../../../../.github/components.yml)
+
 Some components are not entirely independent, and changes to them may impact other components as well. In this case,
 validation for the changed component itself (including both build and tests) is required,
 along with validation for dependent components (either only build or both build and tests).
