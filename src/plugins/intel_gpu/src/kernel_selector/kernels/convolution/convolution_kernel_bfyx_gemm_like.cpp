@@ -27,8 +27,8 @@ ParamsKey ConvolutionKernel_bfyx_GEMMLike::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_broadcast();
 
     return k;
@@ -90,14 +90,14 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     return p.outputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
-bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
+    if (!Parent::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -122,8 +122,7 @@ WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(
     }
 }
 
-KernelsData ConvolutionKernel_bfyx_GEMMLike::GetKernelsData(const Params& params,
-                                                            const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_GEMMLike::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

@@ -4,10 +4,7 @@
 
 """Factory functions for ops added to openvino opset14."""
 from functools import partial
-from typing import Literal, Optional, Union
 import logging
-
-import numpy as np
 
 log = logging.getLogger(__name__)
 

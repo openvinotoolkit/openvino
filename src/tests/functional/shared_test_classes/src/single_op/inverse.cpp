@@ -30,11 +30,7 @@ std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<Inver
     result << "dtype=" << element_type.to_string() << separator;
     result << "adjoint=" << ov::test::utils::bool2str(adjoint) << separator;
     result << "static=" << ov::test::utils::bool2str(test_static) << separator;
-    result << "seed=" << seed << separator;
     result << "device=" << device_name;
-
-    return result.str();
-}
 
 void InverseLayerTest::SetUp() {
     InverseTestParams test_params;

@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"

@@ -22,9 +22,6 @@ const auto test_dynamic = testing::Values(false);
 
 const auto seed = testing::Values(1, 2, 3);
 
-const auto device_cpu = testing::Values(ov::test::utils::DEVICE_CPU);
-
-const auto params_static = ::testing::Combine(shapes, dtypes, adjoint, test_static, seed, device_cpu);
 const auto params_dynamic = ::testing::Combine(shapes, dtypes, adjoint, test_dynamic, seed, device_cpu);
 
 INSTANTIATE_TEST_SUITE_P(smoke_InverseStatic, InverseLayerTest, params_static, InverseLayerTest::getTestCaseName);

@@ -50,16 +50,16 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
     return jit;
 }
 
-KernelsData ActivationKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ActivationKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ActivationKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool ActivationKernelRef::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
     const auto& params = static_cast<const activation_params&>(p);
     if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
         return false;

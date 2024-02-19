@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/usm_host_tensor.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -568,12 +571,28 @@ void SyncInferRequest::allocate_states() {
     const auto& network = m_graph->get_network();
     const auto& variables_info = network->get_variables_info();
     for (auto& vi : variables_info) {
-        auto variable = std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor);
-        m_variables.emplace(vi.first, variable);
+        const auto& state_prims = vi.second.m_primitives;
+        bool indirect_kv_cache = false;
+        int64_t beam_axis = 0;
+        int64_t concat_axis = 0;
+        auto kv_cache_shape = vi.second.m_layout.get_partial_shape();
+        for (auto& p : state_prims) {
+            if (auto kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
+                indirect_kv_cache = kv_cache_prim->indirect;
+                beam_axis = ov::util::normalize(kv_cache_prim->gather_axis, kv_cache_shape.size());
+                concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
+            }
+        }
+
+        if (indirect_kv_cache) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
+        } else {
+            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
+        }
     }
 }
 
-void SyncInferRequest::prepare_state(const std::string& name, const VariableState::Ptr variable) {
+void SyncInferRequest::prepare_state(const std::string& name, const std::shared_ptr<VariableStateBase>& variable) {
     m_graph->get_network()->set_variable(name, variable);
 }
 
@@ -656,7 +675,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
     if (is_remote) {
-        m_plugin_inputs[name] = user_tensor_wrapper;
+        if (convert_needed) {
+            m_plugin_inputs[name] = { create_device_tensor(pshape,
+                                                           cldnn::element_type_to_data_type(element_type),
+                                                           false), TensorOwner::PLUGIN };
+        } else {
+            m_plugin_inputs[name] = user_tensor_wrapper;
+        }
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
         if (element_type != cldnn::element_type_to_data_type(element_type)) {
             m_plugin_inputs[name] = {std::make_shared<RemoteTensorImpl>(m_context,
@@ -734,18 +759,21 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote) {
-        if (convert_needed) {
-            convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
+    if (!is_remote && !convert_needed) {
+        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
+        if (!same_host_mem(memory, src_ptr)) {
+            ret_event = memory->copy_from(stream, src_ptr, false);
+        }
+    }
+    if (convert_needed) {
+        if (is_remote) {
+            convert_and_copy(remote_ptr->get_memory(), device_tensor->get_memory(), stream);
         } else {
-            auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
-            if (!same_host_mem(memory, src_ptr)) {
-                ret_event = memory->copy_from(stream, src_ptr, false);
-            }
+            convert_and_copy(user_tensor.get(), device_tensor.get(), stream);
         }
     }
 
-    GPU_DEBUG_TRACE_DETAIL << name << " prepare input: " << memory->buffer_ptr() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << name << " prepare input: " << memory->buffer_ptr() << " alloc_type: " << memory->get_allocation_type() << std::endl;
     const cldnn::primitive_id internal_name = "parameter:" + name;
     network->set_input_data(internal_name, memory);
 
