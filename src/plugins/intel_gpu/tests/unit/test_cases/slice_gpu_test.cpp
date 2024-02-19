@@ -61,7 +61,7 @@ public:
     // Runs all test cases for given params.
     void RunAllTestCasesForParams(const SliceTestParams& params) {
         RunTestCase(params, false);
-        //RunTestCase(params, true);
+        RunTestCase(params, true);
     }
 
     // Allocates tensoer with given shape and data.

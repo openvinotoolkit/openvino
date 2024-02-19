@@ -78,20 +78,25 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     }
 
     kernel_arguments_data get_arguments(const slice_inst& instance) const override {
-        kernel_selector::slice_params* compile_params =
-            dynamic_cast<kernel_selector::slice_params*>(_kernel_data.params.get());
-
         kernel_arguments_data args;
+
+        const slice_node* node = instance.node;
+
+        const auto& inputs = node->get_dependencies();
+
+        const bool axes_in_runtime_time = ((inputs.size() == InputIndices::kInputsNum) && !inputs[InputIndices::kAxes].first->is_constant());
+        const bool start_in_runtime = axes_in_runtime_time || inputs[InputIndices::kStart].first->is_dynamic();
+        const bool step_in_runtime = axes_in_runtime_time || inputs[InputIndices::kStep].first->is_dynamic();
 
         args.inputs.push_back(instance.input_memory_ptr(0));
 
-        if (compile_params->compile_time_start.empty())
+        if (start_in_runtime)
             args.inputs.push_back(instance.input_memory_ptr(1));
 
-        if (compile_params->compile_time_step.empty())
+        if (step_in_runtime)
             args.inputs.push_back(instance.input_memory_ptr(3));
 
-        if (compile_params->compile_time_axes.empty())
+        if (axes_in_runtime_time)
             args.inputs.push_back(instance.input_memory_ptr(4));
 
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
