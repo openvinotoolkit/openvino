@@ -168,10 +168,10 @@ inline void disallow_pooling_start_in_padding(const Strides& stride,
     // Ensure the last pooling doesn't start in padding.
     const bool is_padding = std::any_of(pads_begin.begin(),
                                         pads_begin.end(),
-                                        [](int i) {
+                                        [](size_t i) {
                                             return i != 0;
                                         }) &&
-                            std::any_of(pads_end.begin(), pads_end.end(), [](int i) {
+                            std::any_of(pads_end.begin(), pads_end.end(), [](size_t i) {
                                 return i != 0;
                             });
     if (is_padding && (stride[i] * dim.get_length() > data_dim->get_length() + pads_begin[i] + pads_end[i])) {
