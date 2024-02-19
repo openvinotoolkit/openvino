@@ -2,6 +2,14 @@
 
 OpenVINO uses caches to accelerate builds and tests while minimizing network usage.
 
+## Table of Contents
+
+* [Available Caches](#available-caches)
+* [GitHub Actions Cache](#github-actions-cache)
+* [Shared Drive Cache](#shared-drive-cache)
+* [Cloud Storage via Azure Blob Storage](#cloud-storage-via-azure-blob-storage)
+
+
 ## Available Caches
 
 Three types of caches are available:
@@ -74,7 +82,7 @@ Refer to the [actions/cache documentation](https://github.com/actions/cache) for
 This cache is used to store dependencies and large assets, such as models and datasets,
 that will be used by different workflow jobs.
 
-**NOTE**: This cache is enabled for Linux [self-hosted runners](./runners.md) only.
+>**NOTE**: This cache is enabled for Linux [self-hosted runners](./runners.md) only.
 
 The drive is available on self-hosted machines. To make it available inside [the Docker containers](./docker_images.md),
 add the mounting point under the `container`'s `volumes` key in a job configuration:
@@ -110,7 +118,7 @@ To add new resources, contact a member of the CI team for assistance.
 This cache is used for sharing OpenVINO build artifacts between runs.
 The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and download build files to/from [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs).
 
-**NOTE**: This cache is enabled for [self-hosted runners](./runners.md) only.
+>**NOTE**: This cache is enabled for [self-hosted runners](./runners.md) only.
 
 `sccache` requires several configurations to work:
 * Installation. Refer to the [sccache installation](#sccache-installation) section.

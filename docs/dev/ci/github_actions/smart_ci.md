@@ -14,7 +14,22 @@ containing the feature implementation.
 This document describes the Smart CI implementation in OpenVINO GitHub Actions pre-commit
 workflows and provides instructions on how to add or modify its rules.
 
-*NOTE*: Basic understanding of [GitHub Actions workflows](https://docs.github.com/en/actions) is required.
+>**NOTE**: Basic understanding of [GitHub Actions workflows](https://docs.github.com/en/actions) is required.
+
+## Table of Contents
+
+* [Implementation](#implementation)
+* [Configuration of Smart CI Rules](#configuration-of-smart-ci-rules)
+  * [Product Components Definition: .github/labeler.yml](#product-components-definition:=.github/labeler.yml)
+  * [Definition of Dependencies between Components: .github/components.yml](#definition-of-dependencies-between-components:-.github/components.yml)
+  * [Specifics of Pipeline Behavior](#specifics-of-pipeline-behavior)
+* [How to Contribute](#how-to-contribute)
+  * [Adding a New Component](#adding-a-new-component)
+  * [Adding Validation for a Component](#adding-validation-for-a-component)
+  * [Adding Support for Smart CI to a Workflow](#adding-support-for-smart-ci-to-a-workflow)
+  * [Skipping an Entire Workflow for Specific Changes](#skipping-an-entire-workflow-for-specific-changes)
+  * [Adding Smart CI for Components Outside the OpenVINO Repository](#adding-smart-ci-for-components-outside-the-openvino-repository)
+
 
 ## Implementation
 
@@ -267,7 +282,7 @@ After that, you can refer to the outputs from Smart_CI in validation jobs, as de
 [Adding validation for a component](#adding-validation-for-a-component) section. To learn more about the syntax of
 GitHub Actions Workflows, see the [workflows](https://docs.github.com/en/actions/using-workflows/about-workflows) page.
 
-### Skipping the Entire Workflow for Specific Changes
+### Skipping an Entire Workflow for Specific Changes
 
 To skip entire workflows based on specific conditions, you can use the
 [paths-ignore](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushpull_requestpull_request_targetpathspaths-ignore)

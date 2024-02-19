@@ -1,10 +1,22 @@
-# How to add Tests
+# How to add Tests to GitHub Actions CI
 
 The OpenVINO repository has [many workflows](./../../../../.github/workflows), which contain
 jobs for building and testing OpenVINO. Their general and structural overview is
 available in the [OpenVINO GitHub Actions CI page](./overview.md).
 
 This document explains how to add tests to existing workflows and create new workflows.
+
+## Table of Contents
+
+* [Adding Tests to Existing Workflow](#adding-tests-to-existing-workflow)
+  * [Adding Tests to Existing Test Suite](#adding-tests-to-existing-test-suite)
+  * [Creating a Step in a Job](#creating-a-step-in-a-job)
+  * [Creating a New Job](#creating-a-new-job)
+  * [Creating a Workflow](#creating-a-workflow)
+* [Test Time and Usage](#test-time-and-usage)
+  * [Adding a Step](#adding-a-step)
+  * [Adding a Job](#adding-a-job)
+  * [Adding a Workflow](#adding-a-workflow)
 
 ## Adding Tests to Existing Workflow
 

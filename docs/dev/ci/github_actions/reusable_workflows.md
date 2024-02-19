@@ -67,7 +67,7 @@ In the OpenVINO GitHub Actions CI, reusable workflows typically have:
 * the `container` input represented as a JSON, which is converted to the value of the "container" configuration for the job. Learn more about [using Docker in the workflows](./docker_images.md)
 * *Optional* the `affected-components` input, indicating components affected by changes in the commit defined by the Smart CI Action. Learn more about the [Smart CI system](./smart_ci.md)
 
-*NOTE*: All workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows) according to the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows).
+>**NOTE**: All workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows) according to the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows).
 
 Since reusable workflows are structured and behave like jobs, you can refer to the [adding tests page](./adding_tests.md) to learn more about creating a job and
 use the information about the reusable workflows to transform a job into a reusable workflow.
