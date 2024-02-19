@@ -6245,3 +6245,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
     test_case.add_input<float>(Shape{2}, {-0.5f, 24.33f});
     test_case.add_expected_output<float>(Shape{2}, {-0.15428598f, 24.f});
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
+    auto model = convert_model("mish.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.8079f, -0.2892f, 2.0915f,  12.5101f, -1.8837f, 0.2586f, 2.9528f,  0.001f,
+                                6.0296f, -1.0745f, -0.2703f, 1.319f,   -3.3607f, 0.1434f, -8.4590f, 0.0f,
+                                2.7608f, 0.3126f,  0.3f,     3.0f,     7.6919f,  0.5859f, -11.992f, -37.8f});
+
+    test_case.add_expected_output<float>({1.737521f,  -0.146684f, 2.041557f,  12.5101f,   -0.264820f, 0.176079f,
+                                          2.938304f,  0.0006f,    6.029531f,  -0.306873f, -0.138725f, 1.206575f,
+                                          -0.114629f, 0.092553f,  -0.001792f, 0.0f,       2.741334f,  0.217909f,
+                                          0.208001f,  2.986535f,  7.691896f,  0.453058f,  -0.000074f, 0.0f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}

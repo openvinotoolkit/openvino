@@ -1555,9 +1555,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     ov::element::Type kvcache_precision;
     auto rtPrecision = getRuntimePrecision();
-    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) && rtPrecision != ov::element::bf16;
+    auto kvCachePrecisionHint = context->getConfig().kvCachePrecision;
+    bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
+        rtPrecision != ov::element::bf16 && kvCachePrecisionHint == ov::element::f16;
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
-    bool use_int8_kv_cache_precision = false;
+    bool use_int8_kv_cache_precision = kvCachePrecisionHint == ov::element::u8;
     if (use_int8_kv_cache_precision)
         kvcache_precision = ov::element::u8;
     else

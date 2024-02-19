@@ -1,4 +1,4 @@
-🤗 Hugging Face Model Hub with OpenVINO™
+Hugging Face Model Hub with OpenVINO™
 =========================================
 
 The Hugging Face (HF) `Model Hub <https://huggingface.co/models>`__ is a
@@ -129,7 +129,7 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
       return self.fget.__get__(instance, owner)()
 
 
@@ -268,7 +268,7 @@ Converting a Model Using the Optimum Intel Package
 
 
 
-🤗 Optimum Intel is the interface between the 🤗 Transformers and
+Optimum Intel is the interface between the Transformers and
 Diffusers libraries and the different tools and libraries provided by
 Intel to accelerate end-to-end pipelines on Intel architectures.
 
@@ -343,14 +343,14 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. parsed-literal::
 
-    2024-01-25 23:14:43.057378: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:14:43.091971: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 23:10:50.826096: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 23:10:50.861099: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:14:43.657635: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:10:51.428729: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Initialize and Convert the Model Automatically using OVModel class
@@ -478,7 +478,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-01-25 23:14:55.440371: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:11:03.409282: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -490,6 +490,7 @@ Full list of supported arguments available via ``--help``
                                        [--int8]
                                        [--weight-format {fp32,fp16,int8,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}]
                                        [--ratio RATIO] [--disable-stateful]
+                                       [--convert-tokenizer]
                                        output
 
     optional arguments:
@@ -506,21 +507,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['stable-diffusion', 'audio-xvector', 'text-
-                            classification', 'automatic-speech-recognition',
-                            'image-segmentation', 'audio-classification',
-                            'multiple-choice', 'image-to-text', 'stable-diffusion-
-                            xl', 'zero-shot-image-classification', 'text-to-
-                            audio', 'fill-mask', 'object-detection', 'image-to-
-                            image', 'mask-generation', 'image-classification',
-                            'feature-extraction', 'semantic-segmentation', 'text-
-                            generation', 'question-answering', 'conversational',
-                            'zero-shot-object-detection', 'masked-im', 'sentence-
-                            similarity', 'audio-frame-classification', 'text2text-
-                            generation', 'depth-estimation', 'token-
-                            classification']. For decoder models, use `xxx-with-
-                            past` to export the model using past key values in the
-                            decoder.
+                            ['sentence-similarity', 'object-detection', 'question-
+                            answering', 'text-to-audio', 'audio-xvector', 'stable-
+                            diffusion-xl', 'feature-extraction', 'image-to-image',
+                            'text-generation', 'mask-generation', 'text-
+                            classification', 'image-segmentation', 'automatic-
+                            speech-recognition', 'text2text-generation', 'stable-
+                            diffusion', 'audio-classification', 'semantic-
+                            segmentation', 'fill-mask', 'depth-estimation', 'zero-
+                            shot-image-classification', 'image-to-text', 'zero-
+                            shot-object-detection', 'multiple-choice',
+                            'conversational', 'image-classification', 'masked-im',
+                            'audio-frame-classification', 'token-classification'].
+                            For decoder models, use `xxx-with-past` to export the
+                            model using past key values in the decoder.
       --cache_dir CACHE_DIR
                             Path indicating where to store cache.
       --framework {pt,tf}   The framework to use for the export. If not provided,
@@ -558,6 +558,8 @@ Full list of supported arguments available via ``--help``
                             a stateless model, for example, to be compatible with
                             existing OpenVINO native inference code that expects
                             kv-cache inputs and outputs in the model.
+      --convert-tokenizer   Add converted tokenizer and detokenizer with OpenVINO
+                            Tokenizers
 
 
 The command line export for model from example above with FP16 weights
@@ -578,7 +580,7 @@ compression:
 
 .. parsed-literal::
 
-    2024-01-25 23:14:59.738992: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:11:07.691775: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -593,7 +595,7 @@ compression:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
       return self.fget.__get__(instance, owner)()
 
 
@@ -658,13 +660,20 @@ Model inference is exactly the same as for the original model!
     3) negative 0.0031
 
 
-You can find more examples of using Optimum Intel here:
-
-1. `Accelerate Inference of Sparse Transformer Models <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/116-sparsity-optimization>`__
-2. `Grammatical Error Correction with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/214-grammar-correction>`__
-3. `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-optimum-demo.ipynb>`__
-4. `Image generation with Stable Diffusion XL <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/248-stable-diffusion-xl>`__
-5. `Instruction following using Databricks Dolly 2.0 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/240-dolly-2-instruction-following>`__
-6. `Create LLM-powered Chatbot using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot>`__
-7. `Document Visual Question Answering Using Pix2Struct and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/260-pix2struct-docvqa>`__
-8. `Automatic speech recognition using Distil-Whisper and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/267-distil-whisper-asr>`__
+You can find more examples of using Optimum Intel here: 1. `Accelerate
+Inference of Sparse Transformer
+Models <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/116-sparsity-optimization>`__
+2. `Grammatical Error Correction with
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/214-grammar-correction>`__
+3. `Stable Diffusion v2.1 using Optimum-Intel
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-optimum-demo.ipynb>`__
+4. `Image generation with Stable Diffusion
+XL <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/248-stable-diffusion-xl>`__
+5. `Instruction following using Databricks Dolly
+2.0 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/240-dolly-2-instruction-following>`__
+6. `Create LLM-powered Chatbot using
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot>`__
+7. `Document Visual Question Answering Using Pix2Struct and
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/260-pix2struct-docvqa>`__
+8. `Automatic speech recognition using Distil-Whisper and
+OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/267-distil-whisper-asr>`__

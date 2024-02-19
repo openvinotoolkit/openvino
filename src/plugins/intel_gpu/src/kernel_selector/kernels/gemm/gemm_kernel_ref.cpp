@@ -28,11 +28,12 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDynamicShapesSupport();
+    k.EnableIndirectGemm();
 
     return k;
 }
 
-DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& params) const {
     return DeviceFeaturesKey();
 }
 
@@ -103,16 +104,16 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
     return jit;
 }
 
-KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData GemmKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
-bool GemmKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool GemmKernelRef::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     // int8 validation
