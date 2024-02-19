@@ -217,7 +217,7 @@ and **KV-cache quantization**.
 
     model = OVModelForCausalLM.from_pretrained(
         model_path,
-        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32"}
+        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
     )
 
 
@@ -231,7 +231,7 @@ and **KV-cache quantization**.
 
     model = OVModelForCausalLM.from_pretrained(
         model_path,
-        ov_config={"KV_CACHE_PRECISION": "u8"}
+        ov_config={"KV_CACHE_PRECISION": "u8", "DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
     )
 
 
