@@ -22,7 +22,7 @@ This document explains how to add tests to existing workflows and create new wor
 
 ### Adding Tests to Existing Test Suite
 
-If the new tests could be executed as part of the existing test suite, for example,
+If the new tests can be executed as part of the existing test suite, for example,
 new OVC Python API tests, there is no need to change the workflows.
 The added tests will automatically run in the corresponding step.
 
