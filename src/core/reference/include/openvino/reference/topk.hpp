@@ -30,7 +30,7 @@ inline bool compare_indices_ascending(const std::tuple<T, U>& a, const std::tupl
 }
 
 /**
- * @brief Reference implementation fo TopK operator
+ * @brief Reference implementation for TopK operator
  *
  * @param arg         Pointer to input data.
  * @param out_indices Pointer to output indicies.
@@ -42,7 +42,9 @@ inline bool compare_indices_ascending(const std::tuple<T, U>& a, const std::tupl
  * @param compute_max Select mode of find max or min.
  * @param sort        Sorting type.
  */
-template <typename T, typename U>
+template <typename T,
+          typename U,
+          typename std::enable_if<std::is_same<typename std::decay<U>::type, int64_t>::value>::type* = nullptr>
 void topk(const T* arg,
           U* out_indices,
           T* out_values,
@@ -58,6 +60,21 @@ void topk(const T* arg,
     const auto out_strides = row_major_strides(out_shape);
     const auto in_axis_stride = in_strides[axis];
     const auto out_axis_stride = out_strides[axis];
+
+    const auto cmp_func = compute_max ? compare_max<true, T, U> : compare_max<false, T, U>;
+
+    typename std::decay<decltype(cmp_func)>::type sort_func;
+    switch (sort) {
+    case op::TopKSortType::SORT_INDICES:
+        sort_func = compare_indices_ascending<T, U>;
+        break;
+    case op::TopKSortType::SORT_VALUES:
+        sort_func = cmp_func;
+        break;
+    default:
+        sort_func = nullptr;
+        break;
+    }
 
     // Iterate over elements with 0 index at "axis" dimension
     auto traverse_shape = in_shape;
@@ -75,21 +92,6 @@ void topk(const T* arg,
             ++i;
         }
 
-        const auto cmp_func = compute_max ? compare_max<true, T, U> : compare_max<false, T, U>;
-
-        typename std::decay<decltype(cmp_func)>::type sort_func;
-        switch (sort) {
-        case op::TopKSortType::SORT_INDICES:
-            sort_func = compare_indices_ascending<T, U>;
-            break;
-        case op::TopKSortType::SORT_VALUES:
-            sort_func = cmp_func;
-            break;
-        default:
-            sort_func = nullptr;
-            break;
-        }
-
         std::nth_element(workspace.begin(), workspace.begin() + k, workspace.end(), cmp_func);
         if (sort_func) {
             std::sort(workspace.begin(), workspace.begin() + k, sort_func);
@@ -102,6 +104,40 @@ void topk(const T* arg,
             out_index += out_axis_stride;
         }
     }
+}
+
+/**
+ * @brief Reference implementation for TopK operator
+ *
+ * @param arg         Pointer to input data.
+ * @param out_indices Pointer to output indicies.
+ * @param out_values  Pointer to output values.
+ * @param in_shape    Input data shape.
+ * @param out_shape   Output data (values, indicies) shape.
+ * @param axis        Axis for search of top K elements.
+ * @param k           Number to find of top elements.
+ * @param compute_max Select mode of find max or min.
+ * @param sort        Sorting type.
+ */
+template <typename T,
+          typename U,
+          typename std::enable_if<!std::is_same<typename std::decay<U>::type, int64_t>::value>::type* = nullptr>
+void topk(const T* arg,
+          U* out_indices,
+          T* out_values,
+          const Shape& in_shape,
+          const Shape& out_shape,
+          const size_t axis,
+          const size_t k,
+          const bool compute_max,
+          const op::TopKSortType sort = op::TopKSortType::NONE) {
+    const auto out_count = shape_size(out_shape);
+    auto temp_out_indices = std::vector<int64_t>(out_count);
+
+    topk(arg, temp_out_indices.data(), out_values, in_shape, out_shape, axis, k, compute_max, sort);
+
+    for (auto i = out_count; i-- > 0;)
+        out_indices[i] = static_cast<U>(temp_out_indices[i]);
 }
 }  // namespace reference
 }  // namespace ov
