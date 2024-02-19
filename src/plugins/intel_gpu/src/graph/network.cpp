@@ -423,7 +423,9 @@ void network::set_arguments() {
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
                 auto prim = dep.first->get_impl_params()->desc;
-                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || prim->type == read_value::type_id()))
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
+                                                      dep.first->output_memory_ptr() == nullptr ||
+                                                      prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
