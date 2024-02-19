@@ -15,7 +15,7 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_template_plugin
         LINK_LIBRARIES
-            openvino::funcSharedTests
+            funcSharedTests
             openvino::runtime::dev
         INCLUDES
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
