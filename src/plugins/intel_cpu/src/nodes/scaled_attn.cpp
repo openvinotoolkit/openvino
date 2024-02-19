@@ -258,13 +258,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return dnnl_dims;
     }
 
-    void prepare_multiquery_prim(dnnl::stream strm,
-                                 PlainTensor& query,
-                                 PlainTensor& present_key,
-                                 bool has_out_transpose) {
-        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
-        if (qkv_dt != dt::bf16)
-            OPENVINO_THROW("Brgemm multi-query kernel only supports BF16");
+    void prepare_bf16_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key, bool has_out_transpose) {
+        auto qkv_dt = dt::bf16;
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -332,20 +327,22 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return;
     }
 
-    void prepare_prim(dnnl::stream strm,
-                      PlainTensor& query,
-                      PlainTensor& present_key,
-                      PlainTensor& present_value,
-                      size_t B,
-                      size_t H,
-                      size_t Hk,
-                      size_t q_len,
-                      size_t kv_len,
-                      size_t S,
-                      bool has_out_transpose) {
+    void prepare_fp32_prim(dnnl::stream strm,
+                           PlainTensor& query,
+                           PlainTensor& present_key,
+                           PlainTensor& present_value,
+                           size_t B,
+                           size_t H,
+                           size_t Hk,
+                           size_t q_len,
+                           size_t kv_len,
+                           size_t S,
+                           bool has_out_transpose) {
         auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
         dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, query.get_strides<dnnl::memory::dim>());
-        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_key.get_strides<dnnl::memory::dim>());
+        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}),
+                                    qkv_dt,
+                                    present_key.get_strides<dnnl::memory::dim>());
         if (cur_q_md == q_md && cur_k_md == k_md)
             return;
 
@@ -357,7 +354,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         qk_prim = dnnl::matmul(qk_pd);
 
         weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
-        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_value.get_strides<dnnl::memory::dim>());
+        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}),
+                                  qkv_dt,
+                                  present_value.get_strides<dnnl::memory::dim>());
         out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
         if (has_out_transpose)
             out_md = out_md.permute_axes({0, 2, 1, 3});
@@ -370,15 +369,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
     }
 
-    void exec_multiquery(PlainTensor& query,
-                         PlainTensor& present_key,
-                         PlainTensor& present_value,
-                         const PlainTensor& alibi_mask,
-                         const PlainTensor& attention_mask,
-                         PlainTensor& output_emb,
-                         bool has_out_transpose,
-                         bool auto_causal,
-                         float d_scale = 0.0f) {
+    void execute_bf16(PlainTensor& query,
+                      PlainTensor& present_key,
+                      PlainTensor& present_value,
+                      const PlainTensor& alibi_mask,
+                      const PlainTensor& attention_mask,
+                      PlainTensor& output_emb,
+                      bool has_out_transpose,
+                      bool auto_causal,
+                      float d_scale = 0.0f) {
         const auto B = query.size(0);
         const auto H = query.size(1);
         const auto q_len = query.size(2);
@@ -515,20 +514,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        if (is_multi_query) {
-            prepare_multiquery_prim(strm, query, present_key, has_out_transpose);
-            exec_multiquery(query,
-                            present_key,
-                            present_value,
-                            alibi_mask,
-                            attention_mask,
-                            output_emb,
-                            has_out_transpose,
-                            auto_causal,
-                            d_scale);
+        if (precision_of<T>::value == ov::element::bf16) {
+            prepare_bf16_prim(strm, query, present_key, has_out_transpose);
+            execute_bf16(query,
+                         present_key,
+                         present_value,
+                         alibi_mask,
+                         attention_mask,
+                         output_emb,
+                         has_out_transpose,
+                         auto_causal,
+                         d_scale);
             return;
         }
-        prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
+        prepare_fp32_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
         exec_qk(strm, query, present_key);
 
         PlainTensor score;
