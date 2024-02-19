@@ -14,7 +14,7 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
         assert len(inputs_info) % 2 == 0, "Number of inputs should be divisible by 2."
         data_input_cnt = len(inputs_info)//2
         for i in range(1, data_input_cnt + 1):
-            indices_in_name = "indices{}".format(i)
+            indices_in_name = "indices{}:0".format(i)
             assert indices_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(indices_in_name)
             indices_shape = inputs_info[indices_in_name]
             num_elements = num_elements + np.prod(indices_shape, dtype=int)
@@ -28,8 +28,8 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
         idx = 0
         for i in range(1, data_input_cnt + 1):
-            data_in_name = "data{}".format(i)
-            indices_in_name = "indices{}".format(i)
+            data_in_name = "data{}:0".format(i)
+            indices_in_name = "indices{}:0".format(i)
             assert data_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(data_in_name)
             data_shape = inputs_info[data_in_name]
             indices_shape = inputs_info[indices_in_name]

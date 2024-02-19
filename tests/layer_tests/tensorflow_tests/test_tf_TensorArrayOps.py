@@ -19,13 +19,13 @@ def create_tensor_array(data_shape, data_type):
 
 class TestTensorArraySizeV3(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info
-        assert 'indices' in inputs_info
-        data_shape = inputs_info['data']
+        assert 'data:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        data_shape = inputs_info['data:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['data'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
-        inputs_data['indices'] = rng.permutation(self.size).astype(np.int32)
+        inputs_data['data:0'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
+        inputs_data['indices:0'] = rng.permutation(self.size).astype(np.int32)
         return inputs_data
 
     def create_tensor_array_size_v3(self, data_shape, data_type):
@@ -60,14 +60,14 @@ class TestTensorArraySizeV3(CommonTFLayerTest):
 
 class TestTensorArrayReadV3(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info
-        assert 'indices' in inputs_info
-        data_shape = inputs_info['data']
+        assert 'data:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        data_shape = inputs_info['data:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['data'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
-        inputs_data['index_to_read'] = rng.integers(0, data_shape[0], []).astype(np.int32)
-        inputs_data['indices'] = rng.permutation(self.size).astype(np.int32)
+        inputs_data['data:0'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
+        inputs_data['index_to_read:0'] = rng.integers(0, data_shape[0], []).astype(np.int32)
+        inputs_data['indices:0'] = rng.permutation(self.size).astype(np.int32)
         return inputs_data
 
     def create_tensor_array_read_v3(self, data_shape, data_type):
@@ -104,17 +104,17 @@ class TestTensorArrayReadV3(CommonTFLayerTest):
 
 class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info
-        assert 'indices' in inputs_info
-        assert 'value_to_write' in inputs_info
-        data_shape = inputs_info['data']
-        value_shape = inputs_info['value_to_write']
+        assert 'data:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        assert 'value_to_write:0' in inputs_info
+        data_shape = inputs_info['data:0']
+        value_shape = inputs_info['value_to_write:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['data'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
-        inputs_data['value_to_write'] = rng.integers(-10, 10, value_shape).astype(self.data_type)
+        inputs_data['data:0'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
+        inputs_data['value_to_write:0'] = rng.integers(-10, 10, value_shape).astype(self.data_type)
         indices_data = rng.permutation(self.size).astype(np.int32)
-        inputs_data['indices'] = np.delete(indices_data, np.where(indices_data == self.index_to_write))
+        inputs_data['indices:0'] = np.delete(indices_data, np.where(indices_data == self.index_to_write))
         return inputs_data
 
     def create_tensor_array_write_v3(self, size, data_shape, data_type, index_to_write, indices_to_gather,
@@ -170,13 +170,13 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
 
 class TestTensorArrayConcatV3(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info
-        assert 'indices' in inputs_info
-        data_shape = inputs_info['data']
+        assert 'data:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        data_shape = inputs_info['data:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['data'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
-        inputs_data['indices'] = rng.permutation(self.size).astype(np.int32)
+        inputs_data['data:0'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
+        inputs_data['indices:0'] = rng.permutation(self.size).astype(np.int32)
         return inputs_data
 
     def create_tensor_array_concat_v3(self, data_shape, data_type):

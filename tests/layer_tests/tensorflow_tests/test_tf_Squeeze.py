@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSqueeze(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
 
         return inputs_data
 
@@ -114,13 +114,13 @@ class TestSqueeze(CommonTFLayerTest):
 class TestComplexSqueeze(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape_1 = inputs_info['param_real']
-        param_imag_shape_1 = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real:0']
+        param_imag_shape_1 = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_squeeze_net(self, input_shape, axis):

@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnique(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape)
         return inputs_data
 
     def create_unique_net(self, x_shape, data_type, out_idx):

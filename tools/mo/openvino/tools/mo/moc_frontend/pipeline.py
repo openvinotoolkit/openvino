@@ -181,7 +181,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             node = None
             # look for the certain place in user_shapes
             for node_cur in user_shapes:
-                if node_cur.get('input_name') == name:
+                if node_cur.get('input_name') == name or node_cur.get('input_name') == name + ":0":
                     node = node_cur
                     break
             if node is None:

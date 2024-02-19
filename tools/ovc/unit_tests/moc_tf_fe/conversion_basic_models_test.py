@@ -76,8 +76,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             #         None
             # ),
             (
-                    "x",
-                    {"x": np.array([[-3, 20, 1]], dtype=np.int32)},
+                    "x:0",
+                    {"x:0": np.array([[-3, 20, 1]], dtype=np.int32)},
                     np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
                     np.int32,
                     None
@@ -125,12 +125,12 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     @generate(
         *[
             (
-                    {"x": np.array([1, 2], dtype=np.int32), "y": np.array([4], dtype=np.int32)},
+                    {"x:0": np.array([1, 2], dtype=np.int32), "y:0": np.array([4], dtype=np.int32)},
                     np.array([-3, -2], dtype=np.int32),
                     np.int32,
             ),
             (
-                    {"x": np.array([20, 25], dtype=np.int32), "y": np.array([10], dtype=np.int32)},
+                    {"x:0": np.array([20, 25], dtype=np.int32), "y:0": np.array([10], dtype=np.int32)},
                     np.array([30, 35], dtype=np.int32),
                     np.int32,
             )
@@ -144,15 +144,15 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             # new frontend
             (
                     "model_add_with_undefined_constant.pbtxt",
-                    ("x", [2, 3]),
-                    {"x": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
+                    ("x:0", [2, 3]),
+                    {"x:0": np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32)},
                     np.array([[12, 13, 10], [11, 14, 16]], dtype=np.float32),
                     np.float32
             ),
             (
                     "model_mul_with_undefined_constant.pbtxt",
-                    ("x", [2]),
-                    {"x": np.array([11, -12], dtype=np.int32)},
+                    ("x:0", [2]),
+                    {"x:0": np.array([11, -12], dtype=np.int32)},
                     np.array([0, 0], dtype=np.int32),
                     np.int32
             ),

@@ -218,19 +218,19 @@ class TestMul(CommonTFLayerTest):
 class TestComplexMul(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real_1' in inputs_info
-        assert 'param_imag_1' in inputs_info
-        assert 'param_real_2' in inputs_info
-        assert 'param_imag_2' in inputs_info
-        param_real_shape_1 = inputs_info['param_real_1']
-        param_imag_shape_1 = inputs_info['param_imag_1']
-        param_real_shape_2 = inputs_info['param_real_2']
-        param_imag_shape_2 = inputs_info['param_imag_2']
+        assert 'param_real_1:0' in inputs_info
+        assert 'param_imag_1:0' in inputs_info
+        assert 'param_real_2:0' in inputs_info
+        assert 'param_imag_2:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real_1:0']
+        param_imag_shape_1 = inputs_info['param_imag_1:0']
+        param_real_shape_2 = inputs_info['param_real_2:0']
+        param_imag_shape_2 = inputs_info['param_imag_2:0']
         inputs_data = {}
-        inputs_data['param_real_1'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag_1'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        inputs_data['param_real_2'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
-        inputs_data['param_imag_2'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
+        inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real_2:0'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
+        inputs_data['param_imag_2:0'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_mul_net(self, input_shape):

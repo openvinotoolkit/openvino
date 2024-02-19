@@ -12,12 +12,12 @@ rng = np.random.default_rng()
 
 class TestLookupTableFindOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'keys' in inputs_info, "Test error: inputs_info must contain `x`"
-        keys_shape = inputs_info['keys']
+        assert 'keys:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        keys_shape = inputs_info['keys:0']
         inputs_data = {}
         if np.issubdtype(self.keys_type, np.integer):
             data = rng.choice(self.all_keys, keys_shape)
-            inputs_data['keys'] = mix_array_with_value(data, self.invalid_key)
+            inputs_data['keys:0'] = mix_array_with_value(data, self.invalid_key)
         else:
             raise "Unsupported type {}".format(self.keys_type)
 

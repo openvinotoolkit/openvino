@@ -14,10 +14,9 @@ class TestNonMaxSuppression(CommonTFLayerTest):
 
     # overload inputs generation to suit NMS use case
     def _prepare_input(self, inputs_dict):
-        channel = ':0' if not self.use_legacy_frontend else ''
         input_data = {}
         for input in inputs_dict.keys():
-            input_data[input + channel] = np.random.uniform(low=0, high=1,
+            input_data[input] = np.random.uniform(low=0, high=1,
                                                             size=inputs_dict[input]).astype(np.float32)
         return input_data
 
