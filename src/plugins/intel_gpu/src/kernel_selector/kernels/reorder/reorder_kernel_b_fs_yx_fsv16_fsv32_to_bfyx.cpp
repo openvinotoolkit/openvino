@@ -39,7 +39,7 @@ ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_blocked_read_write();
@@ -157,16 +157,16 @@ JitConstants ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetJitConstants(const re
     return jit;
 }
 
-KernelsData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::REORDER);
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const optional_params& o) const {
-    if (!ReorderKernelBase::Validate(p, o)) {
+bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p) const {
+    if (!ReorderKernelBase::Validate(p)) {
         return false;
     }
 
@@ -201,7 +201,7 @@ bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const 
     return true;
 }
 
-KernelsPriority ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsPriority(const Params& p, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetKernelsPriority(const Params& p) const {
     const reorder_params& params = static_cast<const reorder_params&>(p);
     const auto& input = params.inputs[0];
 

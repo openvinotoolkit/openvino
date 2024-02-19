@@ -149,27 +149,3 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
     auto m = std::make_shared<pattern::Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-ov::pass::AddOldApiMapToParameters::AddOldApiMapToParameters() {
-    MATCHER_SCOPE(AddOldApiMapToParameters);
-    auto param_pattern = pattern::wrap_type<ov::op::v0::Parameter>();
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto node = pattern_map.at(param_pattern).get_node_shared_ptr();
-
-        auto param_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node);
-        if (!param_node)
-            return false;
-        auto p_type = param_node->get_element_type();
-        if (p_type == ov::element::f32 || p_type == ov::element::f64) {
-            ov::set_old_api_map_element_type(node, ov::OldApiMapElementType(ov::element::Type_t::f16));
-        } else {
-            return false;
-        }
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(param_pattern, matcher_name);
-    this->register_matcher(m, callback);
-}

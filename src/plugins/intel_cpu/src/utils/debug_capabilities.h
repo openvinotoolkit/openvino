@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #ifdef CPU_DEBUG_CAPS
 
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <chrono>
+#include <regex>
 
 #include "onednn/dnnl.h"
+#include "nodes/node_config.h"
 #include <dnnl_debug.h>
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/model.hpp"
@@ -44,7 +47,9 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
+class Graph;
 class IMemory;
+
 class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
@@ -89,8 +94,12 @@ public:
     }
 };
 
+std::ostream & operator<<(std::ostream & os, const PortConfig& desc);
+std::ostream & operator<<(std::ostream & os, const NodeConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
+std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
+std::ostream & operator<<(std::ostream & os, const Shape& shape);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const IMemory& mem);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
@@ -105,6 +114,8 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtype);
 std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
 std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
+
+void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message = "");
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
@@ -160,10 +171,11 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 /*
  * important debugging tools for accuracy issues
- *   OV_CPU_INFER_PRC_TYPES : comma separated list of node types for which infer-precision is enforced
+ *   OV_CPU_INFER_PRC_POS_PATTERN : positive regex pattern to filter node type & orgname.
+ *   OV_CPU_INFER_PRC_NEG_PATTERN : negative regex pattern to filter after pos-pattern was matched.
  *   OV_CPU_INFER_PRC_CNT   : number of nodes totally allowed to enforced
  * adjust these two settings until accuracy issue happens/disappears
- * from the log we can spot the first node having issue when enabled f16
+ * from the log we can spot the node having issue when enabled bf16/f16
  */
 struct EnforceInferPrcDebug {
     std::string safe_getenv(const char* name, const char* default_value = "") {
@@ -174,25 +186,80 @@ struct EnforceInferPrcDebug {
         return value;
     }
 
-    std::string nodeTypes = safe_getenv("OV_CPU_INFER_PRC_TYPES", "");
+    bool pattern_verbose;
+    const char* str_pos_pattern;
+    const char* str_neg_pattern;
+    std::regex pos_pattern;
+    std::regex neg_pattern;
+    std::map<std::string, std::vector<std::string>> all_enabled_nodes;
     int count_limit = atoi(safe_getenv("OV_CPU_INFER_PRC_CNT", "9999999").c_str());
     int count = 0;
 
-    bool enabled(std::string type, std::string name) {
-        if (nodeTypes.size() == 0)
-            return true;
-        auto idx = nodeTypes.find(type + ",");
-        if (idx != std::string::npos) {
-            // negative pattern
-            if (idx > 0 && nodeTypes[idx-1] == '-')
-                return false;
-            if (count < count_limit) {
-                std::cout << " infer precision enforced: [" << count << "/" << count_limit << "] : " << type << " " << name << std::endl;
-                count++;
-                return true;
-            }
+    EnforceInferPrcDebug() {
+        str_pos_pattern = std::getenv("OV_CPU_INFER_PRC_POS_PATTERN");
+        str_neg_pattern = std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN");
+        if (str_pos_pattern || str_neg_pattern) {
+            pattern_verbose = true;
+        } else {
+            pattern_verbose = false;
         }
-        return false;
+        if (str_pos_pattern)
+            pos_pattern = std::regex(str_pos_pattern);
+        if (str_neg_pattern)
+            neg_pattern = std::regex(str_neg_pattern);
+    }
+
+    ~EnforceInferPrcDebug() {
+        if (pattern_verbose) {
+            if (str_pos_pattern)
+                std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << std::endl;
+            if (str_neg_pattern)
+                std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << std::endl;
+            std::cout << "infer precision enforced Types: ";
+            size_t total_cnt = 0;
+            for (auto& ent : all_enabled_nodes) {
+                std::cout << ent.first << ",";
+                total_cnt += ent.second.size();
+            }
+            std::cout << "  total number of nodes: " << total_cnt << std::endl;
+            for (auto& ent : all_enabled_nodes) {
+                std::cout << ent.first << " : " << std::endl;
+                for (auto& name : ent.second) {
+                    std::cout << "\t" << name << std::endl;
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    bool enabled(std::string type, std::string name, std::string org_names) {
+        std::string tag = type + "@" + org_names;
+        std::smatch match;
+        bool matched = true;
+        // filter using pos pattern
+        if (str_pos_pattern) {
+            matched = std::regex_search(tag, match, pos_pattern);
+        }
+        // filter using neg pattern
+        if (matched && str_neg_pattern) {
+            matched = !std::regex_search(tag, match, neg_pattern);
+        }
+
+        // limit by CNT
+        if (matched && count > count_limit) {
+            matched = false;
+        }
+
+        if (matched) {
+            auto it = all_enabled_nodes.find(type);
+            if (it == all_enabled_nodes.end()) {
+                all_enabled_nodes.insert({type, {tag}});
+            } else {
+                it->second.push_back(tag);
+            }
+            count++;
+        }
+        return matched;
     }
 };
 

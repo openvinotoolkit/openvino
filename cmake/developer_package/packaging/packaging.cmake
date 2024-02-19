@@ -73,7 +73,7 @@ endfunction()
 #
 # ov_cpack_add_component(NAME ...)
 #
-# Wraps original `cpack_add_component` and adds component to internal IE list
+# Wraps original `cpack_add_component` and adds component to internal OV list
 #
 function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)

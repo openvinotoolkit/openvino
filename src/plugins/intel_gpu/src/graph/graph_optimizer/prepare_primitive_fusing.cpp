@@ -513,6 +513,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
+            auto gemm_prim = node.get_primitive();
+            for (size_t idx = 0; idx < gemm_prim->output_order.size(); ++idx) {
+                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_order[idx]);
+                if (idx != output_order_idx) {
+                    does_support_fusings = false;
+                    break;
+                }
+            }
+
             return does_support_fusings;
         };
 
@@ -552,6 +561,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
+            // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
                   !_lo.get_optimization_attributes().use_onednn_impls) ||

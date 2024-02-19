@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,10 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "shape_validation.hpp"
@@ -272,9 +274,7 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
 }
 
 void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::descriptor::set_tensor_type(get_output_descriptor(i).get_tensor(), element_type, pshape);
 }
 
 std::string ov::Node::description() const {
@@ -400,14 +400,14 @@ ostream& operator<<(ostream& out, const Node* node) {
 }  // namespace ov
 
 std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) const {
-    if (depth == 0) {
-        out << get_friendly_name();
-    } else {
-        auto version = get_type_info().version_id;
-        if (version)
-            out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
-        else
-            out << get_type_info().name << " " << get_friendly_name() << " (";
+    auto version = get_type_info().version_id;
+    if (version)
+        out << version << "::" << get_type_info().name << " " << get_friendly_name();
+    else
+        out << get_type_info().name << " " << get_friendly_name();
+
+    if (depth > 0) {
+        out << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
@@ -508,16 +508,18 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     return true;
 }
 
+namespace ov {
+bool is_used(Node* node);
+}
+
 ov::NodeVector ov::Node::get_users(bool check_is_used) const {
     NodeVector result;
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
             Node* input_node = input.get_node();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!check_is_used || ngraph::is_used(input_node)) {
+            if (!check_is_used || is_used(input_node)) {
                 result.push_back(input_node->shared_from_this());
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -528,20 +530,6 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     ss << "While validating node '" << *node << "' with friendly_name '" << node->get_friendly_name() << '\'';
     return ss.str();
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
-    OPENVINO_ASSERT(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
-    return node;
-}
-
-const ov::NodeVector& ngraph::check_single_output_args(const ov::NodeVector& args) {
-    for (size_t i = 0; i < args.size(); ++i) {
-        ngraph::check_single_output_arg(args.at(i), i);
-    }
-    return args;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,

@@ -4,30 +4,20 @@
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/reorder.h"
 #include "nodes/input.h"
 #include "nodes/transpose.h"
+
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace ov::intel_cpu;
 
-/*
- * MergeTransposeReorderIsOptimizedCPUTest to test the CPU plugin-in MergeTransposeReorder graph optimizer
- * under the circumstance that the upstream node or downstream node is inPlaced thereby the inserted Reorder
- * cannot be optimized.
- */
-class MergeTransposeReorderIsOptimizedCPUTest : public ::testing::Test {
-public:
-    void Validate() const {
-        CheckTransposeCount(0);
-        CheckReorderOptimized(std::string("_fake"), false);  // the fused node is of name "reshape_abcd_acdb_fake"
-    }
-
-    void SetUp() override {
-        CreateGraph();
-    }
-
+class MergeTransposeReordersCPUTest : public ::testing::Test {
 protected:
     /*  graph typology
                 --------- 
@@ -56,7 +46,7 @@ protected:
                 |Output |
                 ---------
     */
-    void CreateGraph() {
+    void CreateGraph(int num_consumers, int consumer_in_place_direction) {
         //
         Config conf;
         conf.rtCacheCapacity = 100;
@@ -70,7 +60,9 @@ protected:
         auto order = std::vector<int32_t>{0, 3, 1, 2};
         auto constOrder = ov::test::utils::deprecated::make_constant(ov::element::i32, {order.size()}, order);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder);
-        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
+        ov::ResultVector results;
+        for (int i = 0; i < num_consumers; i++)
+            results.push_back(std::make_shared<ov::op::v0::Result>(transpose));
 
         // Replicate
         auto replicate = [&](std::vector<NodePtr> &nodes, std::vector<EdgePtr> &edges) -> void {
@@ -94,18 +86,28 @@ protected:
             auto transposeNode = std::make_shared<node::Transpose>(transpose, context);
             transposeNode->filterSupportedPrimitiveDescriptors();
 
-            // dummy nspc + inPlace LOOK_DOWN
-            const ov::Shape shape_tranpose{testShape[0], testShape[3], testShape[1], testShape[2]};  // shape after transpose
-            auto dummyNode2 = std::make_shared<cpu_unit_test::DummyNode>(
-                shape_tranpose, testPrec, "multiply", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_DOWN);
-
-            auto outputNode = std::make_shared<node::Input>(results[0], context);
 
             addEdge(inputNode, dummyNode1, 0, 0);
             addEdge(dummyNode1, transposeNode, 0, 0);
             addEdge(orderNode, transposeNode, 0, 1);
-            addEdge(transposeNode, dummyNode2, 0, 0);
-            addEdge(dummyNode2, outputNode, 0, 0);
+
+            // dummy nspc + inPlace LOOK_DOWN
+            const ov::Shape shape_tranpose{testShape[0],
+                                           testShape[3],
+                                           testShape[1],
+                                           testShape[2]};  // shape after transpose
+            for (int i = 0; i < num_consumers; i++) {
+                auto dummyConsumer = std::make_shared<cpu_unit_test::DummyNode>(shape_tranpose,
+                                                                                testPrec,
+                                                                                "multiply",
+                                                                                "DummyNode",
+                                                                                context,
+                                                                                LayoutType::nspc,
+                                                                                consumer_in_place_direction);
+                auto outputNode = std::make_shared<node::Input>(results[i], context);
+                addEdge(transposeNode, dummyConsumer, 0, 0);
+                addEdge(dummyConsumer, outputNode, 0, 0);
+            }
 
             for (auto &node : nodesSet) nodes.emplace_back(node);
         };
@@ -145,13 +147,43 @@ protected:
         ASSERT_EQ(1, actualCount);
     }
 
-private:
+protected:
     const ov::element::Type_t testPrec = ov::element::Type_t::f32;
     const ov::Shape testShape{1, 3, 8, 16};
 
     std::unique_ptr<Graph> m_graph;
-}; // class MergeTransposeReorderIsOptimizedCPUTest
+}; // class MergeTransposeReordersCPUTest
 
-TEST_F(MergeTransposeReorderIsOptimizedCPUTest, smoke_Run_MergeTransposeReorder_isOptimized) {
-    Validate();
+// upstream node or downstream node is inPlaced thereby the inserted Reorder cannot be optimized.
+TEST_F(MergeTransposeReordersCPUTest, smoke_Run_MergeTransposeReorders_isOptimized) {
+    CreateGraph(1, Edge::LOOK::LOOK_DOWN);
+    CheckTransposeCount(0);
+    CheckReorderOptimized(std::string("_fake"), false);  // the fused node is of name "reshape_abcd_acdb_fake"
+}
+
+// 3 non-inplace consumers share a single optimized reorder fused with Transpose
+TEST_F(MergeTransposeReordersCPUTest, smoke_Run_MergeTransposeReorders_shared) {
+    CreateGraph(3, 0);
+    CheckTransposeCount(0);
+    CheckReorderOptimized(std::string("_fake"), true);
+}
+
+// 3 inplace consumers cannot share reorders thus transpose is not fused with reorders
+// there will be also 3 reorders between 3 dummyNode-consumers and 3 Result nodes
+TEST_F(MergeTransposeReordersCPUTest, smoke_Run_MergeTransposeReorders_notFused) {
+    CreateGraph(3, Edge::LOOK::LOOK_DOWN);
+    CheckTransposeCount(1);
+    size_t reorderCount = 0;
+    for (auto& node : m_graph->GetNodes()) {
+        auto reorder_node = std::dynamic_pointer_cast<node::Reorder>(node);
+        if (reorder_node) {
+            // there should be no "_fake" reorders generated by merging transpose + reorder
+            ASSERT_EQ(node->getName().find("_fake"), std::string::npos);
+            reorderCount++;
+        }
+    }
+
+    // 3 for layout conflist between [transpose => dummyConsumer]
+    // 3 for layout conflist between [dummyConsumer => result]
+    ASSERT_EQ(6, reorderCount);
 }

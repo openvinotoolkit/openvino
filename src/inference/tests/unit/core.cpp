@@ -12,7 +12,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "dev/core_impl.hpp"
-#include "file_utils.h"
 #include "openvino/op/relu.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -57,7 +56,7 @@ TEST(CoreTests_get_plugin_path_from_xml, Use_abs_path_as_is) {
 
 TEST(CoreTests_get_plugin_path_from_xml, Convert_relative_path_as_relative_to_xmldir) {
     auto xml_path = "path_to_plugins.xml";
-    auto lib_path = FileUtils::makePath(std::string("."), std::string("test_name.ext"));  // ./test_name.ext
+    auto lib_path = ov::util::make_path(std::string("."), std::string("test_name.ext"));  // ./test_name.ext
     for (auto as_abs_only : std::vector<bool>{true, false}) {
         auto abs_path = from_file_path(get_plugin_path(lib_path, xml_path, as_abs_only));  // XMLDIR/test_name.ext
         EXPECT_TRUE(is_absolute_file_path(abs_path));
@@ -73,7 +72,7 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_
     auto abs_path = from_file_path(get_plugin_path(name, xml_path, true));  // XMLDIR/libtest_name.ext.so
     EXPECT_TRUE(is_absolute_file_path(abs_path));
 
-    auto lib_name = FileUtils::makePluginLibraryName({}, std::string(name));
+    auto lib_name = ov::util::make_plugin_library_name({}, std::string(name));
     auto ref_path = ov::util::get_absolute_file_path(lib_name);
     EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());  // XMLDIR/libtest_name.ext.so == CWD/libtest_name.ext.so
 }
@@ -82,12 +81,12 @@ TEST(CoreTests_get_plugin_path_from_xml, Use_filename_if_not_as_abs_only) {
     auto xml_path = "path_to_plugins.xml";
     auto name = "test_name.ext";                                      // test_name.ext
     auto lib_name = from_file_path(get_plugin_path(name, xml_path));  // libtest_name.ext.so
-    auto ref_name = FileUtils::makePluginLibraryName({}, std::string(name));
+    auto ref_name = ov::util::make_plugin_library_name({}, std::string(name));
     EXPECT_STREQ(lib_name.c_str(), ref_name.c_str());
 }
 
 TEST(CoreTests_get_plugin_path, Use_abs_path_as_is) {
-    auto lib_name = FileUtils::makePluginLibraryName({}, std::string("test_name"));  // libtest_name.so
+    auto lib_name = ov::util::make_plugin_library_name({}, std::string("test_name"));  // libtest_name.so
     auto lib_path = ov::util::get_absolute_file_path(lib_name);
     auto abs_path = from_file_path(get_plugin_path(lib_path));
     EXPECT_TRUE(is_absolute_file_path(abs_path));
@@ -95,7 +94,8 @@ TEST(CoreTests_get_plugin_path, Use_abs_path_as_is) {
 }
 
 TEST(CoreTests_get_plugin_path, Relative_path_is_from_workdir) {
-    auto lib_name = FileUtils::makePluginLibraryName(std::string("."), std::string("test_name"));  // ./libtest_name.so
+    auto lib_name =
+        ov::util::make_plugin_library_name(std::string("."), std::string("test_name"));  // ./libtest_name.so
     auto abs_path = from_file_path(get_plugin_path(lib_name));
     EXPECT_TRUE(is_absolute_file_path(abs_path));
     EXPECT_STREQ(abs_path.c_str(), get_absolute_file_path(lib_name).c_str());
@@ -114,8 +114,8 @@ public:
         std::remove(lib_path.c_str());
     }
 
-    std::string lib_name = FileUtils::makePluginLibraryName({}, std::string("test_name"));  // libtest_name.so
-    std::string lib_path = ov::util::get_absolute_file_path(lib_name);                      // CWD/libtest_name.so
+    std::string lib_name = ov::util::make_plugin_library_name({}, std::string("test_name"));  // libtest_name.so
+    std::string lib_path = ov::util::get_absolute_file_path(lib_name);                        // CWD/libtest_name.so
 };
 
 TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
@@ -129,7 +129,7 @@ TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     auto abs_path = from_file_path(get_plugin_path(lib_name));  // libtest_name.ext.so -> libtest_name.ext.so
     EXPECT_FALSE(is_absolute_file_path(abs_path));
 
-    auto ref_path = FileUtils::makePluginLibraryName({}, std::string(lib_name));
+    auto ref_path = ov::util::make_plugin_library_name({}, std::string(lib_name));
     EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());
 }
 
@@ -405,7 +405,7 @@ public:
 
 // Tested function: apply_auto_batch
 TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
-    ov::CoreImpl core(true);
+    ov::CoreImpl core;
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
     ov::Output<ov::Node> intermediate = input->output(0);
     for (size_t i = 0; i < 100; ++i)

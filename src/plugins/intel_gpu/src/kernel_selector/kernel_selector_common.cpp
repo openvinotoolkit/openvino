@@ -371,6 +371,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::is_os_yx_osv8_isv4:                          return "IS_OS_YX_OSV8_ISV4";
         case WeightsLayout::is_os_yx_osa8_isv16_osv4:                    return "IS_OS_YX_OSA8_ISV16_OSV4";
         case WeightsLayout::os_is_yx_isa8_osv8_isv2:                     return "OS_IS_YX_ISA8_OSV8_ISV2";
+        case WeightsLayout::os_is_yx_isa8_osv16_isv2:                    return "OS_IS_YX_ISA8_OSV16_ISV2";
+        case WeightsLayout::os_is_zyx_isa8_osv16_isv2:                   return "OS_IS_ZYX_ISA8_OSV16_ISV2";
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:                   return "OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::os_zyxi_osv16:                               return "OS_ZYXI_OSV16";
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:                    return "OS_IS_YX_ISV8_OSV16_ISV2";
@@ -383,6 +385,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv2_isv16:                         return "OS_IS_YX_OSV2_ISV16";
         case WeightsLayout::os_is_yx_osv2_isv32:                         return "OS_IS_YX_OSV2_ISV32";
         case WeightsLayout::os_is_yx_osv4_isv16:                         return "OS_IS_YX_OSV4_ISV16";
+        case WeightsLayout::os_is_yx_osv8_isv16:                         return "OS_IS_YX_OSV8_ISV16";
+        case WeightsLayout::os_is_yx_osv4_isv2:                         return "OS_IS_YX_OSV4_ISV2";
         case WeightsLayout::os_is_zyx_osv8_isv2:                         return "OS_IS_ZYX_OSV8_ISV2";
         case WeightsLayout::goiyx:                                       return "GOIYX";
         case WeightsLayout::gioyx:                                       return "GIOYX";
@@ -608,10 +612,8 @@ std::string toString_v2(const DataTensor& tensor) {
     std::stringstream s;
     s << toString(tensor.GetDType()) << "_";
     s << toString(tensor.GetLayout());
-    int i = 0;
     for (auto dim : tensor.GetDims()) {
         s << "_v" << dim.v << "_p" << dim.pad.before << "_" << dim.pad.after;
-        i++;
     }
     return s.str();
 }

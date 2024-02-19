@@ -15,7 +15,7 @@ namespace node {
 
 class ScaledDotProductAttention : public Node {
 public:
-    ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ScaledDotProductAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
@@ -34,7 +34,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     void createPrimitive() override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
 
@@ -59,7 +59,8 @@ private:
 
     struct Executor {
         virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
-                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
+                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
+                             const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
     };
 
     Config m_config;
@@ -69,8 +70,6 @@ private:
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
-
-    PlainTensor m_tmp_reorder;
 };
 
 }  // namespace node

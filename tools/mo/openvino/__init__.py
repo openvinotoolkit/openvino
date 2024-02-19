@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-# API 2.0
+# OpenVINO API
 try:
     # Import all public modules
     from openvino import runtime as runtime
@@ -20,7 +20,7 @@ try:
     from openvino import helpers as helpers
     from openvino import preprocess as preprocess
     from openvino import utils as utils
-    from openvino.runtime import properties as properties
+    from openvino import properties as properties
 
     # Import most important classes and functions from openvino.runtime
     from openvino.runtime import Model
@@ -46,6 +46,13 @@ try:
     from openvino.runtime import tensor_from_file
     from openvino.runtime import save_model
     from openvino.runtime import layout_helpers
+
+    from openvino._pyopenvino import RemoteContext
+    from openvino._pyopenvino import RemoteTensor
+
+    # libva related:
+    from openvino._pyopenvino import VAContext
+    from openvino._pyopenvino import VASurfaceTensor
 
     # Set version for openvino package
     from openvino.runtime import get_version

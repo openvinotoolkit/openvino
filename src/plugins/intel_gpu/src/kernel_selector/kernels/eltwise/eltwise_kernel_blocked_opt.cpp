@@ -62,15 +62,15 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     return k;
 }
 
-KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -90,13 +90,13 @@ KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params, cons
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
 // Protected
-bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
+    if (!EltwiseKernelBase::Validate(params)) {
         return false;
     }
 

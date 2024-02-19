@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Resets symbols / labels on output shapes and values according to table of symbol / label equivalence. It
  * allows to reduce number of labels used in the model and to disambiguate label values.
  */
@@ -26,7 +26,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Collects sources where each symbol / label initially appeared (on shape or shape sub-graph) and attaches all
  * value usages of this label to this initial source
  */

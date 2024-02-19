@@ -5,7 +5,6 @@
 #include "openvino/reference/roi_align.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "roi_align_shape_inference.hpp"
 

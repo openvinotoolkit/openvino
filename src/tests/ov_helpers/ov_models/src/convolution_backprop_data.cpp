@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,19 +13,19 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                  const ov::element::Type& type,
-                                                  const std::vector<size_t>& filterSize,
-                                                  const std::vector<size_t>& strides,
-                                                  const std::vector<ptrdiff_t>& padsBegin,
-                                                  const std::vector<ptrdiff_t>& padsEnd,
-                                                  const std::vector<size_t>& dilations,
-                                                  const op::PadType& autoPad,
-                                                  size_t numOutChannels,
-                                                  bool addBiases,
-                                                  const std::vector<ptrdiff_t>& outputPadding,
-                                                  const std::vector<float>& filterWeights,
-                                                  const std::vector<float>& biasesWeights) {
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::element::Type& type,
+                                                      const std::vector<size_t>& filterSize,
+                                                      const std::vector<size_t>& strides,
+                                                      const std::vector<ptrdiff_t>& padsBegin,
+                                                      const std::vector<ptrdiff_t>& padsEnd,
+                                                      const std::vector<size_t>& dilations,
+                                                      const ov::op::PadType& autoPad,
+                                                      size_t numOutChannels,
+                                                      bool addBiases,
+                                                      const std::vector<ptrdiff_t>& outputPadding,
+                                                      const std::vector<float>& filterWeights,
+                                                      const std::vector<float>& biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
     auto shape = in.get_partial_shape();
     std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
@@ -46,17 +46,17 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
                                        biasesWeights);
 }
 
-std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                  const ov::Output<Node>& weights,
-                                                  const ov::element::Type& type,
-                                                  const std::vector<size_t>& strides,
-                                                  const std::vector<ptrdiff_t>& padsBegin,
-                                                  const std::vector<ptrdiff_t>& padsEnd,
-                                                  const std::vector<size_t>& dilations,
-                                                  const op::PadType& autoPad,
-                                                  bool addBiases,
-                                                  const std::vector<ptrdiff_t>& outputPadding,
-                                                  const std::vector<float>& biasesWeights) {
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::Output<ov::Node>& weights,
+                                                      const ov::element::Type& type,
+                                                      const std::vector<size_t>& strides,
+                                                      const std::vector<ptrdiff_t>& padsBegin,
+                                                      const std::vector<ptrdiff_t>& padsEnd,
+                                                      const std::vector<size_t>& dilations,
+                                                      const ov::op::PadType& autoPad,
+                                                      bool addBiases,
+                                                      const std::vector<ptrdiff_t>& outputPadding,
+                                                      const std::vector<float>& biasesWeights) {
     auto deconv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(in,
                                                                         weights,
                                                                         strides,
@@ -86,20 +86,20 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
     }
 }
 
-std::shared_ptr<Node> makeConvolutionBackpropData(const ov::Output<Node>& in,
-                                                  const ov::Output<Node>& outputShape,
-                                                  const ov::element::Type& type,
-                                                  const std::vector<size_t>& filterSize,
-                                                  const std::vector<size_t>& strides,
-                                                  const std::vector<ptrdiff_t>& padsBegin,
-                                                  const std::vector<ptrdiff_t>& padsEnd,
-                                                  const std::vector<size_t>& dilations,
-                                                  const op::PadType& autoPad,
-                                                  size_t numOutChannels,
-                                                  bool addBiases,
-                                                  const std::vector<ptrdiff_t>& outputPadding,
-                                                  const std::vector<float>& filterWeights,
-                                                  const std::vector<float>& biasesWeights) {
+std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<ov::Node>& in,
+                                                      const ov::Output<ov::Node>& outputShape,
+                                                      const ov::element::Type& type,
+                                                      const std::vector<size_t>& filterSize,
+                                                      const std::vector<size_t>& strides,
+                                                      const std::vector<ptrdiff_t>& padsBegin,
+                                                      const std::vector<ptrdiff_t>& padsEnd,
+                                                      const std::vector<size_t>& dilations,
+                                                      const ov::op::PadType& autoPad,
+                                                      size_t numOutChannels,
+                                                      bool addBiases,
+                                                      const std::vector<ptrdiff_t>& outputPadding,
+                                                      const std::vector<float>& filterWeights,
+                                                      const std::vector<float>& biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
     auto shape = in.get_partial_shape();
     std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};

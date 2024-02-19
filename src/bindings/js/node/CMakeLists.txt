@@ -12,6 +12,14 @@ if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LES
     return()
 endif()
 
+if(WIN32)
+    set(CMAKE_JS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node.lib)
+    set(CMAKE_JS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/win_delay_load_hook.cc)
+
+    set(CMAKE_JS_NODELIB_DEF ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-lib.def)
+    set(CMAKE_JS_NODELIB_TARGET ${CMAKE_JS_LIB})
+endif()
+
 cmake_minimum_required(VERSION 3.14)
 
 project(ov_node_addon)
@@ -57,15 +65,22 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/addon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/element_type.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/partial_shape_wrap.cpp
+
+    ${CMAKE_JS_SRC}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     "${node-api-headers_SOURCE_DIR}/include"
     "${node-addon-api_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${CMAKE_JS_LIB})
+
+if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
+  # Generate node.lib
+  execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)

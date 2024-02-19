@@ -20,10 +20,8 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -147,7 +145,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -263,14 +261,6 @@ public:
     }
 };
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
-{                                                      \
-    try {                                              \
-        __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
-        GTEST_SKIP();                                  \
-    }                                                  \
-}
 } // namespace behavior
 } // namespace test
 } // namespace ov
