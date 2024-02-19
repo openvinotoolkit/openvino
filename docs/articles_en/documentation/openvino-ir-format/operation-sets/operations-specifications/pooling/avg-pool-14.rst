@@ -1,4 +1,4 @@
-.. {#openvino_docs_ops_pooling_AvgPool_1}
+.. {#openvino_docs_ops_pooling_AvgPool_14}
 
 AvgPool
 =======

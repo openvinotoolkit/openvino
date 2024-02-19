@@ -23,6 +23,7 @@ Operation Specifications
    Atan-1 <openvino_docs_ops_arithmetic_Atan_1>
    Atanh-3 <openvino_docs_ops_arithmetic_Atanh_3>
    AvgPool-1 <openvino_docs_ops_pooling_AvgPool_1>
+   AvgPool-14 <openvino_docs_ops_pooling_AvgPool_14>
    BatchNormInference-1 <openvino_docs_ops_normalization_BatchNormInference_1>
    BatchNormInference-5 <openvino_docs_ops_normalization_BatchNormInference_5>
    BatchToSpace-2 <openvino_docs_ops_movement_BatchToSpace_2>
@@ -127,6 +128,7 @@ Operation Specifications
    MatrixNms-8 <openvino_docs_ops_sort_MatrixNms_8>
    MaxPool-1 <openvino_docs_ops_pooling_MaxPool_1>
    MaxPool-8 <openvino_docs_ops_pooling_MaxPool_8>
+   MaxPool-14 <openvino_docs_ops_pooling_MaxPool_14>
    Maximum-1 <openvino_docs_ops_arithmetic_Maximum_1>
    Minimum-1 <openvino_docs_ops_arithmetic_Minimum_1>
    Mish-4 <openvino_docs_ops_activation_Mish_4>
