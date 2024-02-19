@@ -41,24 +41,43 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              ov::element::Type_t type) {
     using namespace kernel_selector;
 
-    if (!compile_time_param.empty()) {
+    const bool param_available_now = !compile_time_param.empty();
+    const bool axes_available_now = !compile_time_axes.empty();
+
+    if (param_available_now) {
+        jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
+    } else {
+        const std::string type_str = ovElementTypeToOCLStr(type);
+        jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
+    }
+
+    if (param_available_now && axes_available_now) {
         // Generate macros for compile_time_param available now and compile_time_axes available now.
         OPENVINO_ASSERT(compile_time_param.size() == compile_time_axes.size());
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-
         for (size_t i = 0; i < compile_time_axes.size(); ++i) {
             jit.AddConstant(
                 MakeJitConstant(name + "_DIM" + std::to_string(i), compile_time_param[compile_time_axes[i]]));
         }
-    } else {
+    } else if (!param_available_now && axes_available_now) {
         // Generate macros for case where only compile_time_axes is available now.
-        const std::string type_str = ovElementTypeToOCLStr(type);
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
-
         for (size_t i = 0; i < compile_time_axes.size(); ++i) {
             jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
                                             name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
         }
+    } else if (!param_available_now && !axes_available_now) {
+        // // Generate macros for case where only compile_time_axes is available now.
+        // const std::string type_str = ovElementTypeToOCLStr(type);
+        // jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name +
+        // "_buffer_ptr,"));
+
+        // for (size_t i = 0; i < compile_time_axes.size(); ++i) {
+        //     jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
+        //                                     name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
+        // }
+    } else {
+        OPENVINO_ASSERT(
+            false,
+            "[SliceKernelRef]: Situation where param is available now and axes not - shouldn't be possible...");
     }
 }
 
@@ -144,6 +163,8 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
                             params.compile_time_step,
                             params.compile_time_axes,
                             params.step_data_type);
+
+    jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
     return jit;
 }
 

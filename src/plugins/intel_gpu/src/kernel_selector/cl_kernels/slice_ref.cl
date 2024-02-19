@@ -11,6 +11,7 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
                   const __global INPUT0_TYPE* input,
                   SLICE_BEGIN_BUFFER
                   SLICE_STEP_BUFFER
+                  SLICE_AXES_BUFFER
                   __global OUTPUT_TYPE* output)
 {
     const long output_dim0 = get_global_id(0);
