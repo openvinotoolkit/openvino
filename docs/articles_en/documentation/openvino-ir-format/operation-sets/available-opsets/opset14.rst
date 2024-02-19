@@ -30,7 +30,7 @@ Table of Contents
 * :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>`
 * :doc:`Atan <openvino_docs_ops_arithmetic_Atan_1>`
 * :doc:`Atanh <openvino_docs_ops_arithmetic_Atanh_3>`
-* :doc:`AvgPool <openvino_docs_ops_pooling_AvgPool_14>`
+* :doc:`AvgPool <openvino_docs_ops_pooling_AvgPool_1>`
 * :doc:`BatchNormInference <openvino_docs_ops_normalization_BatchNormInference_5>`
 * :doc:`BatchToSpace <openvino_docs_ops_movement_BatchToSpace_2>`
 * :doc:`BinaryConvolution <openvino_docs_ops_convolution_BinaryConvolution_1>`
@@ -120,7 +120,7 @@ Table of Contents
 * :doc:`LSTMSequence <openvino_docs_ops_sequence_LSTMSequence_1>`
 * :doc:`MatMul <openvino_docs_ops_matrix_MatMul_1>`
 * :doc:`MatrixNMS <openvino_docs_ops_sort_MatrixNms_8>`
-* :doc:`MaxPool <openvino_docs_ops_pooling_MaxPool_14>`
+* :doc:`MaxPool <openvino_docs_ops_pooling_MaxPool_8>`
 * :doc:`Maximum <openvino_docs_ops_arithmetic_Maximum_1>`
 * :doc:`Minimum <openvino_docs_ops_arithmetic_Minimum_1>`
 * :doc:`Mish <openvino_docs_ops_activation_Mish_4>`
