@@ -15,6 +15,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
+void register_template_plugin(ov::Core& ov_core);
 ov::Core create_core(const std::string& target_device = "");
 
 class PluginCache {
@@ -29,6 +30,10 @@ public:
 
     PluginCache& operator=(const PluginCache&) = delete;
 
+    std::vector<std::string> get_core_registered_devices();
+
+    void set_core_registered_devices(std::vector<std::string> devices);
+
 private:
     PluginCache();
 
@@ -37,6 +42,7 @@ private:
     std::mutex g_mtx;
     bool disable_plugin_cache;
     std::shared_ptr<ov::Core> ov_core;
+    std::vector<std::string> core_registered_devices;
 };
 
 extern ov::AnyMap pluginConfig;
