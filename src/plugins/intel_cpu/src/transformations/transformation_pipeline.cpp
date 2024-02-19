@@ -113,6 +113,7 @@
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
+#include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
@@ -287,8 +288,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4};
-    // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions,
+        config.fcDynamicQuantizationGroupSize != 0);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
@@ -401,6 +402,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // To preserve correct math for integer division we need to insert explicit Floor operation.
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
+
+    CPU_REGISTER_PASS_COMMON(manager, PermuteSliceAndInterpolation);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(manager,
@@ -721,7 +725,7 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.threadsPerStream;
+    tokenization_config.concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
@@ -747,50 +751,51 @@ void Transformations::MainSnippets(void) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
-    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
 #if defined(OPENVINO_ARCH_X86_64)
-        auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
-            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-            if (!matmul)
-                return false;
-            const auto in_type0 = matmul->get_input_element_type(0);
-            const auto in_type1 = matmul->get_input_element_type(1);
-            if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
-                return true;
-            // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-            // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
-            if (matmul->get_transpose_a() || matmul->get_transpose_b())
-                return false;
-            // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-            // Big shapes may lead to perf degradation
-            const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-            const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-            if ((K.is_static() && K.get_length() > 512) || // heuristic values
-                (N.is_static() && N.get_length() > 256))
-                return false;
-            if (in_type0 == ov::element::i8)
-                return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
-            if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
-                ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
-                // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
-                // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
-                size_t bf16Factor = 2;
-                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-                    return K.is_static() && (K.get_length() % bf16Factor == 0) &&
-                           N.is_static() && (N.get_length() % bf16Factor == 0);
-                }
-                return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
-            }
+    auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
+        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+        if (!matmul)
+            return false;
+        const auto in_type0 = matmul->get_input_element_type(0);
+        const auto in_type1 = matmul->get_input_element_type(1);
+        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
             return true;
-        };
-        auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-            const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-            const auto is_unsupported_parallel_work_amount =
-                parallel_work_amount < tokenization_config.concurrency &&
-                !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
-            return is_unsupported_parallel_work_amount;
-        };
+        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
+        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
+        if (matmul->get_transpose_a() || matmul->get_transpose_b())
+            return false;
+        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
+        // Big shapes may lead to perf degradation
+        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
+        if ((K.is_static() && K.get_length() > 512) || // heuristic values
+            (N.is_static() && N.get_length() > 256))
+            return false;
+        if (in_type0 == ov::element::i8)
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
+            ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
+            // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
+            // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
+            size_t bf16Factor = 2;
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                return K.is_static() && (K.get_length() % bf16Factor == 0) &&
+                       N.is_static() && (N.get_length() % bf16Factor == 0);
+            }
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+        }
+        return true;
+    };
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
+        const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+        const auto is_unsupported_parallel_work_amount =
+            parallel_work_amount < tokenization_config.concurrency &&
+            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
+        return is_unsupported_parallel_work_amount;
+    };
 #endif // OPENVINO_ARCH_X86_64
+
+    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             // Tranformation callback is called on MatMul0
             if (!is_supported_matmul(n))

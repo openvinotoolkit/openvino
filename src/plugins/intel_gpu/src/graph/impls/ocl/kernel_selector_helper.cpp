@@ -1398,6 +1398,9 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
+
+    params.allowStaticInputReordering = config.get_property(ov::intel_gpu::optimize_data) || config.get_property(ov::intel_gpu::allow_static_input_reorder);
+    params.allowInputReordering = false;
 }
 
 void set_dynamic_shape_offsets(kernel_selector::params& params) {
@@ -1411,6 +1414,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
     const auto& output_layout = param_info.get_output_layout(0);
 
     params.is_shape_agnostic = is_shape_agnostic;
+    params.stage_id = 0;
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
@@ -1506,14 +1510,6 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
         params.compensation.push_back(
             convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
     }
-}
-
-void set_optional_params(const program& program, kernel_selector::optional_params& params) {
-    params.meaningfulKernelsNames = false;
-    params.allowStaticInputReordering = program.get_config().get_property(ov::intel_gpu::optimize_data) ||
-                                        program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
-    params.allowInputReordering = false;
-    params.allowOutputReordering = false;
 }
 
 }  // namespace cldnn

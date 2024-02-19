@@ -77,12 +77,12 @@ class TestComplexFFT(CommonTFLayerTest):
                        reason='Ticket - 126314')
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
                                ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         params = dict(input_shape=input_shape, shift_roll=shift_roll, axis_roll=axis_roll)
         self._test(
             *self.create_complex_fft_net(**params, fft_op=OPS[fft_op]),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, custom_eps=1e-2)
+            use_legacy_frontend=use_legacy_frontend, custom_eps=1e-2)
 
 
 class TestComplexAbs(CommonTFLayerTest):
@@ -121,11 +121,11 @@ class TestComplexAbs(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_abs_basic(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(
             *self.create_complex_abs_net(input_shape),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexRFFT(CommonTFLayerTest):
@@ -164,12 +164,12 @@ class TestComplexRFFT(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend):
+                                use_legacy_frontend):
         params = dict(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op])
         self._test(
             *self.create_complex_rfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexIRFFT(CommonTFLayerTest):
@@ -210,9 +210,9 @@ class TestComplexIRFFT(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         params = dict(input_shape=input_shape, fft_length=fft_length, irfft_op=OPS[irfft_op])
         self._test(
             *self.create_complex_irfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)

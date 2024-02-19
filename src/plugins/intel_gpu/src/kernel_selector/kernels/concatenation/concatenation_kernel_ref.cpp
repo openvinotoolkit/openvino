@@ -111,8 +111,8 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
     return cldnnJit;
 }
 
-KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    KernelsData kd = GetCommonKernelsData(params, optParams);
+KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params) const {
+    KernelsData kd = GetCommonKernelsData(params);
 
     if (!kd.empty()) {
         for (int i = 0; i < static_cast<int>(kd[0].kernels.size()); i++) {
@@ -129,7 +129,7 @@ KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const o
     return kd;
 }
 
-KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

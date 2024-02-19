@@ -15,8 +15,8 @@ class TestMinMaxOps(CommonTFLayerTest):
     # axis - array which points on axis for the operation
     # op_type - type of tested operation
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_minmax_ops_placeholder_const_net(self, input_shape, axis, op_type, keep_dims, ir_version, use_new_frontend):
+    # use_legacy_frontend - common parameter
+    def create_minmax_ops_placeholder_const_net(self, input_shape, axis, op_type, keep_dims, ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -59,8 +59,8 @@ class TestMinMaxOps(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_minmax_ops_placeholder_const(self, params, op_type, keep_dims, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_minmax_ops_placeholder_const_net(**params, op_type=op_type, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend, keep_dims=keep_dims),
+                                                          use_legacy_frontend=use_legacy_frontend, keep_dims=keep_dims),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
