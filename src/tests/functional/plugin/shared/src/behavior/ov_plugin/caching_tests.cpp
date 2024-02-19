@@ -203,6 +203,7 @@ void CompileModelCacheTestBase::TearDown() {
     } catch (...) {
        // do nothing
     }
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -309,6 +310,7 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -370,6 +372,7 @@ void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -481,6 +484,7 @@ void CompileModelLoadFromCacheTest::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -590,6 +594,7 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
     weights_vector.clear();
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -701,6 +706,7 @@ void CompiledKernelsCacheTest::SetUp() {
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 

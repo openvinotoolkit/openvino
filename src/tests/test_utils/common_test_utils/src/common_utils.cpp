@@ -49,6 +49,7 @@ std::string generateTestFilePrefix() {
         std::chrono::high_resolution_clock::now().time_since_epoch());
     ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
     testName = ss.str();
+    std::replace(testName.begin(), testName.end(), ':', '_');
     return testName;
 }
 
