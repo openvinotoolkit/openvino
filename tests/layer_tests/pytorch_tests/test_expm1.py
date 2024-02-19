@@ -57,5 +57,7 @@ class TestExpm1(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}
+            trace_model=True,
+            freeze_model=False,
+            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}        
         )
